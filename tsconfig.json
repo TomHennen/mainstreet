@@ -17,5 +17,5 @@
     "noEmit": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["engine", "vite.config.ts", "vitest.config.ts", "scripts"]
+  "include": ["engine", "studio", "vite.config.ts", "vitest.config.ts", "scripts"]
 }

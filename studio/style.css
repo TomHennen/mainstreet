@@ -1,0 +1,399 @@
+/*
+ * The studio wears the same clothes as the game (see /style.css): the night
+ * and frame greens, paper for text, maple for anything that wants a hand on
+ * it. Mobile first — one column, big targets — with a little more room given
+ * over to the canvas once there is a wide screen to give it.
+ */
+:root {
+  --night: #12160f;
+  --frame: #1d2b23;
+  --paper: #f3ead8;
+  --ink: #2a231a;
+  --maple: #b5542a;
+  --edge: #4c6b58;
+  --raised: #2f4437;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100%;
+  background: var(--frame);
+  color: var(--paper);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 0 14px calc(28px + env(safe-area-inset-bottom));
+  overscroll-behavior-y: none;
+}
+
+#top {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 14px 0 10px;
+  border-bottom: 1px solid rgba(243, 234, 216, 0.12);
+  margin-bottom: 14px;
+}
+
+#top a {
+  color: var(--maple);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+#here {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 17px;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+}
+
+h2 {
+  font-size: 12px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-bottom: 8px;
+}
+
+p {
+  margin-bottom: 8px;
+}
+
+.lede,
+.where,
+.guidance,
+.quiet {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.quiet {
+  opacity: 0.65;
+}
+
+.guidance {
+  color: #e0c08f;
+  opacity: 0.95;
+}
+
+.link,
+a.link {
+  color: var(--maple);
+}
+
+.masthead {
+  margin-bottom: 14px;
+}
+
+/* --- pickers --------------------------------------------------------------- */
+
+.cards {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.cards a {
+  display: block;
+  background: var(--night);
+  border: 2px solid var(--edge);
+  border-radius: 6px;
+  padding: 12px 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.cards a:hover,
+.cards a:focus-visible {
+  border-color: var(--maple);
+}
+
+.cards strong {
+  display: block;
+  color: var(--maple);
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.cards .quiet {
+  display: block;
+}
+
+.tag {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 11px;
+  border: 1px solid var(--edge);
+  border-radius: 20px;
+  padding: 1px 9px;
+  opacity: 0.85;
+}
+
+.tag.painted {
+  border-color: var(--maple);
+  color: #e0a171;
+}
+
+/* --- the canvas ------------------------------------------------------------ */
+
+/* A settled height rather than a range: the editor picks its zoom from the
+   room the stage has, so the room has to be the same before and after the
+   first canvas appears in it. */
+.stage {
+  background: var(--night);
+  border: 2px solid var(--edge);
+  border-radius: 6px;
+  overflow: auto;
+  height: 44vh;
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  margin-bottom: 6px;
+}
+
+#view {
+  display: block;
+  image-rendering: pixelated;
+  touch-action: none;
+  flex: none;
+  margin: auto;
+}
+
+.statusline {
+  min-height: 20px;
+  font-size: 11px;
+  opacity: 0.8;
+  margin-bottom: 12px;
+}
+
+/* --- controls -------------------------------------------------------------- */
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+button,
+.button {
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--paper);
+  background: var(--raised);
+  border: 2px solid var(--edge);
+  border-radius: 5px;
+  padding: 9px 11px;
+  min-height: 40px;
+  cursor: pointer;
+  touch-action: manipulation;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+button.on {
+  background: var(--maple);
+  border-color: #e0a171;
+}
+
+button.primary {
+  background: var(--maple);
+  border-color: #e0a171;
+  font-weight: 700;
+}
+
+kbd {
+  font-family: inherit;
+  font-size: 10px;
+  opacity: 0.55;
+  border: 1px solid rgba(243, 234, 216, 0.3);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+@media (pointer: coarse), (max-width: 719px) {
+  /* On a phone there is no keyboard to hint at, and the room is better spent
+     on the buttons themselves. */
+  kbd {
+    display: none;
+  }
+}
+
+.rows {
+  align-items: baseline;
+}
+
+.rows .quiet {
+  flex: 1 1 100%;
+}
+
+.palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+  gap: 4px;
+  margin: 10px 0 18px;
+}
+
+.swatch {
+  min-height: 0;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 2px solid rgba(0, 0, 0, 0.35);
+  border-radius: 4px;
+}
+
+.swatch.on {
+  border-color: var(--paper);
+  outline: 2px solid var(--maple);
+}
+
+/* --- files and sending ----------------------------------------------------- */
+
+.files,
+.send {
+  border-top: 1px solid rgba(243, 234, 216, 0.12);
+  padding-top: 14px;
+  margin-bottom: 18px;
+}
+
+.field {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.field span {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.field input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--paper);
+  background: var(--night);
+  border: 2px solid var(--edge);
+  border-radius: 5px;
+  padding: 10px;
+}
+
+.consent {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 12px;
+  line-height: 1.55;
+  margin-bottom: 12px;
+  background: var(--night);
+  border: 1px solid rgba(243, 234, 216, 0.12);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.consent input {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  margin-top: 1px;
+  accent-color: var(--maple);
+}
+
+.notice {
+  background: var(--night);
+  border: 2px solid var(--maple);
+  border-radius: 6px;
+  padding: 14px;
+  margin-bottom: 16px;
+  font-size: 12px;
+}
+
+.how {
+  border-top: 1px solid rgba(243, 234, 216, 0.12);
+  padding-top: 14px;
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.loading {
+  opacity: 0.7;
+}
+
+@media (min-width: 720px) {
+  body {
+    font-size: 14px;
+  }
+
+  .stage {
+    height: 56vh;
+    min-height: 320px;
+  }
+}
+
+/* With a wide screen the tools sit beside the drawing rather than under it,
+   so a swatch is never a scroll away from the canvas it paints. */
+@media (min-width: 900px) {
+  main.editing {
+    max-width: 1000px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+    grid-template-areas:
+      'head head'
+      'stage tools'
+      'status tools'
+      'files send'
+      'how how';
+    column-gap: 24px;
+    align-items: start;
+  }
+
+  .editing .masthead {
+    grid-area: head;
+  }
+  .editing .stage {
+    grid-area: stage;
+  }
+  .editing .statusline {
+    grid-area: status;
+  }
+  .editing .tools {
+    grid-area: tools;
+  }
+  .editing .files {
+    grid-area: files;
+  }
+  .editing .send {
+    grid-area: send;
+  }
+  .editing .how {
+    grid-area: how;
+  }
+}
