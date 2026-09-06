@@ -1,0 +1,44 @@
+{
+  "ui": {
+    "narrator": "You",
+    "advance": "▼ tap / A",
+    "unpainted": "{building} is here, unpainted — flat colour and a name on a sign, waiting for somebody to draw it. Adopt this building: {contribute}"
+  },
+  "intro": {
+    "speaker": "Route 10",
+    "lines": [
+      "Late summer in the western Catskills. Route 10 runs north to Jefferson and south to Hobart; Main Street here is Route 23.",
+      "Walk with the d-pad or the arrow keys. A — or space — talks, reads, and opens doors. Stewart's door actually opens.",
+      "The fellow out front looks like he's lost something."
+    ]
+  },
+  "transitions": {
+    "jefferson-stamford": {
+      "big": "ROUTE 10",
+      "small": "a few miles south — welcome to STAMFORD, Queen of the Catskills."
+    },
+    "stamford-jefferson": {
+      "big": "ROUTE 10",
+      "small": "leaving Stamford, past the roadside sign. A few miles north — JEFFERSON."
+    },
+    "stamford-hobart": {
+      "big": "ROUTE 10",
+      "small": "south out of the village, down along the West Branch — welcome to HOBART, Jewel of the West Branch."
+    },
+    "hobart-stamford": {
+      "big": "ROUTE 10",
+      "small": "back north up the West Branch — STAMFORD, Queen of the Catskills."
+    },
+    "enter:stewarts": {
+      "big": "STEWART'S",
+      "small": ""
+    },
+    "stewarts-exit": {
+      "big": "MAIN STREET",
+      "small": ""
+    }
+  },
+  "_todo": {
+    "stamford-jefferson": "DESIGN.md §5 open item: the real roadside sign leaving Stamford is believed to read something like 'please drive with equanimity', but the wording is UNVERIFIED. Tom is photographing it. The copy above is a deliberate placeholder that does not quote the sign."
+  }
+}

@@ -1,0 +1,226 @@
+# mainstreet — Design Document
+
+_Engine for small, episodic, pixel-art town games. First world: **Route 10**._
+
+## 1. Product shape
+
+- Browser game, static hosting, playable in ~20 minutes per session.
+- One new **episode** per week: a small story (find a thing, help someone,
+  choose between neighbors, witness an event). No mechanical depth — the
+  hooks are recognition (real places), continuity (NPCs remember flags from
+  prior episodes), and voice (wry, specific, affectionate flavor text).
+- Distribution model: a URL people revisit weekly, shared through local
+  Facebook groups / word of mouth. Episodes can react to the real calendar
+  (maple season, the fair, first snow).
+- Community model: locals contribute story ideas and art over time. Tom is
+  the editor; one editorial voice ships everything. Launch strategy is
+  **real names + placeholder art**: buildings carry their real names from
+  day one, art starts as engine placeholders and gets "filled in" by
+  community contributions. Unpainted buildings are visible, claimable tasks
+  ("adopt this building"), and painted ones carry an art credit.
+
+## 2. Architecture
+
+```
+mainstreet/
+  engine/            # Phaser 4 + TS. World-agnostic. The only code.
+  worlds/
+    route10/
+      world.json     # title, villages, palette ref, building registry, travel graph
+      maps/          # Tiled JSON, one map per village + one per interior
+      episodes/      # ep000.json, ep001.json ... (pure data)
+      assets/
+        tiles/       # tileset PNGs
+        buildings/   # <building-id>.png facades (tile-multiple sizes)
+        chars/       # <npc-id>.png sheets (16x32, 4 dir x 3 frames)
+        portraits/   # <npc-id>.png 96x96 dialogue busts
+      copy.json      # UI strings: title screen, travel-screen text per edge
+  prototype/         # route10-v3.html — behavioral reference only
+  scripts/           # validate-assets, validate-episodes
+```
+
+**Scenes:** Boot → Title → Village (one per map) → Interior → Travel
+interstitial (covers map swaps) → Dialogue UI overlaid on any scene.
+
+**Travel:** villages are separate Tiled maps joined by a travel graph in
+`world.json` (edge = exit zone → destination map + spawn point). Crossing an
+edge plays the interstitial: fade, rolling-road animation, per-edge copy from
+`copy.json` ("a few miles later — welcome to STAMFORD"). Leaving Stamford
+must show the real roadside sign (see §5 open items). Arrival cards use real
+village nicknames (see §5).
+
+**Interiors:** defined in world data (room map + counter/shelf collision +
+NPC placement), entered via building doors, exited via a door mat. Any
+building may gain an interior in a later episode with zero engine changes.
+
+**Saves:** localStorage, key `mainstreet.<worldId>`. Contents: global flags,
+per-episode flags, completed-episode list, last position. Never store
+anything else.
+
+**Fallback art (engine-built, not per-world):** unpainted building =
+flat facade in a neutral wall color + roof band + door + the building's name
+on a sign, plus a subtle "needs an artist" shimmer and an inspect line that
+links to the contribution page (URL in `world.json`). Missing NPC sheet =
+generic townsperson sprite in a per-NPC accent color. Missing portrait =
+no portrait pane.
+
+## 3. Episode schema (v1)
+
+Everything conditional is expressed with `requires` (all listed flags true)
+and `effects` (applied when the node is shown/consumed). No code in content.
+
+```jsonc
+{
+  "id": "ep000",
+  "title": "The Crossword Pen",
+  "flags": ["metEarl", "hasPen", "done"],          // declared, start false
+  "npcs": [
+    {
+      "id": "earl",
+      "name": "Earl",
+      "map": "stamford",
+      "pos": [34, 33],
+      "dialogue": [                                  // first matching entry wins
+        { "requires": ["done"],   "lines": ["Seventeen across: 'small kindness, nine letters.' I'm going to say it's you, kid."] },
+        { "requires": ["hasPen"], "lines": ["Ha — my pen! Knew I left it up at the pond.",
+                                             "Tell Hannah your coffee's on me."],
+          "effects": [{ "set": "done" }, { "toast": "Episode complete" }] },
+        { "requires": ["metEarl"], "lines": ["Bench by the mill pond, up in Jefferson. That's my puzzle spot."] },
+        { "requires": [],          "lines": ["'Morning. You're the new one, right?",
+                                             "Lost my crossword pen up at the pond Wednesday.",
+                                             "Forty years of Saturday puzzles. Would you look by the bench?"],
+          "effects": [{ "set": "metEarl" }] }
+      ]
+    }
+  ],
+  "items": [
+    { "id": "pen", "map": "jefferson", "pos": [9, 11],
+      "requires": ["metEarl"], "effects": [{ "set": "hasPen" }],
+      "lines": ["A fine ballpoint by the pond bench. This has to be Earl's."] }
+  ],
+  "signs": [                                         // flavor, may vary by flags
+    { "building": "mill-pond-inn", "requires": [],   // read at the door, with a prompt
+      "lines": ["Chalkboard: pizza night Monday and Wednesday. Underlined twice: RIBS SOLD OUT."] },
+    { "map": "stewarts-interior", "pos": [11, 4], "requires": [],   // a prop: no prompt
+      "lines": ["The ice cream case hums along beside the shelves."] }
+  ]
+}
+```
+
+A sign carries exactly one of `building` (read at that building's door, with
+the A prompt) or `map` + `pos` (a prop such as a shelf or a counter, examined by
+standing next to it, deliberately with no prompt).
+
+Engine responsibilities: declare-before-use flag validation, first-match
+dialogue resolution, effect application, sign lookup, item visibility.
+`validate-episodes` enforces: unknown flags, unreachable dialogue entries,
+missing maps/buildings/positions, effects on undeclared flags.
+
+Future (not v1): `"date"` conditions for calendar-reactive content;
+`"choice"` nodes; cross-episode flag imports (global flags already cover
+most continuity needs).
+
+## 4. Asset spec (give this to artists verbatim)
+
+- Pixel art. Grid: **16×16 px tiles**. PNG, transparency, **no anti-aliasing**.
+- **One fixed palette** shipped as `worlds/<id>/palette.png` (Route 10 starts
+  with Resurrect 64 until a custom Catskills palette is commissioned).
+  `validate-assets` rejects off-palette pixels.
+- Tilesets: sheets on the 16px grid.
+- Building facades: one PNG per building, dimensions in tile multiples
+  (e.g. 96×64). Filename = building id from `world.json`. **Width = the
+  footprint width in tiles × 16.** Height may exceed the footprint: art is
+  anchored to the bottom-left of the footprint, so any extra rows are drawn
+  above it — that is where a roof, an overhang or a sign goes.
+- Character sheets: 16×32 per frame; 4 directions × 3 walk frames; fixed
+  row order down, left, right, up.
+- Portraits: 96×96 bust on transparency.
+- Tools: Aseprite or Piskel (free, browser). Later: "Studio," a hosted
+  constrained editor (locked canvas + palette + submit) — out of scope now,
+  but nothing in the pipeline may preclude it.
+- Intake now: files land in the repo by PR/commit with credit in the commit
+  message → surfaced in-game as "painted by ___". Later: Cloudflare Worker
+  accepts uploads from Studio, validates, and opens a PR automatically.
+  Moderation = PR review. No database anywhere.
+
+## 5. Route 10 content facts (verified via search, Sep 2026)
+
+**Geography:** NY-10 runs north–south. Jefferson (Schoharie Co.) is at the
+north end; NY-10 runs south ~8 mi to Stamford (Delaware Co.), then continues
+south ~5 mi to Hobart. NY-23 crosses Stamford east–west, and Main Street in
+the village *is* Route 23: NY-10 comes down from the north, meets Main Street
+in the village, and carries on south toward Hobart. Stewart's sits on the
+northwest corner of that 10/23 intersection. East and west of the village,
+Route 23 simply runs on out of the map — no destinations there yet. Mill pond
+sits by the Mill Pond Inn in Jefferson. Mount Utsayantha and its lake are just
+NE of Stamford on Lake St — the Princess Utsayantha legend is strong
+future-episode material.
+
+**Nicknames (use on arrival cards):** Stamford — "Queen of the Catskills."
+Hobart — "Jewel of the West Branch."
+
+**Buildings** (id → notes for flavor/interiors):
+- `mill-pond-inn` (Jefferson): inn + tavern; wood-fired pizza nights Mon &
+  Wed; ribs sell out.
+- `jefferson-town-hall` (Jefferson): limited posted hours; board-agenda humor.
+- `heartbreak-hotel` (Jefferson): bar/restaurant (not lodging); famous
+  Saturday prime rib; reservations urged.
+- `middle-brook-cafe` (Jefferson, 170 Main St): café; pastry case empties by
+  noon; the vegan chocolate chip cookie has a reputation.
+- `stewarts` (Stamford, Lake St): gas/convenience/ice cream; opens ~4:30 AM;
+  "costs more than Dunkin" debate is canon. Has the first interior; counter
+  NPC **Hannah** (fictional, named for a praised real clerk — keep fictional).
+- `mac-a-doodles` (Stamford, 33 Harper St): seasonal ice cream/burger stand;
+  mac-n-cheese burger; pup cups.
+- `stamford-coffee` (Stamford, 79 Main St): coffee shop; Maple Smoke latte
+  (maple, liquid smoke, sea salt); attached Catskill Outpost shop.
+- `the-belvedere` (Stamford): "The Bel," dive-bar community space; bat signs
+  point to the patio; taco nights, movie nights, live music.
+- `cellar-door-wines` (Hobart): curated wine shop; owner Shaye's
+  recommendations are an institution.
+
+**Cast so far (fictional):** Earl — retired regular who holds court outside
+Stewart's, Saturday crossword devotee. Hannah — Stewart's counter.
+
+**Open items:**
+- The real roadside sign when leaving Stamford — wording believed to be
+  "please drive with equanimity" or similar; **unverified, Tom will
+  photograph it.** Use placeholder copy on that travel edge with a TODO.
+- Friendly heads-up conversations with named businesses before public
+  launch (Tom's task). Per-building fictional fallback names must be a
+  2-minute data change if anyone objects.
+- Custom palette commission; landmark facade + core cast commissions.
+
+## 6. Community & policy
+
+- Story intake: low-friction (site page, email; later Studio). Contributor
+  note: contributions are used/adapted with credit. Credit lines at episode
+  end ("this week's story from ___") and on painted buildings.
+- Real businesses: name + neutral/affectionate flavor only; opt-in for
+  speaking roles/interiors beyond flavor. Real people appear only by opt-in
+  ("get pixelated into Route 10").
+- Second world planned: `worlds/hs/` (private, friends-only; Cloudflare
+  Access email gate). It is the proof that engine/world separation works.
+  Nothing route10-specific may leak into the engine.
+
+## 7. Roadmap
+
+- **M0 — Feel check.** The smallest thing Tom can run and judge: `npm run dev`,
+  one playable build with the three villages, travel interstitials, ep000
+  from JSON, Stewart's interior, touch + keyboard input, placeholder art.
+  Simple array-based maps are fine (Tiled deferred). No CI, no tests beyond
+  what's needed to work, no devcontainer, no deploy — feel first, infra
+  after Tom signs off.
+- **M1 — Parity + foundations.** M0 hardened: Tiled maps replace array maps,
+  Vitest coverage for schema/loader/flags, validate-episodes script, GitHub
+  Actions (typecheck, tests, validation), devcontainer. (The public URL
+  already exists: GitHub Pages deploys `main` on every push, see
+  `.github/workflows/pages.yml`. Cloudflare Pages is deferred.)
+- **M2 — Pipeline.** Asset conventions live (drop a PNG → building painted),
+  validate-assets + validate-episodes in CI, art credits in-game, save/load
+  with episode completion, title screen.
+- **M3 — Launch.** Custom palette + commissioned facades for all nine
+  landmarks + core cast; 2–3 episodes banked; contribute page; domain.
+- **M4 — Second world.** `worlds/hs` skeleton behind Cloudflare Access;
+  fix whatever engine leaks it exposes.
+- **M5 — Studio.** Browser pixel editor + Worker→PR submission + Turnstile.

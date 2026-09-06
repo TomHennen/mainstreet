@@ -1,0 +1,710 @@
+{
+  "id": "route10",
+  "title": "Route 10",
+  "subtitle": "western Catskills, NY",
+  "contribute": "https://example.invalid/route10/contribute",
+  "palette": "assets/palette.png",
+  "episodes": [
+    "ep000"
+  ],
+  "player": {
+    "id": "player",
+    "accent": "#b5542a"
+  },
+  "start": {
+    "map": "stamford",
+    "pos": [
+      15,
+      11
+    ],
+    "facing": "up"
+  },
+  "buildings": {
+    "mill-pond-inn": {
+      "name": "Mill Pond Inn",
+      "wall": "#8a6d4e",
+      "roof": "#5b4632"
+    },
+    "jefferson-town-hall": {
+      "name": "Jefferson Town Hall",
+      "wall": "#d9d2c0",
+      "roof": "#6d6a5c"
+    },
+    "heartbreak-hotel": {
+      "name": "Heartbreak Hotel",
+      "wall": "#a34a4a",
+      "roof": "#6e2f2f"
+    },
+    "middle-brook-cafe": {
+      "name": "Middle Brook Cafe",
+      "wall": "#c2a15c",
+      "roof": "#7c6236"
+    },
+    "stewarts": {
+      "name": "Stewart's",
+      "wall": "#e4e0d4",
+      "roof": "#b5542a"
+    },
+    "mac-a-doodles": {
+      "name": "Mac-A-Doodles",
+      "wall": "#7a8fb0",
+      "roof": "#4d5f7d"
+    },
+    "stamford-coffee": {
+      "name": "Stamford Coffee",
+      "wall": "#6f5b7d",
+      "roof": "#4a3c55"
+    },
+    "the-belvedere": {
+      "name": "The Belvedere",
+      "wall": "#93a86f",
+      "roof": "#5c6b41"
+    },
+    "cellar-door-wines": {
+      "name": "Cellar Door Wines",
+      "wall": "#5d4a3a",
+      "roof": "#3c2f24"
+    }
+  },
+  "maps": {
+    "jefferson": {
+      "name": "Jefferson",
+      "kind": "village",
+      "legend": {
+        ".": {
+          "name": "Grass",
+          "style": "speckle",
+          "colors": [
+            "#5e8c50",
+            "#578349",
+            "#63925a"
+          ]
+        },
+        "#": {
+          "name": "Road",
+          "style": "road",
+          "base": "#b7a081",
+          "colors": [
+            "#a08a6c"
+          ]
+        },
+        "~": {
+          "name": "Water",
+          "style": "water",
+          "base": "#4a7f96",
+          "colors": [
+            "#5d93a8"
+          ],
+          "solid": true
+        },
+        "T": {
+          "name": "Tree",
+          "style": "tree",
+          "base": "#5e8c50",
+          "colors": [
+            "#2f5d3a",
+            "#3f7a4c",
+            "#4a3826"
+          ],
+          "solid": true
+        },
+        "*": {
+          "name": "Flowers",
+          "style": "flower",
+          "base": "#5e8c50",
+          "colors": [
+            "#d9a441",
+            "#c76b8a"
+          ]
+        },
+        "b": {
+          "name": "Bench",
+          "style": "prop",
+          "base": "#5e8c50",
+          "colors": [
+            "#6d5138",
+            "#8a6b48"
+          ],
+          "solid": true
+        }
+      },
+      "tiles": [
+        "...T....T...T*..T...*.T.........*...........*...",
+        ".T...T.......TT.....*...T.........T...*T..*.....",
+        "...T..........T....................*..T..T.....T",
+        ".T.........T.T*................*T...*....TT.....",
+        ".......T...T..T....................TT.T.........",
+        "*..*~~~~~~..................................T..T",
+        ".T.~~~~~~~~....................................T",
+        ".T.~~~~~~~~.....................................",
+        "T..~~~~~~~~.....................................",
+        ".T..~~~~~~T..........T.........*................",
+        "TT.....b...*.........T..........................",
+        "..T.......T....................T...............T",
+        ".##############################################.",
+        "*##############################################.",
+        "...*.T..................##.T.......*....T.T.T...",
+        "........**..............##T...*....T.........T..",
+        ".....T............T.....##T...T.*....*T..T.*...*",
+        "........................##T..T..........T.......",
+        ".T......TT.......T......##.T...T...........T...*",
+        "......*...T.T*..T......T##T.....T.T.....TT....T.",
+        "....*..T.....T...*TT.T..##T...T..........T......",
+        "..T.TT..*........T......##....TT.*..T.....*.T...",
+        "................T...T...##...T..T.T.............",
+        "...T*...................##....*.T......T***.*..."
+      ],
+      "buildings": [
+        {
+          "id": "mill-pond-inn",
+          "pos": [
+            14,
+            7
+          ],
+          "size": [
+            6,
+            4
+          ],
+          "door": [
+            17,
+            11
+          ]
+        },
+        {
+          "id": "jefferson-town-hall",
+          "pos": [
+            23,
+            7
+          ],
+          "size": [
+            7,
+            4
+          ],
+          "door": [
+            26,
+            11
+          ]
+        },
+        {
+          "id": "heartbreak-hotel",
+          "pos": [
+            33,
+            7
+          ],
+          "size": [
+            6,
+            4
+          ],
+          "door": [
+            36,
+            11
+          ]
+        },
+        {
+          "id": "middle-brook-cafe",
+          "pos": [
+            41,
+            8
+          ],
+          "size": [
+            5,
+            3
+          ],
+          "door": [
+            43,
+            11
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "text": "JEFFERSON",
+          "pos": [
+            24,
+            3
+          ]
+        }
+      ],
+      "exits": [
+        {
+          "id": "jefferson-stamford",
+          "at": [
+            24,
+            23,
+            2,
+            1
+          ],
+          "to": "stamford",
+          "spawn": [
+            20,
+            1
+          ],
+          "facing": "down",
+          "style": "road"
+        }
+      ]
+    },
+    "stamford": {
+      "name": "Stamford",
+      "kind": "village",
+      "legend": {
+        ".": {
+          "name": "Grass",
+          "style": "speckle",
+          "colors": [
+            "#5e8c50",
+            "#578349",
+            "#63925a"
+          ]
+        },
+        "#": {
+          "name": "Road",
+          "style": "road",
+          "base": "#b7a081",
+          "colors": [
+            "#a08a6c"
+          ]
+        },
+        "~": {
+          "name": "Water",
+          "style": "water",
+          "base": "#4a7f96",
+          "colors": [
+            "#5d93a8"
+          ],
+          "solid": true
+        },
+        "T": {
+          "name": "Tree",
+          "style": "tree",
+          "base": "#5e8c50",
+          "colors": [
+            "#2f5d3a",
+            "#3f7a4c",
+            "#4a3826"
+          ],
+          "solid": true
+        },
+        "*": {
+          "name": "Flowers",
+          "style": "flower",
+          "base": "#5e8c50",
+          "colors": [
+            "#d9a441",
+            "#c76b8a"
+          ]
+        },
+        "b": {
+          "name": "Bench",
+          "style": "prop",
+          "base": "#5e8c50",
+          "colors": [
+            "#6d5138",
+            "#8a6b48"
+          ],
+          "solid": true
+        }
+      },
+      "tiles": [
+        "*T..T.......T.*....*##..TT...TT..T..*T.*........",
+        ".TT...T....T..T.TT*.##......T.......T.T......T.T",
+        "*TT........*..TT....##.T..T..T*..*T...........TT",
+        "...*...##.T..*.***..##...TT..TT.*...T..TTTTTT.T.",
+        ".*.....##......*....##T.*.........T.......T.....",
+        ".*.....##...........##T...*.*...*T..............",
+        ".*.....##...........##............T..T...T.*.T.T",
+        ".......##...........##..................T.......",
+        "T**....##...T.......##............TT........*.T*",
+        ".*.....##.......b...##...........*.T..*.T.......",
+        "...*.*.##.......*...##*..*...............T......",
+        ".......##*....*..*..##.......................*..",
+        "################################################",
+        "################################################",
+        ".*.......*...*......##*......*...............*..",
+        ".T.T.T............T.##.T......*..*..............",
+        ".....T.........*....##.....*..................*T",
+        "T.T..............*..##.........................T",
+        "......T..*.....TT..T##.......*.........T*.....T.",
+        ".T.*..........T*...*##.T.*...........**...T.....",
+        "........*...T.......##T.T......*..*......TT....T",
+        "T......T.TT...*...T.##.T*........*.........TT.T.",
+        "T.*TT.T....T........##.TT...T**.....*......TT...",
+        "........*T.T..T..T..##..TT...........T.T.*...T.T",
+        "....................##...*.T..*.....TT..........",
+        "..T..T....*...*..T*T##.*.*....*.*TT.*.TTT......."
+      ],
+      "buildings": [
+        {
+          "id": "stewarts",
+          "pos": [
+            14,
+            5
+          ],
+          "size": [
+            6,
+            4
+          ],
+          "door": [
+            17,
+            9
+          ],
+          "interior": "stewarts-interior",
+          "enter": [
+            6,
+            8
+          ]
+        },
+        {
+          "id": "stamford-coffee",
+          "pos": [
+            26,
+            6
+          ],
+          "size": [
+            5,
+            4
+          ],
+          "door": [
+            28,
+            10
+          ]
+        },
+        {
+          "id": "mac-a-doodles",
+          "pos": [
+            2,
+            5
+          ],
+          "size": [
+            5,
+            3
+          ],
+          "door": [
+            4,
+            8
+          ]
+        },
+        {
+          "id": "the-belvedere",
+          "pos": [
+            30,
+            16
+          ],
+          "size": [
+            7,
+            4
+          ],
+          "door": [
+            33,
+            20
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "text": "STAMFORD",
+          "pos": [
+            34,
+            2
+          ]
+        },
+        {
+          "text": "10",
+          "pos": [
+            23,
+            2
+          ]
+        },
+        {
+          "text": "10",
+          "pos": [
+            23,
+            25
+          ]
+        },
+        {
+          "text": "23",
+          "pos": [
+            2,
+            12
+          ]
+        },
+        {
+          "text": "23",
+          "pos": [
+            46,
+            12
+          ]
+        },
+        {
+          "text": "HARPER ST",
+          "pos": [
+            11,
+            4
+          ]
+        }
+      ],
+      "exits": [
+        {
+          "id": "stamford-jefferson",
+          "at": [
+            20,
+            0,
+            2,
+            1
+          ],
+          "to": "jefferson",
+          "spawn": [
+            24,
+            22
+          ],
+          "facing": "up",
+          "style": "road"
+        },
+        {
+          "id": "stamford-hobart",
+          "at": [
+            20,
+            25,
+            2,
+            1
+          ],
+          "to": "hobart",
+          "spawn": [
+            15,
+            1
+          ],
+          "facing": "down",
+          "style": "road"
+        }
+      ]
+    },
+    "hobart": {
+      "name": "Hobart",
+      "kind": "village",
+      "legend": {
+        ".": {
+          "name": "Grass",
+          "style": "speckle",
+          "colors": [
+            "#5e8c50",
+            "#578349",
+            "#63925a"
+          ]
+        },
+        "#": {
+          "name": "Road",
+          "style": "road",
+          "base": "#b7a081",
+          "colors": [
+            "#a08a6c"
+          ]
+        },
+        "~": {
+          "name": "Water",
+          "style": "water",
+          "base": "#4a7f96",
+          "colors": [
+            "#5d93a8"
+          ],
+          "solid": true
+        },
+        "T": {
+          "name": "Tree",
+          "style": "tree",
+          "base": "#5e8c50",
+          "colors": [
+            "#2f5d3a",
+            "#3f7a4c",
+            "#4a3826"
+          ],
+          "solid": true
+        },
+        "*": {
+          "name": "Flowers",
+          "style": "flower",
+          "base": "#5e8c50",
+          "colors": [
+            "#d9a441",
+            "#c76b8a"
+          ]
+        },
+        "b": {
+          "name": "Bench",
+          "style": "prop",
+          "base": "#5e8c50",
+          "colors": [
+            "#6d5138",
+            "#8a6b48"
+          ],
+          "solid": true
+        }
+      },
+      "tiles": [
+        "TT..T..........##T.*......*T.T..",
+        "......T..T.....##.**TT.......T..",
+        "TT......T......##.........**....",
+        ".T....**.*.*...##T..T....T......",
+        ".....**.....*T.##.*..........T..",
+        ".............*.##..........*....",
+        "...............##.....T.........",
+        ".T.............##..T.*.......T.T",
+        ".*.............##...............",
+        "..*..*.*.....*.##*...........**.",
+        "################################",
+        "################################",
+        "*...*.**.*.*........*..*...*.*..",
+        "..T.........T.....*...........T.",
+        ".T......*...TT......T.......*T..",
+        "TTT....*..TT.T.....T.*.T........",
+        "..**......*.T..*........*.....T.",
+        "...T.*..T..T.T.............T.T.*",
+        ".*.....T........T*.TT.........*.",
+        "T..............T*....TT........."
+      ],
+      "buildings": [
+        {
+          "id": "cellar-door-wines",
+          "pos": [
+            5,
+            5
+          ],
+          "size": [
+            7,
+            4
+          ],
+          "door": [
+            8,
+            9
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "text": "HOBART",
+          "pos": [
+            24,
+            3
+          ]
+        },
+        {
+          "text": "10",
+          "pos": [
+            18,
+            2
+          ]
+        }
+      ],
+      "exits": [
+        {
+          "id": "hobart-stamford",
+          "at": [
+            15,
+            0,
+            2,
+            1
+          ],
+          "to": "stamford",
+          "spawn": [
+            20,
+            24
+          ],
+          "facing": "up",
+          "style": "road"
+        }
+      ]
+    },
+    "stewarts-interior": {
+      "name": "Stewart's",
+      "kind": "interior",
+      "legend": {
+        "w": {
+          "name": "Back wall",
+          "style": "block",
+          "colors": [
+            "#a94f2e",
+            "#8d3f22"
+          ],
+          "solid": true
+        },
+        "W": {
+          "name": "Wall",
+          "style": "block",
+          "colors": [
+            "#5b4632",
+            "#6d5138"
+          ],
+          "solid": true
+        },
+        ".": {
+          "name": "Floor",
+          "style": "checker",
+          "colors": [
+            "#d8cfc0",
+            "#cbc1b0"
+          ]
+        },
+        "C": {
+          "name": "Counter",
+          "style": "block",
+          "colors": [
+            "#7c5a3a",
+            "#95704c"
+          ],
+          "solid": true
+        },
+        "S": {
+          "name": "Shelves",
+          "style": "shelf",
+          "colors": [
+            "#6d5138",
+            "#c76b8a",
+            "#d9a441",
+            "#3f7a4c"
+          ],
+          "solid": true
+        },
+        "M": {
+          "name": "Door mat",
+          "style": "mat",
+          "colors": [
+            "#8f401f",
+            "#b5542a"
+          ]
+        }
+      },
+      "tiles": [
+        "wwwwwwwwwwwww",
+        "wwwwwwwwwwwww",
+        "W..........SW",
+        "W.CCCCCCCC.SW",
+        "W..........SW",
+        "W..........SW",
+        "W..........SW",
+        "W..........SW",
+        "W...........W",
+        "WWWWWWMWWWWWW"
+      ],
+      "buildings": [],
+      "labels": [],
+      "exits": [
+        {
+          "id": "stewarts-exit",
+          "at": [
+            6,
+            9,
+            1,
+            1
+          ],
+          "to": "stamford",
+          "spawn": [
+            17,
+            9
+          ],
+          "facing": "down",
+          "style": "door"
+        }
+      ]
+    }
+  }
+}
