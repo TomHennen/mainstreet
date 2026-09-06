@@ -218,13 +218,14 @@ queries and the lat/lon → tile maths are in `docs/route10-geometry.md`):**
   arm that swings south a mile or two later and becomes the road to Stamford,
   so the drive to Stamford starts by heading east out of the village.
   West of the junction the road through the village is **Main Street**
-  (OSM carries it as county route 2A). Heartbreak Hotel (149 Main St) and the
-  cafe are on the **north** side; the **Village Green and gazebo** are on the
-  south side; **Creamery Street** runs south from Main past the Maple Museum.
-  Jefferson Town Hall's OSM address puts it about 600 m **west** of the green,
-  alone on the north side of Main. OSM maps no pond in the village, so the
-  **mill pond's position is our guess** — south of Main at the west end of the
-  village core, with the Mill Pond Inn opposite it.
+  (OSM carries it as county route 2A). Heartbreak Hotel (149 Main St) is on the
+  **north** side; **Middle Brook Cafe and the Mill Pond Inn are on the south
+  side**, as are the **Village Green and gazebo**; **Creamery Street** runs
+  south from Main past the Maple Museum. Jefferson Town Hall's OSM address puts
+  it about 600 m **west** of the green, alone on the north side of Main. OSM
+  maps no pond in the village, so the **mill pond's position is our guess** —
+  south of Main at the west end of the village core, with the Mill Pond Inn on
+  its west rim.
 - **Hobart.** NY 10 is the village's **Main Street**, running south-west to
   north-east: **West Main Street** out to the west, **Main Street** through the
   book-village block, then **East Main Street** climbing **north-east** to
@@ -239,10 +240,13 @@ deliberately much larger than life at that scale — they are landmarks, not
 survey outlines.
 
 **The maps are simplified for readability, on purpose.** Intelligible first,
-accurate second: the state routes are paved and 3 tiles wide with a dashed
-centre line, side streets are 2 tiles of sand, and every route is straight
-apart from a single right-angle bend spent where it explains the real
-geography — no staircase diagonals, no sandy aprons at the junctions. The OSM
+accurate second: through roads are paved and 3 tiles wide with a dashed centre
+line — the two state routes and Jefferson's Main Street, which is the village's
+main street and reads as one — side streets are 2 tiles of sand, block faces
+get their own concrete sidewalk tile, and every route is straight apart from a
+single right-angle bend spent where it explains the real geography — no
+staircase diagonals, no sandy aprons at the junctions. Sand is left for drives,
+lots and forecourts, so it never has to stand in for pavement. The OSM
 and USGS references the fit was worked from live in `playtest-out/reference`
 and are not committed; the rules themselves are summarised in
 `docs/route10-geometry.md` §7. Mount Utsayantha and its lake are just north-east of Stamford
@@ -269,7 +273,7 @@ Hobart — "Jewel of the West Branch."
   (maple, liquid smoke, sea salt); attached Catskill Outpost shop.
 - `the-belvedere` (Stamford): "The Bel," dive-bar community space; bat signs
   point to the patio; taco nights, movie nights, live music.
-- `cellar-door-wines` (Hobart): curated wine shop; owner Shaye's
+- `cellar-door-wines` (Hobart): curated wine shop; the owner's
   recommendations are an institution.
 
 **Cast so far (fictional):** Earl — retired regular who holds court outside

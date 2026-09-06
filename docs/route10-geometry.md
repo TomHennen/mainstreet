@@ -203,14 +203,14 @@ along it. Each is a one-line change in `world.json` once confirmed.
 
 | id                 | map       | guessed as                                                   |
 |--------------------|-----------|--------------------------------------------------------------|
-| `mill-pond-inn`    | jefferson | north side of Main at the west end of the village core        |
-| the mill pond      | jefferson | south of Main, opposite the inn — OSM maps **no** water in the village |
-| `the-belvedere`    | stamford  | north side of Main Street in the village block                |
+| `mill-pond-inn`    | jefferson | south side of Main, on the pond's west rim                    |
+| the mill pond      | jefferson | south of Main at the west end of the village core — OSM maps **no** water in the village |
+| `the-belvedere`    | stamford  | at the top of **Academy Street**, its own side road north off 23 |
 | `cellar-door-wines`| hobart    | north-west side of Main Street, mid book-village block        |
 
 `stamford-coffee` (79 Main St) is placed from its house number rather than a
-mapped point: odd numbers are the south-west side of Main, and 79 sits just
-east of 84 Main (the Village Hall), which is mapped.
+mapped point: odd numbers are the **south** side of Main, so it sits on the
+south face with a drive and a walk round to its door.
 
 ## 6. Re-fitting a map
 
@@ -232,10 +232,14 @@ the same 3-tile beige staircase, so nothing told a player which line was
 Route 10. The maps were re-laid to be **intelligible first and accurate
 second**. The rules, in full:
 
-1. **State routes are paved.** 3 tiles wide, asphalt, with a dashed yellow
-   centre line on the middle tile. Side streets are 2 tiles wide and sandy.
-   Jefferson's Main Street is the exception: 3 wide and sandy, because it is
-   county route 2A rather than a state route, but it is still the spine.
+1. **Through roads are paved.** 3 tiles wide, asphalt, with a dashed yellow
+   centre line on the middle tile — the two state routes, and Jefferson's Main
+   Street, which is county route 2A rather than a state route but is the
+   village's main street and reads as one. Side streets are 2 tiles wide and
+   sandy. **Block faces get a concrete sidewalk** (its own pale tile), running
+   the length of the face it serves and ending against the asphalt at the
+   junction; sand is left for drives, lots, forecourts and side streets, so it
+   never has to stand in for pavement.
 2. **Straight, with at most one bend.** Each state route gets a single
    right-angle bend, spent where it explains the real geography — Stamford's
    NY 10 turns west low on the map so the Hobart exit sits in the south-west
@@ -271,6 +275,12 @@ The OSM and USGS reference sheets it was fitted against live in
 
 What this cost in accuracy is listed in §4 above, plus: Stamford's NY 10 and
 NY 23 are both dead straight instead of diagonal; The Belvedere has moved off
-Main Street to the top of its own side road; Hobart's Main Street is a west arm
-plus a north arm rather than one long diagonal; and Jefferson gained the
-Village Green and gazebo it should always have had.
+Main Street to the top of **Academy Street** — a real Stamford street, drawn
+here west of Stamford Coffee rather than at its real place east of the centre;
+Hobart's Main Street is a west arm plus a north arm rather than one long
+diagonal; and Jefferson gained the Village Green and gazebo it should always
+have had.
+
+Inside Stewart's, the counter's open end is closed with a short return so the
+player cannot walk behind the register; Hannah stands in the last gap and
+serves across the counter (interior NPC reach is 2.3 tiles).
