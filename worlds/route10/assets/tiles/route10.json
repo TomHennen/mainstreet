@@ -1,12 +1,12 @@
 {
   "columns": 5,
   "image": "route10.png",
-  "imageheight": 64,
+  "imageheight": 80,
   "imagewidth": 80,
   "margin": 0,
   "name": "route10",
   "spacing": 0,
-  "tilecount": 20,
+  "tilecount": 25,
   "tiledversion": "1.10.2",
   "tileheight": 16,
   "tilewidth": 16,
@@ -460,6 +460,116 @@
           "name": "style",
           "type": "string",
           "value": "shelf"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "cooler",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#3f6d7d,#a8d4e0"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "shelf"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "cooler",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#d8cfc0"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#9fbfd0,#dcecf2"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "prop"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "counter",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#4a4a52,#6e6e78"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "block"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "type": "shelf",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#6d5138,#4a7f96"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "shelf"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "type": "floor",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#e2ddd0"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "flat"
         }
       ]
     }
