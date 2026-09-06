@@ -113,6 +113,18 @@ describe('parseTileset', () => {
     expect(() => parseTileset(raw, 'test.json')).toThrow(/"style" must be a non-empty string/);
   });
 
+  it('accepts every style the engine can draw', () => {
+    const styles = ['flat', 'speck', 'ripple', 'tree', 'flower', 'prop', 'block', 'shelf', 'mat', 'stripe-h', 'stripe-v'];
+    for (const style of styles) {
+      const raw = tilesetJson();
+      raw.tiles[0].properties = [
+        { name: 'colors', type: 'string', value: '#0f0' },
+        { name: 'style', type: 'string', value: style }
+      ];
+      expect(parseTileset(raw, 'test.json').tiles.get(0)?.style).toBe(style);
+    }
+  });
+
   it('rejects a style the engine cannot draw', () => {
     const raw = tilesetJson();
     raw.tiles[0].properties = [

@@ -7,7 +7,7 @@
       "id": "earl",
       "name": "Earl",
       "map": "stamford",
-      "pos": [20, 9],
+      "pos": [19, 13],
       "facing": "down",
       "accent": "#3f6d4e",
       "dialogue": [
@@ -78,7 +78,7 @@
     {
       "id": "pen",
       "map": "jefferson",
-      "pos": [27, 17],
+      "pos": [16, 18],
       "requires": ["metEarl"],
       "effects": [{ "set": "hasPen" }, { "toast": "Got it" }],
       "lines": [

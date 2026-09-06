@@ -148,10 +148,12 @@ Degree-to-metre factors at those latitudes: Stamford/Jefferson
 `82,220 m` and `82,090 m` per degree of longitude; Hobart `82,240 m`.
 Latitude is `111,320 m` per degree everywhere.
 
-Roads are drawn as a band: every tile whose centre is within half the road
-width of the polyline. State routes are 3 tiles wide, side streets 2.2–2.4,
-rivers 2.0–2.6. That is a distance test rather than a stamp per step, so a
-road that runs diagonally is exactly as wide as one that runs straight.
+Those anchors are the *first* fit, and §7 supersedes how the roads are drawn
+from them: the readability pass replaced the fitted polylines with axis-aligned
+rectangles, so a route is now exactly 3 tiles wide (side streets exactly 2)
+everywhere, and the junction tiles sit a little off the arithmetic above. The
+scale, the sizes and the sides of the street are unchanged, so the table is
+still the right starting point for re-fitting anything.
 
 ## 4. What was simplified, and why
 
@@ -221,3 +223,54 @@ east of 84 Main (the Village Hall), which is mapped.
 4. `npm run validate-episodes`, `npm test`, `npm run playtest`. The playtest
    BFS-pathfinds the whole of ep000 over the tile grids, so if it cannot reach
    something the layout is wrong, not the harness.
+
+## 7. Readability pass (Sep 2026)
+
+The first fit put the real road geometry on the grid faithfully, and it read
+badly: every road — state route, side street, driveway, parking apron — was
+the same 3-tile beige staircase, so nothing told a player which line was
+Route 10. The maps were re-laid to be **intelligible first and accurate
+second**. The rules, in full:
+
+1. **State routes are paved.** 3 tiles wide, asphalt, with a dashed yellow
+   centre line on the middle tile. Side streets are 2 tiles wide and sandy.
+   Jefferson's Main Street is the exception: 3 wide and sandy, because it is
+   county route 2A rather than a state route, but it is still the spine.
+2. **Straight, with at most one bend.** Each state route gets a single
+   right-angle bend, spent where it explains the real geography — Stamford's
+   NY 10 turns west low on the map so the Hobart exit sits in the south-west
+   corner; Jefferson's NY 10 comes down from the north and turns east; Hobart's
+   Main Street runs in from the west and climbs north out of the frame. No
+   staircase diagonals anywhere.
+3. **No aprons.** Junctions are exact 3×3 (or 2×3) right-angle blocks, and the
+   centre-line dash stops one tile short of the block on every arm, so a
+   crossing reads as a crossing.
+4. **Filler is full size.** 3–4 unnamed buildings per village, 4×3 or 5×3, on a
+   block face, so any of them can be renamed into a real business with a
+   one-line change in `world.json`. The old 3×2 sheds are gone.
+5. **Reserved lots.** 5×3 patches of plain grass — no tree, no flower, no prop
+   — on the block faces where a future named building goes, so nothing has to
+   move to add one. Eight in Stamford, four in Jefferson, three in Hobart.
+6. **Scenery is deliberate.** Trees in bands (hillsides, map edges, the ring
+   round Jefferson's Village Green), never a uniform sprinkle; flowers in a
+   handful of named patches; label boxes are kept clear so a road name stays
+   readable.
+
+Two engine facts constrain all of it: the camera budget is 17×13 tiles at
+zoom 2, and **every building door faces south** (`engine/art.ts` draws it on
+the bottom band of the facade), so a business fronting the south side of an
+east–west road needs a short sandy drive or lot linking the road round to its
+front. Mac-A-Doodles in Stamford is the worked example.
+
+`playtest-out/maps-work/gen.py` generates all three maps from these rules and
+checks them: road widths, asphalt/sand contact only at declared access points,
+no staircase, reachability of every door and every ep000 position, reserved
+lots plain, minimum building size. It is a working file and is not committed.
+The OSM and USGS reference sheets it was fitted against live in
+`playtest-out/reference`, also uncommitted.
+
+What this cost in accuracy is listed in §4 above, plus: Stamford's NY 10 and
+NY 23 are both dead straight instead of diagonal; The Belvedere has moved off
+Main Street to the top of its own side road; Hobart's Main Street is a west arm
+plus a north arm rather than one long diagonal; and Jefferson gained the
+Village Green and gazebo it should always have had.
