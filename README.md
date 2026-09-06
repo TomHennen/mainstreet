@@ -31,6 +31,20 @@ sized viewport. Screenshots and a run log land in `playtest-out/`, and it exits
 non-zero with the milestone, the state and the screenshot path on the first
 failure. It starts a dev server itself if one is not already on :5173.
 
+```sh
+npm test               # Vitest: engine logic only, plain Node, no jsdom
+npm run validate-episodes   # every worlds/*/ pack, engine/validate.ts's rules
+```
+
+`npm test` covers `engine/validate.ts` (every rule it enforces, plus the real
+`worlds/route10/` pack), `engine/session.ts` (flag-gated dialogue/sign/item
+lookups), and `engine/flags.ts`/`engine/bus.ts` (declare-before-use, the
+`requires` AND, and effect application). `npm run validate-episodes` runs
+those same `engine/validate.ts` rules — nothing is duplicated — against every
+world pack on disk and exits non-zero on the first problem, with the world id,
+file and message. Point it at a different worlds directory with an argument
+or `MAINSTREET_WORLDS_DIR` (`node scripts/validate-episodes.ts path/to/worlds`).
+
 ## Deploy
 
 Every push to `main` builds the game and publishes it to GitHub Pages at
@@ -70,5 +84,6 @@ a missing portrait means text-only dialogue. Content always ships ahead of art.
 
 ## Status
 
-Milestone M0 (see `DESIGN.md` §7). Tiled maps, Vitest, the validate scripts, CI,
-the devcontainer and deployment all arrive in M1.
+Milestone M1 in progress (see `DESIGN.md` §7). Vitest and `validate-episodes`
+are in; Tiled maps, `validate-assets`, CI and the devcontainer are still to
+come.
