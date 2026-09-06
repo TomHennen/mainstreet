@@ -26,11 +26,11 @@ mainstreet/
   engine/            # Phaser 4 + TS. World-agnostic. The only code.
   worlds/
     route10/
-      world.json     # title, villages, palette ref, building registry, travel graph
+      world.json     # title, palette ref, building registry, map metadata, travel graph
       maps/          # Tiled JSON, one map per village + one per interior
       episodes/      # ep000.json, ep001.json ... (pure data)
       assets/
-        tiles/       # tileset PNGs
+        tiles/       # <tileset>.json (Tiled tileset) + <tileset>.png
         buildings/   # <building-id>.png facades (tile-multiple sizes)
         chars/       # <npc-id>.png sheets (16x32, 4 dir x 3 frames)
         portraits/   # <npc-id>.png 96x96 dialogue busts
@@ -38,6 +38,51 @@ mainstreet/
   prototype/         # route10-v3.html — behavioral reference only
   scripts/           # validate-assets, validate-episodes
 ```
+
+**Maps are Tiled JSON.** Every map id in `world.json` has a file at
+`maps/<map id>.json`, fetched by that convention — the engine never follows a
+path written in the data. What it expects of the file (all of it enforced in
+`engine/tiled.ts`, with the error message an author would need):
+
+- Orthogonal, finite, **16×16** tiles, layer data as a plain JSON array
+  (Tiled's CSV export — base64/compressed is rejected).
+- One visible tile layer named **`ground`**. Any further visible tile layers
+  draw over it in file order and count for collision the same way; hidden
+  layers are skipped and layer groups are descended into. Gid flip/rotation
+  bits are masked off and ignored — the engine does not draw flipped tiles.
+- **Tilesets are external**, one per world at
+  `assets/tiles/<name>.json`, referenced with `"source"` (an embedded tileset
+  works too, and is what a test fixture uses). Every tile a map uses must carry
+  the properties below, or the map fails to load.
+- **Object layers are ignored on purpose.** See below.
+
+**A tile's properties.** The tile's Tiled *class* is its `kind` — grass, road,
+water, wall, floor, counter, mat — which is there for the person editing the
+map; the engine never branches on it. What the engine reads is Tiled custom
+properties: `solid` (bool, default false — the only source of tile collision),
+`style`, `colors` (comma-separated hex) and optional `base`. `style` is one of
+nine drawing recipes (`flat`, `speck`, `ripple`, `tree`, `flower`, `prop`,
+`block`, `shelf`, `mat`), so a tile is fully self-describing and variants of a
+kind — three grasses, road with and without a crack — are separate tiles the
+author paints with, rather than something the engine randomises per position.
+
+**Tileset art follows the same fallback rule as everything else.** The tileset
+declares its `image`; if that PNG is there the engine blits tiles straight out
+of it, and if it is not, the engine paints the `style`/`colors` recipes into a
+runtime texture of exactly the declared sheet size and uses that instead. A
+world therefore plays identically before and after an artist fills the sheet
+in. (Tiled itself will ask for the missing PNG when opening an unpainted
+tileset; painting the sheet is the fix, and it is on the M3 art list.)
+
+**What stays in `world.json`, and why.** Everything a content author positions:
+the building registry and its placements (footprint, door, interior + spawn),
+map labels, exits and the travel graph, the start position, map names and
+whether a map is a village or an interior. Tiled *could* carry those as object
+layers, but then a door would live in two files and a footprint would have two
+sources of truth. One place to edit gameplay positions is worth more than
+seeing them in the map editor, so Tiled carries the tile grid and nothing else,
+and the engine ignores object layers entirely. `world.json`'s `maps` block is
+per-map metadata; the grid is joined onto it at load.
 
 **Scenes:** Boot → Title → Village (one per map) → Interior → Travel
 interstitial (covers map swaps) → Dialogue UI overlaid on any scene.
@@ -126,7 +171,9 @@ most continuity needs).
 - **One fixed palette** shipped as `worlds/<id>/palette.png` (Route 10 starts
   with Resurrect 64 until a custom Catskills palette is commissioned).
   `validate-assets` rejects off-palette pixels.
-- Tilesets: sheets on the 16px grid.
+- Tilesets: sheets on the 16px grid. One per world at
+  `assets/tiles/<name>.png`, laid out exactly as its `assets/tiles/<name>.json`
+  says (`columns`, `tilecount`, `margin`, `spacing`), tile id 0 top-left.
 - Building facades: one PNG per building, dimensions in tile multiples
   (e.g. 96×64). Filename = building id from `world.json`. **Width = the
   footprint width in tiles × 16.** Height may exceed the footprint: art is

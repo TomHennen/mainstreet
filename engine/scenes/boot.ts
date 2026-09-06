@@ -21,11 +21,12 @@ export class BootScene extends Phaser.Scene {
     }
 
     try {
-      const { world, copy, episodes } = await loadWorld(worldId);
+      const loaded = await loadWorld(worldId);
+      const { world, copy, episodes, maps } = loaded;
 
       const problems = [
-        ...validateWorld(world),
-        ...episodes.flatMap((episode) => validateEpisode(episode, world))
+        ...validateWorld(world, maps),
+        ...episodes.flatMap((episode) => validateEpisode(episode, world, maps))
       ];
       if (problems.length) {
         fatal(`World pack "${worldId}" is invalid`, problems.map((p) => `• ${p}`).join('\n'));
@@ -39,8 +40,8 @@ export class BootScene extends Phaser.Scene {
         return;
       }
 
-      const assets = await indexAssets(world, episodes);
-      queueAssets(this.load, world, assets);
+      const assets = await indexAssets(loaded);
+      queueAssets(this.load, loaded, assets);
       await new Promise<void>((resolve) => {
         this.load.once(Phaser.Loader.Events.COMPLETE, () => resolve());
         this.load.start();
@@ -49,6 +50,7 @@ export class BootScene extends Phaser.Scene {
 
       startSession({
         world,
+        maps,
         copy,
         episode,
         flags: new Flags(episode.flags),

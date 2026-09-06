@@ -19,9 +19,11 @@
  * tsconfig.json's `allowImportingTsExtensions`).
  */
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { parseTiledMap, parseTileset, tilesetSources } from '../engine/tiled.ts';
+import type { TilesetDef } from '../engine/tiled.ts';
 import { validateEpisode, validateWorld } from '../engine/validate.ts';
-import type { Episode, World, WorldCopy } from '../engine/schema.ts';
+import type { Episode, GameMap, World, WorldCopy } from '../engine/schema.ts';
 
 const worldsRoot = process.argv[2] ?? process.env.MAINSTREET_WORLDS_DIR ?? 'worlds';
 
@@ -66,20 +68,44 @@ function validateWorldPack(dir: string, worldId: string): void {
     fail(worldId, worldFile, `declares id "${world.id}" but lives in directory "${worldId}"`);
   }
 
-  for (const problem of validateWorld(world)) {
+  // The tile grids are Tiled files under maps/, one per map id in world.json
+  // (DESIGN.md §2). Parsing them here is what makes the position and solidity
+  // rules in engine/validate.ts mean anything.
+  const maps: Record<string, GameMap> = {};
+  const tilesets = new Map<string, TilesetDef>();
+  for (const mapId of Object.keys(world.maps)) {
+    const mapFile = join(dir, 'maps', `${mapId}.json`);
+    const raw = readJson<unknown>(worldId, mapFile);
+    let grid;
+    try {
+      for (const source of tilesetSources(raw, mapFile)) {
+        const tilesetFile = resolve(dirname(mapFile), source);
+        if (!tilesets.has(tilesetFile)) {
+          tilesets.set(tilesetFile, parseTileset(readJson<unknown>(worldId, tilesetFile), tilesetFile));
+        }
+      }
+      grid = parseTiledMap(raw, (source) => tilesets.get(resolve(dirname(mapFile), source)), mapFile);
+    } catch (error) {
+      fail(worldId, mapFile, describeError(error));
+    }
+    maps[mapId] = { ...world.maps[mapId], ...grid };
+  }
+
+  for (const problem of validateWorld(world, maps)) {
     fail(worldId, worldFile, problem);
   }
 
   for (const episodeId of world.episodes) {
     const episodeFile = join(dir, 'episodes', `${episodeId}.json`);
     const episode = readJson<Episode>(worldId, episodeFile);
-    for (const problem of validateEpisode(episode, world)) {
+    for (const problem of validateEpisode(episode, world, maps)) {
       fail(worldId, episodeFile, problem);
     }
   }
 
   const count = world.episodes.length;
-  console.log(`✓ ${worldId} (${count} episode${count === 1 ? '' : 's'})`);
+  const mapCount = Object.keys(maps).length;
+  console.log(`✓ ${worldId} (${mapCount} map${mapCount === 1 ? '' : 's'}, ${count} episode${count === 1 ? '' : 's'})`);
 }
 
 let worldIds: string[];

@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { FACINGS } from './schema';
-import type { BuildingDef, BuildingPlacement, Facing, GameMap, TileDef } from './schema';
+import { TILE } from './tiled';
+import type { BuildingDef, BuildingPlacement, Facing, GameMap } from './schema';
+import type { TileDef, TilesetDef } from './tiled';
 
 /**
  * Engine-built fallback art (DESIGN.md §2). None of this is per-world: it is
@@ -8,7 +10,8 @@ import type { BuildingDef, BuildingPlacement, Facing, GameMap, TileDef } from '.
  * with zero PNGs and each painted asset simply replaces one of these.
  */
 
-export const TILE = 16;
+/** Re-exported so scenes take the grid and the art that sits on it together. */
+export { TILE };
 /** Head-room above a building footprint for its roof band and name sign. */
 export const OVERHEAD = 20;
 export const CHAR_W = 16;
@@ -26,9 +29,13 @@ function canvas(scene: Phaser.Scene, key: string, width: number, height: number)
 
 // --- tiles -------------------------------------------------------------------
 
-function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, x: number, y: number): void {
-  const px = x * TILE;
-  const py = y * TILE;
+/**
+ * One tile of the fallback tileset, drawn from the recipe its Tiled entry
+ * carries. `style` is a shape, not a meaning: the meaning is the tile's class.
+ * Every shape stays inside its own 16x16 cell so a tile looks the same whether
+ * it is drawn here or blitted out of the tileset image.
+ */
+function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, px: number, py: number): void {
   const c = def.colors;
 
   if (def.base) {
@@ -42,36 +49,27 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, x: number, y: num
       ctx.fillRect(px, py, TILE, TILE);
       break;
 
-    case 'speckle':
-      ctx.fillStyle = c[(x * 7 + y * 13) % c.length];
-      ctx.fillRect(px, py, TILE, TILE);
+    case 'speck':
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px + 4, py + 6, 3, 2);
       break;
 
-    case 'road':
-      if ((x + y) % 3 === 0) {
-        ctx.fillStyle = c[0];
-        ctx.fillRect(px + 4, py + 6, 3, 2);
-      }
-      break;
-
-    case 'water':
-      if ((x * 3 + y * 5) % 4 === 0) {
-        ctx.fillStyle = c[0];
-        ctx.fillRect(px + 3, py + 5, 6, 1);
-      }
+    case 'ripple':
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px + 3, py + 5, 6, 1);
       break;
 
     case 'tree':
-      ctx.fillStyle = c[2];
+      ctx.fillStyle = c[2] ?? c[0];
       ctx.fillRect(px + 6, py + 9, 4, 6);
       ctx.fillStyle = c[0];
       ctx.fillRect(px + 2, py, 12, 10);
-      ctx.fillStyle = c[1];
+      ctx.fillStyle = c[1] ?? c[0];
       ctx.fillRect(px + 4, py + 2, 8, 5);
       break;
 
     case 'flower':
-      ctx.fillStyle = c[(x + y) % c.length];
+      ctx.fillStyle = c[0];
       ctx.fillRect(px + 5, py + 5, 3, 3);
       ctx.fillRect(px + 10, py + 9, 2, 2);
       break;
@@ -81,7 +79,7 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, x: number, y: num
       ctx.fillRect(px + 1, py + 6, 14, 5);
       ctx.fillRect(px + 2, py + 11, 2, 4);
       ctx.fillRect(px + 12, py + 11, 2, 4);
-      ctx.fillStyle = c[1];
+      ctx.fillStyle = c[1] ?? c[0];
       ctx.fillRect(px + 1, py + 6, 14, 2);
       break;
 
@@ -94,15 +92,10 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, x: number, y: num
       ctx.fillRect(px, py + TILE - 3, TILE, 3);
       break;
 
-    case 'checker':
-      ctx.fillStyle = c[(x + y) % c.length];
-      ctx.fillRect(px, py, TILE, TILE);
-      break;
-
     case 'shelf':
       ctx.fillStyle = c[0];
       ctx.fillRect(px, py, TILE, TILE);
-      ctx.fillStyle = c[1 + ((x * 3 + y) % Math.max(1, c.length - 1))] ?? c[0];
+      ctx.fillStyle = c[1] ?? c[0];
       ctx.fillRect(px + 3, py + 4, 10, 6);
       break;
 
@@ -115,19 +108,47 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, x: number, y: num
   }
 }
 
+/**
+ * The tileset image. If the world pack ships a PNG for this tileset the loader
+ * has it under `art:tiles:<name>` and it is used as-is; otherwise the engine
+ * paints the placeholder recipes into a texture the same size and shape, so a
+ * world plays identically before and after an artist fills the sheet in
+ * (CLAUDE.md hard rule 3).
+ */
+export function tilesetTexture(scene: Phaser.Scene, tileset: TilesetDef, painted: boolean): string {
+  const paintedKey = `art:tiles:${tileset.name}`;
+  if (painted && scene.textures.exists(paintedKey)) return paintedKey;
+
+  const key = `tiles:${tileset.name}`;
+  if (scene.textures.exists(key)) return key;
+
+  const { texture, ctx } = canvas(scene, key, tileset.imagewidth, tileset.imageheight);
+  for (const def of tileset.tiles.values()) drawTile(ctx, def, def.sx, def.sy);
+  texture.refresh();
+  return key;
+}
+
 /** The whole map baked into one texture — it is small, and it scrolls for free. */
-export function mapTexture(scene: Phaser.Scene, mapId: string, map: GameMap): string {
+export function mapTexture(scene: Phaser.Scene, mapId: string, map: GameMap, painted: Set<string>): string {
   const key = `map:${mapId}`;
   if (scene.textures.exists(key)) return key;
 
-  const width = map.tiles[0].length;
-  const height = map.tiles.length;
-  const { texture, ctx } = canvas(scene, key, width * TILE, height * TILE);
+  const { texture, ctx } = canvas(scene, key, map.width * TILE, map.height * TILE);
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const def = map.legend[map.tiles[y][x]];
-      if (def) drawTile(ctx, def, x, y);
+  const sheets = new Map<string, CanvasImageSource>();
+  for (const tileset of map.tilesets) {
+    const sheetKey = tilesetTexture(scene, tileset, painted.has(tileset.name));
+    sheets.set(tileset.name, scene.textures.get(sheetKey).getSourceImage() as CanvasImageSource);
+  }
+
+  // Tile layers paint bottom-up, in the order the Tiled file lists them.
+  for (const layer of map.layers) {
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        const def = layer.cells[y * map.width + x];
+        const sheet = def && sheets.get(def.tileset);
+        if (def && sheet) ctx.drawImage(sheet, def.sx, def.sy, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
+      }
     }
   }
 

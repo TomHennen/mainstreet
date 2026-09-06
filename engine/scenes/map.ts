@@ -73,7 +73,7 @@ export class MapScene extends Phaser.Scene {
 
   init(data: MapSceneData): void {
     this.mapId = data.mapId;
-    this.map = session().world.maps[data.mapId];
+    this.map = session().maps[data.mapId];
     this.px = data.pos[0] * TILE;
     this.py = data.pos[1] * TILE;
     this.spawnX = this.px;
@@ -87,7 +87,7 @@ export class MapScene extends Phaser.Scene {
   create(data: MapSceneData): void {
     const { world, assets } = session();
 
-    this.add.image(0, 0, mapTexture(this, this.mapId, this.map)).setOrigin(0, 0).setDepth(-100);
+    this.add.image(0, 0, mapTexture(this, this.mapId, this.map, assets.tilesets)).setOrigin(0, 0).setDepth(-100);
 
     for (const placement of this.map.buildings) {
       const def = world.buildings[placement.id];
@@ -451,8 +451,8 @@ export class MapScene extends Phaser.Scene {
     const { width, height } = this.scale.gameSize;
     let zoom = Math.max(2, Math.floor(Math.min(width / (17 * TILE), height / (13 * TILE))));
 
-    const mapW = this.map.tiles[0].length * TILE;
-    const mapH = this.map.tiles.length * TILE;
+    const mapW = this.map.width * TILE;
+    const mapH = this.map.height * TILE;
 
     // A map smaller than the budget — an interior, say — would sit marooned in
     // black at the base zoom, so spend every whole step it can still fit in.

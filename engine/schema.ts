@@ -5,35 +5,14 @@
  * branch that refers to a specific world, village, building or character.
  */
 
+import type { TileGrid } from './tiled';
+
 export type Vec2 = [number, number];
 export type Rect = [number, number, number, number];
 export type Facing = 'down' | 'left' | 'right' | 'up';
 
 /** Facing order is also the row order of a character sheet (DESIGN.md §4). */
 export const FACINGS: readonly Facing[] = ['down', 'left', 'right', 'up'];
-
-/** How the engine draws a tile when there is no painted tileset yet. */
-export type TileStyle =
-  | 'flat'
-  | 'speckle'
-  | 'road'
-  | 'water'
-  | 'tree'
-  | 'flower'
-  | 'prop'
-  | 'block'
-  | 'checker'
-  | 'shelf'
-  | 'mat';
-
-export interface TileDef {
-  name: string;
-  style: TileStyle;
-  /** Painted under the style detail; for styles that sit on top of ground. */
-  base?: string;
-  colors: string[];
-  solid?: boolean;
-}
 
 export interface BuildingPlacement {
   id: string;
@@ -63,15 +42,21 @@ export interface MapExit {
   style: 'road' | 'door';
 }
 
-export interface GameMap {
+/**
+ * Everything about a map that world.json holds: its name, whether it is a
+ * village or an interior, and every gameplay position on it. The tiles
+ * themselves live in a Tiled file at `maps/<map id>.json` (DESIGN.md §2).
+ */
+export interface MapMeta {
   name: string;
   kind: 'village' | 'interior';
-  legend: Record<string, TileDef>;
-  tiles: string[];
   buildings: BuildingPlacement[];
   labels: MapLabel[];
   exits: MapExit[];
 }
+
+/** A map as the engine plays it: world.json's metadata plus its Tiled grid. */
+export interface GameMap extends MapMeta, TileGrid {}
 
 export interface BuildingDef {
   name: string;
@@ -90,7 +75,7 @@ export interface World {
   player: { id: string; accent: string };
   start: { map: string; pos: Vec2; facing: Facing };
   buildings: Record<string, BuildingDef>;
-  maps: Record<string, GameMap>;
+  maps: Record<string, MapMeta>;
 }
 
 /** UI strings. Anything the player reads that is not episode dialogue. */

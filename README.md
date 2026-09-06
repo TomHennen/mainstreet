@@ -37,7 +37,8 @@ npm run validate-episodes   # every worlds/*/ pack, engine/validate.ts's rules
 ```
 
 `npm test` covers `engine/validate.ts` (every rule it enforces, plus the real
-`worlds/route10/` pack), `engine/session.ts` (flag-gated dialogue/sign/item
+`worlds/route10/` pack), `engine/tiled.ts` (gid → tile, layer selection and
+every way a map file can be malformed), `engine/session.ts` (flag-gated dialogue/sign/item
 lookups), and `engine/flags.ts`/`engine/bus.ts` (declare-before-use, the
 `requires` AND, and effect application). `npm run validate-episodes` runs
 those same `engine/validate.ts` rules — nothing is duplicated — against every
@@ -68,9 +69,11 @@ engine/          Phaser 4 + TS. World-agnostic. The only code.
   schema.ts        world pack + episode types (DESIGN.md §3)
   validate.ts      declare-before-use flags, reachability, first-match rules
   loader.ts        fetches world data; probes assets by convention
+  tiled.ts         Tiled JSON + tileset parsing (DESIGN.md §2 conventions)
   art.ts           engine-built placeholder tiles, buildings, characters
   scenes/          boot, map (villages and interiors), ui, travel
-worlds/route10/  world.json, copy.json, episodes/, assets/ — data and PNGs only
+worlds/route10/  world.json, copy.json, maps/ (Tiled JSON), episodes/, assets/
+                 — data and PNGs only, no code
 prototype/       route10-v3.html — behavioural reference, not code to reuse
 ```
 
@@ -93,6 +96,5 @@ a missing portrait means text-only dialogue. Content always ships ahead of art.
 
 ## Status
 
-Milestone M1 in progress (see `DESIGN.md` §7). Vitest and `validate-episodes`
-and CI with the devcontainer are in; Tiled maps and `validate-assets` are
-still to come.
+Milestone M1 in progress (see `DESIGN.md` §7). Vitest, `validate-episodes`, CI
+with the devcontainer and Tiled maps are in; `validate-assets` is still to come.
