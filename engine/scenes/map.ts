@@ -12,7 +12,7 @@ import {
 } from '../art';
 import { publishDebug } from '../debug';
 import { isHeld, onAction } from '../input';
-import { dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signFor } from '../session';
+import { creditFor, dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signFor } from '../session';
 import { isSolid } from '../validate';
 import type { BuildingPlacement, EpisodeItem, EpisodeSign, Facing, GameMap, Vec2 } from '../schema';
 
@@ -373,8 +373,12 @@ export class MapScene extends Phaser.Scene {
       const building = target.building;
       const sign = signFor(building.id);
       const name = state.world.buildings[building.id].name;
+      // Painted ones carry an art credit (DESIGN.md §2/§4): an extra line
+      // after whatever flavor text the episode has for the building's sign.
+      const credit = creditFor(building.id);
+      const creditLine = credit ? state.copy.ui.credit.replace('{credit}', credit) : undefined;
       if (sign) {
-        bus.emit(EV.say, { speaker: name, lines: sign.lines });
+        bus.emit(EV.say, { speaker: name, lines: creditLine ? [...sign.lines, creditLine] : sign.lines });
       } else if (!state.assets.buildings.has(building.id)) {
         bus.emit(EV.say, {
           speaker: name,
@@ -384,6 +388,8 @@ export class MapScene extends Phaser.Scene {
               .replace('{contribute}', state.world.contribute ?? '')
           ]
         });
+      } else if (creditLine) {
+        bus.emit(EV.say, { speaker: name, lines: [creditLine] });
       }
       return;
     }

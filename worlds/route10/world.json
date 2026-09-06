@@ -3,7 +3,7 @@
   "title": "Route 10",
   "subtitle": "western Catskills, NY",
   "contribute": "https://example.invalid/route10/contribute",
-  "palette": "assets/palette.png",
+  "palette": "palette.png",
   "episodes": [
     "ep000"
   ],

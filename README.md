@@ -34,23 +34,30 @@ failure. It starts a dev server itself if one is not already on :5173.
 ```sh
 npm test               # Vitest: engine logic only, plain Node, no jsdom
 npm run validate-episodes   # every worlds/*/ pack, engine/validate.ts's rules
+npm run validate-assets     # every worlds/*/ pack's PNGs and credits.json
 ```
 
 `npm test` covers `engine/validate.ts` (every rule it enforces, plus the real
 `worlds/route10/` pack), `engine/tiled.ts` (gid → tile, layer selection and
 every way a map file can be malformed), `engine/session.ts` (flag-gated dialogue/sign/item
-lookups), and `engine/flags.ts`/`engine/bus.ts` (declare-before-use, the
-`requires` AND, and effect application). `npm run validate-episodes` runs
-those same `engine/validate.ts` rules — nothing is duplicated — against every
-world pack on disk and exits non-zero on the first problem, with the world id,
-file and message. Point it at a different worlds directory with an argument
-or `MAINSTREET_WORLDS_DIR` (`node scripts/validate-episodes.ts path/to/worlds`).
+lookups), `engine/flags.ts`/`engine/bus.ts` (declare-before-use, the
+`requires` AND, and effect application), and `scripts/png.ts` (the PNG
+decoder/encoder, round-tripped against tiny generated fixtures). `npm run
+validate-episodes` runs those same `engine/validate.ts` rules — nothing is
+duplicated — against every world pack on disk and exits non-zero on the first
+problem, with the world id, file and message. `npm run validate-assets` does
+the same for every PNG under a world's `assets/` (building/char/portrait
+sizes, tileset PNGs matching their JSON, every opaque pixel on-palette) and
+for `credits.json` (every credited id must exist and be painted). Point
+either script at a different worlds directory with an argument or
+`MAINSTREET_WORLDS_DIR` (e.g. `node scripts/validate-assets.ts
+path/to/worlds`).
 
 ## CI
 
 Every pull request and push to `main` runs `.github/workflows/ci.yml`:
-typecheck, `npm test`, `npm run validate-episodes`, a production build, then
-the headless playtest in a second job. When the playtest fails, its screenshots
+typecheck, `npm test`, `npm run validate-episodes`, `npm run validate-assets`,
+a production build, then the headless playtest in a second job. When the playtest fails, its screenshots
 and log are uploaded as the `playtest-out` artifact on the run. The
 `.devcontainer/` gives the same environment (Node 22 plus Chromium) locally or
 in Codespaces.
@@ -96,8 +103,8 @@ engine/          Phaser 4 + TS. World-agnostic. The only code.
   tiled.ts         Tiled JSON + tileset parsing (DESIGN.md §2 conventions)
   art.ts           engine-built placeholder tiles, buildings, characters
   scenes/          boot, map (villages and interiors), ui, travel
-worlds/route10/  world.json, copy.json, maps/ (Tiled JSON), episodes/, assets/
-                 — data and PNGs only, no code
+worlds/route10/  world.json, copy.json, maps/ (Tiled JSON), episodes/, assets/,
+                 palette.png, credits.json — data and PNGs only, no code
 prototype/       route10-v3.html — behavioural reference, not code to reuse
 ```
 
@@ -117,8 +124,27 @@ next reload. Nothing else to register.
 
 A missing building PNG renders the labelled "unpainted" facade with its shimmer;
 a missing portrait means text-only dialogue. Content always ships ahead of art.
+Every PNG must draw only from the world's fixed palette at `palette.png`
+(transparency is fine, partial alpha is not) — `npm run validate-assets`
+checks this, and it runs in CI.
+
+To credit a painted building, add it to `worlds/<id>/credits.json`:
+
+```json
+{ "buildings": { "stewarts": "Jordan R." } }
+```
+
+The value is who to credit, not a full sentence — copy.json's `ui.credit`
+string ("Painted by {credit}.") supplies the wording. The file is optional
+(no file = no credits) and can also carry `chars`, `portraits` and `tiles`
+credits by id, keyed the same way. Once a building has both its PNG and a
+credits.json entry, the credit shows as an extra line when the player
+examines the building, after any sign text the episode gives it.
+`validate-assets` rejects a credit for an id that doesn't exist, or one that
+isn't painted yet.
 
 ## Status
 
-Milestone M1 in progress (see `DESIGN.md` §7). Vitest, `validate-episodes`, CI
-with the devcontainer and Tiled maps are in; `validate-assets` is still to come.
+Milestone M2 in progress (see `DESIGN.md` §7). Vitest, `validate-episodes`,
+`validate-assets`, CI with the devcontainer and Tiled maps are in; art credits
+are wired up but there is no painted art yet.

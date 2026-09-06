@@ -30,6 +30,8 @@ jobs:
         run: npm test
       - name: Validate world packs
         run: npm run validate-episodes
+      - name: Validate assets
+        run: npm run validate-assets
       - name: Build
         run: npx vite build
 

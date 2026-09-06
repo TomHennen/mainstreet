@@ -1,5 +1,5 @@
 import type { Flags } from './flags';
-import type { Episode, EpisodeItem, EpisodeNpc, EpisodeSign, GameMap, World, WorldCopy } from './schema';
+import type { Credits, Episode, EpisodeItem, EpisodeNpc, EpisodeSign, GameMap, World, WorldCopy } from './schema';
 
 /** Which convention-named assets actually exist in the world pack. */
 export interface AssetIndex {
@@ -18,6 +18,8 @@ export interface Session {
   episode: Episode;
   flags: Flags;
   assets: AssetIndex;
+  /** Art credits, or {} if the world pack has none. */
+  credits: Credits;
   /** True while a dialogue box or a transition owns the input. */
   dialogueOpen: boolean;
   lastDialogueClose: number;
@@ -57,6 +59,17 @@ export function itemVisible(item: EpisodeItem): boolean {
 export function signFor(buildingId: string): EpisodeSign | undefined {
   const { episode, flags } = session();
   return (episode.signs ?? []).find((sign) => sign.building === buildingId && flags.met(sign.requires));
+}
+
+/**
+ * A building's art credit, if it has one and is actually painted (DESIGN.md
+ * §2/§4: "painted ones carry an art credit" — an unpainted building has
+ * nothing to credit yet, even if credits.json names it ahead of time).
+ */
+export function creditFor(buildingId: string): string | undefined {
+  const { assets, credits } = session();
+  if (!assets.buildings.has(buildingId)) return undefined;
+  return credits.buildings?.[buildingId];
 }
 
 /**

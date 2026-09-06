@@ -192,6 +192,9 @@ most continuity needs).
 - Tools: Aseprite or Piskel (free, browser). Later: "Studio," a hosted
   constrained editor (locked canvas + palette + submit) — out of scope now,
   but nothing in the pipeline may preclude it.
+- Credits live in `worlds/<id>/credits.json` (optional, graceful fallback —
+  no file means no credit lines), validated by `validate-assets` and shown
+  in-game as an extra line when a painted building is examined.
 - Intake now: files land in the repo by PR/commit with credit in the commit
   message → surfaced in-game as "painted by ___". Later: Cloudflare Worker
   accepts uploads from Studio, validates, and opens a PR automatically.

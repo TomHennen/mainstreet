@@ -311,15 +311,18 @@ function attach(page, tag) {
     const type = msg.type();
     if (type !== 'error' && type !== 'warning') return;
     const text = msg.text();
-    // Unpainted world packs 404 on every asset probe by design (CLAUDE.md #3).
+    // Unpainted world packs 404 on every asset probe by design (CLAUDE.md #3),
+    // and a world pack with no credits.json 404s on that one optional file the
+    // same way (DESIGN.md §2/§4: graceful fallback, no file = no credits).
     // The message text has no URL in it, so the location is what identifies it.
     const url = msg.location()?.url ?? '';
-    if (/\/worlds\/[^/]+\/assets\//.test(url) || /\/worlds\/[^/]+\/assets\//.test(text)) return;
+    const expected = (s) => /\/worlds\/[^/]+\/assets\//.test(s) || /\/worlds\/[^/]+\/credits\.json/.test(s);
+    if (expected(url) || expected(text)) return;
     consoleLines.push(`${tag} ${type}: ${text}${url ? `  (${url})` : ''}`);
   });
   page.on('pageerror', (err) => pageErrors.push(`${tag} pageerror: ${err.message}\n${err.stack ?? ''}`));
   page.on('requestfailed', (req) => {
-    if (/\/worlds\/.*\/assets\//.test(req.url())) return;
+    if (/\/worlds\/.*\/assets\//.test(req.url()) || /\/worlds\/[^/]+\/credits\.json/.test(req.url())) return;
     consoleLines.push(`${tag} requestfailed: ${req.url()} ${req.failure()?.errorText ?? ''}`);
   });
 }
@@ -626,7 +629,7 @@ async function main() {
     log('\nconsole errors/warnings:');
     for (const line of consoleLines) log('  ' + line);
   } else {
-    log('\nconsole: clean (asset 404s for unpainted art excluded).');
+    log('\nconsole: clean (asset 404s for unpainted art, and a missing credits.json, excluded).');
   }
   if (pageErrors.length) {
     log('\npage errors:');
