@@ -97,6 +97,12 @@ village nicknames (see §5).
 **Interiors:** defined in world data (room map + counter/shelf collision +
 NPC placement), entered via building doors, exited via a door mat. Any
 building may gain an interior in a later episode with zero engine changes.
+Interiors are not a special case for the camera: size a room to the real
+place (a Stewart's is big, a coffee shop is a proper room), the camera
+follows the player exactly as it does outdoors, and a room that happens to
+fit the screen simply sits centred. Zoom is the same whole number inside and
+out so the player stays the same size; the engine only steps zoom up when a
+whole map fits at the larger step.
 
 **Saves:** localStorage, key `mainstreet.<worldId>`. Contents: global flags,
 per-episode flags, completed-episode list, last position. Never store

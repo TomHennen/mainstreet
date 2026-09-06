@@ -386,7 +386,10 @@ async function main() {
   });
 
   try {
-    const context = await browser.newContext({ viewport: { width: 620, height: 900 }, deviceScaleFactor: 1 });
+    // PLAYTEST_VIEWPORT=1024x768 checks the desktop layout; default is a
+    // tablet-ish column that exercises the stage cap.
+    const [vw, vh] = (process.env.PLAYTEST_VIEWPORT ?? '620x900').split('x').map(Number);
+    const context = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 1 });
     const page = await context.newPage();
     attach(page, 'desktop');
 
