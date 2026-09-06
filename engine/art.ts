@@ -190,6 +190,27 @@ export interface BuildingArt {
   painted: boolean;
 }
 
+/** Height of the floating name-plate box, placeholder or painted. */
+const SIGN_H = 10;
+/** Clearance kept between the plate and a painted facade's top edge. */
+const SIGN_GAP = 2;
+
+/** The sign box a building's name plate is drawn into — same look everywhere. */
+function drawSign(ctx: CanvasRenderingContext2D, name: string, cx: number, w: number): void {
+  ctx.font = `8px ${MONO}`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(30,25,18,.85)';
+  ctx.fillRect(cx - w / 2, 0, w, SIGN_H);
+  ctx.fillStyle = '#f3ead8';
+  ctx.fillText(name, cx, 7.5);
+}
+
+function signWidth(name: string): number {
+  const probe = document.createElement('canvas').getContext('2d');
+  if (probe) probe.font = `8px ${MONO}`;
+  return Math.ceil((probe?.measureText(name).width ?? name.length * 5) + 8);
+}
+
 /**
  * Unpainted building: flat facade, roof band, door, and a sign with the real
  * name. Content ships before art, so this has to look deliberate rather than
@@ -219,9 +240,8 @@ export function buildingArt(
 
   const key = `unpainted:${placement.id}`;
   if (!scene.textures.exists(key)) {
-    const probe = document.createElement('canvas').getContext('2d');
-    if (probe) probe.font = `8px ${MONO}`;
-    const signW = Math.ceil((probe?.measureText(def.name).width ?? def.name.length * 5) + 8);
+    const label = placement.label !== false;
+    const signW = label ? signWidth(def.name) : 0;
 
     const texW = Math.max(bodyW, signW);
     const texH = bodyH + OVERHEAD;
@@ -246,12 +266,7 @@ export function buildingArt(
     ctx.fillStyle = '#3a2c1e';
     ctx.fillRect(doorX + 3, OVERHEAD + bodyH - 14, 10, 14);
 
-    ctx.font = `8px ${MONO}`;
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(30,25,18,.85)';
-    ctx.fillRect(texW / 2 - signW / 2, 0, signW, 10);
-    ctx.fillStyle = '#f3ead8';
-    ctx.fillText(def.name, texW / 2, 7.5);
+    if (label) drawSign(ctx, def.name, texW / 2, signW);
 
     texture.refresh();
   }
@@ -264,6 +279,42 @@ export function buildingArt(
     y: placement.pos[1] * TILE - OVERHEAD,
     painted: false
   };
+}
+
+export interface NamePlateArt {
+  key: string;
+  x: number;
+  y: number;
+}
+
+/**
+ * Floating name plate for a *painted* building. The placeholder bakes its
+ * sign straight into `buildingArt`'s texture; a painted facade is a plain PNG
+ * with nothing to bake it into, so this draws the same box in its own small
+ * texture. It sits the same distance above the footprint's top as the
+ * placeholder's sign does — unless the art is taller than the footprint, in
+ * which case it moves up to clear the art's top edge instead, so a tall
+ * facade never gets its roofline covered (CLAUDE.md hard rule 3, DESIGN.md §2).
+ * `placement.label === false` opts a building out of the plate entirely;
+ * callers should skip calling this at all in that case.
+ */
+export function namePlateArt(scene: Phaser.Scene, placement: BuildingPlacement, def: BuildingDef, artTop: number): NamePlateArt {
+  const key = `nameplate:${placement.id}`;
+  if (!scene.textures.exists(key)) {
+    const signW = signWidth(def.name);
+    const { texture, ctx } = canvas(scene, key, signW, SIGN_H);
+    drawSign(ctx, def.name, signW / 2, signW);
+    texture.refresh();
+  }
+
+  const width = scene.textures.get(key).getSourceImage().width;
+  const footprintTop = placement.pos[1] * TILE;
+  const footprintLeft = placement.pos[0] * TILE;
+  const bodyW = placement.size[0] * TILE;
+  const defaultTop = footprintTop - OVERHEAD;
+  const top = artTop < footprintTop ? artTop - SIGN_H - SIGN_GAP : defaultTop;
+
+  return { key, x: footprintLeft + (bodyW - width) / 2, y: top };
 }
 
 // --- characters --------------------------------------------------------------

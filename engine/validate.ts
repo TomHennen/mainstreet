@@ -31,6 +31,9 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
       if (isSolid(map, placement.door[0], placement.door[1])) {
         problems.push(`building "${placement.id}" has its door on a solid tile`);
       }
+      if (placement.label !== undefined && typeof placement.label !== 'boolean') {
+        problems.push(`building "${placement.id}" has a "label" that isn't a boolean`);
+      }
       if (placement.interior) {
         if (!world.maps[placement.interior]) {
           problems.push(`building "${placement.id}" points at unknown interior "${placement.interior}"`);

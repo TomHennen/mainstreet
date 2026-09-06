@@ -122,6 +122,9 @@ next reload. Nothing else to register.
 | `assets/chars/<npc-id>.png`                  | 16×32 frames, 4 rows (down/left/right/up) × 3 |
 | `assets/portraits/<npc-id>.png`              | 96×96 bust on transparency            |
 
+The floating name plate keeps showing once a building is painted; set a
+placement's `"label": false` in `world.json` if you want to hide it.
+
 A missing building PNG renders the labelled "unpainted" facade with its shimmer;
 a missing portrait means text-only dialogue. Content always ships ahead of art.
 Every PNG must draw only from the world's fixed palette at `palette.png`

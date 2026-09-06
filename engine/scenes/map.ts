@@ -8,6 +8,7 @@ import {
   frameIndex,
   itemTexture,
   mapTexture,
+  namePlateArt,
   promptTexture,
   TILE
 } from '../art';
@@ -98,7 +99,15 @@ export class MapScene extends Phaser.Scene {
       const depth = (placement.pos[1] + placement.size[1]) * TILE;
       this.add.image(art.x, art.y, art.key).setOrigin(0, 0).setDepth(depth);
 
-      if (!art.painted) {
+      if (art.painted) {
+        // The placeholder bakes its name plate into the facade texture itself;
+        // a painted PNG has nothing to bake it into, so it gets a plate of its
+        // own here (issue #32), unless the placement opts out.
+        if (placement.label !== false) {
+          const plate = namePlateArt(this, placement, def, art.y);
+          this.add.image(plate.x, plate.y, plate.key).setOrigin(0, 0).setDepth(depth + 1);
+        }
+      } else {
         // "Needs an artist" shimmer — visible, claimable, and deliberate.
         const shimmer = this.add
           .rectangle(
