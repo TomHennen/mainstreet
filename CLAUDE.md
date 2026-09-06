@@ -83,6 +83,8 @@ for feel and behavior*, not code to reuse.
   generous, reserve full-size empty lots, never shift the grid. Run a critic
   pass (rubric in `docs/route10-notes.md`) before merging map changes and put
   whole-map previews in `playtest-out/` so Tom can open them.
+- Incoming art from contributors is handled by the runbook in
+  `docs/receiving-art.md` (standing issue #27). Follow it step by step.
 - Local knowledge about the real villages lives in `docs/route10-notes.md`.
   Check it before placing anything; OpenStreetMap is a fallback, Tom's notes
   win.
