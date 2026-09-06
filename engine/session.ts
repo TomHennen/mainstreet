@@ -1,15 +1,19 @@
 import type { Flags } from './flags';
-import type { Episode, EpisodeItem, EpisodeNpc, EpisodeSign, World, WorldCopy } from './schema';
+import type { Episode, EpisodeItem, EpisodeNpc, EpisodeSign, GameMap, World, WorldCopy } from './schema';
 
 /** Which convention-named assets actually exist in the world pack. */
 export interface AssetIndex {
   buildings: Set<string>;
   chars: Set<string>;
   portraits: Set<string>;
+  /** Tilesets whose image is painted; the rest fall back to drawn tiles. */
+  tilesets: Set<string>;
 }
 
 export interface Session {
   world: World;
+  /** world.json's map metadata joined to the Tiled grids, by map id. */
+  maps: Record<string, GameMap>;
   copy: WorldCopy;
   episode: Episode;
   flags: Flags;

@@ -1,25 +1,87 @@
 import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { parseTiledMap, parseTileset, tilesetSources } from './tiled';
+import type { TilesetDef } from './tiled';
 import { isSolid, validateEpisode, validateWorld } from './validate';
-import type { Episode, GameMap, TileDef, World } from './schema';
+import type { Episode, GameMap, MapMeta, World } from './schema';
 
 // --- small fixture builders --------------------------------------------------
 // Kept deliberately minimal — just enough to satisfy the schema — so each test
-// only sets the one thing it's actually exercising.
+// only sets the one thing it's actually exercising. Tile grids come from the
+// same Tiled parser the engine uses, off a two-tile stand-in tileset, so a rule
+// tested here is tested against real map data.
 
-const GRASS: TileDef = { name: 'Grass', style: 'flat', colors: ['#0f0'] };
-const WALL: TileDef = { name: 'Wall', style: 'flat', colors: ['#000'], solid: true };
+const TILESET = {
+  type: 'tileset',
+  name: 'test',
+  image: 'test.png',
+  tilewidth: 16,
+  tileheight: 16,
+  columns: 2,
+  tilecount: 2,
+  imagewidth: 32,
+  imageheight: 16,
+  tiles: [
+    {
+      id: 0,
+      type: 'grass',
+      properties: [
+        { name: 'colors', type: 'string', value: '#0f0' },
+        { name: 'solid', type: 'bool', value: false },
+        { name: 'style', type: 'string', value: 'flat' }
+      ]
+    },
+    {
+      id: 1,
+      type: 'wall',
+      properties: [
+        { name: 'colors', type: 'string', value: '#000' },
+        { name: 'solid', type: 'bool', value: true },
+        { name: 'style', type: 'string', value: 'flat' }
+      ]
+    }
+  ]
+};
 
-function makeMap(overrides: Partial<GameMap> = {}): GameMap {
+/** `.` walkable, `#` solid — one `ground` layer, as the engine expects. */
+function tiledMap(rows: string[]) {
+  const height = rows.length;
+  const width = height ? rows[0].length : 0;
+  return {
+    type: 'map',
+    orientation: 'orthogonal',
+    infinite: false,
+    width,
+    height,
+    tilewidth: 16,
+    tileheight: 16,
+    tilesets: [{ firstgid: 1, ...TILESET }],
+    layers: [
+      {
+        type: 'tilelayer',
+        name: 'ground',
+        visible: true,
+        width,
+        height,
+        data: rows.flatMap((row) => [...row].map((ch) => (ch === '#' ? 2 : 1)))
+      }
+    ]
+  };
+}
+
+const grid = (rows: string[]) => parseTiledMap(tiledMap(rows), () => undefined, 'fixture');
+
+function makeMap(overrides: Partial<MapMeta> = {}, rows = ['....', '....', '....', '....']): GameMap {
   return {
     name: 'Town',
     kind: 'village',
-    legend: { '.': GRASS, '#': WALL },
-    tiles: ['....', '....', '....', '....'],
     buildings: [],
     labels: [],
     exits: [],
-    ...overrides
+    ...overrides,
+    ...grid(rows)
   };
 }
 
@@ -35,6 +97,15 @@ function makeWorld(overrides: Partial<World> = {}): World {
     ...overrides
   };
 }
+
+/**
+ * The validators are pure: they take the loaded grids alongside the world. In
+ * these fixtures the world's own map objects already are the loaded grids, so
+ * the two arguments come from one place.
+ */
+const grids = (world: World) => world.maps as Record<string, GameMap>;
+const runWorld = (world: World) => validateWorld(world, grids(world));
+const runEpisode = (episode: Episode, world: World) => validateEpisode(episode, world, grids(world));
 
 function makeEpisode(overrides: Partial<Episode> = {}): Episode {
   return {
@@ -56,30 +127,18 @@ function makeEpisode(overrides: Partial<Episode> = {}): Episode {
 
 describe('validateWorld', () => {
   it('accepts a minimal valid world', () => {
-    expect(validateWorld(makeWorld())).toEqual([]);
+    expect(runWorld(makeWorld())).toEqual([]);
   });
 
   it('flags a world with no maps', () => {
-    const problems = validateWorld(makeWorld({ maps: {} }));
+    const problems = runWorld(makeWorld({ maps: {} }));
     expect(problems).toContainEqual(expect.stringContaining('world has no maps'));
   });
 
-  it('flags a map with no tiles', () => {
-    const world = makeWorld({ maps: { town: makeMap({ tiles: [] }) } });
-    const problems = validateWorld(world);
-    expect(problems.join('\n')).toContain('map "town" has no tiles');
-  });
-
-  it('flags a row whose width does not match the first row', () => {
-    const world = makeWorld({ maps: { town: makeMap({ tiles: ['....', '...', '....', '....'] }) } });
-    const problems = validateWorld(world);
-    expect(problems.join('\n')).toMatch(/map "town" row 1 is 3 wide, expected 4/);
-  });
-
-  it('flags a tile character missing from the legend', () => {
-    const world = makeWorld({ maps: { town: makeMap({ tiles: ['.X..', '....', '....', '....'] }) } });
-    const problems = validateWorld(world);
-    expect(problems.join('\n')).toContain('uses tile "X" which is not in its legend');
+  it('flags a map with no tile grid loaded (a missing maps/<id>.json)', () => {
+    const world = makeWorld();
+    const problems = validateWorld(world, {});
+    expect(problems.join('\n')).toContain('map "town" has no tile grid — expected maps/town.json');
   });
 
   it('flags a building placement referencing an unknown building id', () => {
@@ -90,23 +149,23 @@ describe('validateWorld', () => {
         })
       }
     });
-    const problems = validateWorld(world);
+    const problems = runWorld(world);
     expect(problems.join('\n')).toContain('places unknown building "ghost-shop"');
   });
 
   it('flags a building whose door sits on a solid tile', () => {
     // The door (1,1) sits on a "#" tile that is outside the building's own
-    // footprint (3,3), so this exercises the legend-solid check specifically,
+    // footprint (3,3), so this exercises the tile-solidity check specifically,
     // not "the door is inside its own building".
     const world = makeWorld({
       maps: {
-        town: makeMap({
-          tiles: ['....', '.##.', '....', '....'],
-          buildings: [{ id: 'shop', pos: [3, 3], size: [1, 1], door: [1, 1] }]
-        })
+        town: makeMap(
+          { buildings: [{ id: 'shop', pos: [3, 3], size: [1, 1], door: [1, 1] }] },
+          ['....', '.##.', '....', '....']
+        )
       }
     });
-    const problems = validateWorld(world);
+    const problems = runWorld(world);
     expect(problems.join('\n')).toContain('building "shop" has its door on a solid tile');
   });
 
@@ -120,7 +179,7 @@ describe('validateWorld', () => {
         })
       }
     });
-    const problems = validateWorld(world);
+    const problems = runWorld(world);
     expect(problems.join('\n')).toContain('building "shop" points at unknown interior "nowhere"');
   });
 
@@ -134,7 +193,7 @@ describe('validateWorld', () => {
       buildings: { shop: { name: 'Shop', wall: '#fff', roof: '#000' } }
     });
     world.maps['shop-interior'] = makeMap({ kind: 'interior' });
-    const problems = validateWorld(world);
+    const problems = runWorld(world);
     expect(problems.join('\n')).toContain('building "shop" has an interior but no "enter" spawn');
   });
 
@@ -149,7 +208,7 @@ describe('validateWorld', () => {
       }
     });
     world.maps['shop-interior'] = makeMap({ kind: 'interior' });
-    expect(validateWorld(world)).toEqual([]);
+    expect(runWorld(world)).toEqual([]);
   });
 
   it('flags an exit leading to an unknown map', () => {
@@ -160,7 +219,7 @@ describe('validateWorld', () => {
         })
       }
     });
-    const problems = validateWorld(world);
+    const problems = runWorld(world);
     expect(problems.join('\n')).toContain('exit "town-nowhere" leads to unknown map "nowhere"');
   });
 
@@ -170,36 +229,36 @@ describe('validateWorld', () => {
         town: makeMap({
           exits: [{ id: 'town-away', at: [0, 0, 1, 1], to: 'away', spawn: [1, 1], facing: 'down', style: 'road' }]
         }),
-        away: makeMap({ tiles: ['....', '.##.', '....', '....'] })
+        away: makeMap({}, ['....', '.##.', '....', '....'])
       }
     });
-    const problems = validateWorld(world);
+    const problems = runWorld(world);
     expect(problems.join('\n')).toContain('exit "town-away" spawns on a solid tile in "away"');
   });
 
   it('flags a start map that does not exist', () => {
     const world = makeWorld({ start: { map: 'nowhere', pos: [0, 0], facing: 'down' } });
-    const problems = validateWorld(world);
+    const problems = runWorld(world);
     expect(problems.join('\n')).toContain('start map "nowhere" does not exist');
   });
 
   it('flags a start position on a solid tile', () => {
     const world = makeWorld({
       start: { map: 'town', pos: [1, 1], facing: 'down' },
-      maps: { town: makeMap({ tiles: ['....', '.#..', '....', '....'] }) }
+      maps: { town: makeMap({}, ['....', '.#..', '....', '....']) }
     });
-    const problems = validateWorld(world);
+    const problems = runWorld(world);
     expect(problems).toContainEqual(expect.stringContaining('start position is on a solid tile'));
   });
 });
 
 describe('isSolid', () => {
-  const map = makeMap({
-    tiles: ['....', '.#..', '....', '....'],
-    buildings: [{ id: 'shop', pos: [2, 2], size: [2, 2], door: [2, 3] }]
-  });
+  const map = makeMap(
+    { buildings: [{ id: 'shop', pos: [2, 2], size: [2, 2], door: [2, 3] }] },
+    ['....', '.#..', '....', '....']
+  );
 
-  it('is true for a legend tile marked solid', () => {
+  it('is true for a tileset tile marked solid', () => {
     expect(isSolid(map, 1, 1)).toBe(true);
   });
 
@@ -224,7 +283,7 @@ describe('validateEpisode', () => {
   const world = makeWorld();
 
   it('accepts a minimal valid episode', () => {
-    expect(validateEpisode(makeEpisode(), world)).toEqual([]);
+    expect(runEpisode(makeEpisode(), world)).toEqual([]);
   });
 
   it('flags an npc dialogue entry that requires an undeclared flag', () => {
@@ -242,7 +301,7 @@ describe('validateEpisode', () => {
         }
       ]
     });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('npc "npc1" dialogue 0 uses undeclared flag "ghostFlag"');
   });
 
@@ -258,7 +317,7 @@ describe('validateEpisode', () => {
         }
       ]
     });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('npc "npc1" dialogue 0 sets undeclared flag "ghostFlag"');
   });
 
@@ -277,7 +336,7 @@ describe('validateEpisode', () => {
         }
       ]
     });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain(
       'npc "npc1" dialogue 1 is unreachable — entry 0 matches everything'
     );
@@ -295,7 +354,7 @@ describe('validateEpisode', () => {
         }
       ]
     });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('npc "npc1" has no unconditional fallback line');
   });
 
@@ -303,7 +362,7 @@ describe('validateEpisode', () => {
     const episode = makeEpisode({
       npcs: [{ id: 'npc1', name: 'NPC', map: 'nowhere', pos: [1, 1], dialogue: [{ requires: [], lines: ['a'] }] }]
     });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('npc "npc1" is on unknown map "nowhere"');
   });
 
@@ -311,7 +370,7 @@ describe('validateEpisode', () => {
     const episode = makeEpisode({
       npcs: [{ id: 'npc1', name: 'NPC', map: 'town', pos: [99, 99], dialogue: [{ requires: [], lines: ['a'] }] }]
     });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('npc "npc1" is outside map "town"');
   });
 
@@ -319,7 +378,7 @@ describe('validateEpisode', () => {
     const episode = makeEpisode({
       items: [{ id: 'pen', map: 'town', pos: [-1, 0], requires: [], effects: [{ set: 'done' }], lines: ['a'] }]
     });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('item "pen" is outside map "town"');
   });
 
@@ -327,7 +386,7 @@ describe('validateEpisode', () => {
     const episode = makeEpisode({
       items: [{ id: 'pen', map: 'town', pos: [0, 0], requires: ['ghostFlag'], effects: [{ set: 'done' }], lines: ['a'] }]
     });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('item "pen" uses undeclared flag "ghostFlag"');
   });
 
@@ -335,7 +394,7 @@ describe('validateEpisode', () => {
     const episode = makeEpisode({
       items: [{ id: 'pen', map: 'town', pos: [0, 0], requires: [], effects: [{ set: 'ghostFlag' }], lines: ['a'] }]
     });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('item "pen" sets undeclared flag "ghostFlag"');
   });
 
@@ -343,7 +402,7 @@ describe('validateEpisode', () => {
     const episode = makeEpisode({
       items: [{ id: 'pen', map: 'town', pos: [0, 0], requires: [], effects: [{ toast: 'got it' }], lines: ['a'] }]
     });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('item "pen" has no effect that sets a flag');
   });
 
@@ -351,20 +410,20 @@ describe('validateEpisode', () => {
     const episode = makeEpisode({
       items: [{ id: 'pen', map: 'town', pos: [0, 0], requires: ['metNpc'], effects: [{ set: 'done' }], lines: ['a'] }]
     });
-    expect(validateEpisode(episode, world)).toEqual([]);
+    expect(runEpisode(episode, world)).toEqual([]);
   });
 
   it('flags a sign that requires an undeclared flag', () => {
     const episode = makeEpisode({
       signs: [{ building: 'shop', requires: ['ghostFlag'], lines: ['a'] }]
     });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('uses undeclared flag "ghostFlag"');
   });
 
   it('flags a sign with neither "building" nor "map"+"pos"', () => {
     const episode = makeEpisode({ signs: [{ requires: [], lines: ['a'] }] });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('needs exactly one of "building" or "map" + "pos"');
   });
 
@@ -372,31 +431,31 @@ describe('validateEpisode', () => {
     const episode = makeEpisode({
       signs: [{ building: 'shop', map: 'town', pos: [0, 0], requires: [], lines: ['a'] }]
     });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('needs exactly one of "building" or "map" + "pos"');
   });
 
   it('flags a prop sign that has "pos" but no "map"', () => {
     const episode = makeEpisode({ signs: [{ pos: [0, 0], requires: [], lines: ['a'] }] });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('prop sign needs both "map" and "pos"');
   });
 
   it('flags a prop sign that has "map" but no "pos"', () => {
     const episode = makeEpisode({ signs: [{ map: 'town', requires: [], lines: ['a'] }] });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('prop sign needs both "map" and "pos"');
   });
 
   it('flags a building sign referring to an unknown building', () => {
     const episode = makeEpisode({ signs: [{ building: 'ghost-shop', requires: [], lines: ['a'] }] });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('sign refers to unknown building "ghost-shop"');
   });
 
   it('flags a prop sign whose position is outside its map', () => {
     const episode = makeEpisode({ signs: [{ map: 'town', pos: [99, 99], requires: [], lines: ['a'] }] });
-    const problems = validateEpisode(episode, world);
+    const problems = runEpisode(episode, world);
     expect(problems.join('\n')).toContain('is outside map "town"');
   });
 
@@ -407,25 +466,58 @@ describe('validateEpisode', () => {
         { map: 'town', pos: [0, 0], requires: [], lines: ['b'] }
       ]
     });
-    expect(validateEpisode(episode, world)).toEqual([]);
+    expect(runEpisode(episode, world)).toEqual([]);
   });
 });
 
+/**
+ * The real pack, loaded the way engine/loader.ts and scripts/validate-episodes
+ * load it: world.json's map metadata joined to the Tiled grid under maps/, with
+ * the external tileset resolved relative to the map file.
+ */
+function loadPack(root: string) {
+  const world = JSON.parse(readFileSync(resolve(root, 'world.json'), 'utf8')) as World;
+  const tilesets = new Map<string, TilesetDef>();
+  const maps: Record<string, GameMap> = {};
+  for (const mapId of Object.keys(world.maps)) {
+    const file = resolve(root, 'maps', `${mapId}.json`);
+    const raw = JSON.parse(readFileSync(file, 'utf8')) as unknown;
+    for (const source of tilesetSources(raw, file)) {
+      const tilesetFile = resolve(dirname(file), source);
+      if (!tilesets.has(tilesetFile)) {
+        tilesets.set(tilesetFile, parseTileset(JSON.parse(readFileSync(tilesetFile, 'utf8')), tilesetFile));
+      }
+    }
+    const gridData = parseTiledMap(raw, (source) => tilesets.get(resolve(dirname(file), source)), file);
+    maps[mapId] = { ...world.maps[mapId], ...gridData };
+  }
+  return { world, maps };
+}
+
 describe('worlds/route10 validates cleanly', () => {
-  const root = new URL('../worlds/route10/', import.meta.url);
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '../worlds/route10');
 
   it('has no problems from validateWorld', () => {
-    const world = JSON.parse(readFileSync(new URL('world.json', root), 'utf8')) as World;
-    expect(validateWorld(world)).toEqual([]);
+    const { world, maps } = loadPack(root);
+    expect(validateWorld(world, maps)).toEqual([]);
   });
 
   it('has no problems from validateEpisode, for every episode listed in world.json', () => {
-    const world = JSON.parse(readFileSync(new URL('world.json', root), 'utf8')) as World;
+    const { world, maps } = loadPack(root);
     for (const episodeId of world.episodes) {
       const episode = JSON.parse(
-        readFileSync(new URL(`episodes/${episodeId}.json`, root), 'utf8')
+        readFileSync(resolve(root, 'episodes', `${episodeId}.json`), 'utf8')
       ) as Episode;
-      expect(validateEpisode(episode, world)).toEqual([]);
+      expect(validateEpisode(episode, world, maps)).toEqual([]);
+    }
+  });
+
+  it('every map the pack declares has a Tiled grid with a ground layer', () => {
+    const { world, maps } = loadPack(root);
+    for (const mapId of Object.keys(world.maps)) {
+      expect(maps[mapId].layers.map((layer) => layer.name)).toContain('ground');
+      expect(maps[mapId].width).toBeGreaterThan(0);
+      expect(maps[mapId].height).toBeGreaterThan(0);
     }
   });
 });

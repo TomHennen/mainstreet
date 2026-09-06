@@ -1,0 +1,467 @@
+{
+  "columns": 5,
+  "image": "route10.png",
+  "imageheight": 64,
+  "imagewidth": 80,
+  "margin": 0,
+  "name": "route10",
+  "spacing": 0,
+  "tilecount": 20,
+  "tiledversion": "1.10.2",
+  "tileheight": 16,
+  "tilewidth": 16,
+  "type": "tileset",
+  "version": "1.10",
+  "tiles": [
+    {
+      "id": 0,
+      "type": "grass",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#5e8c50"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "flat"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "type": "grass",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#578349"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "flat"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "grass",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#63925a"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "flat"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "flowers",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#5e8c50"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#d9a441"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "flower"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "flowers",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#5e8c50"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#c76b8a"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "flower"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "road",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#b7a081"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "flat"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "road",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#b7a081"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#a08a6c"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "speck"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "water",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#4a7f96"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "flat"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "water",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#4a7f96"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#5d93a8"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "ripple"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "tree",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#5e8c50"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#2f5d3a,#3f7a4c,#4a3826"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "tree"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "bench",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#5e8c50"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#6d5138,#8a6b48"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "prop"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "floor",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#d8cfc0"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "flat"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "floor",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#cbc1b0"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "flat"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "mat",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#8f401f,#b5542a"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "mat"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "wall",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#a94f2e,#8d3f22"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "block"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "wall",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#5b4632,#6d5138"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "block"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "counter",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#7c5a3a,#95704c"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "block"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "shelf",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#6d5138,#c76b8a"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "shelf"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "shelf",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#6d5138,#d9a441"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "shelf"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "type": "shelf",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#6d5138,#3f7a4c"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "shelf"
+        }
+      ]
+    }
+  ]
+}

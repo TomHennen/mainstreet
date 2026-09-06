@@ -88,11 +88,18 @@ const episode: Episode = {
   ]
 };
 
-const assets: AssetIndex = { buildings: new Set(), chars: new Set(), portraits: new Set() };
+const assets: AssetIndex = {
+  buildings: new Set(),
+  chars: new Set(),
+  portraits: new Set(),
+  tilesets: new Set()
+};
 
 function boot(flags: Flags): void {
   startSession({
     world,
+    // session.ts never touches the tile grids, only the episode lookups.
+    maps: {},
     copy,
     episode,
     flags,

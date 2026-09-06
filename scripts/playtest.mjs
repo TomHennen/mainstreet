@@ -36,17 +36,45 @@ function worldId() {
 }
 
 const WORLD_ID = worldId();
-const WORLD = JSON.parse(readFileSync(resolve(ROOT, 'worlds', WORLD_ID, 'world.json'), 'utf8'));
-const EPISODE = JSON.parse(
-  readFileSync(resolve(ROOT, 'worlds', WORLD_ID, 'episodes', `${WORLD.episodes[0]}.json`), 'utf8')
-);
+const PACK = resolve(ROOT, 'worlds', WORLD_ID);
+const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
+const WORLD = readJson(resolve(PACK, 'world.json'));
+const EPISODE = readJson(resolve(PACK, 'episodes', `${WORLD.episodes[0]}.json`));
+
+/**
+ * The tile grids are Tiled files (DESIGN.md §2). This reads them the way the
+ * engine does — every visible tile layer, gids masked of their flip flags,
+ * `solid` off the tileset's per-tile properties — deliberately as a second
+ * implementation, so a harness that walks where the engine will not walk is a
+ * failure rather than a shared bug. Each map metadata block in world.json
+ * gains `width`, `height` and a solidity grid here.
+ */
+const GID_MASK = 0x1fffffff;
+for (const [mapId, map] of Object.entries(WORLD.maps)) {
+  const file = resolve(PACK, 'maps', `${mapId}.json`);
+  const tiled = readJson(file);
+  const solidGid = new Set();
+  for (const ref of tiled.tilesets) {
+    const tileset = readJson(resolve(dirname(file), ref.source));
+    for (const tile of tileset.tiles ?? []) {
+      if (tile.properties?.some((p) => p.name === 'solid' && p.value === true)) solidGid.add(ref.firstgid + tile.id);
+    }
+  }
+  map.width = tiled.width;
+  map.height = tiled.height;
+  map.solid = new Array(tiled.width * tiled.height).fill(false);
+  for (const layer of tiled.layers) {
+    if (layer.type !== 'tilelayer' || layer.visible === false) continue;
+    layer.data.forEach((gid, i) => {
+      if (solidGid.has(gid & GID_MASK)) map.solid[i] = true;
+    });
+  }
+}
 
 /** Mirrors engine/validate.ts isSolid(). */
 function isSolid(map, x, y) {
-  if (y < 0 || y >= map.tiles.length) return true;
-  const row = map.tiles[y];
-  if (x < 0 || x >= row.length) return true;
-  if (map.legend[row[x]]?.solid === true) return true;
+  if (x < 0 || y < 0 || x >= map.width || y >= map.height) return true;
+  if (map.solid[y * map.width + x]) return true;
   return map.buildings.some(
     (b) => x >= b.pos[0] && x < b.pos[0] + b.size[0] && y >= b.pos[1] && y < b.pos[1] + b.size[1]
   );
@@ -371,6 +399,18 @@ async function main() {
       fail('boot', `#fatal panel is on screen:\n${text}`);
     }
     if (!(await page.locator('#stage canvas').count())) fail('boot', 'no canvas inside #stage');
+    // The HUD is filled in once the world pack, its maps and its tilesets have
+    // all been fetched and validated, so this is a wait rather than a sample.
+    try {
+      await page.waitForFunction(
+        () => (document.querySelector('[data-hud="title"]')?.textContent ?? '').trim().length > 0,
+        null,
+        { timeout: 20000 }
+      );
+    } catch {
+      await shot(page, 'no-hud');
+      fail('boot', 'HUD title was never filled in from the world pack');
+    }
     const hud = (await page.locator('[data-hud="title"]').innerText()).trim();
     if (!hud || hud === ' ') fail('boot', 'HUD title was never filled in from the world pack');
     log(`    HUD: "${hud}" / "${(await page.locator('[data-hud="episode"]').innerText()).trim()}"`);

@@ -1,10 +1,15 @@
 import Phaser from 'phaser';
-import type { Episode, World, WorldCopy } from './schema';
+import { parseTiledMap, parseTileset, tilesetSources } from './tiled';
+import type { TilesetDef } from './tiled';
+import type { Episode, GameMap, World, WorldCopy } from './schema';
 import type { AssetIndex } from './session';
 
 // Prefixed with Vite's base path so the build works under a sub-path such as
 // GitHub Pages' `/<repo>/`. BASE_URL always ends with a slash.
 const worldRoot = (worldId: string) => `${import.meta.env.BASE_URL}worlds/${worldId}`;
+
+/** Resolves a path written inside a world-pack file, relative to that file. */
+const relative = (from: string, to: string) => new URL(to, new URL(from, location.href)).toString();
 
 async function json<T>(url: string): Promise<T> {
   const response = await fetch(url, { cache: 'no-cache' });
@@ -16,6 +21,10 @@ export interface LoadedWorld {
   world: World;
   copy: WorldCopy;
   episodes: Episode[];
+  /** world.json's per-map metadata joined to each map's Tiled grid. */
+  maps: Record<string, GameMap>;
+  /** Every tileset the maps reference, by name. */
+  tilesets: TilesetDef[];
 }
 
 export async function loadWorld(worldId: string): Promise<LoadedWorld> {
@@ -33,7 +42,44 @@ export async function loadWorld(worldId: string): Promise<LoadedWorld> {
     world.episodes.map((id) => json<Episode>(`${root}/episodes/${id}.json`))
   );
 
-  return { world, copy, episodes };
+  // Maps load by convention: one Tiled file per map id in world.json
+  // (DESIGN.md §2). Their external tilesets are fetched in a second pass,
+  // because only the map files say which ones they need.
+  const mapIds = Object.keys(world.maps);
+  const mapUrls = Object.fromEntries(mapIds.map((id) => [id, `${root}/maps/${id}.json`]));
+  const rawMaps = Object.fromEntries(
+    await Promise.all(mapIds.map(async (id) => [id, await json<unknown>(mapUrls[id])] as const))
+  );
+
+  const tilesetUrls = new Set<string>();
+  for (const id of mapIds) {
+    for (const source of tilesetSources(rawMaps[id], mapUrls[id])) {
+      tilesetUrls.add(relative(mapUrls[id], source));
+    }
+  }
+  const byUrl = new Map<string, TilesetDef>(
+    await Promise.all(
+      [...tilesetUrls].map(async (url) => {
+        const tileset = parseTileset(await json<unknown>(url), url);
+        // The tileset says where its PNG lives; the loader turns that into a
+        // URL it can probe and hand to Phaser.
+        tileset.imageUrl = relative(url, tileset.image);
+        return [url, tileset] as const;
+      })
+    )
+  );
+
+  const maps: Record<string, GameMap> = {};
+  for (const id of mapIds) {
+    const grid = parseTiledMap(
+      rawMaps[id],
+      (source) => byUrl.get(relative(mapUrls[id], source)),
+      mapUrls[id]
+    );
+    maps[id] = { ...world.maps[id], ...grid };
+  }
+
+  return { world, copy, episodes, maps, tilesets: [...byUrl.values()] };
 }
 
 /**
@@ -51,18 +97,25 @@ async function exists(url: string): Promise<boolean> {
   }
 }
 
-export async function indexAssets(world: World, episodes: Episode[]): Promise<AssetIndex> {
+export async function indexAssets(loaded: LoadedWorld): Promise<AssetIndex> {
+  const { world, episodes, tilesets } = loaded;
   const root = worldRoot(world.id);
   const buildingIds = Object.keys(world.buildings);
   const charIds = [world.player.id, ...episodes.flatMap((episode) => episode.npcs.map((npc) => npc.id))];
 
-  const [buildings, chars, portraits] = await Promise.all([
+  const [buildings, chars, portraits, painted] = await Promise.all([
     filterExisting(buildingIds, (id) => `${root}/assets/buildings/${id}.png`),
     filterExisting(charIds, (id) => `${root}/assets/chars/${id}.png`),
-    filterExisting(charIds, (id) => `${root}/assets/portraits/${id}.png`)
+    filterExisting(charIds, (id) => `${root}/assets/portraits/${id}.png`),
+    // A tileset names its own image, so that path is probed rather than a
+    // conventional one; the fallback is the engine-drawn placeholder sheet.
+    filterExisting(
+      tilesets.map((tileset) => tileset.name),
+      (name) => tilesets.find((tileset) => tileset.name === name)?.imageUrl ?? ''
+    )
   ]);
 
-  return { buildings, chars, portraits };
+  return { buildings, chars, portraits, tilesets: painted };
 }
 
 async function filterExisting(ids: string[], url: (id: string) => string): Promise<Set<string>> {
@@ -72,11 +125,16 @@ async function filterExisting(ids: string[], url: (id: string) => string): Promi
 }
 
 /** Hands the discovered assets to Phaser's loader, keyed by convention. */
-export function queueAssets(load: Phaser.Loader.LoaderPlugin, world: World, assets: AssetIndex): void {
-  const root = worldRoot(world.id);
+export function queueAssets(load: Phaser.Loader.LoaderPlugin, loaded: LoadedWorld, assets: AssetIndex): void {
+  const root = worldRoot(loaded.world.id);
   for (const id of assets.buildings) load.image(`art:building:${id}`, `${root}/assets/buildings/${id}.png`);
   for (const id of assets.chars) {
     load.spritesheet(`art:char:${id}`, `${root}/assets/chars/${id}.png`, { frameWidth: 16, frameHeight: 32 });
   }
   for (const id of assets.portraits) load.image(`art:portrait:${id}`, `${root}/assets/portraits/${id}.png`);
+  for (const tileset of loaded.tilesets) {
+    if (assets.tilesets.has(tileset.name) && tileset.imageUrl) {
+      load.image(`art:tiles:${tileset.name}`, tileset.imageUrl);
+    }
+  }
 }

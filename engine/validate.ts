@@ -1,31 +1,27 @@
 import type { Episode, GameMap, World } from './schema';
 
 /**
- * Load-time validation. This is the M0 stand-in for `scripts/validate-episodes`
- * (DESIGN.md §3): same rules, run in the browser so a broken world pack shows a
- * readable list of problems instead of a blank canvas.
+ * Load-time validation of a world pack (DESIGN.md §3), run both in the browser
+ * at boot — so a broken pack shows a readable list of problems instead of a
+ * blank canvas — and by `scripts/validate-episodes`.
+ *
+ * The tile grids live in Tiled files rather than in world.json, so both
+ * functions take the loaded maps alongside the world. They stay pure: whoever
+ * read the files (engine/loader.ts, or the script) hands them in. A map file
+ * that is malformed throws while it is being parsed (engine/tiled.ts); a map
+ * that is missing altogether shows up here.
  */
-export function validateWorld(world: World): string[] {
+export function validateWorld(world: World, maps: Record<string, GameMap>): string[] {
   const problems: string[] = [];
   const mapIds = Object.keys(world.maps);
 
   if (!mapIds.length) problems.push('world has no maps');
 
-  for (const [mapId, map] of Object.entries(world.maps)) {
-    const height = map.tiles.length;
-    const width = height ? map.tiles[0].length : 0;
-
-    if (!height || !width) {
-      problems.push(`map "${mapId}" has no tiles`);
+  for (const mapId of mapIds) {
+    const map = maps[mapId];
+    if (!map) {
+      problems.push(`map "${mapId}" has no tile grid — expected maps/${mapId}.json`);
       continue;
-    }
-    for (let y = 0; y < height; y++) {
-      if (map.tiles[y].length !== width) {
-        problems.push(`map "${mapId}" row ${y} is ${map.tiles[y].length} wide, expected ${width}`);
-      }
-      for (const ch of map.tiles[y]) {
-        if (!map.legend[ch]) problems.push(`map "${mapId}" uses tile "${ch}" which is not in its legend`);
-      }
     }
 
     for (const placement of map.buildings) {
@@ -45,12 +41,13 @@ export function validateWorld(world: World): string[] {
     }
 
     for (const exit of map.exits) {
-      const dest = world.maps[exit.to];
-      if (!dest) {
+      if (!world.maps[exit.to]) {
         problems.push(`exit "${exit.id}" leads to unknown map "${exit.to}"`);
         continue;
       }
-      if (isSolid(dest, exit.spawn[0], exit.spawn[1])) {
+      const dest = maps[exit.to];
+      // A destination with no grid is already reported against that map.
+      if (dest && isSolid(dest, exit.spawn[0], exit.spawn[1])) {
         problems.push(`exit "${exit.id}" spawns on a solid tile in "${exit.to}"`);
       }
     }
@@ -59,14 +56,14 @@ export function validateWorld(world: World): string[] {
   const start = world.start;
   if (!world.maps[start.map]) {
     problems.push(`start map "${start.map}" does not exist`);
-  } else if (isSolid(world.maps[start.map], start.pos[0], start.pos[1])) {
+  } else if (maps[start.map] && isSolid(maps[start.map], start.pos[0], start.pos[1])) {
     problems.push('start position is on a solid tile');
   }
 
   return problems;
 }
 
-export function validateEpisode(episode: Episode, world: World): string[] {
+export function validateEpisode(episode: Episode, world: World, maps: Record<string, GameMap>): string[] {
   const problems: string[] = [];
   const declared = new Set(episode.flags);
   const where = `episode "${episode.id}"`;
@@ -84,13 +81,14 @@ export function validateEpisode(episode: Episode, world: World): string[] {
     }
   };
   const checkPos = (mapId: string, pos: [number, number], context: string) => {
-    const map = world.maps[mapId];
-    if (!map) {
+    if (!world.maps[mapId]) {
       problems.push(`${where}: ${context} is on unknown map "${mapId}"`);
       return;
     }
+    const map = maps[mapId];
+    if (!map) return; // the missing grid is already reported by validateWorld
     const [x, y] = pos;
-    if (y < 0 || y >= map.tiles.length || x < 0 || x >= map.tiles[0].length) {
+    if (x < 0 || y < 0 || x >= map.width || y >= map.height) {
       problems.push(`${where}: ${context} is outside map "${mapId}"`);
     }
   };
@@ -151,13 +149,13 @@ export function validateEpisode(episode: Episode, world: World): string[] {
 /**
  * The single definition of "you cannot stand here", shared by the collision
  * loop and the validator so a door placed inside a wall fails at load rather
- * than at play.
+ * than at play. A cell is solid if any layer's tile there is solid, or if a
+ * building footprint covers it.
  */
 export function isSolid(map: GameMap, x: number, y: number): boolean {
-  if (y < 0 || y >= map.tiles.length) return true;
-  const row = map.tiles[y];
-  if (x < 0 || x >= row.length) return true;
-  if (map.legend[row[x]]?.solid === true) return true;
+  if (x < 0 || y < 0 || x >= map.width || y >= map.height) return true;
+  const index = y * map.width + x;
+  if (map.layers.some((layer) => layer.cells[index]?.solid === true)) return true;
   return map.buildings.some(
     (b) => x >= b.pos[0] && x < b.pos[0] + b.size[0] && y >= b.pos[1] && y < b.pos[1] + b.size[1]
   );
