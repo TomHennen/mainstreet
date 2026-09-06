@@ -269,7 +269,7 @@ Hobart — "Jewel of the West Branch."
   (maple, liquid smoke, sea salt); attached Catskill Outpost shop.
 - `the-belvedere` (Stamford): "The Bel," dive-bar community space; bat signs
   point to the patio; taco nights, movie nights, live music.
-- `cellar-door-wines` (Hobart): curated wine shop; owner Shaye's
+- `cellar-door-wines` (Hobart): curated wine shop; the owner's
   recommendations are an institution.
 
 **Cast so far (fictional):** Earl — retired regular who holds court outside
