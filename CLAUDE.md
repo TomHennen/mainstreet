@@ -23,8 +23,9 @@ for feel and behavior*, not code to reuse.
 - Maps authored in Tiled, exported JSON.
 - Saves in localStorage, namespaced per world.
 - Deploy: GitHub Pages via `.github/workflows/pages.yml` on every push to
-  `main`. Cloudflare Pages (with each world at its own path, `/route10/`) is
-  deferred until there is a reason for it.
+  `main`. `npm run build:site` builds each world at its own path
+  (`/mainstreet/route10/`) with a landing page at the root. Cloudflare Pages
+  is deferred until there is a reason for it.
 - Keep dependencies minimal. Every new dependency needs a one-line
   justification in the PR description.
 
