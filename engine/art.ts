@@ -105,6 +105,18 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, px: number, py: n
       ctx.fillStyle = c[1] ?? c[0];
       ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
       break;
+
+    // A short bar along one axis, drawn over `base`. Tiling it leaves a gap
+    // between bars, so a run of them reads as a dashed line.
+    case 'stripe-h':
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px + 3, py + 7, 10, 2);
+      break;
+
+    case 'stripe-v':
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px + 7, py + 3, 2, 10);
+      break;
   }
 }
 

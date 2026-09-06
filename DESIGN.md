@@ -61,8 +61,9 @@ water, wall, floor, counter, mat — which is there for the person editing the
 map; the engine never branches on it. What the engine reads is Tiled custom
 properties: `solid` (bool, default false — the only source of tile collision),
 `style`, `colors` (comma-separated hex) and optional `base`. `style` is one of
-nine drawing recipes (`flat`, `speck`, `ripple`, `tree`, `flower`, `prop`,
-`block`, `shelf`, `mat`), so a tile is fully self-describing and variants of a
+eleven drawing recipes (`flat`, `speck`, `ripple`, `tree`, `flower`, `prop`,
+`block`, `shelf`, `mat`, `stripe-h`, `stripe-v`), so a tile is fully
+self-describing and variants of a
 kind — three grasses, road with and without a crack — are separate tiles the
 author paints with, rather than something the engine randomises per position.
 
@@ -235,7 +236,16 @@ queries and the lat/lon → tile maths are in `docs/route10-geometry.md`):**
 metres per tile: Stamford 64×34 tiles at 20 m (1280×680 m), Jefferson 64×30 at
 20 m (1280×600 m), Hobart 52×30 at 15 m (780×450 m). Building footprints are
 deliberately much larger than life at that scale — they are landmarks, not
-survey outlines. Mount Utsayantha and its lake are just north-east of Stamford
+survey outlines.
+
+**The maps are simplified for readability, on purpose.** Intelligible first,
+accurate second: the state routes are paved and 3 tiles wide with a dashed
+centre line, side streets are 2 tiles of sand, and every route is straight
+apart from a single right-angle bend spent where it explains the real
+geography — no staircase diagonals, no sandy aprons at the junctions. The OSM
+and USGS references the fit was worked from live in `playtest-out/reference`
+and are not committed; the rules themselves are summarised in
+`docs/route10-geometry.md` §7. Mount Utsayantha and its lake are just north-east of Stamford
 up Lake Street, off the edge of the map — the Princess Utsayantha legend is
 strong future-episode material.
 

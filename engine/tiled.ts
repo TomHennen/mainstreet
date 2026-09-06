@@ -34,9 +34,23 @@ export type TileStyle =
   | 'prop'
   | 'block'
   | 'shelf'
-  | 'mat';
+  | 'mat'
+  | 'stripe-h'
+  | 'stripe-v';
 
-const STYLES: readonly string[] = ['flat', 'speck', 'ripple', 'tree', 'flower', 'prop', 'block', 'shelf', 'mat'];
+const STYLES: readonly string[] = [
+  'flat',
+  'speck',
+  'ripple',
+  'tree',
+  'flower',
+  'prop',
+  'block',
+  'shelf',
+  'mat',
+  'stripe-h',
+  'stripe-v'
+];
 
 export interface TileDef {
   /** The tile's Tiled class: grass, road, water, wall, floor, counter, mat … */

@@ -1,12 +1,12 @@
 {
   "columns": 5,
   "image": "route10.png",
-  "imageheight": 80,
+  "imageheight": 112,
   "imagewidth": 80,
   "margin": 0,
   "name": "route10",
   "spacing": 0,
-  "tilecount": 25,
+  "tilecount": 31,
   "tiledversion": "1.10.2",
   "tileheight": 16,
   "tilewidth": 16,
@@ -570,6 +570,147 @@
           "name": "style",
           "type": "string",
           "value": "flat"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "asphalt",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#52525b"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "flat"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "type": "asphalt",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#52525b"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#45454d"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "speck"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "type": "asphalt",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#52525b"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#d9a441"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "stripe-h"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "type": "asphalt",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#52525b"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#d9a441"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "stripe-v"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "type": "bridge",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#8a6b48"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "flat"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "wall",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#a94f2e,#a94f2e"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "block"
         }
       ]
     }
