@@ -72,6 +72,19 @@ for feel and behavior*, not code to reuse.
   No secrets exist in this project; keep it that way.
 - When behavior questions come up ("how should travel screens feel?"), check
   the prototype first, then DESIGN.md, then ask.
+- The main agent session coordinates; subagents do the coding, reviews and
+  critiques, with a model matched to the task. Keep small fixes and final
+  verification (typecheck, tests, playtest) in the main session.
+- Maps: intelligible first, accurate second. State routes are paved with a
+  dashed centre line, side streets sandy, sidewalks concrete; straight roads
+  with at most one deliberate bend; clean crossings; no jumble of filler
+  buildings. Maps start minimal and grow episode by episode: keep sizes
+  generous, reserve full-size empty lots, never shift the grid. Run a critic
+  pass (rubric in `docs/route10-notes.md`) before merging map changes and put
+  whole-map previews in `playtest-out/` so Tom can open them.
+- Local knowledge about the real villages lives in `docs/route10-notes.md`.
+  Check it before placing anything; OpenStreetMap is a fallback, Tom's notes
+  win.
 - Agents merge their own PRs once CI is green (typecheck, tests,
   validate-episodes, build, headless playtest) and the diff has been reviewed
   against the hard rules. Tom reviews after the fact. Anything that changes
@@ -80,5 +93,6 @@ for feel and behavior*, not code to reuse.
 
 ## Current focus
 
-Milestone M0: the smallest runnable build Tom can judge for feel.
-See DESIGN.md §Roadmap for the definition of done.
+M1 is done (tests, CI, Tiled maps, Pages deploy). Current work is map
+readability and corrections from Tom's walk-throughs; M2 (save/load, title
+screen, art pipeline, credits) is next. See DESIGN.md §Roadmap.
