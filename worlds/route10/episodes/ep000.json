@@ -49,7 +49,7 @@
       "id": "hannah",
       "name": "Hannah",
       "map": "stewarts-interior",
-      "pos": [7, 11],
+      "pos": [6, 12],
       "facing": "down",
       "accent": "#7a3e5f",
       "dialogue": [
@@ -78,7 +78,7 @@
     {
       "id": "pen",
       "map": "jefferson",
-      "pos": [16, 18],
+      "pos": [16, 19],
       "requires": ["metEarl"],
       "effects": [{ "set": "hasPen" }, { "toast": "Got it" }],
       "lines": [

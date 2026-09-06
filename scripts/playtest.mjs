@@ -445,7 +445,9 @@ async function main() {
 
     log('  talk to Hannah');
     const hannah = EPISODE.npcs.find((n) => n.id === 'hannah');
-    await walkTo(page, 'hannah', [hannah.pos[0] + 1, hannah.pos[1]]);
+    // She works behind the register counter, so the customer's tile is two
+    // south of her with the counter in between; interior NPC reach is 2.3.
+    await walkTo(page, 'hannah', [hannah.pos[0], hannah.pos[1] + 2]);
     await pressA(page);
     await expectDialogue(page, 'hannah', 'Hannah');
     await shot(page, 'hannah');
