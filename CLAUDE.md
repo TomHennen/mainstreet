@@ -72,6 +72,11 @@ for feel and behavior*, not code to reuse.
   No secrets exist in this project; keep it that way.
 - When behavior questions come up ("how should travel screens feel?"), check
   the prototype first, then DESIGN.md, then ask.
+- Agents merge their own PRs once CI is green (typecheck, tests,
+  validate-episodes, build, headless playtest) and the diff has been reviewed
+  against the hard rules. Tom reviews after the fact. Anything that changes
+  player-facing copy, a real business, or DESIGN.md decisions still gets a
+  heads-up in the PR description.
 
 ## Current focus
 
