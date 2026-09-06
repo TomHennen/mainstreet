@@ -1,6 +1,6 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { cp } from 'node:fs/promises';
-import { createReadStream, statSync } from 'node:fs';
+import { createReadStream, readdirSync, statSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -39,6 +39,19 @@ function worldPacks(worldId: string | undefined): Plugin {
       server.middlewares.use((req, res, next) => {
         const path = decodeURIComponent((req.url ?? '').split('?')[0]);
         if (!path.startsWith('/worlds/')) return next();
+
+        // The Studio asks which worlds exist before it knows one to load.
+        // scripts/build-site.mjs writes the same list into the built site.
+        if (path === '/worlds/index.json') {
+          const ids = readdirSync(WORLDS_DIR, { withFileTypes: true })
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => entry.name)
+            .sort();
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Cache-Control', 'no-cache');
+          res.end(JSON.stringify(ids));
+          return;
+        }
 
         const file = resolve(WORLDS_DIR, '.' + path.slice('/worlds'.length));
         if (file !== WORLDS_DIR && !file.startsWith(WORLDS_DIR + '/')) {
@@ -82,6 +95,20 @@ function worldPacks(worldId: string | undefined): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
+  // The Studio (studio/) is a second, standalone page: the facade editor a
+  // contributor paints in. It gets its own Vite root so it lands at
+  // dist/studio/index.html with its own base, and it ships no world packs of
+  // its own — scripts/build-site.mjs copies in the couple of files it reads at
+  // runtime. Building it separately keeps the game's single-world output
+  // layout exactly as it was. In dev it needs none of this: Vite already
+  // serves studio/index.html at /studio/.
+  if (process.env.MS_TARGET === 'studio') {
+    return {
+      root: resolve(ROOT, 'studio'),
+      build: { outDir: resolve(ROOT, 'dist', 'studio'), emptyOutDir: true }
+    };
+  }
+
   const env = loadEnv(mode, ROOT, 'VITE_');
   return {
     plugins: [worldPacks(env.VITE_WORLD)],

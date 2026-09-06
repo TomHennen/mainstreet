@@ -12,6 +12,12 @@
  * as CLI args to build a subset) and stitches the results together under
  * dist/, then writes dist/index.html as the landing page.
  *
+ * One more page joins them: the Studio (studio/), the facade editor a
+ * contributor paints a building in. It is world-agnostic — it is handed a
+ * world in its query string — so it is built once, into dist/studio/, and the
+ * two files it reads at runtime (world.json and palette.png) are copied in
+ * beside it for every world on the site.
+ *
  * Usage:  node scripts/build-site.mjs [worldId ...]
  *         SITE_BASE=/mainstreet node scripts/build-site.mjs
  *
@@ -21,7 +27,7 @@
  * https://<owner>.github.io/<repo>/.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -65,6 +71,62 @@ function buildWorld(id) {
   }
 }
 
+function buildStudio() {
+  const outDir = resolve(DIST_DIR, 'studio');
+  const base = `${SITE_BASE}/studio/`;
+  console.log(`\n> building the studio (base ${base})`);
+
+  const result = spawnSync(process.execPath, [VITE_BIN, 'build', '--base', base], {
+    cwd: ROOT,
+    stdio: 'inherit',
+    // MS_TARGET switches vite.config.ts to the studio's own root and outDir.
+    env: { ...process.env, MS_TARGET: 'studio' }
+  });
+
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`vite build failed for the studio (exit ${result.status})`);
+  return outDir;
+}
+
+/**
+ * The Studio reads a world pack the way the game does, over HTTP, but it needs
+ * only two files from it: world.json (names, footprints, doors) and
+ * palette.png (the colours it may paint with). It also probes
+ * assets/buildings/<id>.png to tell a painted building from one still waiting,
+ * so that directory comes along too. Nothing else — the studio has no business
+ * shipping maps or episodes.
+ */
+function copyStudioWorlds(studioDir, ids) {
+  const root = resolve(studioDir, 'worlds');
+  for (const id of ids) {
+    const from = resolve(WORLDS_DIR, id);
+    const to = resolve(root, id);
+    mkdirSync(to, { recursive: true });
+
+    cpSync(resolve(from, 'world.json'), resolve(to, 'world.json'));
+
+    const world = JSON.parse(readFileSync(resolve(from, 'world.json'), 'utf-8'));
+    const palette = world.palette ?? 'palette.png';
+    if (existsSync(resolve(from, palette))) {
+      mkdirSync(dirname(resolve(to, palette)), { recursive: true });
+      cpSync(resolve(from, palette), resolve(to, palette));
+    } else {
+      // Not fatal: the studio says so kindly and points at the other ways in.
+      console.warn(`  ! world "${id}" has no ${palette}; the studio will say so gently`);
+    }
+
+    const facades = resolve(from, 'assets', 'buildings');
+    if (existsSync(facades)) {
+      const painted = readdirSync(facades).filter((file) => file.endsWith('.png'));
+      if (painted.length > 0) {
+        mkdirSync(resolve(to, 'assets', 'buildings'), { recursive: true });
+        for (const file of painted) cpSync(resolve(facades, file), resolve(to, 'assets', 'buildings', file));
+      }
+    }
+  }
+  writeFileSync(resolve(root, 'index.json'), JSON.stringify(ids));
+}
+
 function worldTitle(id) {
   const world = JSON.parse(readFileSync(resolve(WORLDS_DIR, id, 'world.json'), 'utf-8'));
   return { title: world.title ?? id, subtitle: world.subtitle ?? '' };
@@ -76,7 +138,7 @@ function escapeHtml(text) {
   ));
 }
 
-function renderLanding(ids) {
+function renderLanding(ids, studioHref) {
   const cards = ids
     .map((id) => {
       const { title, subtitle } = worldTitle(id);
@@ -150,6 +212,17 @@ function renderLanding(ids) {
       opacity: 0.75;
       line-height: 1.5;
     }
+    p.studio {
+      margin-top: 22px;
+      font-size: 13px;
+      text-align: center;
+    }
+    p.studio a {
+      color: var(--maple);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(181, 84, 42, 0.5);
+      padding-bottom: 2px;
+    }
     footer {
       margin-top: 32px;
       font-size: 11px;
@@ -165,7 +238,8 @@ function renderLanding(ids) {
     <ul>
 ${cards}
     </ul>
-    <footer>More towns are always welcome.</footer>
+    <p class="studio"><a href="${escapeHtml(studioHref)}">Paint a building &rarr;</a></p>
+    <footer>More towns are always welcome, and so is a fresh coat of paint.</footer>
   </main>
 </body>
 </html>
@@ -178,17 +252,26 @@ function main() {
     throw new Error('no worlds found under worlds/');
   }
 
+  if (ids.includes('studio')) {
+    // dist/studio/ is the editor's; a world called "studio" would land on top
+    // of it. Renaming the world pack is the fix.
+    throw new Error('a world cannot be called "studio" — that path belongs to the facade editor');
+  }
+
   rmSync(DIST_DIR, { recursive: true, force: true });
   mkdirSync(DIST_DIR, { recursive: true });
 
   for (const id of ids) buildWorld(id);
 
-  writeFileSync(resolve(DIST_DIR, 'index.html'), renderLanding(ids));
+  const studioDir = buildStudio();
+  copyStudioWorlds(studioDir, ids);
+
+  writeFileSync(resolve(DIST_DIR, 'index.html'), renderLanding(ids, `${SITE_BASE}/studio/?world=${ids[0]}`));
   // Pages runs Jekyll by default, which ignores files/folders starting with
   // an underscore and can otherwise mangle a static site; this opts out.
   writeFileSync(resolve(DIST_DIR, '.nojekyll'), '');
 
-  console.log(`\nBuilt ${ids.length} world(s) into ${DIST_DIR}`);
+  console.log(`\nBuilt ${ids.length} world(s) and the studio into ${DIST_DIR}`);
 }
 
 main();

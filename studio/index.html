@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>mainstreet studio</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <!--
+    Engine/content separation holds here too: nothing on this page names a
+    world or a building. Everything is read at runtime from the world pack
+    named in the query string.
+  -->
+  <header id="top">
+    <a id="home" href="../">mainstreet</a>
+    <span id="here">studio</span>
+  </header>
+
+  <main id="app">
+    <p class="loading">Getting the paints out…</p>
+  </main>
+
+  <noscript>
+    <p class="notice">The studio needs JavaScript to paint with. If that's not
+      an option today, you're very welcome to paint in any pixel editor and
+      email us the PNG — the details are on the contributing page.</p>
+  </noscript>
+
+  <script type="module" src="./studio.ts"></script>
+</body>
+</html>
