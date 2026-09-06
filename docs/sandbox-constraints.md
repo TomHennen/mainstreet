@@ -1,37 +1,30 @@
 # Sandbox constraints
 
-What the rein sandbox lets an agent session do in this repo, and what it still
-cannot. Updated 2026-09-06 after the egress allowlist was widened.
+What the rein sandbox lets an agent session do in this repo. Updated 2026-09-06.
 
-## Works now
+## Works
 
-- **npm registry is reachable.** `npm install`, `npm view`, `tsc`, `vite build`
-  and `vite dev` all run inside the sandbox. Dependency versions are verified,
-  not guessed. Caches start cold each run (`$HOME` is ephemeral) so every session
-  re-downloads the tree; at ~20 packages that is a few seconds.
-- `git` and `gh` reads. Writes unlock after `rein declare <n> --repo TomHennen/mainstreet`
-  is approved on Tom's terminal; pushes then go to `agent/<n>/<nonce>` only.
+- **npm registry.** `npm install`, `npm view`, `tsc`, `vite build`, `vite dev`.
+- **Headless Chromium.** Playwright's browser download needs three hosts:
+  `cdn.playwright.dev`, `playwright.download.prss.microsoft.com`, and
+  `storage.googleapis.com` (the first redirects Chrome for Testing builds to
+  the last). All three are allowed now, so `npx playwright install chromium`
+  works and `npm run playtest` can play the game headless under WebGL with
+  `--use-angle=swiftshader`. Firefox also installs.
+- `git` and `gh` reads. Writes unlock after
+  `rein declare <n> --repo TomHennen/mainstreet` is approved on Tom's
+  terminal; pushes then go to `agent/<n>/<nonce>` only.
 
 ## Still blocked
 
-- **No browser.** Playwright and Puppeteer install from npm, but their browser
-  binaries come from hosts outside the allowlist, so headless Chromium cannot be
-  installed:
-
-  ```
-  cdn.playwright.dev                        blocked
-  playwright.download.prss.microsoft.com    blocked
-  storage.googleapis.com                    blocked   (puppeteer)
-  ```
-
-  To unblock, on the host: `rein session allow-domain cdn.playwright.dev`
-  (and `playwright.download.prss.microsoft.com` as its fallback), then restart
-  rein. With that, an agent can run the game headless, screenshot it, and drive
-  ep000 end to end. Until then "does it feel right" is answered only by Tom's
-  `npm run dev`.
-- Every other host: Phaser docs, Tiled downloads, the Resurrect 64 palette PNG.
+- Every host not on the allowlist: Phaser docs, Tiled downloads, the
+  Resurrect 64 palette PNG. Ask for `rein session allow-domain <host>`;
+  it applies on the next run.
 
 ## Filesystem
 
 - Only the working tree at `/mnt/dev/dev/mainstreet` survives a run.
-- `$HOME` writes succeed and are discarded at the end of the run.
+- `$HOME` writes succeed and are discarded at the end of the run, so the
+  Playwright browser cache (`~/.cache/ms-playwright`, ~200 MB) is
+  re-downloaded every session. `node_modules` lives in the working tree
+  and persists.

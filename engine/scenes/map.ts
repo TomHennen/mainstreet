@@ -10,6 +10,7 @@ import {
   promptTexture,
   TILE
 } from '../art';
+import { publishDebug } from '../debug';
 import { isHeld, onAction } from '../input';
 import { dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signFor } from '../session';
 import { isSolid } from '../validate';
@@ -159,6 +160,17 @@ export class MapScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     const state = session();
+    if (import.meta.env.DEV) {
+      publishDebug({
+        map: this.mapId,
+        x: this.px / TILE,
+        y: this.py / TILE,
+        facing: this.facing,
+        dialogueOpen: state.dialogueOpen,
+        locked: state.locked,
+        flags: state.flags.snapshot()
+      });
+    }
     if (state.locked || state.dialogueOpen) {
       this.moving = false;
       this.player.setFrame(frameIndex(this.facing, 0));
