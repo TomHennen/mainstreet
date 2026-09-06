@@ -31,6 +31,13 @@ sized viewport. Screenshots and a run log land in `playtest-out/`, and it exits
 non-zero with the milestone, the state and the screenshot path on the first
 failure. It starts a dev server itself if one is not already on :5173.
 
+## Deploy
+
+Every push to `main` builds the game and publishes it to GitHub Pages at
+`https://<owner>.github.io/mainstreet/` (`.github/workflows/pages.yml`). One-time
+setup on a fresh repo: Settings → Pages → Source: "GitHub Actions". Nothing else
+to configure; there are no secrets.
+
 ## Layout
 
 ```

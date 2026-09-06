@@ -2,7 +2,9 @@ import Phaser from 'phaser';
 import type { Episode, World, WorldCopy } from './schema';
 import type { AssetIndex } from './session';
 
-const worldRoot = (worldId: string) => `/worlds/${worldId}`;
+// Prefixed with Vite's base path so the build works under a sub-path such as
+// GitHub Pages' `/<repo>/`. BASE_URL always ends with a slash.
+const worldRoot = (worldId: string) => `${import.meta.env.BASE_URL}worlds/${worldId}`;
 
 async function json<T>(url: string): Promise<T> {
   const response = await fetch(url, { cache: 'no-cache' });
