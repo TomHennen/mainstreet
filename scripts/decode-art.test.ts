@@ -1,0 +1,110 @@
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { encode } from '../studio/codec.ts';
+import { decodePng } from './png.ts';
+import { decodeArt, extractCode, IntakeError } from './decode-art.ts';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const REAL_WORLDS_DIR = join(HERE, '..', 'worlds');
+
+// mac-a-doodles (Stamford): footprint [4, 3] tiles -> 64px wide, 48px minimum tall.
+const BUILDING = 'mac-a-doodles';
+const WIDTH = 64;
+const HEIGHT = 48;
+
+function solidPixels(width: number, height: number, index: number): Uint8Array {
+  return new Uint8Array(width * height).fill(index);
+}
+
+describe('decodeArt', () => {
+  let scratchRoot: string;
+  let worldsDir: string;
+
+  beforeEach(() => {
+    scratchRoot = mkdtempSync(join(tmpdir(), 'mainstreet-decode-art-'));
+    worldsDir = join(scratchRoot, 'worlds');
+    cpSync(REAL_WORLDS_DIR, worldsDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(scratchRoot, { recursive: true, force: true });
+  });
+
+  it('decodes a valid drawing into a PNG and a credit, and passes validate-assets', () => {
+    const pixels = solidPixels(WIDTH, HEIGHT, 255);
+    pixels[0] = 0; // one opaque pixel, palette index 0
+    const code = encode({ world: 'route10', building: BUILDING, width: WIDTH, height: HEIGHT, pixels });
+
+    const result = decodeArt({ code, credit: 'Jordan R.', worldsDir });
+
+    expect(existsSync(result.pngPath)).toBe(true);
+    const png = decodePng(readFileSync(result.pngPath));
+    expect(png.width).toBe(WIDTH);
+    expect(png.height).toBe(HEIGHT);
+
+    const palette = decodePng(readFileSync(join(worldsDir, 'route10', 'palette.png')));
+    expect(Array.from(png.rgba.subarray(0, 4))).toEqual(Array.from(palette.rgba.subarray(0, 3)).concat(255));
+    expect(png.rgba[7]).toBe(0); // pixel 1 stayed transparent (alpha 0)
+
+    const credits = JSON.parse(readFileSync(result.creditsPath, 'utf8'));
+    expect(credits.buildings[BUILDING]).toBe('Jordan R.');
+    expect(result.validateOutput).toMatch(/✓ route10/);
+
+    // git status must never see PNGs/credits.json land under the real worlds/
+    // dir from a test — this asserts the write went to the scratch copy.
+    expect(result.pngPath.startsWith(worldsDir)).toBe(true);
+    expect(result.pngPath.startsWith(REAL_WORLDS_DIR)).toBe(false);
+  });
+
+  it('keeps credits.json keys sorted and merges with an existing entry', () => {
+    const pixels = solidPixels(WIDTH, HEIGHT, 255);
+    const code = encode({ world: 'route10', building: BUILDING, width: WIDTH, height: HEIGHT, pixels });
+    decodeArt({ code, credit: 'Zed', worldsDir });
+
+    const stewartsPixels = solidPixels(96, 64, 255);
+    const stewartsCode = encode({ world: 'route10', building: 'stewarts', width: 96, height: 64, pixels: stewartsPixels });
+    const result = decodeArt({ code: stewartsCode, credit: 'Ann', worldsDir });
+
+    const credits = JSON.parse(readFileSync(result.creditsPath, 'utf8'));
+    expect(Object.keys(credits.buildings)).toEqual(['mac-a-doodles', 'stewarts']);
+  });
+
+  it('pulls the code out of an emailed body', () => {
+    const pixels = solidPixels(WIDTH, HEIGHT, 255);
+    const code = encode({ world: 'route10', building: BUILDING, width: WIDTH, height: HEIGHT, pixels });
+    const emailBody = `Hi!\n\nHere's my painting, hope you like it:\n\n${code}\n\nThanks,\nSam`;
+    expect(extractCode(emailBody)).toBe(code);
+
+    const result = decodeArt({ code: extractCode(emailBody), credit: 'Sam', worldsDir });
+    expect(existsSync(result.pngPath)).toBe(true);
+  });
+
+  it('rejects a drawing with the wrong size', () => {
+    const pixels = solidPixels(32, HEIGHT, 255);
+    const code = encode({ world: 'route10', building: BUILDING, width: 32, height: HEIGHT, pixels });
+    expect(() => decodeArt({ code, credit: 'X', worldsDir })).toThrow(IntakeError);
+    expect(() => decodeArt({ code, credit: 'X', worldsDir })).toThrow(/64px wide/);
+  });
+
+  it('rejects an unknown building', () => {
+    const pixels = solidPixels(16, 16, 255);
+    const code = encode({ world: 'route10', building: 'no-such-building', width: 16, height: 16, pixels });
+    expect(() => decodeArt({ code, credit: 'X', worldsDir })).toThrow(/doesn't have a building/);
+  });
+
+  it('refuses to overwrite an existing PNG without --force, but allows it with --force', () => {
+    const pixels = solidPixels(WIDTH, HEIGHT, 255);
+    const code = encode({ world: 'route10', building: BUILDING, width: WIDTH, height: HEIGHT, pixels });
+    decodeArt({ code, credit: 'First', worldsDir });
+
+    expect(() => decodeArt({ code, credit: 'Second', worldsDir })).toThrow(/already exists/);
+
+    const result = decodeArt({ code, credit: 'Second', worldsDir, force: true });
+    const credits = JSON.parse(readFileSync(result.creditsPath, 'utf8'));
+    expect(credits.buildings[BUILDING]).toBe('Second');
+  });
+});
