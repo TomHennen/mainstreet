@@ -1,0 +1,20 @@
+{
+  "name": "mainstreet",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Engine for small, episodic, pixel-art town games.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "phaser": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.2"
+  }
+}

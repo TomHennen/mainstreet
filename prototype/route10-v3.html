@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Route 10 — Episode 0</title>
+<style>
+  :root{ --night:#1d2b23; --paper:#f3ead8; --ink:#2a231a; --maple:#b5542a; }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;background:var(--night);font-family:ui-monospace,Menlo,Consolas,monospace;touch-action:none}
+  #wrap{height:100%;display:flex;flex-direction:column;align-items:center}
+  #hud{width:100%;max-width:560px;color:var(--paper);padding:10px 14px 6px;display:flex;justify-content:space-between;align-items:baseline}
+  #hud h1{font-size:14px;font-weight:700;letter-spacing:.5px}
+  #hud span{font-size:11px;opacity:.75}
+  #stage{position:relative;width:100%;max-width:560px;flex:1;min-height:0}
+  canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;outline:none}
+  #dlg{position:absolute;left:8px;right:8px;bottom:10px;background:var(--paper);color:var(--ink);
+    border:3px solid var(--ink);box-shadow:4px 4px 0 rgba(0,0,0,.45);padding:12px 14px 20px;display:none;line-height:1.5;font-size:14px}
+  #dlg .who{font-weight:700;color:var(--maple);margin-bottom:4px;font-size:12px}
+  #dlg .more{position:absolute;right:12px;bottom:5px;font-size:11px;animation:blink 1s steps(2) infinite}
+  @keyframes blink{50%{opacity:0}}
+  #toast{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);
+    font-size:12px;padding:6px 12px;border:2px solid var(--paper);display:none;white-space:nowrap}
+  /* travel / door transition overlay */
+  #fade{position:absolute;inset:0;background:#12160f;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:10px;opacity:0;pointer-events:none;transition:opacity .3s}
+  #fade.show{opacity:1;pointer-events:auto}
+  #fade .big{color:var(--paper);font-size:18px;font-weight:700;letter-spacing:2px}
+  #fade .small{color:var(--paper);opacity:.7;font-size:12px}
+  #fade .road{width:120px;height:6px;background:repeating-linear-gradient(90deg,#b7a081 0 14px,transparent 14px 24px);
+    animation:roll 1s linear infinite}
+  @keyframes roll{to{background-position:-24px 0}}
+  #controls{width:100%;max-width:560px;display:flex;justify-content:space-between;align-items:center;padding:10px 18px 16px;user-select:none}
+  #dpad{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(3,48px);gap:2px}
+  .db{background:#2f4437;border:2px solid #4c6b58;color:var(--paper);font-size:18px;display:flex;align-items:center;justify-content:center;touch-action:none}
+  .db.held{background:#4c6b58}
+  .db.blank{visibility:hidden}
+  #btnA{width:74px;height:74px;border-radius:50%;background:var(--maple);border:3px solid #e0a171;color:var(--paper);
+    font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;touch-action:none}
+  #btnA:active{background:#8f401f}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud"><h1>ROUTE 10</h1><span>Ep. 0 — “The Crossword Pen”</span></div>
+  <div id="stage">
+    <canvas id="cv" tabindex="0"></canvas>
+    <div id="toast"></div>
+    <div id="dlg"><div class="who"></div><div class="txt"></div><div class="more">▼ tap / A</div></div>
+    <div id="fade"><div class="big"></div><div class="road"></div><div class="small"></div></div>
+  </div>
+  <div id="controls">
+    <div id="dpad">
+      <div class="db blank"></div><div class="db" data-d="up">▲</div><div class="db blank"></div>
+      <div class="db" data-d="left">◀</div><div class="db blank"></div><div class="db" data-d="right">▶</div>
+      <div class="db blank"></div><div class="db" data-d="down">▼</div><div class="db blank"></div>
+    </div>
+    <div id="btnA">A</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   ROUTE 10 — v3
+   - Single input path (pointer events only) + tap debounce
+   - Travel interstitial when crossing town lines
+   - First interior: Stewart's, with Hannah at the counter
+   ============================================================ */
+
+const T = 16;
+const MAP_W = 58, MAP_H = 46;
+
+const BUILDINGS = [
+  {name:"Mill Pond Inn",       x:12, y:5,  w:6, h:4, wall:"#8a6d4e", roof:"#5b4632"},
+  {name:"Jefferson Town Hall", x:21, y:5,  w:7, h:4, wall:"#d9d2c0", roof:"#6d6a5c"},
+  {name:"Heartbreak Hotel",    x:31, y:5,  w:6, h:4, wall:"#a34a4a", roof:"#6e2f2f"},
+  {name:"Middle Brook Café",   x:40, y:5,  w:6, h:3, wall:"#c2a15c", roof:"#7c6236"},
+  {name:"Stewart's",           x:30, y:29, w:6, h:3, wall:"#e4e0d4", roof:"#b5542a", interior:"stewarts"},
+  {name:"Mac-A-Doodles",       x:38, y:29, w:6, h:3, wall:"#7a8fb0", roof:"#4d5f7d"},
+  {name:"Stamford Coffee",     x:46, y:29, w:5, h:3, wall:"#6f5b7d", roof:"#4a3c55"},
+  {name:"The Belvedere",       x:30, y:38, w:7, h:4, wall:"#93a86f", roof:"#5c6b41"},
+  {name:"Cellar Door Wines",   x:6,  y:29, w:7, h:3, wall:"#5d4a3a", roof:"#3c2f24"},
+];
+const VILLAGE_LABELS = [
+  {text:"JEFFERSON", x:26, y:2.2}, {text:"STAMFORD", x:40, y:26.2}, {text:"HOBART", x:9, y:26.2},
+];
+
+/* ---------- Interiors: rooms are data too ---------- */
+const INTERIORS = {
+  stewarts: {
+    title:"Stewart's", w:13, h:10,
+    floorA:"#d8cfc0", floorB:"#cbc1b0", wallC:"#a94f2e",
+    counter:{x:2,y:3,w:8,h:1},
+    shelves:[{x:11,y:2,h:6}],
+    exit:{x:6,y:9},
+    npc:{ id:"hannah", name:"Hannah", x:5, y:2, shirt:"#7a3e5f",
+      lines(f){
+        if(f.done)   return ["Hannah","Earl showed everybody the pen. Twice. You're famous now."];
+        if(f.hasPen) return ["Hannah","Is that Earl's pen? Oh, he's going to be insufferable about the puzzle this week. Go on, he's right out front."];
+        return ["Hannah","Morning! Coffee's on, and yes, the make-your-own sundae bar is real.","If you're looking for Earl, he holds court out front most mornings."];
+      }
+    },
+    flavor:["Stewart's","The ice cream case hums. A hand-written sign by the register tracks the softball league standings."]
+  }
+};
+
+/* ---------- Episode data: the weekly drop ---------- */
+const EPISODE = {
+  title: "The Crossword Pen",
+  flags: { metEarl:false, hasPen:false, done:false },
+  npcs: [
+    { id:"earl", name:"Earl", x:34, y:33, shirt:"#3f6d4e",
+      lines(f){
+        if (f.done)   return ["Earl","Seventeen across: 'small kindness, nine letters.' I'm going to say it's you, kid."];
+        if (f.hasPen) return ["Earl","Ha — my pen! Knew I left it up at the pond.","Next time you're at the counter, tell Hannah your coffee's on me.","@set:done","@toast:Episode complete — new story next week"];
+        if (f.metEarl)return ["Earl","Take Route 10 north to Jefferson. There's a bench by the mill pond, near the inn. That's my puzzle spot."];
+        return ["Earl","'Morning. You're the new one, right? Up past the town hall in Jefferson?",
+                "I was up there Wednesday for pizza night at the Mill Pond — and somewhere between the pond and here I lost my crossword pen.",
+                "Forty years of Saturday puzzles with that pen. If you're headed back north, would you look by the bench?","@set:metEarl"];
+      }
+    },
+  ],
+  items: [
+    { id:"pen", x:9, y:11, flag:"hasPen", requires:"metEarl",
+      msg:["You","A fine ballpoint, half-buried in the grass by the pond bench. This has to be Earl's."] },
+  ],
+  signs(f){
+    return {
+      "Mill Pond Inn": ["Mill Pond Inn","Chalkboard by the tavern door: pizza night Monday and Wednesday. A second line, underlined twice: RIBS SOLD OUT."],
+      "Jefferson Town Hall": ["Town Hall","Posted hours end at 2 PM most days. The board agenda lists road salt bids and 'the goat situation (continued).'"],
+      "Heartbreak Hotel": ["Heartbreak Hotel","A hand-lettered sign: PRIME RIB SATURDAY — MAKE A RESERVATION. WE MEAN IT. Someone inside is laughing at the bar."],
+      "Middle Brook Café": ["Middle Brook Café","The pastry case is nearly empty by noon. A customer is explaining, with great intensity, that the chocolate chip cookie is somehow vegan."],
+      "Mac-A-Doodles": ["Mac-A-Doodles","The menu board offers a mac-n-cheese burger, and it is not a dare. A dog outside is finishing a pup cup with real focus."],
+      "Stamford Coffee": ["Stamford Coffee","Someone orders a Maple Smoke latte — maple, a pinch of liquid smoke, sea salt. Through the side doorway, the Catskill Outpost shelves are calling."],
+      "The Belvedere": ["The Bel","Bat signs point around back to the patio. Tonight's board: tacos, then a movie. It sounds like everybody in there knows everybody."],
+      "Cellar Door Wines": ["Cellar Door Wines","Through the window, Shaye is walking a couple through an Austrian orange wine. Nobody leaves this shop empty-handed."],
+    };
+  }
+};
+
+/* ---------------- overworld build ---------------- */
+const map = new Uint8Array(MAP_W*MAP_H); // 0 grass 1 road 2 water 3 tree 4 flowers
+const at=(x,y)=>map[y*MAP_W+x];
+const put=(x,y,v)=>{ if(x>=0&&y>=0&&x<MAP_W&&y<MAP_H) map[y*MAP_W+x]=v; };
+for(let x=4;x<50;x++){ put(x,10,1); put(x,11,1); }          // Jefferson Main St
+for(let y=12;y<35;y++){ put(26,y,1); put(27,y,1); }          // Route 10 south
+for(let x=16;x<54;x++){ put(x,34,1); put(x,35,1); }          // Stamford Main St
+for(let x=4;x<17;x++){ put(x,34,1); put(x,35,1); }           // spur to Hobart
+for(let y=36;y<44;y++){ put(33,y,1); }                       // lane to the Bel
+for(let y=5;y<10;y++)for(let x=4;x<11;x++){                  // mill pond
+  const dx=x-7, dy=y-7.2; if(dx*dx/8+dy*dy/4.5<1.15) put(x,y,2);
+}
+let seed=11; const rnd=()=>((seed=(seed*1103515245+12345)&0x7fffffff)/0x7fffffff);
+for(let i=0;i<170;i++){
+  const x=(rnd()*MAP_W)|0, y=(rnd()*MAP_H)|0;
+  if(at(x,y)!==0) continue;
+  if(BUILDINGS.some(b=>x>=b.x-1&&x<=b.x+b.w&&y>=b.y-2&&y<=b.y+b.h+2)) continue;
+  put(x,y, rnd()<0.72?3:4);
+}
+for(const b of BUILDINGS){
+  b.door={x:b.x+((b.w/2)|0), y:b.y+b.h};
+  put(b.door.x,b.door.y,0); put(b.door.x,b.door.y+1,0);
+}
+function solidWorld(x,y){
+  if(x<0||y<0||x>=MAP_W||y>=MAP_H) return true;
+  const t=at(x,y); if(t===2||t===3) return true;
+  return BUILDINGS.some(b=>x>=b.x&&x<b.x+b.w&&y>=b.y&&y<b.y+b.h);
+}
+function solidRoom(r,x,y){
+  if(x<0||y<0||x>=r.w||y>=r.h) return true;
+  if(y<=1) return true;                                   // back wall
+  if((x===0||x===r.w-1||y===r.h-1) && !(x===r.exit.x&&y===r.exit.y)) return true;
+  if(x>=r.counter.x&&x<r.counter.x+r.counter.w&&y>=r.counter.y&&y<r.counter.y+r.counter.h) return true;
+  if(r.shelves.some(s=>x===s.x&&y>=s.y&&y<s.y+s.h)) return true;
+  return false;
+}
+
+/* ---------------- state ---------------- */
+const F = EPISODE.flags;
+const player={x:31*T,y:32*T,dir:"up",moving:false};
+const SPEED=1.7;
+let room=null;            // null = overworld, else interior object
+let savedPos=null;        // overworld position while inside
+let lockUntil=0;          // input lock during transitions
+let village=null;         // current village name
+
+/* ---------------- input (pointer events ONLY + debounce) ---------------- */
+const keys={};
+const cvEl=document.getElementById("cv");
+function grabFocus(){ try{ window.focus(); cvEl.focus({preventScroll:true}); }catch(e){} }
+grabFocus(); setTimeout(grabFocus,300);
+document.addEventListener("pointerdown",grabFocus,{capture:true});
+
+window.addEventListener("keydown",e=>{
+  const k=e.key.toLowerCase();
+  if(["arrowup","arrowdown","arrowleft","arrowright"," ","enter"].includes(k)) e.preventDefault();
+  if(e.repeat) return;
+  keys[k]=true;
+  if(k==="enter"||k===" ") tapAction();
+},{capture:true});
+window.addEventListener("keyup",e=>{ keys[e.key.toLowerCase()]=false; },{capture:true});
+window.addEventListener("blur",()=>{ for(const k in keys) keys[k]=false; });
+
+document.querySelectorAll("#dpad .db[data-d]").forEach(b=>{
+  const d=b.dataset.d;
+  b.addEventListener("pointerdown",e=>{e.preventDefault(); b.setPointerCapture(e.pointerId); keys[d]=true; b.classList.add("held");});
+  const off=e=>{keys[d]=false; b.classList.remove("held");};
+  b.addEventListener("pointerup",off); b.addEventListener("pointercancel",off);
+});
+
+let lastTap=0;
+function tapAction(){
+  const now=performance.now();
+  if(now-lastTap<220) return;      // debounce: one action per physical tap
+  lastTap=now;
+  action();
+}
+document.getElementById("btnA").addEventListener("pointerdown",e=>{e.preventDefault(); tapAction();});
+document.getElementById("dlg").addEventListener("pointerdown",e=>{e.preventDefault(); e.stopPropagation(); tapAction();});
+cvEl.addEventListener("pointerdown",()=>{ if(queue) tapAction(); });
+
+/* ---------------- dialogue ---------------- */
+const dlg=document.getElementById("dlg"), dwho=dlg.querySelector(".who"), dtxt=dlg.querySelector(".txt");
+let queue=null, qi=0, qwho="";
+function say(who,lines){ qwho=who; queue=lines; qi=0; showLine(); }
+function showLine(){
+  while(queue && qi<queue.length && queue[qi].startsWith("@")){
+    const cmd=queue[qi++];
+    if(cmd.startsWith("@set:")) F[cmd.slice(5)]=true;
+    if(cmd.startsWith("@toast:")) toast(cmd.slice(7));
+  }
+  if(!queue || qi>=queue.length){ dlg.style.display="none"; queue=null; return; }
+  dwho.textContent=qwho; dtxt.textContent=queue[qi]; dlg.style.display="block";
+}
+function toast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.style.display="block";
+  clearTimeout(t._h); t._h=setTimeout(()=>t.style.display="none",3800);
+}
+
+/* ---------------- transitions ---------------- */
+const fadeEl=document.getElementById("fade");
+function transition(big,small,holdMs,mid){
+  fadeEl.querySelector(".big").textContent=big;
+  fadeEl.querySelector(".small").textContent=small||"";
+  fadeEl.classList.add("show");
+  lockUntil=performance.now()+holdMs+600;
+  setTimeout(()=>{ if(mid) mid(); },320);
+  setTimeout(()=>fadeEl.classList.remove("show"), holdMs+320);
+}
+function villageOf(tx,ty){ if(ty<20) return "JEFFERSON"; if(tx<17) return "HOBART"; return "STAMFORD"; }
+
+/* ---------------- interaction ---------------- */
+function nearTile(tx,ty,r=1.5){
+  const px=player.x/T+0.5, py=player.y/T+0.5;
+  return Math.hypot(px-(tx+0.5),py-(ty+0.5))<=r+0.5;
+}
+function findTarget(){
+  if(room){
+    if(nearTile(room.npc.x,room.npc.y,1.8)) return {type:"npc",n:room.npc};
+    if(nearTile(room.shelves[0].x,room.shelves[0].y+2,1.6)) return {type:"flavor"};
+    return null;
+  }
+  for(const n of EPISODE.npcs) if(nearTile(n.x,n.y)) return {type:"npc",n};
+  for(const it of EPISODE.items) if(!F[it.flag]&&(!it.requires||F[it.requires])&&nearTile(it.x,it.y)) return {type:"item",it};
+  for(const b of BUILDINGS) if(nearTile(b.door.x,b.door.y,1.7)) return b.interior?{type:"enter",b}:{type:"sign",b};
+  return null;
+}
+function action(){
+  if(performance.now()<lockUntil) return;
+  if(queue){ qi++; showLine(); return; }
+  const t=findTarget(); if(!t) return;
+  if(t.type==="npc"){ const arr=t.n.lines(F); say(arr[0], arr.slice(1)); }
+  else if(t.type==="item"){ F[t.it.flag]=true; say(t.it.msg[0], t.it.msg.slice(1)); toast("Got it"); }
+  else if(t.type==="sign"){ const s=EPISODE.signs(F)[t.b.name]; if(s) say(s[0], s.slice(1)); }
+  else if(t.type==="flavor"){ say(room.flavor[0], room.flavor.slice(1)); }
+  else if(t.type==="enter"){
+    const r=INTERIORS[t.b.interior];
+    transition(r.title,"", 500, ()=>{
+      savedPos={x:t.b.door.x*T, y:(t.b.door.y+1)*T};
+      room=r; player.x=r.exit.x*T; player.y=(r.exit.y-1)*T; player.dir="up";
+    });
+  }
+}
+
+/* ---------------- render ---------------- */
+const ctx=cvEl.getContext("2d");
+let VW,VH,SC;
+function resize(){
+  const r=document.getElementById("stage").getBoundingClientRect();
+  SC=Math.max(2,Math.floor(Math.min(r.width/(17*T), r.height/(13*T))));
+  cvEl.width=Math.max(64,Math.floor(r.width/SC))*SC; cvEl.height=Math.max(64,Math.floor(r.height/SC))*SC;
+  cvEl.style.width=cvEl.width+"px"; cvEl.style.height=cvEl.height+"px";
+  VW=cvEl.width/SC; VH=cvEl.height/SC;
+}
+addEventListener("resize",resize); resize();
+
+const grass=["#5e8c50","#578349","#63925a"];
+function drawTile(x,y,px,py){
+  const t=at(x,y);
+  ctx.fillStyle=grass[(x*7+y*13)%3]; ctx.fillRect(px,py,T,T);
+  if(t===1){ ctx.fillStyle="#b7a081"; ctx.fillRect(px,py,T,T);
+    ctx.fillStyle="#a08a6c"; if((x+y)%3===0)ctx.fillRect(px+4,py+6,3,2); }
+  else if(t===2){ ctx.fillStyle="#4a7f96"; ctx.fillRect(px,py,T,T);
+    ctx.fillStyle="#5d93a8"; if((x*3+y*5)%4===0)ctx.fillRect(px+3,py+5,6,1); }
+  else if(t===3){ ctx.fillStyle="#4a3826"; ctx.fillRect(px+6,py+9,4,6);
+    ctx.fillStyle="#2f5d3a"; ctx.fillRect(px+2,py,12,10);
+    ctx.fillStyle="#3f7a4c"; ctx.fillRect(px+4,py+2,8,5); }
+  else if(t===4){ ctx.fillStyle=(x+y)%2?"#d9a441":"#c76b8a";
+    ctx.fillRect(px+5,py+5,3,3); ctx.fillRect(px+10,py+9,2,2); }
+}
+function drawBuilding(b,ox,oy){
+  const px=b.x*T-ox, py=b.y*T-oy, w=b.w*T, h=b.h*T;
+  ctx.fillStyle=b.roof; ctx.fillRect(px-2,py-8,w+4,12);
+  ctx.fillStyle=b.wall; ctx.fillRect(px,py+4,w,h-4);
+  ctx.fillStyle="rgba(0,0,0,.25)"; ctx.fillRect(px,py+h-3,w,3);
+  ctx.fillStyle="#f5e6b8";
+  for(let i=0;i<b.w-1;i+=2) ctx.fillRect(px+8+i*T,py+12,8,8);
+  const dx=b.door.x*T-ox;
+  ctx.fillStyle="#3a2c1e"; ctx.fillRect(dx+3,py+h-14,10,14);
+  ctx.font="7px ui-monospace,monospace"; ctx.textAlign="center";
+  const tw=ctx.measureText(b.name).width+8;
+  ctx.fillStyle="rgba(30,25,18,.85)"; ctx.fillRect(px+w/2-tw/2, py-19, tw, 10);
+  ctx.fillStyle="#f3ead8"; ctx.fillText(b.name, px+w/2, py-11.5);
+}
+function drawSprite(x,y,dir,step,shirt,skin="#e8c39a"){
+  ctx.fillStyle="rgba(0,0,0,.3)"; ctx.fillRect(x+3,y+13,10,3);
+  ctx.fillStyle=shirt; ctx.fillRect(x+4,y+5,8,7);
+  ctx.fillStyle="#33404f";
+  const o=step?1:0;
+  ctx.fillRect(x+4,y+12,3,3+o); ctx.fillRect(x+9,y+12,3,4-o);
+  ctx.fillStyle=skin; ctx.fillRect(x+4,y,8,6);
+  ctx.fillStyle="#3a2c1e"; ctx.fillRect(x+4,y-1,8,3);
+  ctx.fillStyle="#2a231a";
+  if(dir!=="up"){ const ex=dir==="left"?3:dir==="right"?7:5; ctx.fillRect(x+ex,y+3,1,1); ctx.fillRect(x+ex+3,y+3,1,1); }
+}
+function drawRoom(r){
+  ctx.fillStyle="#12160f"; ctx.fillRect(0,0,VW,VH);
+  const ox=-(VW-r.w*T)/2, oy=-(VH-r.h*T)/2;      // center the room
+  for(let y=0;y<r.h;y++)for(let x=0;x<r.w;x++){
+    const px=x*T-ox, py=y*T-oy;
+    if(y<=1){ ctx.fillStyle=r.wallC; ctx.fillRect(px,py,T,T);
+      if(y===1){ ctx.fillStyle="rgba(0,0,0,.2)"; ctx.fillRect(px,py+T-4,T,4);} }
+    else if(x===0||x===r.w-1||y===r.h-1){ ctx.fillStyle="#5b4632"; ctx.fillRect(px,py,T,T); }
+    else { ctx.fillStyle=(x+y)%2?r.floorA:r.floorB; ctx.fillRect(px,py,T,T); }
+  }
+  // exit mat
+  ctx.fillStyle="#8f401f"; ctx.fillRect(r.exit.x*T-ox+2,(r.h-1)*T-oy+2,T-4,T-4);
+  // counter
+  const c=r.counter;
+  ctx.fillStyle="#7c5a3a"; ctx.fillRect(c.x*T-ox,c.y*T-oy,c.w*T,T);
+  ctx.fillStyle="#95704c"; ctx.fillRect(c.x*T-ox,c.y*T-oy,c.w*T,5);
+  // ice cream case on the counter
+  ctx.fillStyle="#cfe4ea"; ctx.fillRect((c.x+4)*T-ox, c.y*T-oy-6, 3*T, 8);
+  // shelves
+  for(const s of r.shelves){
+    ctx.fillStyle="#6d5138"; ctx.fillRect(s.x*T-ox, s.y*T-oy, T, s.h*T);
+    for(let i=0;i<s.h;i++){ ctx.fillStyle=["#c76b8a","#d9a441","#3f7a4c"][i%3];
+      ctx.fillRect(s.x*T-ox+3, (s.y+i)*T-oy+4, 10, 6); }
+  }
+  drawSprite(r.npc.x*T-ox, r.npc.y*T-oy, "down", 0, r.npc.shirt);
+  drawSprite(player.x-ox, player.y-oy, player.dir, player.moving?(frame/8|0)%2:0, "#b5542a");
+  return {ox,oy};
+}
+
+let frame=0;
+function loop(){
+  frame++;
+  const locked = performance.now()<lockUntil;
+  if(!queue && !locked){
+    let dx=0,dy=0;
+    if(keys.arrowup||keys.w||keys.up)dy=-1; else if(keys.arrowdown||keys.s||keys.down)dy=1;
+    if(keys.arrowleft||keys.a||keys.left)dx=-1; else if(keys.arrowright||keys.d||keys.right)dx=1;
+    player.moving=!!(dx||dy);
+    if(dx)player.dir=dx<0?"left":"right"; else if(dy)player.dir=dy<0?"up":"down";
+    if(player.moving){
+      const S=(x,y)=> room?solidRoom(room,x,y):solidWorld(x,y);
+      const nx=player.x+dx*SPEED, ny=player.y+dy*SPEED, m=4;
+      if(!S(((nx+m)/T)|0,((player.y+m)/T)|0)&&!S(((nx+T-m)/T)|0,((player.y+T-m)/T)|0)
+       &&!S(((nx+m)/T)|0,((player.y+T-m)/T)|0)&&!S(((nx+T-m)/T)|0,((player.y+m)/T)|0)) player.x=nx;
+      if(!S(((player.x+m)/T)|0,((ny+m)/T)|0)&&!S(((player.x+T-m)/T)|0,((ny+m)/T)|0)
+       &&!S(((player.x+m)/T)|0,((ny+T-m)/T)|0)&&!S(((player.x+T-m)/T)|0,((ny+T-m)/T)|0)) player.y=ny;
+    }
+    if(room){
+      // stepping onto the exit mat leaves the shop
+      const tx=((player.x+T/2)/T)|0, ty=((player.y+T/2)/T)|0;
+      if(tx===room.exit.x&&ty===room.exit.y){
+        const r=room;
+        transition("MAIN STREET","",400,()=>{ room=null; player.x=savedPos.x; player.y=savedPos.y; player.dir="down"; });
+      }
+    } else {
+      // village crossing -> travel interstitial
+      const v=villageOf((player.x/T)|0,(player.y/T)|0);
+      if(village===null) village=v;
+      else if(v!==village){
+        village=v;
+        transition("ROUTE 10","a few miles later — welcome to "+v, 900);
+      }
+    }
+  }
+
+  ctx.setTransform(SC,0,0,SC,0,0);
+  ctx.imageSmoothingEnabled=false;
+
+  if(room){ drawRoom(room); }
+  else {
+    const ox=Math.max(0,Math.min(MAP_W*T-VW, player.x-VW/2+T/2));
+    const oy=Math.max(0,Math.min(MAP_H*T-VH, player.y-VH/2+T/2));
+    const x0=(ox/T)|0, y0=(oy/T)|0;
+    for(let y=y0;y<=y0+VH/T+1;y++)for(let x=x0;x<=x0+VW/T+1;x++)
+      if(x<MAP_W&&y<MAP_H) drawTile(x,y,x*T-ox,y*T-oy);
+    ctx.font="8px ui-monospace,monospace"; ctx.textAlign="center";
+    for(const v of VILLAGE_LABELS){
+      ctx.fillStyle="rgba(30,25,18,.55)"; ctx.fillText(v.text, v.x*T-ox+1, v.y*T-oy+1);
+      ctx.fillStyle="rgba(243,234,216,.9)"; ctx.fillText(v.text, v.x*T-ox, v.y*T-oy);
+    }
+    for(const it of EPISODE.items){
+      if(F[it.flag]||(it.requires&&!F[it.requires])) continue;
+      const px=it.x*T-ox, py=it.y*T-oy, p=Math.sin(frame/12)*2;
+      ctx.fillStyle="rgba(255,230,109,.4)"; ctx.fillRect(px+4,py+4+p,8,8);
+      ctx.fillStyle="#ffe66d"; ctx.fillRect(px+6,py+6+p,4,4);
+    }
+    for(const b of BUILDINGS) drawBuilding(b,ox,oy);
+    for(const n of EPISODE.npcs) drawSprite(n.x*T-ox, n.y*T-oy, "down", (frame/40|0)%2, n.shirt);
+    drawSprite(player.x-ox, player.y-oy, player.dir, player.moving?(frame/8|0)%2:0, "#b5542a");
+
+    const tgt=!queue&&findTarget();
+    if(tgt&&tgt.type!=="flavor"){
+      let tx,ty;
+      if(tgt.type==="npc"){tx=tgt.n.x;ty=tgt.n.y}
+      else if(tgt.type==="item"){tx=tgt.it.x;ty=tgt.it.y}
+      else {tx=tgt.b.door.x;ty=tgt.b.door.y-1}
+      const px=tx*T-ox, py=ty*T-oy-14+Math.sin(frame/10)*1.5;
+      ctx.fillStyle="#f3ead8"; ctx.fillRect(px+2,py,12,11);
+      ctx.fillStyle="#2a231a"; ctx.font="8px ui-monospace,monospace"; ctx.textAlign="center";
+      ctx.fillText(tgt.type==="enter"?"⌂":"A", px+8, py+8);
+    }
+  }
+  requestAnimationFrame(loop);
+}
+say("Route 10",[
+  "Late summer in the western Catskills. Jefferson's up north, Stamford's down here, and Hobart's a few miles west.",
+  "Walk with the d-pad or arrow keys. A (or space) talks, reads, and opens doors. Stewart's door actually opens.",
+  "The fellow out front looks like he's lost something."]);
+loop();
+</script>
+</body>
+</html>

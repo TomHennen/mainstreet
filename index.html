@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>mainstreet</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!--
+    Engine chrome only. Nothing here names a world: the HUD text is filled in
+    from the world pack at boot.
+  -->
+  <div id="wrap">
+    <header id="hud">
+      <h1 data-hud="title">&nbsp;</h1>
+      <span data-hud="episode">&nbsp;</span>
+    </header>
+
+    <div id="stage"></div>
+
+    <div id="controls">
+      <div id="dpad">
+        <div class="db blank"></div>
+        <div class="db" data-dpad="up" aria-label="up">&#9650;</div>
+        <div class="db blank"></div>
+        <div class="db" data-dpad="left" aria-label="left">&#9664;</div>
+        <div class="db blank"></div>
+        <div class="db" data-dpad="right" aria-label="right">&#9654;</div>
+        <div class="db blank"></div>
+        <div class="db" data-dpad="down" aria-label="down">&#9660;</div>
+        <div class="db blank"></div>
+      </div>
+      <div id="btnA" data-action="a">A</div>
+    </div>
+  </div>
+
+  <script type="module" src="/engine/main.ts"></script>
+</body>
+</html>
