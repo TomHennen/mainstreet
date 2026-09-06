@@ -22,7 +22,7 @@ export class BootScene extends Phaser.Scene {
 
     try {
       const loaded = await loadWorld(worldId);
-      const { world, copy, episodes, maps } = loaded;
+      const { world, copy, episodes, maps, credits } = loaded;
 
       const problems = [
         ...validateWorld(world, maps),
@@ -55,6 +55,7 @@ export class BootScene extends Phaser.Scene {
         episode,
         flags: new Flags(episode.flags),
         assets,
+        credits,
         dialogueOpen: false,
         lastDialogueClose: 0,
         locked: false,

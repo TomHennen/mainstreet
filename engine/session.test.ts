@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  creditFor,
   dialogueFor,
   itemsOn,
   itemTaken,
@@ -11,7 +12,7 @@ import {
 } from './session';
 import type { AssetIndex } from './session';
 import type { Flags } from './flags';
-import type { Episode, EpisodeItem, EpisodeNpc, World, WorldCopy } from './schema';
+import type { Credits, Episode, EpisodeItem, EpisodeNpc, World, WorldCopy } from './schema';
 
 /**
  * A stand-in for the real Flags class (engine/flags.ts). session.ts only ever
@@ -39,7 +40,7 @@ const world: World = {
 };
 
 const copy: WorldCopy = {
-  ui: { narrator: 'You', advance: '▼', unpainted: '' },
+  ui: { narrator: 'You', advance: '▼', unpainted: '', credit: 'Painted by {credit}.' },
   transitions: {}
 };
 
@@ -95,7 +96,7 @@ const assets: AssetIndex = {
   tilesets: new Set()
 };
 
-function boot(flags: Flags): void {
+function boot(flags: Flags, overrides: { assets?: AssetIndex; credits?: Credits } = {}): void {
   startSession({
     world,
     // session.ts never touches the tile grids, only the episode lookups.
@@ -103,7 +104,8 @@ function boot(flags: Flags): void {
     copy,
     episode,
     flags,
-    assets,
+    assets: overrides.assets ?? assets,
+    credits: overrides.credits ?? {},
     dialogueOpen: false,
     lastDialogueClose: 0,
     locked: false,
@@ -190,6 +192,26 @@ describe('session helpers', () => {
 
     it('returns undefined for a building with no signs at all', () => {
       expect(signFor('no-such-building')).toBeUndefined();
+    });
+  });
+
+  describe('creditFor', () => {
+    it('returns the credit for a painted building that has one', () => {
+      boot(fakeFlags([]), {
+        assets: { ...assets, buildings: new Set(['shop']) },
+        credits: { buildings: { shop: 'Jordan R.' } }
+      });
+      expect(creditFor('shop')).toBe('Jordan R.');
+    });
+
+    it('returns undefined for an unpainted building even if credits.json names it ahead of time', () => {
+      boot(fakeFlags([]), { credits: { buildings: { shop: 'Jordan R.' } } });
+      expect(creditFor('shop')).toBeUndefined();
+    });
+
+    it('returns undefined for a painted building with no credit', () => {
+      boot(fakeFlags([]), { assets: { ...assets, buildings: new Set(['shop']) } });
+      expect(creditFor('shop')).toBeUndefined();
     });
   });
 

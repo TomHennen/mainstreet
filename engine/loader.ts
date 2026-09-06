@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { parseTiledMap, parseTileset, tilesetSources } from './tiled';
 import type { TilesetDef } from './tiled';
-import type { Episode, GameMap, World, WorldCopy } from './schema';
+import type { Credits, Episode, GameMap, World, WorldCopy } from './schema';
 import type { AssetIndex } from './session';
 
 // Prefixed with Vite's base path so the build works under a sub-path such as
@@ -17,6 +17,18 @@ async function json<T>(url: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+/**
+ * Same as `json`, but a missing file is not an error — used for world-pack
+ * files that are optional by convention (credits.json: CLAUDE.md hard rule 3,
+ * DESIGN.md §2/§4). Any other fetch failure still throws.
+ */
+async function optionalJson<T>(url: string, fallback: T): Promise<T> {
+  const response = await fetch(url, { cache: 'no-cache' });
+  if (response.status === 404) return fallback;
+  if (!response.ok) throw new Error(`${url} -> HTTP ${response.status}`);
+  return (await response.json()) as T;
+}
+
 export interface LoadedWorld {
   world: World;
   copy: WorldCopy;
@@ -25,13 +37,16 @@ export interface LoadedWorld {
   maps: Record<string, GameMap>;
   /** Every tileset the maps reference, by name. */
   tilesets: TilesetDef[];
+  /** Art credits, or {} if the world pack has none (DESIGN.md §2/§4). */
+  credits: Credits;
 }
 
 export async function loadWorld(worldId: string): Promise<LoadedWorld> {
   const root = worldRoot(worldId);
-  const [world, copy] = await Promise.all([
+  const [world, copy, credits] = await Promise.all([
     json<World>(`${root}/world.json`),
-    json<WorldCopy>(`${root}/copy.json`)
+    json<WorldCopy>(`${root}/copy.json`),
+    optionalJson<Credits>(`${root}/credits.json`, {})
   ]);
 
   if (world.id !== worldId) {
@@ -79,7 +94,7 @@ export async function loadWorld(worldId: string): Promise<LoadedWorld> {
     maps[id] = { ...world.maps[id], ...grid };
   }
 
-  return { world, copy, episodes, maps, tilesets: [...byUrl.values()] };
+  return { world, copy, episodes, maps, tilesets: [...byUrl.values()], credits };
 }
 
 /**

@@ -2,7 +2,8 @@
   "ui": {
     "narrator": "You",
     "advance": "▼ tap / A",
-    "unpainted": "{building} is here, unpainted — flat colour and a name on a sign, waiting for somebody to draw it. Adopt this building: {contribute}"
+    "unpainted": "{building} is here, unpainted — flat colour and a name on a sign, waiting for somebody to draw it. Adopt this building: {contribute}",
+    "credit": "Painted by {credit}."
   },
   "intro": {
     "speaker": "Route 10",

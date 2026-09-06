@@ -78,6 +78,19 @@ export interface World {
   maps: Record<string, MapMeta>;
 }
 
+/**
+ * Art credits, loaded by convention from `worlds/<id>/credits.json` with
+ * graceful fallback (no file = no credits, DESIGN.md §2/§4). Every field is
+ * optional; keys are asset ids (building/npc/tileset ids), values are the
+ * credit text shown in-game.
+ */
+export interface Credits {
+  buildings?: Record<string, string>;
+  chars?: Record<string, string>;
+  portraits?: Record<string, string>;
+  tiles?: Record<string, string>;
+}
+
 /** UI strings. Anything the player reads that is not episode dialogue. */
 export interface WorldCopy {
   ui: {
@@ -85,6 +98,8 @@ export interface WorldCopy {
     advance: string;
     /** `{building}` and `{contribute}` are substituted. */
     unpainted: string;
+    /** `{credit}` is substituted. Shown after a painted building's sign lines. */
+    credit: string;
   };
   intro?: { speaker: string; lines: string[] };
   /**

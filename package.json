@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "playtest": "node scripts/playtest.mjs",
     "test": "vitest run",
-    "validate-episodes": "node scripts/validate-episodes.ts"
+    "validate-episodes": "node scripts/validate-episodes.ts",
+    "validate-assets": "node scripts/validate-assets.ts"
   },
   "dependencies": {
     "phaser": "^4.2.1"
