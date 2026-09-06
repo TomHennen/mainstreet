@@ -138,7 +138,217 @@ function escapeHtml(text) {
   ));
 }
 
-function renderLanding(ids, studioHref) {
+// Where a relative link in CONTRIBUTING.md (to LICENSE, LICENSE-CONTENT.md,
+// CLAUDE.md, ...) should point once it's off on its own page instead of
+// sitting next to those files in the repo.
+const GITHUB_BLOB_BASE = 'https://github.com/TomHennen/mainstreet/blob/main/';
+
+function rewriteMarkdownLink(url) {
+  if (/^([a-z]+:|#)/i.test(url)) return url; // absolute URL, mailto:, or an in-page anchor
+  return GITHUB_BLOB_BASE + url.replace(/^\.?\//, '');
+}
+
+function splitTableRow(line) {
+  return line
+    .trim()
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((cell) => cell.trim());
+}
+
+function isTableSeparator(line) {
+  const cells = splitTableRow(line);
+  return cells.length > 0 && cells.every((cell) => /^:?-+:?$/.test(cell));
+}
+
+/** Inline markdown within one block: code spans, bold, italic, links, and `<url>` autolinks. */
+function renderInline(text) {
+  let out = escapeHtml(text);
+  out = out.replace(/&lt;(https?:\/\/[^\s&<>]+)&gt;/g, (_, url) => `<a href="${url}">${url}</a>`);
+  out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
+  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => `<a href="${rewriteMarkdownLink(url)}">${label}</a>`);
+  return out;
+}
+
+/**
+ * A small, self-contained Markdown -> HTML converter — just enough of the
+ * language for CONTRIBUTING.md (CLAUDE.md: keep dependencies minimal, so no
+ * markdown library for one document). Handles: headings, paragraphs,
+ * bold/italic/code spans, links (rewritten via rewriteMarkdownLink), `<url>`
+ * autolinks, bullet lists, one flavour of table, and horizontal rules.
+ * Anything fancier (nested lists, ordered lists, blockquotes, images) isn't
+ * needed by the one document this renders and isn't supported.
+ */
+function renderMarkdown(markdown) {
+  const lines = markdown.replace(/\r\n/g, '\n').split('\n');
+  const html = [];
+  let inList = false;
+  let i = 0;
+
+  const closeList = () => {
+    if (inList) {
+      html.push('</ul>');
+      inList = false;
+    }
+  };
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (!line.trim()) {
+      closeList();
+      i++;
+      continue;
+    }
+
+    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (heading) {
+      closeList();
+      const level = heading[1].length;
+      html.push(`<h${level}>${renderInline(heading[2].trim())}</h${level}>`);
+      i++;
+      continue;
+    }
+
+    if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(line.trim())) {
+      closeList();
+      html.push('<hr>');
+      i++;
+      continue;
+    }
+
+    const bullet = /^[-*]\s+(.*)$/.exec(line);
+    if (bullet) {
+      if (!inList) {
+        html.push('<ul>');
+        inList = true;
+      }
+      // A soft-wrapped source line continues the item until a blank line or
+      // the next block (another bullet, a heading, a rule).
+      const item = [bullet[1]];
+      i++;
+      while (
+        i < lines.length &&
+        lines[i].trim() &&
+        !/^[-*]\s+/.test(lines[i]) &&
+        !/^(#{1,6})\s/.test(lines[i]) &&
+        !/^(-{3,}|\*{3,}|_{3,})\s*$/.test(lines[i].trim())
+      ) {
+        item.push(lines[i].trim());
+        i++;
+      }
+      html.push(`<li>${renderInline(item.join(' '))}</li>`);
+      continue;
+    }
+
+    closeList();
+
+    if (line.includes('|') && lines[i + 1] !== undefined && isTableSeparator(lines[i + 1])) {
+      const header = splitTableRow(line).map((cell) => `<th>${renderInline(cell)}</th>`).join('');
+      i += 2;
+      const rows = [];
+      while (i < lines.length && lines[i].trim() && lines[i].includes('|')) {
+        rows.push(`<tr>${splitTableRow(lines[i]).map((cell) => `<td>${renderInline(cell)}</td>`).join('')}</tr>`);
+        i++;
+      }
+      html.push(`<table><thead><tr>${header}</tr></thead><tbody>${rows.join('')}</tbody></table>`);
+      continue;
+    }
+
+    // A paragraph: consecutive non-blank lines that aren't some other block.
+    const paragraph = [line.trim()];
+    i++;
+    while (
+      i < lines.length &&
+      lines[i].trim() &&
+      !/^(#{1,6})\s/.test(lines[i]) &&
+      !/^[-*]\s+/.test(lines[i]) &&
+      !/^(-{3,}|\*{3,}|_{3,})\s*$/.test(lines[i].trim()) &&
+      !lines[i].includes('|')
+    ) {
+      paragraph.push(lines[i].trim());
+      i++;
+    }
+    html.push(`<p>${renderInline(paragraph.join(' '))}</p>`);
+  }
+
+  closeList();
+  return html.join('\n');
+}
+
+function renderContributingPage(bodyHtml, siteHref) {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contributing art — mainstreet</title>
+  <style>
+    :root {
+      --night: #12160f;
+      --frame: #1d2b23;
+      --paper: #f3ead8;
+      --maple: #b5542a;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      background: var(--frame);
+      color: var(--paper);
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px 64px;
+    }
+    main {
+      width: 100%;
+      max-width: 680px;
+      background: var(--night);
+      border: 2px solid #4c6b58;
+      border-radius: 6px;
+      padding: 28px 32px 36px;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+    p.back { max-width: 680px; width: 100%; margin-bottom: 16px; font-size: 13px; }
+    p.back a { color: var(--paper); opacity: 0.8; text-decoration: none; }
+    p.back a:hover, p.back a:focus-visible { opacity: 1; text-decoration: underline; }
+    h1, h2, h3 { color: var(--maple); line-height: 1.3; }
+    h1 { font-size: 22px; margin-bottom: 16px; }
+    h2 { font-size: 17px; margin: 28px 0 12px; }
+    h3 { font-size: 15px; margin: 20px 0 8px; }
+    p { margin-bottom: 14px; }
+    ul { margin: 0 0 14px 22px; }
+    li { margin-bottom: 6px; }
+    a { color: var(--maple); }
+    a:hover, a:focus-visible { text-decoration: none; }
+    code {
+      font-family: inherit;
+      background: rgba(181, 84, 42, 0.15);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+    hr { border: none; border-top: 1px solid #4c6b58; margin: 24px 0; }
+    table { border-collapse: collapse; width: 100%; margin: 0 0 16px; font-size: 13px; }
+    th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #33463a; }
+    th { color: var(--maple); }
+  </style>
+</head>
+<body>
+  <p class="back"><a href="${escapeHtml(siteHref)}">&larr; mainstreet</a></p>
+  <main>
+${bodyHtml}
+  </main>
+</body>
+</html>
+`;
+}
+
+function renderLanding(ids, studioHref, contributeHref) {
   const cards = ids
     .map((id) => {
       const { title, subtitle } = worldTitle(id);
@@ -239,11 +449,20 @@ function renderLanding(ids, studioHref) {
 ${cards}
     </ul>
     <p class="studio"><a href="${escapeHtml(studioHref)}">Paint a building &rarr;</a></p>
+    <p class="studio"><a href="${escapeHtml(contributeHref)}">How to contribute art &rarr;</a></p>
     <footer>More towns are always welcome, and so is a fresh coat of paint.</footer>
   </main>
 </body>
 </html>
 `;
+}
+
+function buildContributingPage() {
+  const outDir = resolve(DIST_DIR, 'contributing');
+  mkdirSync(outDir, { recursive: true });
+  const markdown = readFileSync(resolve(ROOT, 'CONTRIBUTING.md'), 'utf-8');
+  const page = renderContributingPage(renderMarkdown(markdown), `${SITE_BASE}/`);
+  writeFileSync(resolve(outDir, 'index.html'), page);
 }
 
 function main() {
@@ -266,7 +485,12 @@ function main() {
   const studioDir = buildStudio();
   copyStudioWorlds(studioDir, ids);
 
-  writeFileSync(resolve(DIST_DIR, 'index.html'), renderLanding(ids, `${SITE_BASE}/studio/?world=${ids[0]}`));
+  const contributeHref = `${SITE_BASE}/contributing/`;
+  writeFileSync(
+    resolve(DIST_DIR, 'index.html'),
+    renderLanding(ids, `${SITE_BASE}/studio/?world=${ids[0]}`, contributeHref)
+  );
+  buildContributingPage();
   // Pages runs Jekyll by default, which ignores files/folders starting with
   // an underscore and can otherwise mangle a static site; this opts out.
   writeFileSync(resolve(DIST_DIR, '.nojekyll'), '');

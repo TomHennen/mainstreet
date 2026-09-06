@@ -143,6 +143,16 @@ examines the building, after any sign text the episode gives it.
 `validate-assets` rejects a credit for an id that doesn't exist, or one that
 isn't painted yet.
 
+## Receiving art
+
+Contributors don't touch a repo — they paint in the in-browser Studio and hit
+Submit, which opens an email with a text code of their drawing already in the
+body (see `CONTRIBUTING.md`). When that email arrives, save it and run
+`npm run decode-art -- path/to/email.txt --credit "Their Name"`: it decodes
+the code, checks it against the building's size, writes the PNG under
+`worlds/<id>/assets/buildings/`, adds the credit to `credits.json`, and runs
+`validate-assets` on the result. Then open a PR with the two changed files.
+
 ## Status
 
 Milestone M2 in progress (see `DESIGN.md` §7). Vitest, `validate-episodes`,
