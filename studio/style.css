@@ -186,6 +186,25 @@ a.link {
   margin-bottom: 12px;
 }
 
+#guidenote {
+  margin-top: -2px;
+}
+
+/* --- the "what you'll send" preview ----------------------------------------- */
+
+.preview {
+  margin-bottom: 18px;
+}
+
+.preview canvas {
+  display: block;
+  image-rendering: pixelated;
+  border: 2px solid var(--edge);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  max-width: 100%;
+}
+
 /* --- controls -------------------------------------------------------------- */
 
 .row {
@@ -284,6 +303,40 @@ kbd {
   margin-bottom: 18px;
 }
 
+.elsewhere {
+  margin-top: 14px;
+  border: 1px solid rgba(243, 234, 216, 0.12);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.elsewhere summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--maple);
+  list-style: none;
+}
+
+.elsewhere summary::-webkit-details-marker {
+  display: none;
+}
+
+.elsewhere summary::before {
+  content: '▸ ';
+}
+
+.elsewhere[open] summary::before {
+  content: '▾ ';
+}
+
+.elsewhere-body {
+  margin-top: 10px;
+}
+
+.elsewhere-body p:last-child {
+  margin-bottom: 0;
+}
+
 .field {
   display: block;
   margin-bottom: 12px;
@@ -368,7 +421,9 @@ kbd {
     grid-template-areas:
       'head head'
       'stage tools'
+      'guide tools'
       'status tools'
+      'files preview'
       'files send'
       'how how';
     column-gap: 24px;
@@ -381,11 +436,17 @@ kbd {
   .editing .stage {
     grid-area: stage;
   }
+  .editing #guidenote {
+    grid-area: guide;
+  }
   .editing .statusline {
     grid-area: status;
   }
   .editing .tools {
     grid-area: tools;
+  }
+  .editing .preview {
+    grid-area: preview;
   }
   .editing .files {
     grid-area: files;

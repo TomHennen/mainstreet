@@ -33,6 +33,10 @@ const UNDO_LIMIT = 60;
 const SUBMIT_ADDRESS = 'tom.hennen+mainstreet@gmail.com';
 /** Above this many characters of encoded body, a mailto stops being reliable. */
 const MAILTO_BUDGET = 1800;
+/** Below this share of painted pixels, submitting gets a gentle reminder. */
+const LIGHT_PAINT_SHARE = 0.02;
+/** The "what you'll send" preview never gets wider than this on screen. */
+const PREVIEW_MAX_WIDTH = 260;
 
 const CONSENT =
   "I made this, I'm happy for it to appear in mainstreet with credit to the " +
@@ -330,7 +334,7 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
     tool: 'pencil',
     zoom: 4,
     showGrid: true,
-    showReference: true,
+    showReference: false,
     undo: [],
     redo: []
   };
@@ -362,8 +366,14 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
     <div class="stage" id="stage">
       <canvas id="view"></canvas>
     </div>
+    <p class="quiet" id="guidenote" hidden>Guide only. It isn't part of your drawing.</p>
 
     <p class="statusline" id="status" role="status" aria-live="polite">&nbsp;</p>
+
+    <section class="preview">
+      <canvas id="previewcanvas"></canvas>
+      <p class="quiet">What you'll send: just what you drew.</p>
+    </section>
 
     <section class="tools">
       <div class="row" id="toolrow">
@@ -394,10 +404,32 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
         <label class="button" for="import">Import a PNG</label>
         <input id="import" type="file" accept="image/png,image/*" hidden />
         <button id="export">Export a PNG</button>
+        <button id="fromguide">Start from the guide</button>
         <button id="clear">Start again</button>
       </div>
       <p class="quiet">Painting in Aseprite or Piskel instead? Lovely — export a
         PNG the exact size above and import it here to send it in.</p>
+      <p class="quiet">Turns the guide into real pixels you can edit and send.</p>
+
+      <details class="elsewhere">
+        <summary>Painting somewhere else?</summary>
+        <div class="elsewhere-body">
+          <p class="quiet" id="elsewheresize"></p>
+          <p class="quiet">Export a PNG with a transparent background — no
+            anti-aliasing or smoothing — using only the palette colours below.
+            The footprint sits at the very bottom of the canvas; any spare
+            rows for a roof, sign or awning go above it.</p>
+          <div class="row">
+            <a class="button" id="downloadpalette" href="#" download>Download the palette PNG</a>
+            <button id="downloadhex">Download the palette as .hex</button>
+          </div>
+          <p class="quiet">The .hex file is one colour per line, which
+            Aseprite, Piskel and Lospec all read straight in.</p>
+          <p class="quiet">Import a PNG above afterwards and Studio checks its
+            size and colours for you, and says exactly what to fix if
+            anything's off.</p>
+        </div>
+      </details>
     </section>
 
     <section class="send">
@@ -410,6 +442,7 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
         <input id="consent" type="checkbox" />
         <span>${esc(CONSENT)}</span>
       </label>
+      <p class="quiet" id="submitnote" hidden></p>
       <div class="row">
         <button id="send" class="primary">Open an email with my drawing</button>
         <button id="copy">Copy the code</button>
@@ -522,6 +555,46 @@ function wireEditor(state: EditorState): void {
       ctx.fillStyle = 'rgba(181,84,42,.75)';
       for (let x = 0; x < w; x += 8) ctx.fillRect(x, line - 1, 4, 2);
     }
+
+    renderPreview();
+  }
+
+  /** The biggest whole zoom (3 or 2, falling back to 1) that keeps the "what
+   *  you'll send" preview under PREVIEW_MAX_WIDTH wide. */
+  function previewZoomFor(width: number): number {
+    for (const zoom of [3, 2, 1]) {
+      if (width * zoom <= PREVIEW_MAX_WIDTH) return zoom;
+    }
+    return 1;
+  }
+
+  /**
+   * The drawing alone, on a light checkerboard, at up to 3x — so nobody has to
+   * take our word for it that the faint reference isn't part of what ships.
+   * Reads from `pix`, which syncPix() just filled with painted pixels only.
+   */
+  function renderPreview(): void {
+    const canvas = el<HTMLCanvasElement>('previewcanvas');
+    const zoom = previewZoomFor(state.width);
+    const w = state.width * zoom;
+    const h = state.height * zoom;
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    const pctx = canvas.getContext('2d');
+    if (!pctx) return;
+    pctx.imageSmoothingEnabled = false;
+
+    pctx.fillStyle = '#f3ead8';
+    pctx.fillRect(0, 0, w, h);
+    pctx.fillStyle = '#ddceac';
+    const cell = Math.max(4, zoom * 4);
+    for (let y = 0; y < h; y += cell) {
+      for (let x = ((y / cell) % 2) * cell; x < w; x += cell * 2) pctx.fillRect(x, y, cell, cell);
+    }
+
+    pctx.drawImage(pix, 0, 0, w, h);
   }
 
   function describeShape(): void {
@@ -537,6 +610,14 @@ function wireEditor(state: EditorState): void {
       `in ${state.entry.mapName}, so the canvas is ${state.width} pixels across and ${state.height} pixels tall. ` +
       above.replace(/\s+/g, ' ');
     el<HTMLElement>('rowslabel').textContent = `${plural(rows, 'row', 'rows')} above the footprint`;
+
+    const footH = th * TILE;
+    const minH = footH;
+    const maxH = footH + MAX_EXTRA_ROWS * TILE;
+    el<HTMLElement>('elsewheresize').textContent =
+      `Right now this canvas needs to be ${state.width} pixels wide and ${state.height} pixels tall. ` +
+      `The width is fixed at ${state.width}; the height can be any multiple of 16 from ${minH} up to ${maxH}, ` +
+      'depending on how many spare rows you leave for a roof, sign or awning.';
   }
 
   function refreshChrome(): void {
@@ -548,6 +629,7 @@ function wireEditor(state: EditorState): void {
     }
     el<HTMLButtonElement>('grid').classList.toggle('on', state.showGrid);
     el<HTMLButtonElement>('reference').classList.toggle('on', state.showReference);
+    el<HTMLElement>('guidenote').hidden = !state.showReference;
     el<HTMLButtonElement>('undo').disabled = state.undo.length === 0;
     el<HTMLButtonElement>('redo').disabled = state.redo.length === 0;
     el<HTMLButtonElement>('fewerrows').disabled = state.extraRows <= 0;
@@ -866,6 +948,26 @@ function wireEditor(state: EditorState): void {
   el<HTMLButtonElement>('export').addEventListener('click', download);
   el<HTMLButtonElement>('attachexport').addEventListener('click', download);
 
+  // --- for anyone painting in another program ----------------------------
+
+  const paletteLink = el<HTMLAnchorElement>('downloadpalette');
+  paletteLink.href = packUrl(state.world.id, state.world.palette ?? 'palette.png');
+  paletteLink.download = `${state.world.id}-palette.png`;
+
+  el<HTMLButtonElement>('downloadhex').addEventListener('click', () => {
+    const lines = state.palette.filter((colour): colour is string => colour !== null).map((colour) => colour.toUpperCase());
+    const blob = new Blob([lines.join('\n') + '\n'], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${state.world.id}-palette.hex`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 10000);
+    say(`Saved ${plural(lines.length, 'colour', 'colours')} as ${state.world.id}-palette.hex — most pixel editors read that straight in.`);
+  });
+
   const importInput = el<HTMLInputElement>('import');
   importInput.addEventListener('change', async () => {
     const file = importInput.files?.[0];
@@ -877,6 +979,22 @@ function wireEditor(state: EditorState): void {
       say(error instanceof Error ? error.message : 'That file would not open here, sorry.');
     }
   });
+
+  /** The palette index whose colour sits closest to this RGB triple. */
+  function nearestPaletteIndex(r: number, g: number, b: number): number {
+    let best = 0;
+    let bestDistance = Infinity;
+    state.palette.forEach((colour, index) => {
+      if (!colour) return;
+      const [pr, pg, pb] = rgbOf(colour);
+      const distance = (pr - r) ** 2 + (pg - g) ** 2 + (pb - b) ** 2;
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = index;
+      }
+    });
+    return best;
+  }
 
   async function importPng(file: File): Promise<void> {
     const bitmap = await createImageBitmap(file);
@@ -924,18 +1042,7 @@ function wireEditor(state: EditorState): void {
         continue;
       }
       nudged++;
-      let best = 0;
-      let bestDistance = Infinity;
-      state.palette.forEach((colour, index) => {
-        if (!colour) return;
-        const [pr, pg, pb] = rgbOf(colour);
-        const distance = (pr - r) ** 2 + (pg - g) ** 2 + (pb - b) ** 2;
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          best = index;
-        }
-      });
-      pixels[i] = best;
+      pixels[i] = nearestPaletteIndex(r, g, b);
     }
     state.pixels = pixels;
     changed();
@@ -946,6 +1053,32 @@ function wireEditor(state: EditorState): void {
           'colour on it, which usually looks the same.'
     );
   }
+
+  /** The faint reference facade, matched to the nearest palette colours. */
+  function pixelsFromReference(): Uint8Array {
+    const pixels = blankPixels(state.width, state.height);
+    const scratch = document.createElement('canvas');
+    scratch.width = state.width;
+    scratch.height = state.height;
+    const ctx = scratch.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return pixels;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(reference, 0, 0);
+    const { data } = ctx.getImageData(0, 0, state.width, state.height);
+    for (let i = 0; i < pixels.length; i++) {
+      const a = data[i * 4 + 3];
+      if (a < 128) continue;
+      pixels[i] = nearestPaletteIndex(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]);
+    }
+    return pixels;
+  }
+
+  el<HTMLButtonElement>('fromguide').addEventListener('click', () => {
+    pushUndo();
+    state.pixels = pixelsFromReference();
+    changed();
+    say('The guide is now real pixels of your own — paint over any of it you like.');
+  });
 
   // --- sending -----------------------------------------------------------
 
@@ -961,6 +1094,28 @@ function wireEditor(state: EditorState): void {
 
   function isBlank(): boolean {
     return state.pixels.every((value) => value === TRANSPARENT);
+  }
+
+  function paintedShare(): number {
+    let painted = 0;
+    for (const value of state.pixels) if (value !== TRANSPARENT) painted++;
+    return painted / state.pixels.length;
+  }
+
+  /**
+   * A one-line, non-blocking nudge shown above the send buttons whenever the
+   * faint reference is still on, or almost nothing has been painted — the two
+   * situations where someone might not realise the guide isn't going with
+   * their drawing. It never stops the send or copy it's attached to.
+   */
+  function maybeReminder(): void {
+    const note = el<HTMLElement>('submitnote');
+    if (state.showReference || paintedShare() < LIGHT_PAINT_SHARE) {
+      note.textContent = "Just a reminder: only what you drew goes in the email; the faint building is a guide.";
+      note.hidden = false;
+    } else {
+      note.hidden = true;
+    }
   }
 
   async function copyCode(): Promise<void> {
@@ -995,7 +1150,10 @@ function wireEditor(state: EditorState): void {
     );
   }
 
-  el<HTMLButtonElement>('copy').addEventListener('click', () => void copyCode());
+  el<HTMLButtonElement>('copy').addEventListener('click', () => {
+    maybeReminder();
+    void copyCode();
+  });
 
   function mailtoFor(body: string): string {
     const subject = `mainstreet art: ${state.entry.placement.id} (${state.world.id})`;
@@ -1015,6 +1173,7 @@ function wireEditor(state: EditorState): void {
   }
 
   el<HTMLButtonElement>('send').addEventListener('click', () => {
+    maybeReminder();
     const name = el<HTMLInputElement>('credit').value.trim();
     const consented = el<HTMLInputElement>('consent').checked;
     const attach = el<HTMLDivElement>('attach');
