@@ -66,6 +66,37 @@ body {
   background: var(--night);
 }
 
+/* The engine's one DOM control over the canvas: a real link, so touch, Tab
+   and Enter all work without the game handling any of them. The UI scene
+   positions it against the dialogue box (right/bottom, in stage pixels). */
+#say-link {
+  position: absolute;
+  z-index: 2;
+  padding: 8px 12px;
+  background: var(--maple);
+  border: 2px solid #e0a171;
+  border-radius: 3px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+  color: var(--paper);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
+#say-link:active {
+  background: #8f401f;
+}
+
+#say-link:focus-visible {
+  outline: 3px solid var(--paper);
+  outline-offset: 2px;
+}
+
 #stage canvas {
   display: block;
   image-rendering: pixelated;

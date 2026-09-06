@@ -2,7 +2,7 @@
   "id": "route10",
   "title": "Route 10",
   "subtitle": "western Catskills, NY",
-  "contribute": "https://example.invalid/route10/contribute",
+  "contribute": "https://tomhennen.github.io/mainstreet/studio/?world=route10",
   "palette": "palette.png",
   "episodes": [
     "ep000"

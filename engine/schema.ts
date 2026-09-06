@@ -98,6 +98,11 @@ export interface WorldCopy {
     advance: string;
     /** `{building}` and `{contribute}` are substituted. */
     unpainted: string;
+    /**
+     * Label on the link shown beside an unpainted building's line (DESIGN.md
+     * §2). No label means no link — the line still reads fine on its own.
+     */
+    paint?: string;
     /** `{credit}` is substituted. Shown after a painted building's sign lines. */
     credit: string;
   };

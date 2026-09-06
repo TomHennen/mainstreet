@@ -13,7 +13,7 @@
  */
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -618,6 +618,46 @@ async function main() {
     if (closed.dialogueOpen) fail('touch-debounce', 'the last line never closed');
     expectFlag(closed, 'touch-debounce', 'metEarl');
     await shot(tp, 'touch-complete');
+
+    // --- Paint it -----------------------------------------------------------
+    // An unpainted building's sign ends with the invitation to draw it, and
+    // that line — and only that line — carries the DOM link to the studio,
+    // deep-linked to the building (DESIGN.md §2). Checked on the touch page so
+    // the link is exercised at phone width, where it has the least room.
+    log('  "Paint it" on an unpainted building');
+    const bare = WORLD.maps.stamford.buildings.find(
+      (b) => !b.interior && !existsSync(resolve(PACK, 'assets', 'buildings', `${b.id}.png`))
+    );
+    if (!bare) fail('paint-it', 'no unpainted building without an interior in Stamford to read');
+    const bareSign = (EPISODE.signs ?? []).find((s) => s.building === bare.id);
+    await walkTo(tp, 'paint-it', bare.door);
+    await pressA(tp);
+    await expectDialogue(tp, 'paint-it', bare.id);
+    const paint = tp.locator('a[data-overlay="link"]');
+    if (await paint.isVisible()) fail('paint-it', 'the "Paint it" link showed on the sign line, not the unpainted one');
+    for (let i = 0; i < (bareSign?.lines.length ?? 0); i++) await pressA(tp);
+    if (!(await paint.isVisible())) fail('paint-it', `no "Paint it" link on ${bare.id}'s unpainted line`);
+    const href = (await paint.getAttribute('href')) ?? '';
+    if (!href.endsWith(`&building=${bare.id}`)) fail('paint-it', `link href is "${href}"`);
+    const paintBox = await paint.boundingBox();
+    if (!paintBox || paintBox.width < 44 || paintBox.height < 24) {
+      fail('paint-it', `the "Paint it" link is not a tappable size: ${JSON.stringify(paintBox)}`);
+    }
+    // Reachable by keyboard, and the game does not swallow the keys while it
+    // has focus (CLAUDE.md #4: it is a browser control, not a game control).
+    let focused = false;
+    for (let i = 0; i < 4 && !focused; i++) {
+      await tp.keyboard.press('Tab');
+      focused = await tp.evaluate(() => document.activeElement?.matches('a[data-overlay="link"]') === true);
+    }
+    if (!focused) fail('paint-it', 'the "Paint it" link is not reachable with Tab');
+    await pressA(tp);
+    if (!(await snap(tp)).dialogueOpen) fail('paint-it', 'space stole focus from the link and closed the dialogue');
+    await tp.evaluate(() => document.activeElement?.blur());
+    log(`    "${(await paint.innerText()).trim()}" -> ${href}`);
+    await shot(tp, 'paint-it');
+    await advanceDialogue(tp, 'paint-it', 1);
+    if (await paint.isVisible()) fail('paint-it', 'the "Paint it" link outlived the dialogue');
 
     log('\n  ep000 completed end to end.');
   } finally {

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { bus, EV } from '../bus';
+import type { SayRequest } from '../bus';
 import {
   buildingArt,
   characterTexture,
@@ -12,6 +13,7 @@ import {
 } from '../art';
 import { publishDebug } from '../debug';
 import { isHeld, onAction } from '../input';
+import { paintUrl } from '../paint';
 import { creditFor, dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signFor } from '../session';
 import { isSolid } from '../validate';
 import type { BuildingPlacement, EpisodeItem, EpisodeSign, Facing, GameMap, Vec2 } from '../schema';
@@ -373,24 +375,25 @@ export class MapScene extends Phaser.Scene {
       const building = target.building;
       const sign = signFor(building.id);
       const name = state.world.buildings[building.id].name;
-      // Painted ones carry an art credit (DESIGN.md §2/§4): an extra line
-      // after whatever flavor text the episode has for the building's sign.
-      const credit = creditFor(building.id);
-      const creditLine = credit ? state.copy.ui.credit.replace('{credit}', credit) : undefined;
-      if (sign) {
-        bus.emit(EV.say, { speaker: name, lines: creditLine ? [...sign.lines, creditLine] : sign.lines });
-      } else if (!state.assets.buildings.has(building.id)) {
-        bus.emit(EV.say, {
-          speaker: name,
-          lines: [
-            state.copy.ui.unpainted
-              .replace('{building}', name)
-              .replace('{contribute}', state.world.contribute ?? '')
-          ]
-        });
-      } else if (creditLine) {
-        bus.emit(EV.say, { speaker: name, lines: [creditLine] });
+      const lines = sign ? [...sign.lines] : [];
+      let link: SayRequest['link'];
+
+      if (state.assets.buildings.has(building.id)) {
+        // Painted ones carry an art credit (DESIGN.md §2/§4): an extra line
+        // after whatever flavor text the episode has for the building's sign.
+        const credit = creditFor(building.id);
+        if (credit) lines.push(state.copy.ui.credit.replace('{credit}', credit));
+      } else {
+        // Unpainted ones carry the invitation to draw them instead, with a
+        // link to the world's contribution page (DESIGN.md §2).
+        const url = paintUrl(state.world.contribute, building.id);
+        lines.push(
+          state.copy.ui.unpainted.replace('{building}', name).replace('{contribute}', state.world.contribute ?? '')
+        );
+        if (url && state.copy.ui.paint) link = { url, label: state.copy.ui.paint, line: lines.length - 1 };
       }
+
+      if (lines.length) bus.emit(EV.say, { speaker: name, lines, link });
       return;
     }
 

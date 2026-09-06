@@ -7,6 +7,13 @@ export interface SayRequest {
   portrait?: string;
   /** Applied once the last line is dismissed. */
   effects?: Effect[];
+  /**
+   * A DOM link offered alongside one line of the entry (`line` is its index).
+   * The UI scene shows it only while that line is on screen. Its URL and label
+   * are composed by the caller from world data — the bus carries no world
+   * knowledge of its own.
+   */
+  link?: { url: string; label: string; line: number };
 }
 
 type Listener = (...args: any[]) => void;

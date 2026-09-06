@@ -17,7 +17,16 @@
       <span data-hud="episode">&nbsp;</span>
     </header>
 
-    <div id="stage"></div>
+    <div id="stage">
+      <!--
+        The one DOM control drawn over the canvas. Empty and hidden until the
+        engine has something to link to (today: the invitation to paint an
+        unpainted building); its href and label come from the world pack, never
+        from here. data-overlay tells the input layer to leave it alone so the
+        browser can handle taps, Tab and Enter on a real link.
+      -->
+      <a id="say-link" data-overlay="link" hidden target="_blank" rel="noopener"></a>
+    </div>
 
     <div id="controls">
       <div id="dpad">
