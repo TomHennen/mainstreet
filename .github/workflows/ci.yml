@@ -1,0 +1,56 @@
+# Typechecks, tests, validates world packs, and builds on every PR and push to
+# main. Kept separate from pages.yml, which only deploys.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Test
+        run: npm test
+      - name: Validate world packs
+        run: npm run validate-episodes
+      - name: Build
+        run: npx vite build
+
+  playtest:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Installs the Chromium build matching the playwright version pinned in
+      # package-lock.json, plus its OS-level deps.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run playtest
+      - name: Upload playtest artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playtest-out
+          path: playtest-out/
+          retention-days: 7

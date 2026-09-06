@@ -45,6 +45,15 @@ world pack on disk and exits non-zero on the first problem, with the world id,
 file and message. Point it at a different worlds directory with an argument
 or `MAINSTREET_WORLDS_DIR` (`node scripts/validate-episodes.ts path/to/worlds`).
 
+## CI
+
+Every pull request and push to `main` runs `.github/workflows/ci.yml`:
+typecheck, `npm test`, `npm run validate-episodes`, a production build, then
+the headless playtest in a second job. When the playtest fails, its screenshots
+and log are uploaded as the `playtest-out` artifact on the run. The
+`.devcontainer/` gives the same environment (Node 22 plus Chromium) locally or
+in Codespaces.
+
 ## Deploy
 
 Every push to `main` builds the game and publishes it to GitHub Pages at
@@ -85,5 +94,5 @@ a missing portrait means text-only dialogue. Content always ships ahead of art.
 ## Status
 
 Milestone M1 in progress (see `DESIGN.md` §7). Vitest and `validate-episodes`
-are in; Tiled maps, `validate-assets`, CI and the devcontainer are still to
-come.
+and CI with the devcontainer are in; Tiled maps and `validate-assets` are
+still to come.
