@@ -7,7 +7,7 @@
   "intro": {
     "speaker": "Route 10",
     "lines": [
-      "Late summer in the western Catskills. Jefferson is up north, Stamford is right here, and Hobart is a few miles west.",
+      "Late summer in the western Catskills. Route 10 runs north to Jefferson and south to Hobart; Main Street here is Route 23.",
       "Walk with the d-pad or the arrow keys. A — or space — talks, reads, and opens doors. Stewart's door actually opens.",
       "The fellow out front looks like he's lost something."
     ]
@@ -23,11 +23,11 @@
     },
     "stamford-hobart": {
       "big": "ROUTE 10",
-      "small": "west down the West Branch — welcome to HOBART, Jewel of the West Branch."
+      "small": "south out of the village, down along the West Branch — welcome to HOBART, Jewel of the West Branch."
     },
     "hobart-stamford": {
       "big": "ROUTE 10",
-      "small": "back east along the river — STAMFORD, Queen of the Catskills."
+      "small": "back north up the West Branch — STAMFORD, Queen of the Catskills."
     },
     "enter:stewarts": {
       "big": "STEWART'S",

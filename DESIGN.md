@@ -145,11 +145,16 @@ most continuity needs).
 
 ## 5. Route 10 content facts (verified via search, Sep 2026)
 
-**Geography:** Jefferson (Schoharie Co.) north; NY-10 south ~8 mi to
-Stamford (Delaware Co., villages of Stamford & Harpersfield, Rtes 10+23);
-Hobart ~5 mi further southwest. Mill pond sits by the Mill Pond Inn in
-Jefferson. Mount Utsayantha and its lake are just NE of Stamford on Lake
-St — the Princess Utsayantha legend is strong future-episode material.
+**Geography:** NY-10 runs north–south. Jefferson (Schoharie Co.) is at the
+north end; NY-10 runs south ~8 mi to Stamford (Delaware Co.), then continues
+south ~5 mi to Hobart. NY-23 crosses Stamford east–west, and Main Street in
+the village *is* Route 23: NY-10 comes down from the north, meets Main Street
+in the village, and carries on south toward Hobart. Stewart's sits on the
+northwest corner of that 10/23 intersection. East and west of the village,
+Route 23 simply runs on out of the map — no destinations there yet. Mill pond
+sits by the Mill Pond Inn in Jefferson. Mount Utsayantha and its lake are just
+NE of Stamford on Lake St — the Princess Utsayantha legend is strong
+future-episode material.
 
 **Nicknames (use on arrival cards):** Stamford — "Queen of the Catskills."
 Hobart — "Jewel of the West Branch."
