@@ -28,12 +28,21 @@ export class UiScene extends Phaser.Scene {
   private index = 0;
   private pendingEffects: Effect[] | undefined;
   private open = false;
+  /**
+   * The one DOM control drawn over the canvas: a real anchor, so it is
+   * tappable, focusable and openable in a new tab by the browser rather than
+   * by us. It lives in index.html empty; only its href and label come from
+   * world data (CLAUDE.md hard rule 1).
+   */
+  private linkEl: HTMLAnchorElement | null = null;
+  private link: SayRequest['link'];
 
   constructor() {
     super('Ui');
   }
 
   create(): void {
+    this.linkEl = document.querySelector<HTMLAnchorElement>('a[data-overlay="link"]');
     this.box = this.add.graphics().setDepth(10);
     this.portrait = this.add.image(0, 0, '__DEFAULT').setOrigin(0, 0).setDepth(11).setVisible(false);
     this.speaker = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: '12px', color: '#b5542a' }).setDepth(12);
@@ -60,6 +69,7 @@ export class UiScene extends Phaser.Scene {
       bus.off(EV.say, this.say, this);
       bus.off(EV.toast, this.toast, this);
       this.scale.off(Phaser.Scale.Events.RESIZE, this.layout, this);
+      this.hideLink();
       unbind();
     });
   }
@@ -68,6 +78,7 @@ export class UiScene extends Phaser.Scene {
     this.lines = request.lines;
     this.index = 0;
     this.pendingEffects = request.effects;
+    this.link = request.link;
     this.speaker.setText(request.speaker);
 
     const hasPortrait = Boolean(request.portrait && this.textures.exists(request.portrait));
@@ -109,7 +120,11 @@ export class UiScene extends Phaser.Scene {
     this.speaker.setVisible(open);
     this.body.setVisible(open);
     this.more.setVisible(open);
-    if (!open) this.portrait.setVisible(false);
+    if (!open) {
+      this.portrait.setVisible(false);
+      this.link = undefined;
+      this.hideLink();
+    }
   }
 
   private toast(message: string): void {
@@ -121,6 +136,35 @@ export class UiScene extends Phaser.Scene {
       this.toastText.setVisible(false);
       this.toastBg.setVisible(false);
     });
+  }
+
+  private hideLink(): void {
+    const el = this.linkEl;
+    if (!el || el.hidden) return;
+    // Focus would otherwise sit on an element nobody can see, and the next
+    // Enter would re-open the link instead of advancing the dialogue.
+    if (document.activeElement === el) el.blur();
+    el.hidden = true;
+  }
+
+  /**
+   * Sits just above the dialogue box, flush with its right edge, so it never
+   * covers the line it belongs to or the advance hint. Positioned in CSS
+   * pixels against #stage, which the UI scene matches one-to-one (zoom 1).
+   */
+  private layoutLink(boxTop: number, boxRight: number, stageHeight: number): void {
+    const el = this.linkEl;
+    if (!el) return;
+    const link = this.link;
+    if (!this.open || !link || this.index !== link.line) {
+      this.hideLink();
+      return;
+    }
+    el.href = link.url;
+    el.textContent = link.label;
+    el.style.right = `${Math.round(boxRight)}px`;
+    el.style.bottom = `${Math.round(stageHeight - boxTop + 6)}px`;
+    el.hidden = false;
   }
 
   private layout(): void {
@@ -160,6 +204,8 @@ export class UiScene extends Phaser.Scene {
 
       this.more.setText(session().copy.ui.advance);
       this.more.setPosition(left + boxW - this.more.width - 12, top + boxH - 18);
+
+      this.layoutLink(top, width - (left + boxW), height);
     }
 
     if (this.toastText.visible) {

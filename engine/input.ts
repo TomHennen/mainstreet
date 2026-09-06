@@ -24,6 +24,15 @@ const KEY_DIRS: Record<string, Facing> = {
 
 const ACTION_KEYS = new Set([' ', 'enter']);
 
+/**
+ * DOM controls the engine draws over the canvas (marked `data-overlay`) are
+ * real links and buttons: the browser handles their taps and their Enter, and
+ * the game must not swallow either. Still one input path per control — these
+ * simply are not the game's controls.
+ */
+const isOverlay = (node: EventTarget | null): boolean =>
+  node instanceof Element && Boolean(node.closest('[data-overlay]'));
+
 export function isHeld(dir: Facing): boolean {
   return held[dir];
 }
@@ -50,6 +59,7 @@ export function bindControls(root: Document = document): void {
   window.addEventListener(
     'keydown',
     (event) => {
+      if (isOverlay(document.activeElement)) return;
       const key = event.key.toLowerCase();
       const dir = KEY_DIRS[key];
       if (dir || ACTION_KEYS.has(key)) event.preventDefault();
@@ -109,6 +119,7 @@ export function bindControls(root: Document = document): void {
   // this attribute while a box is open, so a tap can never also trigger a talk.
   const stage = root.getElementById('stage');
   stage?.addEventListener('pointerdown', (event) => {
+    if (isOverlay(event.target)) return;
     if (document.body.dataset.dialogue !== 'open') return;
     event.preventDefault();
     fireAction();

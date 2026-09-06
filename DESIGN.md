@@ -112,9 +112,10 @@ anything else.
 **Fallback art (engine-built, not per-world):** unpainted building =
 flat facade in a neutral wall color + roof band + door + the building's name
 on a sign, plus a subtle "needs an artist" shimmer and an inspect line that
-links to the contribution page (URL in `world.json`). Missing NPC sheet =
-generic townsperson sprite in a per-NPC accent color. Missing portrait =
-no portrait pane.
+links to the contribution page (`world.json` `contribute` is that URL; the
+engine appends `&building=<id>` and offers it as a "Paint it" link beside the
+line). Missing NPC sheet = generic townsperson sprite in a per-NPC accent
+color. Missing portrait = no portrait pane.
 
 ## 3. Episode schema (v1)
 
