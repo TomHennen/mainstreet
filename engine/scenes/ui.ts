@@ -128,10 +128,18 @@ export class UiScene extends Phaser.Scene {
 
     if (this.open) {
       const margin = 8;
-      const boxH = 104;
-      const top = height - boxH - margin;
       const left = margin;
       const boxW = width - margin * 2;
+
+      const hasPortrait = this.portrait.visible;
+      const textLeft = left + (hasPortrait ? PORTRAIT + 24 : 14);
+
+      // Wrap and measure before drawing: a narrow phone turns one line into
+      // four, and the box has to grow under it rather than let it spill.
+      this.body.setWordWrapWidth(left + boxW - textLeft - 14, true);
+      this.body.setText(this.lines[this.index] ?? '');
+      const boxH = Math.max(104, 28 + this.body.height + 26);
+      const top = height - boxH - margin;
 
       this.box.clear();
       this.box.fillStyle(0x000000, 0.4);
@@ -141,18 +149,14 @@ export class UiScene extends Phaser.Scene {
       this.box.lineStyle(3, INK, 1);
       this.box.strokeRect(left + 1.5, top + 1.5, boxW - 3, boxH - 3);
 
-      const hasPortrait = this.portrait.visible;
       if (hasPortrait) {
         this.portrait.setPosition(left + 10, top + 10);
         this.box.lineStyle(2, INK, 1);
         this.box.strokeRect(left + 9, top + 9, PORTRAIT + 2, PORTRAIT + 2);
       }
 
-      const textLeft = left + (hasPortrait ? PORTRAIT + 24 : 14);
       this.speaker.setPosition(textLeft, top + 10);
       this.body.setPosition(textLeft, top + 28);
-      this.body.setWordWrapWidth(left + boxW - textLeft - 14, true);
-      this.body.setText(this.lines[this.index] ?? '');
 
       this.more.setText(session().copy.ui.advance);
       this.more.setPosition(left + boxW - this.more.width - 12, top + boxH - 18);
