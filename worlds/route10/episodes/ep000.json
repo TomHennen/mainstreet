@@ -7,7 +7,7 @@
       "id": "earl",
       "name": "Earl",
       "map": "stamford",
-      "pos": [15, 9],
+      "pos": [20, 9],
       "facing": "down",
       "accent": "#3f6d4e",
       "dialogue": [
@@ -49,7 +49,7 @@
       "id": "hannah",
       "name": "Hannah",
       "map": "stewarts-interior",
-      "pos": [5, 2],
+      "pos": [7, 11],
       "facing": "down",
       "accent": "#7a3e5f",
       "dialogue": [
@@ -78,7 +78,7 @@
     {
       "id": "pen",
       "map": "jefferson",
-      "pos": [9, 11],
+      "pos": [27, 17],
       "requires": ["metEarl"],
       "effects": [{ "set": "hasPen" }, { "toast": "Got it" }],
       "lines": [
@@ -142,7 +142,7 @@
     },
     {
       "map": "stewarts-interior",
-      "pos": [11, 4],
+      "pos": [20, 5],
       "requires": [],
       "lines": [
         "Shelves of the essentials: chips, motor oil, birthday candles, one lonely jigsaw puzzle.",

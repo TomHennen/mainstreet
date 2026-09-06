@@ -14,8 +14,8 @@
   "start": {
     "map": "stamford",
     "pos": [
-      15,
-      11
+      20,
+      12
     ],
     "facing": "up"
   },
@@ -72,39 +72,39 @@
       "kind": "village",
       "buildings": [
         {
-          "id": "mill-pond-inn",
-          "pos": [
-            14,
-            7
-          ],
-          "size": [
-            6,
-            4
-          ],
-          "door": [
-            17,
-            11
-          ]
-        },
-        {
           "id": "jefferson-town-hall",
           "pos": [
-            23,
-            7
+            6,
+            13
           ],
           "size": [
             7,
             4
           ],
           "door": [
+            9,
+            17
+          ]
+        },
+        {
+          "id": "mill-pond-inn",
+          "pos": [
+            23,
+            8
+          ],
+          "size": [
+            6,
+            4
+          ],
+          "door": [
             26,
-            11
+            12
           ]
         },
         {
           "id": "heartbreak-hotel",
           "pos": [
-            33,
+            39,
             7
           ],
           "size": [
@@ -112,23 +112,23 @@
             4
           ],
           "door": [
-            36,
+            42,
             11
           ]
         },
         {
           "id": "middle-brook-cafe",
           "pos": [
-            41,
-            8
+            46,
+            7
           ],
           "size": [
             5,
             3
           ],
           "door": [
-            43,
-            11
+            48,
+            10
           ]
         }
       ],
@@ -136,8 +136,43 @@
         {
           "text": "JEFFERSON",
           "pos": [
-            24,
+            33,
+            4
+          ]
+        },
+        {
+          "text": "MAIN ST",
+          "pos": [
+            31,
+            11
+          ]
+        },
+        {
+          "text": "MILL POND",
+          "pos": [
+            27,
+            20
+          ]
+        },
+        {
+          "text": "10",
+          "pos": [
+            48,
             3
+          ]
+        },
+        {
+          "text": "10",
+          "pos": [
+            60,
+            8
+          ]
+        },
+        {
+          "text": "CREAMERY ST",
+          "pos": [
+            44,
+            22
           ]
         }
       ],
@@ -145,14 +180,14 @@
         {
           "id": "jefferson-stamford",
           "at": [
-            24,
-            23,
-            2,
-            1
+            63,
+            10,
+            1,
+            3
           ],
           "to": "stamford",
           "spawn": [
-            20,
+            30,
             1
           ],
           "facing": "down",
@@ -167,11 +202,11 @@
         {
           "id": "stewarts",
           "pos": [
-            14,
+            15,
             5
           ],
           "size": [
-            6,
+            7,
             4
           ],
           "door": [
@@ -180,44 +215,29 @@
           ],
           "interior": "stewarts-interior",
           "enter": [
-            6,
-            8
-          ]
-        },
-        {
-          "id": "stamford-coffee",
-          "pos": [
-            26,
-            6
-          ],
-          "size": [
-            5,
-            4
-          ],
-          "door": [
-            28,
-            10
+            13,
+            14
           ]
         },
         {
           "id": "mac-a-doodles",
           "pos": [
-            2,
-            5
+            22,
+            15
           ],
           "size": [
             5,
             3
           ],
           "door": [
-            4,
-            8
+            24,
+            18
           ]
         },
         {
           "id": "the-belvedere",
           "pos": [
-            30,
+            47,
             16
           ],
           "size": [
@@ -225,8 +245,23 @@
             4
           ],
           "door": [
-            33,
+            50,
             20
+          ]
+        },
+        {
+          "id": "stamford-coffee",
+          "pos": [
+            52,
+            27
+          ],
+          "size": [
+            5,
+            4
+          ],
+          "door": [
+            54,
+            31
           ]
         }
       ],
@@ -234,43 +269,64 @@
         {
           "text": "STAMFORD",
           "pos": [
-            34,
-            2
+            40,
+            4
           ]
         },
         {
           "text": "10",
           "pos": [
-            23,
+            32,
             2
           ]
         },
         {
-          "text": "10",
+          "text": "LAKE ST",
           "pos": [
-            23,
-            25
+            27,
+            7
           ]
         },
         {
           "text": "23",
           "pos": [
-            2,
-            12
-          ]
-        },
-        {
-          "text": "23",
-          "pos": [
-            46,
-            12
+            4,
+            8
           ]
         },
         {
           "text": "HARPER ST",
           "pos": [
-            11,
-            4
+            9,
+            15
+          ]
+        },
+        {
+          "text": "10",
+          "pos": [
+            6,
+            30
+          ]
+        },
+        {
+          "text": "HOBART RD",
+          "pos": [
+            13,
+            24
+          ]
+        },
+        {
+          "text": "MAIN ST",
+          "pos": [
+            43,
+            17
+          ]
+        },
+        {
+          "text": "23",
+          "pos": [
+            61,
+            31
           ]
         }
       ],
@@ -278,30 +334,30 @@
         {
           "id": "stamford-jefferson",
           "at": [
-            20,
+            29,
             0,
-            2,
+            3,
             1
           ],
           "to": "jefferson",
           "spawn": [
-            24,
-            22
+            62,
+            11
           ],
-          "facing": "up",
+          "facing": "left",
           "style": "road"
         },
         {
           "id": "stamford-hobart",
           "at": [
-            20,
-            25,
-            2,
+            3,
+            33,
+            3,
             1
           ],
           "to": "hobart",
           "spawn": [
-            15,
+            38,
             1
           ],
           "facing": "down",
@@ -316,16 +372,16 @@
         {
           "id": "cellar-door-wines",
           "pos": [
-            5,
-            5
+            20,
+            11
           ],
           "size": [
-            7,
+            6,
             4
           ],
           "door": [
-            8,
-            9
+            23,
+            15
           ]
         }
       ],
@@ -333,15 +389,43 @@
         {
           "text": "HOBART",
           "pos": [
-            24,
-            3
+            16,
+            12
           ]
         },
         {
           "text": "10",
           "pos": [
-            18,
-            2
+            34,
+            3
+          ]
+        },
+        {
+          "text": "MAIN ST",
+          "pos": [
+            29,
+            19
+          ]
+        },
+        {
+          "text": "10",
+          "pos": [
+            4,
+            16
+          ]
+        },
+        {
+          "text": "MAPLE AVE",
+          "pos": [
+            24,
+            28
+          ]
+        },
+        {
+          "text": "WEST BRANCH",
+          "pos": [
+            12,
+            24
           ]
         }
       ],
@@ -349,15 +433,15 @@
         {
           "id": "hobart-stamford",
           "at": [
-            15,
+            37,
             0,
-            2,
+            3,
             1
           ],
           "to": "stamford",
           "spawn": [
-            20,
-            24
+            4,
+            32
           ],
           "facing": "up",
           "style": "road"
@@ -373,9 +457,9 @@
         {
           "id": "stewarts-exit",
           "at": [
-            6,
-            9,
-            1,
+            13,
+            15,
+            2,
             1
           ],
           "to": "stamford",

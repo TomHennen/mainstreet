@@ -198,16 +198,46 @@ most continuity needs).
 
 ## 5. Route 10 content facts (verified via search, Sep 2026)
 
-**Geography:** NY-10 runs north–south. Jefferson (Schoharie Co.) is at the
-north end; NY-10 runs south ~8 mi to Stamford (Delaware Co.), then continues
-south ~5 mi to Hobart. NY-23 crosses Stamford east–west, and Main Street in
-the village *is* Route 23: NY-10 comes down from the north, meets Main Street
-in the village, and carries on south toward Hobart. Stewart's sits on the
-northwest corner of that 10/23 intersection. East and west of the village,
-Route 23 simply runs on out of the map — no destinations there yet. Mill pond
-sits by the Mill Pond Inn in Jefferson. Mount Utsayantha and its lake are just
-NE of Stamford on Lake St — the Princess Utsayantha legend is strong
-future-episode material.
+**Geography (road names and junctions from OpenStreetMap, Sep 2026 — the
+queries and the lat/lon → tile maths are in `docs/route10-geometry.md`):**
+
+- **Stamford.** NY 10 and NY 23 cross at 42.41028, -74.62490. North of that
+  corner NY 10 is **Lake Street**, climbing north-east toward Mount Utsayantha
+  and on to Jefferson; south of it NY 10 is **Hobart Road**, leaving the
+  village to the **south-west**. NY 23 runs east–west through the corner as
+  **Harper Street**, and becomes **Main Street** a few hundred metres east,
+  where it swings south-east down to the business block. **Stewart's is on the
+  north-west corner of the 10/23 junction; Mac-A-Doodles (33 Harper St) is
+  diagonally opposite it, on the south side of 23.** East and west of the
+  village Route 23 runs on out of the map — no destinations there yet. The
+  **West Branch Delaware River** is first mapped just south-east of the
+  village and runs off to the south-west; NY 10 follows it down to Hobart.
+- **Jefferson.** NY 10 meets Main Street at 42.48134, -74.61015. NY 10 leaves
+  that junction **north** (toward Summit) and **east** — and it is the *east*
+  arm that swings south a mile or two later and becomes the road to Stamford,
+  so the drive to Stamford starts by heading east out of the village.
+  West of the junction the road through the village is **Main Street**
+  (OSM carries it as county route 2A). Heartbreak Hotel (149 Main St) and the
+  cafe are on the **north** side; the **Village Green and gazebo** are on the
+  south side; **Creamery Street** runs south from Main past the Maple Museum.
+  Jefferson Town Hall's OSM address puts it about 600 m **west** of the green,
+  alone on the north side of Main. OSM maps no pond in the village, so the
+  **mill pond's position is our guess** — south of Main at the west end of the
+  village core, with the Mill Pond Inn opposite it.
+- **Hobart.** NY 10 is the village's **Main Street**, running south-west to
+  north-east: **West Main Street** out to the west, **Main Street** through the
+  book-village block, then **East Main Street** climbing **north-east** to
+  Stamford. **Maple Avenue** drops south from Main, crossing the **West Branch
+  Delaware River**, which curls round the east and south sides of the village.
+  Cornell Avenue leaves the Main/East Main bend to the south-east.
+
+**Map scale.** Each village map is fitted to that geometry at a fixed number of
+metres per tile: Stamford 64×34 tiles at 20 m (1280×680 m), Jefferson 64×30 at
+20 m (1280×600 m), Hobart 52×30 at 15 m (780×450 m). Building footprints are
+deliberately much larger than life at that scale — they are landmarks, not
+survey outlines. Mount Utsayantha and its lake are just north-east of Stamford
+up Lake Street, off the edge of the map — the Princess Utsayantha legend is
+strong future-episode material.
 
 **Nicknames (use on arrival cards):** Stamford — "Queen of the Catskills."
 Hobart — "Jewel of the West Branch."
@@ -236,6 +266,12 @@ Hobart — "Jewel of the West Branch."
 Stewart's, Saturday crossword devotee. Hannah — Stewart's counter.
 
 **Open items:**
+- **Four map positions are guesses, not OSM.** Nothing in OpenStreetMap gives
+  a location for the Mill Pond Inn or the mill pond itself (Jefferson), The
+  Belvedere (Stamford) or Cellar Door Wines (Hobart), so those four sit on the
+  right street in the right village but at a guessed spot along it. They are
+  listed in `docs/route10-geometry.md` and are a one-line data fix once Tom
+  confirms where they really are.
 - The real roadside sign when leaving Stamford — wording believed to be
   "please drive with equanimity" or similar; **unverified, Tom will
   photograph it.** Use placeholder copy on that travel edge with a TODO.
