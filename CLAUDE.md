@@ -50,7 +50,14 @@ for feel and behavior*, not code to reuse.
    with affectionate, neutral-or-positive flavor only. Never generate
    storylines that disparage a real business or depict a real private person
    who hasn't opted in. Fictional characters (Earl, Hannah) are fine.
-6. No analytics, no trackers, no accounts in v1.
+6. **All copy must be nice.** Every line of text a player can read (dialogue,
+   signs, travel cards, toasts, UI, placeholder labels) is warm, kind and
+   affectionate toward the towns, the businesses and the people in them. No
+   snark, no sarcasm, no edge, no jokes at anyone's expense, and nothing that
+   could be read as a knock on a real place — even a gentle one like an empty
+   pastry case or a slow line. Humour is fine when everyone in the scene
+   would smile at it. When in doubt, make it kinder.
+7. No analytics, no trackers, no accounts in v1.
 
 ## Working style
 
