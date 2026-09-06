@@ -57,10 +57,34 @@ in Codespaces.
 
 ## Deploy
 
-Every push to `main` builds the game and publishes it to GitHub Pages at
-`https://<owner>.github.io/mainstreet/` (`.github/workflows/pages.yml`). One-time
-setup on a fresh repo: Settings → Pages → Source: "GitHub Actions". Nothing else
-to configure; there are no secrets.
+Every push to `main` builds every world pack and publishes them to GitHub
+Pages, each at its own path, plus a small landing page at the site root that
+links to them (`.github/workflows/pages.yml` runs `npm run build:site`). With
+one world (`route10`) live, that's:
+
+- `https://<owner>.github.io/mainstreet/` — the landing page
+- `https://<owner>.github.io/mainstreet/route10/` — Route 10
+
+One-time setup on a fresh repo: Settings → Pages → Source: "GitHub Actions".
+Nothing else to configure; there are no secrets.
+
+`scripts/build-site.mjs` does the work: it runs a separate `vite build` per
+world under `worlds/` (each with `VITE_WORLD=<id>`, its own `--base` and its
+own `dist/<id>/` output — a single Vite build only ever ships one world, see
+`vite.config.ts`), then writes `dist/index.html` from each world's
+`world.json` `title`/`subtitle`. `SITE_BASE` sets the path the whole site is
+served under (default `/`; the Pages workflow passes
+`/${{ github.event.repository.name }}`). To try it locally:
+
+```sh
+SITE_BASE=/mainstreet npm run build:site
+npm run preview -- --outDir dist/route10 --base /mainstreet/route10/
+```
+
+Adding a world is content-only: drop a new `worlds/<id>/` pack (same shape as
+`worlds/route10/`) and the next `build:site` picks it up automatically —
+building it, and adding it to the landing page — with no engine or workflow
+change.
 
 ## Layout
 
