@@ -14,7 +14,8 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "noEmit": true
+    "noEmit": true,
+    "allowImportingTsExtensions": true
   },
-  "include": ["engine", "vite.config.ts"]
+  "include": ["engine", "vite.config.ts", "vitest.config.ts", "scripts"]
 }
