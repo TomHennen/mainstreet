@@ -44,7 +44,8 @@ const CONSENT =
 
 const GUIDANCE = "Draw the storefront as you remember it; please don't paste a logo.";
 
-type Tool = 'pencil' | 'fill' | 'eraser' | 'eyedropper';
+type Tool = 'pencil' | 'fill' | 'eraser' | 'eyedropper' | 'line' | 'rect';
+type BrushSize = 1 | 2 | 3;
 
 // --- world pack shapes (read-only; the engine owns the real schema) ----------
 
@@ -300,6 +301,9 @@ interface EditorState {
   pixels: Uint8Array;
   colour: number;
   tool: Tool;
+  brushSize: BrushSize;
+  rectFilled: boolean;
+  mirror: boolean;
   zoom: number;
   showGrid: boolean;
   showReference: boolean;
@@ -332,6 +336,9 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
     pixels: blankPixels(footW, footH + DEFAULT_EXTRA_ROWS * TILE),
     colour: palette.findIndex((c) => c !== null),
     tool: 'pencil',
+    brushSize: 1,
+    rectFilled: false,
+    mirror: false,
     zoom: 4,
     showGrid: true,
     showReference: false,
@@ -381,6 +388,16 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
         <button class="tool" data-tool="fill">Fill<kbd>F</kbd></button>
         <button class="tool" data-tool="eraser">Eraser<kbd>E</kbd></button>
         <button class="tool" data-tool="eyedropper">Pick<kbd>I</kbd></button>
+        <button class="tool" data-tool="line">Line<kbd>L</kbd></button>
+        <button class="tool" data-tool="rect">Rect<kbd>R</kbd></button>
+      </div>
+      <div class="row" id="sizerow">
+        <span class="quiet">Brush</span>
+        <button class="size" data-size="1">1<kbd>1</kbd></button>
+        <button class="size" data-size="2">2<kbd>2</kbd></button>
+        <button class="size" data-size="3">3<kbd>3</kbd></button>
+        <button id="rectfilled" class="toggle">Filled</button>
+        <button id="mirror" class="toggle">Mirror<kbd>M</kbd></button>
       </div>
       <div class="row">
         <button id="undo">Undo<kbd>⌘Z</kbd></button>
@@ -388,7 +405,7 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
         <button id="zoomout">Zoom −<kbd>[</kbd></button>
         <button id="zoomin">Zoom +<kbd>]</kbd></button>
         <button id="grid" class="toggle">Grid<kbd>G</kbd></button>
-        <button id="reference" class="toggle">Reference<kbd>R</kbd></button>
+        <button id="reference" class="toggle">Reference<kbd>V</kbd></button>
       </div>
       <div class="row rows">
         <span class="quiet" id="rowslabel"></span>
@@ -556,6 +573,14 @@ function wireEditor(state: EditorState): void {
       for (let x = 0; x < w; x += 8) ctx.fillRect(x, line - 1, 4, 2);
     }
 
+    // A soft dashed line down the middle while mirroring, so it's obvious
+    // where the fold is before a single pixel goes down.
+    if (state.mirror) {
+      const mid = Math.round((state.width / 2) * state.zoom);
+      ctx.fillStyle = 'rgba(126,180,214,.6)';
+      for (let y = 0; y < h; y += 8) ctx.fillRect(mid - 1, y, 2, 4);
+    }
+
     renderPreview();
   }
 
@@ -627,6 +652,11 @@ function wireEditor(state: EditorState): void {
     for (const swatch of Array.from(document.querySelectorAll<HTMLButtonElement>('.swatch'))) {
       swatch.classList.toggle('on', Number(swatch.dataset.colour) === state.colour);
     }
+    for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>('.size'))) {
+      button.classList.toggle('on', Number(button.dataset.size) === state.brushSize);
+    }
+    el<HTMLButtonElement>('rectfilled').classList.toggle('on', state.rectFilled);
+    el<HTMLButtonElement>('mirror').classList.toggle('on', state.mirror);
     el<HTMLButtonElement>('grid').classList.toggle('on', state.showGrid);
     el<HTMLButtonElement>('reference').classList.toggle('on', state.showReference);
     el<HTMLElement>('guidenote').hidden = !state.showReference;
@@ -655,6 +685,7 @@ function wireEditor(state: EditorState): void {
   const pointers = new Map<number, { x: number; y: number }>();
   let strokeSnapshot: Uint8Array | null = null;
   let last: { x: number; y: number } | null = null;
+  let shapeStart: { x: number; y: number } | null = null;
   let panFrom: { x: number; y: number } | null = null;
 
   function cellAt(event: PointerEvent): { x: number; y: number } | null {
@@ -665,24 +696,55 @@ function wireEditor(state: EditorState): void {
     return { x, y };
   }
 
-  function paint(x: number, y: number): void {
-    const at = y * state.width + x;
-    if (state.tool === 'eraser') state.pixels[at] = TRANSPARENT;
-    else state.pixels[at] = state.colour;
+  /** Sets one pixel, and its mirror twin too when mirror mode is on. Every
+   *  tool below ends up here, so mirroring only has to live in one place. */
+  function setPixel(x: number, y: number, value: number): void {
+    if (x < 0 || y < 0 || x >= state.width || y >= state.height) return;
+    state.pixels[y * state.width + x] = value;
+    if (state.mirror) {
+      const mx = state.width - 1 - x;
+      if (mx !== x) state.pixels[y * state.width + mx] = value;
+    }
   }
 
-  function line(from: { x: number; y: number }, to: { x: number; y: number }): void {
-    // Straight Bresenham, so a quick swipe leaves a line and not a dotted one.
-    let x = from.x;
-    let y = from.y;
-    const dx = Math.abs(to.x - x);
-    const dy = -Math.abs(to.y - y);
-    const sx = x < to.x ? 1 : -1;
-    const sy = y < to.y ? 1 : -1;
+  /** Pencil and eraser stamp a square of the chosen brush size: 1 pixel,
+   *  a 2×2 anchored at the cursor, or a 3×3 centred on it. */
+  function paint(x: number, y: number): void {
+    const value = state.tool === 'eraser' ? TRANSPARENT : state.colour;
+    switch (state.brushSize) {
+      case 2:
+        setPixel(x, y, value);
+        setPixel(x + 1, y, value);
+        setPixel(x, y + 1, value);
+        setPixel(x + 1, y + 1, value);
+        break;
+      case 3:
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) setPixel(x + dx, y + dy, value);
+        }
+        break;
+      default:
+        setPixel(x, y, value);
+    }
+  }
+
+  /**
+   * Pure Bresenham: visits every pixel on a straight line between two points
+   * and hands each to `plot`. A quick pencil swipe uses this (via `paint`) so
+   * a fast drag leaves a line and not a dotted one; the Line tool uses it
+   * (via `setPixel`) to commit the straight, pixel-perfect line it previews.
+   */
+  function plotLine(x0: number, y0: number, x1: number, y1: number, plot: (x: number, y: number) => void): void {
+    let x = x0;
+    let y = y0;
+    const dx = Math.abs(x1 - x);
+    const dy = -Math.abs(y1 - y);
+    const sx = x < x1 ? 1 : -1;
+    const sy = y < y1 ? 1 : -1;
     let err = dx + dy;
     for (;;) {
-      paint(x, y);
-      if (x === to.x && y === to.y) break;
+      plot(x, y);
+      if (x === x1 && y === y1) break;
       const e2 = 2 * err;
       if (e2 >= dy) {
         err += dy;
@@ -695,6 +757,46 @@ function wireEditor(state: EditorState): void {
     }
   }
 
+  /** The Rectangle tool's outline or fill, between two opposite corners. */
+  function plotRect(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    filled: boolean,
+    plot: (x: number, y: number) => void
+  ): void {
+    const minX = Math.min(x0, x1);
+    const maxX = Math.max(x0, x1);
+    const minY = Math.min(y0, y1);
+    const maxY = Math.max(y0, y1);
+    if (filled) {
+      for (let y = minY; y <= maxY; y++) {
+        for (let x = minX; x <= maxX; x++) plot(x, y);
+      }
+      return;
+    }
+    for (let x = minX; x <= maxX; x++) {
+      plot(x, minY);
+      plot(x, maxY);
+    }
+    for (let y = minY; y <= maxY; y++) {
+      plot(minX, y);
+      plot(maxX, y);
+    }
+  }
+
+  /** Redraws the Line or Rectangle tool's live preview from the stroke's
+   *  starting snapshot, so dragging the end point around never leaves a
+   *  trail — only the shape between the start and the current point shows. */
+  function previewShape(to: { x: number; y: number }): void {
+    if (!shapeStart || !strokeSnapshot) return;
+    state.pixels = strokeSnapshot.slice();
+    const plot = (x: number, y: number) => setPixel(x, y, state.colour);
+    if (state.tool === 'line') plotLine(shapeStart.x, shapeStart.y, to.x, to.y, plot);
+    else plotRect(shapeStart.x, shapeStart.y, to.x, to.y, state.rectFilled, plot);
+  }
+
   function fillFrom(x: number, y: number): void {
     const target = state.pixels[y * state.width + x];
     const value = state.tool === 'eraser' ? TRANSPARENT : state.colour;
@@ -704,6 +806,11 @@ function wireEditor(state: EditorState): void {
       const at = stack.pop() as number;
       if (state.pixels[at] !== target) continue;
       state.pixels[at] = value;
+      if (state.mirror) {
+        const px = at % state.width;
+        const py = (at - px) / state.width;
+        state.pixels[py * state.width + (state.width - 1 - px)] = value;
+      }
       const cx = at % state.width;
       if (cx > 0) stack.push(at - 1);
       if (cx < state.width - 1) stack.push(at + 1);
@@ -717,6 +824,7 @@ function wireEditor(state: EditorState): void {
     state.pixels = strokeSnapshot;
     strokeSnapshot = null;
     last = null;
+    shapeStart = null;
     render();
   }
 
@@ -760,8 +868,12 @@ function wireEditor(state: EditorState): void {
     }
 
     strokeSnapshot = state.pixels.slice();
-    if (state.tool === 'fill') fillFrom(cell.x, cell.y);
-    else {
+    if (state.tool === 'fill') {
+      fillFrom(cell.x, cell.y);
+    } else if (state.tool === 'line' || state.tool === 'rect') {
+      shapeStart = cell;
+      previewShape(cell);
+    } else {
       paint(cell.x, cell.y);
       last = cell;
     }
@@ -785,7 +897,14 @@ function wireEditor(state: EditorState): void {
 
     const cell = cellAt(event);
     if (!cell) return;
-    if (last) line(last, cell);
+
+    if (state.tool === 'line' || state.tool === 'rect') {
+      previewShape(cell);
+      render();
+      return;
+    }
+
+    if (last) plotLine(last.x, last.y, cell.x, cell.y, paint);
     else paint(cell.x, cell.y);
     last = cell;
     render();
@@ -800,6 +919,7 @@ function wireEditor(state: EditorState): void {
       const before = strokeSnapshot;
       strokeSnapshot = null;
       last = null;
+      shapeStart = null;
       const same = before.every((value, i) => value === state.pixels[i]);
       if (!same) {
         state.undo.push(before);
@@ -810,6 +930,7 @@ function wireEditor(state: EditorState): void {
       }
     }
     last = null;
+    shapeStart = null;
     refreshChrome();
   }
 
@@ -855,6 +976,28 @@ function wireEditor(state: EditorState): void {
     if (!button || !button.dataset.tool) return;
     state.tool = button.dataset.tool as Tool;
     refreshChrome();
+  });
+
+  el<HTMLDivElement>('sizerow').addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('.size');
+    if (!button || !button.dataset.size) return;
+    state.brushSize = Number(button.dataset.size) as BrushSize;
+    refreshChrome();
+  });
+
+  el<HTMLButtonElement>('rectfilled').addEventListener('click', () => {
+    state.rectFilled = !state.rectFilled;
+    refreshChrome();
+  });
+
+  el<HTMLButtonElement>('mirror').addEventListener('click', () => {
+    state.mirror = !state.mirror;
+    changed();
+    say(
+      state.mirror
+        ? "Mirroring on — paint one side and the other fills in to match."
+        : 'Mirroring is off; both sides are their own now.'
+    );
   });
 
   el<HTMLDivElement>('palette').addEventListener('click', (event) => {
@@ -1256,12 +1399,31 @@ function wireEditor(state: EditorState): void {
       case 'i':
         state.tool = 'eyedropper';
         break;
+      case 'l':
+        state.tool = 'line';
+        break;
+      case 'r':
+        state.tool = 'rect';
+        break;
+      case '1':
+        state.brushSize = 1;
+        break;
+      case '2':
+        state.brushSize = 2;
+        break;
+      case '3':
+        state.brushSize = 3;
+        break;
       case 'g':
         state.showGrid = !state.showGrid;
         changed();
         return;
-      case 'r':
+      case 'v':
         state.showReference = !state.showReference;
+        changed();
+        return;
+      case 'm':
+        state.mirror = !state.mirror;
         changed();
         return;
       case ']':
