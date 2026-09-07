@@ -34,13 +34,15 @@ winters weren't cold enough for them). Across Main Street from Stamford Coffee i
 empty lot: two buildings there burned down a couple of years ago, and the
 wreckage sat for years before it was finally bulldozed. It should be mapped
 as one of the reserved full-size open lots (map rule 4), not filler scenery.
-Stamford also has **Tops**, a grocery store — position along Main/Route 10
-not yet confirmed, TODO once Tom pins it down. It's the only grocery store
-within about 30 minutes, so locals lean on it even though it's rough around
-the edges (produce that's a little iffy, regular items — jalapeños, say —
-often out of stock). The genuine local feeling is gratitude that it's there
-at all, not the gripe about what it's missing; see Flavor & story hooks for
-how that has to land in-game.
+Stamford also has **Tops**, a grocery store, between Mac-A-Doodles and
+Stamford Coffee. Current map block face may not actually have room for a
+third full-size building there — flagged under Open items below for
+whoever next redraws Stamford. It's the only grocery store within about 30
+minutes, so locals lean on it even though it's rough around the edges
+(produce that's a little iffy, regular items — jalapeños, say — often out
+of stock). The genuine local feeling is gratitude that it's there at all,
+not the gripe about what it's missing; see Flavor & story hooks for how
+that has to land in-game.
 
 **Jefferson.** Main Street is the spine and reads as a main street (paved).
 Mill Pond Inn and Middle Brook Cafe are on the south side of Main Street.
@@ -54,6 +56,30 @@ village hugs the West Branch; Maple Avenue crosses it on a bridge.
 
 **Stewart's interior.** The clerk is enclosed behind the counter; the player
 talks across it and cannot walk round.
+
+## Open items — pending map work
+
+New businesses/landmarks Tom has named that aren't placed on the map yet.
+Don't guess coordinates for these; they need a real Stamford redraw pass
+(reference imagery + critic rubric, per the map rules below) rather than a
+notes-file guess:
+
+- **Tops** needs to fit on the Main/Route 23 block face between
+  Mac-A-Doodles and Stamford Coffee. Tom's flagged that the current map
+  likely doesn't have enough room there for a third full-size building —
+  the block may need to be widened, the existing two buildings' lots
+  tightened, or the block face re-thought.
+- **Solinsky's** (butcher) — village and position not yet given.
+- **John's Tavern** — almost certainly Stamford (Tom's contrasting it
+  directly with the Belvedere's crowd), exact position not yet given.
+- **TP's Cafe** and **Ace Hardware** — TP's is "off Railroad Ave, next to
+  Ace Hardware." **Railroad Ave doesn't exist on the current map** — this
+  is the first place a new street name will be needed; treat it as a
+  geometry task (confirm the real alignment, add it to
+  `docs/route10-geometry.md`, then the map) before placing either
+  building.
+- **Veterans Memorial Park** — a possible future addition; village and
+  position not yet given. See the flavor note below on tone.
 
 ## Map rules (agreed 2026-09-06)
 
@@ -168,6 +194,27 @@ opt-in, everything warm and affectionate) before it reaches the player.
   fictional commuter-archetype NPC (tired Friday-evening energy, a cooler
   bag from a city store, catching up on local news they missed all week) —
   not tied to any specific real person.
+- **Solinsky's.** An excellent butcher — brisket sandwiches on Saturdays,
+  and they genuinely sell out. Same "get there before it's gone" texture as
+  the Mill Pond Inn's ribs joke already in ep000; a nice recurring town
+  motif (good things in Route 10 run out, and everyone knows to plan
+  around it). Good for a light "race the clock" beat without any real
+  stakes.
+- **John's Tavern.** The local counterpart to the Belvedere — a different
+  crowd, less "Brooklyn transplant," more homegrown regulars. Not a
+  rivalry, just two good bars with two different personalities; nice for a
+  "which one's your spot" beat, or a townsperson explaining the difference
+  to a newcomer without putting either place down.
+- **TP's Cafe / Ace Hardware / Railroad Ave.** A new little corridor to
+  open up on a future map pass — TP's sits off Railroad Ave next to Ace
+  Hardware. Good candidate for a "there's a whole street I hadn't
+  noticed" discovery beat once it's mapped.
+- **Veterans Memorial Park.** Different register from the rest of this
+  list — a memorial, not a business or a gag. If and when it's added,
+  keep any copy quiet and respectful rather than cute; still warm, but the
+  "everyone would smile at this" humor bar from CLAUDE.md hard rule 6
+  mostly doesn't apply here. Good for a still, reflective beat (a bench, a
+  flag, someone tending the flowerbeds) rather than a punchline.
 - **Jefferson Town Hall.** Dog licensing happens there, though hardly
   anyone actually goes and does it. Town court sits about once a month.
   Metal recycling drop-off is the first Saturday of the month. Good
