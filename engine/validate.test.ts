@@ -665,6 +665,8 @@ describe('validateWorld', () => {
       expect(runWorld(world).join('\n')).toContain('map "town" edge "north-road" line 1 is empty');
     });
 
+  });
+
   // The carry verbs (DESIGN.md §2): one fixture hands a token over, another
   // spends it, and both have to have the words for it happening and for it
   // not happening.
