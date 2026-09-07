@@ -381,6 +381,12 @@ could ever walk there — the
 player talks to them across the counter instead, within an interior's talking
 reach (engine/scenes/map.ts), exactly as Hannah is talked to in Stewart's.
 
+About one time in five, a world person's small talk gives way to a line of
+`copy.json` `ui.trivia` instead (`engine/session.ts`'s `smallTalkFor`) — a
+real roll per conversation, not tied to who is asked and never saved, so it
+reads as a nice surprise rather than something to hunt for. A world with no
+`ui.trivia` simply never rolls for it.
+
 Missing NPC sheet = generic townsperson sprite, drawn from that person's
 `look` (§4) in their own accent color. Missing portrait = no portrait pane.
 The floating name plate stays above a building once it's painted too,

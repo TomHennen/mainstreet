@@ -31,6 +31,7 @@ import type { SceneDriver } from '../scene';
 import {
   creditFor,
   dialogueFor,
+  hasSmallTalk,
   itemVisible,
   itemsOn,
   npcsOn,
@@ -38,7 +39,8 @@ import {
   peopleOn,
   propSignsOn,
   session,
-  signLinesFor
+  signLinesFor,
+  smallTalkFor
 } from '../session';
 import { isSolid, moverWalkable } from '../validate';
 import { lookOf, plaqueTile, SCENE_PLAYER } from '../schema';
@@ -675,14 +677,16 @@ export class MapScene extends Phaser.Scene {
   private canTalkTo(walker: Walker): boolean {
     if (walker.npc) return true;
     if (walker.person?.lines?.length) return true;
-    return (session().copy.ui.passerby ?? []).length > 0;
+    return hasSmallTalk();
   }
 
-  /** One kind line for somebody with no story to tell, the same one every time. */
+  /**
+   * A line for somebody with no story to tell: their small talk, the same one
+   * every time, or — about one time in five — a line of trivia instead
+   * (`smallTalkFor`, DESIGN.md §2).
+   */
   private passerbyLine(id: string): string | undefined {
-    const lines = session().copy.ui.passerby ?? [];
-    if (!lines.length) return undefined;
-    return lines[hashId(id) % lines.length];
+    return smallTalkFor({ id });
   }
 
   /** Somebody — the player, or one of the others — is standing on this tile. */

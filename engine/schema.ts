@@ -436,6 +436,17 @@ export interface WorldCopy {
      */
     passerbyName?: string;
     /**
+     * A pinch of local trivia (DESIGN.md §2), an easter egg rather than
+     * something to notice: about one time in five, a world person's small
+     * talk gives way to one of these instead of their usual line
+     * (`engine/session.ts`'s `smallTalkFor`) — a real roll, not tied to who
+     * is asked and never saved, so it is only ever a nice surprise, never a
+     * rung to climb. Keep each one true, kind, and short — under 140
+     * characters is plenty. Optional; a world with none simply never rolls
+     * for it.
+     */
+    trivia?: string[];
+    /**
      * The title screen (DESIGN.md §2). The engine draws the world's name and
      * its list of episodes; every word on it comes from here. `play` is the
      * action on an episode not started yet, `continue` on one with a save to
@@ -609,11 +620,7 @@ export interface Episode {
    * change with the week's story without every episode having to repeat
    * `ui.passerby`'s lines. Optional: an episode with nothing to say here
    * simply leaves `ui.passerby` standing. Each line must be non-empty.
-   *
-   * Schema and validation only for now — `engine/scenes/map.ts`'s
-   * `passerbyLine`/`canTalkTo` still read `ui.passerby` exclusively. Wiring
-   * this in touches the same file another branch is actively working in, so
-   * it is left for a follow-up change rather than done alongside this field.
+   * `engine/session.ts`'s `smallTalkFor` is where this is read.
    */
   smallTalk?: string[];
 }

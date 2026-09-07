@@ -3402,9 +3402,10 @@ async function main() {
       }
       const aim = [Math.round(hailed.x), Math.round(hailed.y)];
       const lines = COPY.ui.passerby ?? [];
+      const trivia = COPY.ui.trivia ?? [];
       if (!lines.length) fail('walkers', 'copy.json has no ui.passerby for a townsperson to say');
-      if (!lines.includes(talking.dialogue?.text)) {
-        fail('walkers', `"${stroller.id}" said "${talking.dialogue?.text}", which is not one of ui.passerby`);
+      if (!lines.includes(talking.dialogue?.text) && !trivia.includes(talking.dialogue?.text)) {
+        fail('walkers', `"${stroller.id}" said "${talking.dialogue?.text}", which is not one of ui.passerby or ui.trivia`);
       }
       // Somebody the player is passing rather than being introduced to: the
       // box carries the world's own word for them (copy.json ui.passerbyName).
@@ -3433,8 +3434,8 @@ async function main() {
       // And A says the same line again, without a tap.
       await pressA(sp);
       const pressed = await expectDialogue(sp, 'walkers', `"${stroller.id}" on A`);
-      if (!lines.includes(pressed.dialogue?.text)) {
-        fail('walkers', `A on "${stroller.id}" said "${pressed.dialogue?.text}", which is not one of ui.passerby`);
+      if (!lines.includes(pressed.dialogue?.text) && !trivia.includes(pressed.dialogue?.text)) {
+        fail('walkers', `A on "${stroller.id}" said "${pressed.dialogue?.text}", which is not one of ui.passerby or ui.trivia`);
       }
       log(`    A says it again: "${pressed.dialogue?.text}"`);
       await advanceDialogue(sp, 'walkers', 1);
