@@ -151,6 +151,7 @@ next reload. Nothing else to register.
 | `assets/buildings/<building-id>.png`         | footprint width × 16 wide; taller is fine — extra rows sit above the footprint |
 | `assets/chars/<npc-id>.png`                  | 16×32 frames, 4 rows (down/left/right/up) × 3 |
 | `assets/portraits/<npc-id>.png`              | 96×96 bust on transparency            |
+| `assets/vehicles/<vehicle-id>.png`           | 32×32 frames, 4 rows (down/left/right/up), no walk frames |
 
 The floating name plate keeps showing once a building is painted; set a
 placement's `"label": false` in `world.json` if you want to hide it.

@@ -35,6 +35,7 @@ mainstreet/
         tiles/       # <tileset>.json (Tiled tileset) + <tileset>.png
         buildings/   # <building-id>.png facades (tile-multiple sizes)
         chars/       # <npc-id>.png sheets (16x32, 4 dir x 3 frames)
+        vehicles/    # <vehicle-id>.png sheets (32x32, 4 dir, no walk frames)
         portraits/   # <npc-id>.png 96x96 dialogue busts
       copy.json      # UI strings: title screen, travel-screen text per edge
   prototype/         # route10-v3.html — behavioral reference only
@@ -386,6 +387,62 @@ About one time in five, a world person's small talk gives way to a line of
 real roll per conversation, not tied to who is asked and never saved, so it
 reads as a nice surprise rather than something to hunt for. A world with no
 `ui.trivia` simply never rolls for it.
+
+**Ambient cars.** A map may also carry a `vehicles` list — traffic on the
+paved routes, so a state route reads as a road rather than a grey stripe:
+
+```jsonc
+"vehicles": [
+  { "id": "stamford-main-car", "kind": "car",     // car | pickup | van
+    "colour": "#9babb2",                          // muted; the drawn car's paint
+    "path": [[2, 18], [88, 18], [88, 16], [2, 16]],
+    "loop": true,                                 // default: back to the first
+    "pause": 1.2,                                 // seconds at each waypoint, default 0.8
+    "speed": 19.1 },                              // tiles/s, default walking x 3
+  { "id": "jh-pickup", "kind": "pickup", "colour": "#547e64",
+    "pos": [43, 17], "facing": "up" }             // no path: a parked one
+]
+```
+
+A path is waypoints, filled in between by the same pathfinder a stroll uses,
+and it runs over **drivable tiles only**. "Drivable" is a tileset property —
+`drive: true`, alongside `solid`, on the tiles a world means cars to use. It
+is the engine's own vocabulary rather than the tile's `kind`, which the engine
+never branches on: Route 10 marks its asphalt and deliberately leaves its
+sandy side streets unmarked, so NY 10 and NY 23 carry traffic and the back
+streets stay quiet. `validate-episodes` walks every leg of a path over that
+rule, the closing leg of a loop included.
+
+Cars are **never a hazard, and never anything else either** (§1): not solid,
+nothing to say, not a tap target — a tap on one lands on the road under it —
+and nothing a save ever hears about. Rather than the player giving way, the
+car does: it looks three tiles up its own route, and if anybody is standing
+there it closes the throttle and coasts to a stop, waits for as long as they
+stay, and pulls away again when the way clears. Its braking ramp comes off its
+own speed, so it always stops within two tiles — inside the three it looks
+ahead, which puts the stop behind whoever it stopped for. It never routes
+around anybody: a car that swerved past somebody in the road would read as
+impatience. Somebody who steps into the road right in front of one is simply
+passed under, with nothing happening to either of them. A car gives way to any
+car listed *before* it on the map as well, which is one-way on purpose, so two
+of them can never sit waiting on each other at a crossroads.
+
+Drawn, a car sits at its own centre line — half a tile above the ground line
+of the row it is in — capped just under the player's depth, so it draws over
+the road, behind anything further down the street, and always *under* the
+player where the two overlap.
+
+A vehicle with no `path` at all is a **parked** one: it sits on `pos` facing
+where it was left, drawn exactly like a moving one and just as un-solid, which
+is how somebody's pickup ends up in a lot for an episode. A parked car has
+only to be somewhere a car could plausibly have been left — a drivable tile,
+which covers the road and a lot's marked stalls alike.
+
+One or two per village is what a street reads as; the validator refuses more
+than three. Route 10 runs a saloon up and down NY 23 in Stamford and a pickup
+along NY 10 there, a van along Jefferson's Main Street, and a car along
+Hobart's. Keep waypoints — where a car pauses — off junction tiles, so nobody
+is ever left idling in the middle of a crossroads.
 
 Missing NPC sheet = generic townsperson sprite, drawn from that person's
 `look` (§4) in their own accent color. Missing portrait = no portrait pane.
@@ -802,6 +859,12 @@ fire-specific.
   owns every shape in it, so a world pack ships no pixels for one. A painted
   sheet replaces the placeholder outright and the `look` is then ignored.
 - Portraits: 96×96 bust on transparency.
+- Vehicle sheets: `assets/vehicles/<id>.png`, 32×128 — 4 directions of 32×32,
+  the same row order as a character sheet (down, left, right, up) and no walk
+  frames, since a car looks the same standing or moving. The car itself is
+  drawn about 16×32 inside its square cell so the cell holds it lengthways or
+  across; anything outside it is transparent. Missing sheet = the engine's own
+  drawn car in the `colour` the map asked for (§2).
 - Tools: Aseprite or Piskel (free, browser). Later: "Studio," a hosted
   constrained editor (locked canvas + palette + submit) — out of scope now,
   but nothing in the pipeline may preclude it.
