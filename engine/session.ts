@@ -8,7 +8,19 @@
  */
 import type { SaveFile } from './save';
 import type { Flags } from './flags';
-import type { Credits, Episode, EpisodeItem, EpisodeNpc, EpisodeSign, Facing, GameMap, Vec2, World, WorldCopy } from './schema';
+import type {
+  Credits,
+  Episode,
+  EpisodeItem,
+  EpisodeNpc,
+  EpisodeSign,
+  Facing,
+  GameMap,
+  Person,
+  Vec2,
+  World,
+  WorldCopy
+} from './schema';
 
 /** Which convention-named assets actually exist in the world pack. */
 export interface AssetIndex {
@@ -70,6 +82,14 @@ export function sessionOrNull(): Session | null {
 
 export const npcsOn = (mapId: string): EpisodeNpc[] =>
   session().episode.npcs.filter((npc) => npc.map === mapId);
+
+/**
+ * The townspeople a village keeps whether or not a story is running
+ * (DESIGN.md §2). They come from `world.json`, not from the episode, so they
+ * are on the street every week — and they carry no dialogue, only a look and
+ * somewhere to be.
+ */
+export const peopleOn = (mapId: string): Person[] => session().world.maps[mapId]?.people ?? [];
 
 export const itemsOn = (mapId: string): EpisodeItem[] =>
   (session().episode.items ?? []).filter((item) => item.map === mapId);

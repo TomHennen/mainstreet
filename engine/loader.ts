@@ -131,7 +131,13 @@ export async function indexAssets(loaded: LoadedWorld): Promise<AssetIndex> {
   const { world, episodes, tilesets } = loaded;
   const root = worldRoot(world.id);
   const buildingIds = Object.keys(world.buildings);
-  const charIds = [world.player.id, ...episodes.flatMap((episode) => episode.npcs.map((npc) => npc.id))];
+  // Everybody a sheet could be painted for: the player, the cast of every
+  // episode, and the villages' own townspeople (DESIGN.md §2).
+  const charIds = [
+    world.player.id,
+    ...episodes.flatMap((episode) => episode.npcs.map((npc) => npc.id)),
+    ...Object.values(world.maps).flatMap((meta) => (meta.people ?? []).map((person) => person.id))
+  ];
 
   const [buildings, chars, portraits, painted] = await Promise.all([
     filterExisting(buildingIds, (id) => `${root}/assets/buildings/${id}.png`),
