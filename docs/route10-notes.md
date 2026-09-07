@@ -259,11 +259,18 @@ opt-in, everything warm and affectionate) before it reaches the player.
 - **The unreachable contractor.** A very true, very relatable rural
   frustration: everyone's always looking for a contractor to fix up the
   house, and half of them just don't return calls — often because the
-  good ones are simply swamped with work, not because they're flaky. No
-  real business involved, so this one's easy: a classic "help someone
-  chase down a contractor" or "the contractor everyone swears by is
-  booked till spring" episode premise, played as a shared, good-natured
-  town frustration rather than a knock on anyone in particular.
+  good ones are simply swamped with work, not because they're flaky. A
+  classic "help someone chase down a contractor" or "the contractor
+  everyone swears by is booked till spring" episode premise, played as a
+  shared, good-natured town frustration rather than a knock on anyone in
+  particular. Real inspiration for *where* to find them: the deli counter
+  inside the Jefferson gas station, across the road from Middle Brook
+  Cafe — officially "J&H," but locally known by a nickname that's really
+  the real owner's name, so per hard rule 5 don't use it. Give the
+  in-world spot its own invented nickname instead (e.g. "Duffy's") rather
+  than the real one. That's exactly where the contractors everyone's
+  chasing actually have breakfast — a good "ask around town, get pointed
+  to the gas station deli, and there they all are" beat for the episode.
 - **The old-timer who fixes septic problems.** Real-world inspiration for
   a great character archetype: an old-timer, well past the age you'd
   expect to still be doing the work, who's the person everyone calls for
