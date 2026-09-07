@@ -146,3 +146,33 @@ export const hasProgress = (save: SaveFile, episodeId: string): boolean =>
   Object.prototype.hasOwnProperty.call(save.episodes, episodeId);
 
 export const isCompleted = (save: SaveFile, episodeId: string): boolean => save.completed.includes(episodeId);
+
+/**
+ * "Start over" (DESIGN.md §2): a true reset, unlike "play again", which keeps
+ * the episode on the `completed` list so a finished story stays remembered as
+ * finished. This forgets both where the player got to *and* that they ever
+ * finished it, and writes at once — a player who confirms this and never
+ * plays again should still find it forgotten. Mutates `save` in place, the
+ * same way `startEpisode`'s replay does.
+ */
+export function resetEpisode(
+  worldId: string,
+  save: SaveFile,
+  episodeId: string,
+  storage: StorageLike | null = browserStorage()
+): void {
+  delete save.episodes[episodeId];
+  save.completed = save.completed.filter((id) => id !== episodeId);
+  writeSave(worldId, save, storage);
+}
+
+/**
+ * "Forget everything" (DESIGN.md §2): every episode's progress and its done
+ * mark, gone at once. Returns a fresh, empty save for the caller to carry on
+ * with in memory — the title screen's own copy of the save is otherwise none
+ * the wiser that storage was cleared out from under it.
+ */
+export function forgetAll(worldId: string, storage: StorageLike | null = browserStorage()): SaveFile {
+  clearSave(worldId, storage);
+  return emptySave();
+}

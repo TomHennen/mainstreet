@@ -17,9 +17,16 @@ const held: Record<Facing, boolean> = { up: false, down: false, left: false, rig
 const listeners = new Set<() => void>();
 const tapListeners = new Set<(x: number, y: number) => void>();
 const dirListeners = new Set<(dir: Facing) => void>();
+const dragListeners = new Set<(dy: number) => void>();
 let lastAction = 0;
 let lastTap = 0;
-let pressed: { id: number; x: number; y: number } | null = null;
+/**
+ * `x0`/`y0` are where the press started, kept still for the tap/drag
+ * distinction on release; `x`/`y` are the last point seen, moved forward on
+ * every `pointermove` so a drag reports one small step at a time rather than
+ * the whole gesture at once.
+ */
+let pressed: { id: number; x0: number; y0: number; x: number; y: number } | null = null;
 
 const KEY_DIRS: Record<string, Facing> = {
   arrowup: 'up',
@@ -73,6 +80,19 @@ export function onDirection(fn: (dir: Facing) => void): () => void {
 export function onTap(fn: (x: number, y: number) => void): () => void {
   tapListeners.add(fn);
   return () => tapListeners.delete(fn);
+}
+
+/**
+ * A drag across the game surface — the vertical movement, in client (CSS)
+ * pixels, since the last event, positive downward — for a scrollable list
+ * (the title screen's Credits, DESIGN.md §2). It rides the same press as
+ * `onTap`: a gesture short enough to stay inside the tap slop still fires
+ * `onTap` on release, so a list that scrolls a few stray pixels can still be
+ * dismissed with a tap. Returns an unsubscribe function.
+ */
+export function onDrag(fn: (dy: number) => void): () => void {
+  dragListeners.add(fn);
+  return () => dragListeners.delete(fn);
 }
 
 export function releaseAll(): void {
@@ -175,7 +195,17 @@ export function bindControls(root: Document = document): void {
       fireAction();
       return;
     }
-    pressed = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    pressed = { id: event.pointerId, x0: event.clientX, y0: event.clientY, x: event.clientX, y: event.clientY };
+  });
+
+  stage?.addEventListener('pointermove', (event) => {
+    if (!pressed || pressed.id !== event.pointerId) return;
+    if (isOverlay(event.target)) return;
+    if (document.body.dataset.dialogue === 'open') return;
+    const dy = event.clientY - pressed.y;
+    pressed.x = event.clientX;
+    pressed.y = event.clientY;
+    if (dy) for (const fn of [...dragListeners]) fn(dy);
   });
 
   stage?.addEventListener('pointerup', (event) => {
@@ -184,7 +214,7 @@ export function bindControls(root: Document = document): void {
     if (!start || start.id !== event.pointerId) return;
     if (isOverlay(event.target)) return;
     if (document.body.dataset.dialogue === 'open') return;
-    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > TAP_SLOP_PX) return;
+    if (Math.hypot(event.clientX - start.x0, event.clientY - start.y0) > TAP_SLOP_PX) return;
     // Debounced like the action button, and for the same reason (hard rule 4).
     const now = performance.now();
     if (now - lastTap < ACTION_DEBOUNCE_MS) return;

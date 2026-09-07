@@ -315,6 +315,12 @@ describe('session helpers', () => {
       });
       expect(creditFor('shop')).toBe('Tom');
     });
+
+    it('takes assets/credits explicitly, for the title screen\'s Credits list, which has no running session', () => {
+      const explicitAssets = { ...assets, buildings: new Set(['shop']) };
+      const explicitCredits = { buildings: { shop: ['Tom', 'Lana'] } };
+      expect(creditFor('shop', { assets: explicitAssets, credits: explicitCredits })).toBe('Tom and Lana');
+    });
   });
 
   describe('joinCredits', () => {

@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   clearSave,
   emptySave,
+  forgetAll,
   hasProgress,
   isCompleted,
   loadSave,
+  resetEpisode,
   saveKey,
   SAVE_VERSION,
   writeSave
@@ -152,5 +154,73 @@ describe('what the title screen asks a save', () => {
     expect(hasProgress(save, 'ep000')).toBe(false);
     expect(isCompleted(save, 'ep000')).toBe(true);
     expect(isCompleted(save, 'ep001')).toBe(false);
+  });
+});
+
+describe('resetEpisode ("Start over", DESIGN.md §2)', () => {
+  it('clears progress on an episode that had somewhere to carry on from', () => {
+    const storage = fakeStorage();
+    const save = filled();
+    resetEpisode('route10', save, 'ep001', storage);
+    expect(hasProgress(save, 'ep001')).toBe(false);
+    expect(loadSave('route10', storage).episodes.ep001).toBeUndefined();
+  });
+
+  it('forgets that a finished episode was ever finished, unlike "play again"', () => {
+    const storage = fakeStorage();
+    const save = filled();
+    resetEpisode('route10', save, 'ep000', storage);
+    expect(isCompleted(save, 'ep000')).toBe(false);
+    expect(loadSave('route10', storage).completed).toEqual([]);
+  });
+
+  it('leaves every other episode untouched', () => {
+    const storage = fakeStorage();
+    const save = filled();
+    resetEpisode('route10', save, 'ep000', storage);
+    expect(hasProgress(save, 'ep001')).toBe(true);
+  });
+
+  it('writes the reset at once, not on some later autosave', () => {
+    const storage = fakeStorage();
+    writeSave('route10', filled(), storage);
+    const save = filled();
+    resetEpisode('route10', save, 'ep001', storage);
+    expect(loadSave('route10', storage)).toEqual(save);
+  });
+
+  it('does nothing harmful to an episode with neither progress nor a done mark', () => {
+    const storage = fakeStorage();
+    const save = emptySave();
+    resetEpisode('route10', save, 'ep999', storage);
+    expect(save).toEqual(emptySave());
+  });
+
+  it('still resets in memory when storage refuses the write', () => {
+    const save = filled();
+    expect(() => resetEpisode('route10', save, 'ep001', hostileStorage())).not.toThrow();
+    expect(hasProgress(save, 'ep001')).toBe(false);
+  });
+});
+
+describe('forgetAll ("Forget everything", DESIGN.md §2)', () => {
+  it('clears the world\'s whole save and hands back a fresh, empty one', () => {
+    const storage = fakeStorage();
+    writeSave('route10', filled(), storage);
+    const fresh = forgetAll('route10', storage);
+    expect(fresh).toEqual(emptySave());
+    expect(loadSave('route10', storage)).toEqual(emptySave());
+  });
+
+  it('leaves other worlds\' saves alone', () => {
+    const storage = fakeStorage();
+    writeSave('route10', filled(), storage);
+    writeSave('other', filled(), storage);
+    forgetAll('route10', storage);
+    expect(loadSave('other', storage)).toEqual(filled());
+  });
+
+  it('never throws when storage refuses', () => {
+    expect(() => forgetAll('route10', hostileStorage())).not.toThrow();
   });
 });

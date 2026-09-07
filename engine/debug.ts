@@ -66,6 +66,13 @@ export function currentDialogue(): DebugDialogue | null {
   return dialogue;
 }
 
+export interface DebugRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 /**
  * The title screen's list, for the same harness and for the same reason: the
  * words are drawn to the canvas, where nothing outside the game can read them.
@@ -73,8 +80,8 @@ export function currentDialogue(): DebugDialogue | null {
  * tap can be aimed at it.
  */
 export interface DebugTitleItem {
-  kind: 'episode' | 'write';
-  /** Episode id, or "" for the write-to-us row. */
+  kind: 'episode' | 'write' | 'forget' | 'credits';
+  /** Episode id, or "" for a row that isn't one. */
   id: string;
   label: string;
   /** "Play" / "Continue" / "Play again" — empty unless this item is selected. */
@@ -83,12 +90,43 @@ export interface DebugTitleItem {
   /** The world's word for a finished episode, as drawn — empty on the rest. */
   doneMark: string;
   selected: boolean;
-  rect: { x: number; y: number; w: number; h: number };
+  rect: DebugRect;
+  /** "Start over" — this row's secondary action, when it has one (an episode with progress or done). */
+  secondary?: string;
+  /** Its tap target, when `secondary` is set and this row is selected. */
+  secondaryRect?: DebugRect;
+  /** True while this row is asking "are you sure?" in place of its usual label/action. */
+  confirming?: boolean;
+  /** The question being asked, while `confirming`. */
+  confirmAsk?: string;
+  /** The "Yes" tap target, while `confirming`. */
+  yesRect?: DebugRect;
+  /** The "Keep it" tap target, while `confirming`. */
+  keepRect?: DebugRect;
+}
+
+/** One line of the Credits list: who painted a building, or who wrote an episode. */
+export interface DebugCreditsLine {
+  label: string;
+  credit: string;
+}
+
+/** The Credits list's content, published only while it is open (engine/scenes/title.ts). */
+export interface DebugCredits {
+  heading: string;
+  buildings: DebugCreditsLine[];
+  stories: DebugCreditsLine[];
+  palette: string;
+  licence: string;
+  /** Tapping anywhere in here goes back to the episode list. */
+  backRect: DebugRect;
 }
 
 export interface DebugTitle {
   world: string;
   items: DebugTitleItem[];
+  /** Set while the Credits list is open in place of the episode list. */
+  credits?: DebugCredits | null;
 }
 
 declare global {

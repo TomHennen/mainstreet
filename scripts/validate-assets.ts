@@ -21,7 +21,10 @@
  *    from `README.txt` and a tileset's own `.json`) — nothing unexpected
  *    silently ships.
  *  - `credits.json`, if present: every credited id exists and is actually
- *    painted (DESIGN.md §2: "painted ones carry an art credit").
+ *    painted (DESIGN.md §2: "painted ones carry an art credit"). An optional
+ *    `stories` map (episode id → writer names) has no "painted" gate — a
+ *    story has no PNG — so it is just checked against the shipped episode
+ *    list and the same non-empty-name rule as everything else.
  *
  * Point it at a scratch worlds/ directory the same way validate-episodes
  * does, with an argument or MAINSTREET_WORLDS_DIR:
@@ -296,6 +299,25 @@ function validateWorldAssets(dir: string, worldId: string): void {
             `credits.${section}.${id} must be a non-empty string, or a non-empty array of non-empty strings`
           );
         }
+      }
+    }
+
+    // credits.stories (DESIGN.md §2): who wrote an episode, keyed by episode
+    // id. Unlike the sections above there is no "actually painted" gate — a
+    // story has no PNG — so the only checks are that the episode is a real,
+    // shipped one and that the credit itself is well-formed.
+    const shippedEpisodes = new Set(world.episodes);
+    for (const [episodeId, text] of Object.entries(credits.stories ?? {})) {
+      if (!shippedEpisodes.has(episodeId)) {
+        fail(worldId, creditsFile, `credits.stories.${episodeId} — no such shipped episode`);
+        continue;
+      }
+      if (!isValidCredit(text)) {
+        fail(
+          worldId,
+          creditsFile,
+          `credits.stories.${episodeId} must be a non-empty string, or a non-empty array of non-empty strings`
+        );
       }
     }
   }
