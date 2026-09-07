@@ -58,6 +58,8 @@ export interface DebugSnapshot {
   light: { mode: 'off' | 'dim' | 'party'; spots: number };
   /** The ids of the map overlays currently patched onto this map. */
   overlays: string[];
+  /** The toast banner on screen, or null. Drawn to the canvas, like the dialogue. */
+  toast: string | null;
 }
 
 /**
@@ -74,6 +76,17 @@ export function noteDialogue(page: DebugDialogue | null): void {
 
 export function currentDialogue(): DebugDialogue | null {
   return dialogue;
+}
+
+/** The toast banner, recorded the same way and for the same reason. */
+let toast: string | null = null;
+
+export function noteToast(message: string | null): void {
+  toast = message;
+}
+
+export function currentToast(): string | null {
+  return toast;
 }
 
 export interface DebugRect {

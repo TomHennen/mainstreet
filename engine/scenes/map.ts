@@ -17,7 +17,7 @@ import {
   promptTexture,
   TILE
 } from '../art';
-import { currentDialogue, publishDebug } from '../debug';
+import { currentDialogue, currentToast, publishDebug } from '../debug';
 import { isHeld, onAction, onTap } from '../input';
 import { feedbackUrl } from '../feedback';
 import { improveUrl, paintUrl } from '../paint';
@@ -735,7 +735,8 @@ export class MapScene extends Phaser.Scene {
       dialogue: currentDialogue(),
       scene: this.runner ? { id: this.runner.id, holds: this.runner.holds } : null,
       light: this.lighting.describe(),
-      overlays: overlaysOn(this.mapId).map((overlay) => overlay.id)
+      overlays: overlaysOn(this.mapId).map((overlay) => overlay.id),
+      toast: currentToast()
     });
   }
 
