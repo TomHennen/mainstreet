@@ -216,6 +216,31 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, px: number, py: n
       break;
     }
 
+    // An upright slab on a plinth, with a lighter face set into it: a memorial
+    // stone, a boundary marker, a village monument. Tall and narrow, so it
+    // reads as standing up out of the ground rather than lying on it.
+    case 'stele': {
+      const face = c[1] ?? c[0];
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.fillRect(px + 3, py + 13, 11, 2);
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px + 3, py + 11, 10, 3);
+      ctx.fillRect(px + 5, py + 2, 6, 10);
+      ctx.fillRect(px + 6, py + 1, 4, 1);
+      ctx.fillStyle = 'rgba(255,255,255,.22)';
+      ctx.fillRect(px + 5, py + 2, 1, 10);
+      ctx.fillRect(px + 6, py + 1, 3, 1);
+      ctx.fillRect(px + 3, py + 11, 10, 1);
+      ctx.fillStyle = 'rgba(0,0,0,.28)';
+      ctx.fillRect(px + 10, py + 2, 1, 10);
+      ctx.fillRect(px + 3, py + 13, 10, 1);
+      ctx.fillStyle = face;
+      ctx.fillRect(px + 6, py + 4, 4, 5);
+      ctx.fillStyle = 'rgba(0,0,0,.20)';
+      ctx.fillRect(px + 6, py + 8, 4, 1);
+      break;
+    }
+
     case 'block':
       ctx.fillStyle = c[0];
       ctx.fillRect(px, py, TILE, TILE);

@@ -140,7 +140,7 @@ y = anchor_y - (lat - anchor_lat) *  111320                    / metres_per_tile
 
 | map       | size (tiles) | m/tile | ground covered | anchor                                            |
 |-----------|--------------|--------|----------------|---------------------------------------------------|
-| stamford  | 64 × 34      | 20     | 1280 × 680 m   | NY 10/23 junction `42.41028, -74.62490` → (20, 12) |
+| stamford  | 96 × 42      | 20     | 1920 × 840 m   | NY 10/23 junction `42.41028, -74.62490` → (20, 12) |
 | jefferson | 64 × 30      | 20     | 1280 × 600 m   | NY 10 junction `42.48134, -74.61015` → (52, 12)    |
 | hobart    | 52 × 30      | 15     | 780 × 450 m    | Main/West Main `42.37148, -74.67091` → (18, 22)    |
 
@@ -175,9 +175,10 @@ Honest list, so the next pass knows what it is allowed to undo.
 - **Stamford: Hobart Road is straightened.** The real road's bearing would put
   it off the west edge; it is held to a steady south-west diagonal so it
   reaches the south edge near the corner, which is where the Hobart exit sits.
-- **Stamford: only one side street.** South Street is kept (it really does run
-  south-east off Main); Railroad Avenue, West End Avenue, the Delaware Streets
-  and the rest are dropped.
+- **Stamford: three side streets.** Academy Street runs north off Main to The
+  Belvedere; Churchill Avenue runs south off Main to Railroad Avenue, which
+  runs east–west parallel to Main and carries Ace Hardware and T.P.'s Cafe.
+  West End Avenue, the Delaware Streets and the rest are still dropped.
 - **Jefferson: Park Avenue is gone.** At 20 m/tile it runs two tiles from Main
   Street and merges with it. The Village Green it loops around is drawn
   instead, as flowers, trees and a bench between Main and Creamery Street.
@@ -254,7 +255,8 @@ second**. The rules, in full:
    one-line change in `world.json`. The old 3×2 sheds are gone.
 5. **Reserved lots.** 5×3 patches of plain grass — no tree, no flower, no prop
    — on the block faces where a future named building goes, so nothing has to
-   move to add one. Eight in Stamford, four in Jefferson, three in Hobart.
+   move to add one. Four in Jefferson, three in Hobart; Stamford's are the
+   north side of Main east of x49 and the empty lot at x34 (§9).
 6. **Scenery is deliberate.** Trees in bands (hillsides, map edges, the ring
    round Jefferson's Village Green), never a uniform sprinkle; flowers in a
    handful of named patches; label boxes are kept clear so a road name stays
@@ -322,3 +324,66 @@ its own; the concrete walk down column x45 from the door; and the patio, a 5x4
 deck at x46-50, y22-25 with four tables and two planters. The old sandy
 "south-side lot" — twelve tiles by two of undifferentiated sand at y19-20,
 serving nothing — is gone.
+
+
+## 9. Stamford's Main Street block (Sep 2026)
+
+Tom's ground truth put nine more named places on one block face, plus a side
+street that did not exist on the map at all. The village grew **east and
+south only** — 64 × 34 to **96 × 42** — so every tile that had a coordinate
+kept it, and nothing in `world.json` or an episode had to move except the
+things this pass deliberately moved.
+
+Everything named is on the **south** side of Main, in Tom's order west to
+east, each with its door on the wrap-around sidewalk at y23:
+
+| id                         | pos      | size  | door     |
+|----------------------------|----------|-------|----------|
+| `mac-a-doodles`            | 24, 21   | 4 × 3 | 25, 24   |
+| *(unnamed filler)*         | 30, 20   | 4 × 3 | —        |
+| *(empty lot)*              | 34, 20   | 5 × 3 | —        |
+| `tops`                     | 39, 20   | 6 × 3 | 42, 23   |
+| *(Tops' parking)*          | 45, 20   | 4 × 3 | —        |
+| `stamford-library`         | 53, 20   | 5 × 3 | 55, 23   |
+| `stamford-fire-department` | 59, 20   | 6 × 3 | 61, 23   |
+| `solinskys`                | 66, 20   | 5 × 3 | 68, 23   |
+| *(Veterans Memorial Park)* | 72, 20   | 3 × 3 | —        |
+| `johns-tavern`             | 79, 20   | 5 × 3 | 81, 23   |
+| `eighty-main`              | 85, 20   | 2 × 3 | 85, 23   |
+| `stamford-coffee`          | 87, 20   | 5 × 3 | 89, 23   |
+| `tps-cafe`                 | 53, 26   | 5 × 3 | 55, 29   |
+| `ace-hardware`             | 59, 26   | 5 × 3 | 61, 29   |
+| `the-belvedere`            | 78, 2    | 5 × 3 | 80, 5    |
+
+**Deliberate bends, on top of §4 and §7.**
+
+- **Distances are compressed.** Fitted at 20 m/tile the block would run past
+  the frame: Stamford Coffee's real position is about x66, and it is drawn at
+  x87 so that eleven storefronts, a supermarket lot, a park and a side street
+  all get a full-size footprint. Storefronts touch or leave a one-tile gap;
+  the gaps are for legibility, not for scale.
+- **Academy Street moved east**, from x40–41 to x76–77, so that the block face
+  west of it has room for Tops, the library, the fire department, Solinsky's
+  and the park. The Belvedere moved with it, from (42, 2) to (78, 2). It is
+  still west of Stamford Coffee, which is what Tom's notes require.
+- **NY 10 runs straight south to the bottom edge** and its west arm is gone,
+  so the map's one bend is spent on nothing at all: the road is dead straight
+  north to south. The `stamford-hobart` exit moved from the west edge
+  (`[0, 30, 1, 3]`) to the bottom edge (`[20, 41, 3, 1]`), and Hobart's return
+  spawn from `[1, 32]` to `[21, 40]`. Hobart is south-west of Stamford, so
+  leaving southward is no worse a lie than leaving westward was.
+- **The West Branch moved south**, y27–28 to y37–38, to leave room for
+  Railroad Avenue and the trail. Its west end steps down over four tiles
+  instead of stopping square.
+- **The Catskill Scenic Trail is drawn** — one sandy tile at y33, running the
+  full width on the old rail bed and crossing NY 10. One tile wide against a
+  side street's two and a route's three, and labelled, so it reads as a path.
+- **Stamford Coffee's patio and lot moved with it.** The deck is now 7 × 3 at
+  x85–91, y23–25, shared with 80 Main, which touches Coffee's west wall; the
+  lot is x92–95, y20–25 with a two-tile drive at (92–93, 19). §8's coordinates
+  for it are superseded.
+- **The empty lot** at x34–38, y20–22 is a real parking lot in Stamford. It is
+  drawn as plain grass with no label, so it also serves as map rule 4's
+  reserved lot for whatever goes there.
+- **Mountain Dog Cafe is not named.** The unnamed filler at x30–33 is its
+  building; it is closed and Tom's word is to wait.
