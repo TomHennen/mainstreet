@@ -674,6 +674,29 @@ async function main() {
         if (!row.selected) fail('title', 'the cursor is not on the first unfinished episode');
         log(`    "${list.world}" — "${row.label}" [${row.action}]`);
 
+        // Every row on the list is one consistent component (Tom's phone
+        // complaint — Ep. 1, Credits, Write to us and Forget everything all
+        // looked different): the same width and height, and at least the
+        // 44px touch target (CLAUDE.md #4), the "write to us" row included
+        // even though its box comes from a real DOM anchor rather than
+        // something the canvas drew.
+        {
+          const w0 = list.items[0].rect.w;
+          const h0 = list.items[0].rect.h;
+          for (const item of list.items) {
+            if (Math.abs(item.rect.w - w0) > 1) {
+              fail('title', `the "${item.kind}" row is ${item.rect.w}px wide, expected ${w0}px like the rest`);
+            }
+            if (Math.abs(item.rect.h - h0) > 1) {
+              fail('title', `the "${item.kind}" row is ${item.rect.h}px tall, expected ${h0}px like the rest`);
+            }
+            if (item.rect.h < 44) {
+              fail('title', `the "${item.kind}" row is only ${item.rect.h}px tall, short of the 44px touch target`);
+            }
+          }
+          log(`    every row is the same shape: ${w0}x${h0}`);
+        }
+
         // The world's "write to us" — a real DOM link (DESIGN.md §2), sitting
         // after Credits and before "Forget everything" (the true last item,
         // when the world offers it) rather than always at the very foot.
@@ -696,6 +719,15 @@ async function main() {
           const box = await write.boundingBox();
           if (!box || box.width < 44 || box.height < 24) {
             fail('title', `the "write to us" link is not a tappable size: ${JSON.stringify(box)}`);
+          }
+          // Styled to be the row it sits on (engine/scenes/title.ts,
+          // style.css `#say-link.row-link`), not a button floating inside it.
+          const writeRow = list.items.find((item) => item.kind === 'write');
+          if (writeRow && box && (Math.abs(box.width - writeRow.rect.w) > 1 || Math.abs(box.height - writeRow.rect.h) > 1)) {
+            fail(
+              'title',
+              `the "write to us" link is ${box.width}x${box.height}, expected the row's own ${writeRow.rect.w}x${writeRow.rect.h}`
+            );
           }
           log(`    "${writeLabel}" -> ${href.slice(0, 40)}…`);
         }

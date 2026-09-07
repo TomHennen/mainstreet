@@ -195,6 +195,10 @@ export class TitleScene extends Phaser.Scene {
       this.rows.push(this.makeRow('write', writeLabel, '', false));
       this.linkEl.href = this.writeUrl;
       this.linkEl.textContent = writeLabel;
+      // Dresses the shared link as one of this list's rows rather than the
+      // dialogue box's button (style.css `#say-link.row-link`); taken off
+      // again on shutdown so the dialogue box gets its own look back.
+      this.linkEl.classList.add('row-link');
     }
 
     // "Forget everything", last on the list, kindly worded and never fired
@@ -259,6 +263,7 @@ export class TitleScene extends Phaser.Scene {
       for (const off of this.unbind) off();
       this.unbind = [];
       this.hideLink();
+      this.linkEl?.classList.remove('row-link');
       if (import.meta.env.DEV) publishTitle(null);
     });
   }
@@ -580,6 +585,14 @@ export class TitleScene extends Phaser.Scene {
     el.hidden = true;
     el.style.left = '';
     el.style.top = '';
+    // Leftovers from positionLink()'s row sizing/colouring, cleared so a
+    // scene change (the dialogue box's own use of this same anchor) starts
+    // from the stylesheet's own look rather than an inline one of ours.
+    el.style.width = '';
+    el.style.height = '';
+    el.style.paddingLeft = '';
+    el.style.color = '';
+    el.style.opacity = '';
   }
 
   private layout(): void {
@@ -708,10 +721,13 @@ export class TitleScene extends Phaser.Scene {
         row.doneText.setPosition(rightEdge, Math.round(middle - row.doneText.height / 2));
       }
 
-      // The write row is the DOM link itself, sitting on its own row.
+      // The write row is the DOM link itself, sitting on its own row — the
+      // same card the canvas just drew behind it, at the same size, with its
+      // text where every other row's label sits and coloured the same way
+      // the cursor moving onto and off of it colours theirs.
       if (row.kind === 'write' && this.linkEl) {
         row.text.setVisible(false);
-        this.positionLink(left + 14, y + Math.round((row.h - 28) / 2));
+        this.positionLink(left, y, panelW, row.h, selected);
       }
 
       y += row.h + ROW_GAP;
@@ -720,7 +736,13 @@ export class TitleScene extends Phaser.Scene {
     if (import.meta.env.DEV) this.publish();
   }
 
-  private positionLink(x: number, y: number): void {
+  /**
+   * Positions the title screen's "write to us" row: same left/top math the
+   * dialogue box's link used before it grew a `w`/`h`/`selected` — but sized
+   * to the row underneath (so its tap target is the whole row, not just its
+   * text) and coloured the way `layout()` colours every other row's label.
+   */
+  private positionLink(x: number, y: number, w: number, h: number, selected: boolean): void {
     const el = this.linkEl;
     if (!el) return;
     const canvas = this.game.canvas;
@@ -735,6 +757,11 @@ export class TitleScene extends Phaser.Scene {
     el.style.bottom = 'auto';
     el.style.left = `${Math.round(canvasRect.left - stageRect.left + x * sx)}px`;
     el.style.top = `${Math.round(canvasRect.top - stageRect.top + y * sy)}px`;
+    el.style.width = `${Math.round(w * sx)}px`;
+    el.style.height = `${Math.round(h * sy)}px`;
+    el.style.paddingLeft = `${Math.round(14 * sx)}px`;
+    el.style.color = selected ? '#2a231a' : '#f3ead8';
+    el.style.opacity = selected ? '1' : '0.8';
     el.hidden = false;
   }
 
