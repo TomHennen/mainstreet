@@ -64,8 +64,8 @@ properties: `solid` (bool, default false — the only source of tile collision),
 `style`, `colors` (comma-separated hex), optional `base` (a flat fill painted
 under the recipe) and optional `edge` (the colour of a front face painted along
 the bottom of the cell, for a surface raised above the ground plane — the near
-row of a deck or a porch). `style` is one of sixteen drawing recipes (`flat`,
-`speck`, `ripple`, `tree`, `flower`, `prop`, `disc`, `rim`, `umbrella`,
+row of a deck or a porch). `style` is one of seventeen drawing recipes (`flat`,
+`speck`, `ripple`, `tree`, `flower`, `prop`, `disc`, `rim`, `umbrella`, `stele`,
 `block`, `shelf`, `mat`, `planks`, `pavers`, `stripe-h`, `stripe-v`), so a tile is fully
 self-describing and variants of a
 kind — three grasses, road with and without a crack — are separate tiles the

@@ -65,6 +65,46 @@
       "name": "Cellar Door Wines",
       "wall": "#5d4a3a",
       "roof": "#3c2f24"
+    },
+    "tops": {
+      "name": "Tops",
+      "wall": "#cdd3c4",
+      "roof": "#6f7a66"
+    },
+    "stamford-library": {
+      "name": "Stamford Library",
+      "wall": "#c9b791",
+      "roof": "#7a6647"
+    },
+    "stamford-fire-department": {
+      "name": "Stamford Fire Department",
+      "wall": "#b0523a",
+      "roof": "#6b3324"
+    },
+    "solinskys": {
+      "name": "Solinsky's",
+      "wall": "#d8c3b0",
+      "roof": "#8a5a4a"
+    },
+    "johns-tavern": {
+      "name": "John's Tavern",
+      "wall": "#7d6a52",
+      "roof": "#4a3d2d"
+    },
+    "eighty-main": {
+      "name": "80 Main",
+      "wall": "#c9b8a0",
+      "roof": "#6d5a44"
+    },
+    "tps-cafe": {
+      "name": "T.P.'s Cafe",
+      "wall": "#c98f6a",
+      "roof": "#7d5236"
+    },
+    "ace-hardware": {
+      "name": "Ace Hardware",
+      "wall": "#8fa8a0",
+      "roof": "#4f6660"
     }
   },
   "maps": {
@@ -243,9 +283,24 @@
           ]
         },
         {
-          "id": "stamford-coffee",
+          "id": "tops",
           "pos": [
-            44,
+            39,
+            20
+          ],
+          "size": [
+            6,
+            3
+          ],
+          "door": [
+            42,
+            23
+          ]
+        },
+        {
+          "id": "stamford-library",
+          "pos": [
+            53,
             20
           ],
           "size": [
@@ -253,14 +308,119 @@
             3
           ],
           "door": [
-            46,
+            55,
             23
+          ]
+        },
+        {
+          "id": "stamford-fire-department",
+          "pos": [
+            59,
+            20
+          ],
+          "size": [
+            6,
+            3
+          ],
+          "door": [
+            61,
+            23
+          ]
+        },
+        {
+          "id": "solinskys",
+          "pos": [
+            66,
+            20
+          ],
+          "size": [
+            5,
+            3
+          ],
+          "door": [
+            68,
+            23
+          ]
+        },
+        {
+          "id": "johns-tavern",
+          "pos": [
+            79,
+            20
+          ],
+          "size": [
+            5,
+            3
+          ],
+          "door": [
+            81,
+            23
+          ]
+        },
+        {
+          "id": "eighty-main",
+          "pos": [
+            85,
+            20
+          ],
+          "size": [
+            2,
+            3
+          ],
+          "door": [
+            85,
+            23
+          ]
+        },
+        {
+          "id": "stamford-coffee",
+          "pos": [
+            87,
+            20
+          ],
+          "size": [
+            5,
+            3
+          ],
+          "door": [
+            89,
+            23
+          ]
+        },
+        {
+          "id": "tps-cafe",
+          "pos": [
+            53,
+            26
+          ],
+          "size": [
+            5,
+            3
+          ],
+          "door": [
+            55,
+            29
+          ]
+        },
+        {
+          "id": "ace-hardware",
+          "pos": [
+            59,
+            26
+          ],
+          "size": [
+            5,
+            3
+          ],
+          "door": [
+            61,
+            29
           ]
         },
         {
           "id": "the-belvedere",
           "pos": [
-            42,
+            78,
             2
           ],
           "size": [
@@ -268,7 +428,7 @@
             3
           ],
           "door": [
-            44,
+            80,
             5
           ]
         }
@@ -303,6 +463,20 @@
           ]
         },
         {
+          "text": "ACADEMY ST",
+          "pos": [
+            73,
+            9
+          ]
+        },
+        {
+          "text": "STAMFORD",
+          "pos": [
+            30,
+            6
+          ]
+        },
+        {
           "text": "MAIN ST",
           "pos": [
             30,
@@ -312,7 +486,7 @@
         {
           "text": "NY 23",
           "pos": [
-            60,
+            94,
             19
           ]
         },
@@ -324,24 +498,38 @@
           ]
         },
         {
+          "text": "VETERANS PARK",
+          "pos": [
+            73,
+            22
+          ]
+        },
+        {
+          "text": "CHURCHILL AVE",
+          "pos": [
+            47,
+            26
+          ]
+        },
+        {
           "text": "NY 10",
           "pos": [
-            10,
-            29
+            25,
+            31
           ]
         },
         {
-          "text": "ACADEMY ST",
+          "text": "RAILROAD AVE",
           "pos": [
-            37,
-            9
+            47,
+            31
           ]
         },
         {
-          "text": "STAMFORD",
+          "text": "CATSKILL SCENIC TRAIL",
           "pos": [
-            30,
-            6
+            36,
+            34
           ]
         }
       ],
@@ -365,10 +553,10 @@
         {
           "id": "stamford-hobart",
           "at": [
-            0,
-            30,
-            1,
-            3
+            20,
+            41,
+            3,
+            1
           ],
           "to": "hobart",
           "spawn": [
@@ -455,10 +643,10 @@
           ],
           "to": "stamford",
           "spawn": [
-            1,
-            32
+            21,
+            40
           ],
-          "facing": "right",
+          "facing": "up",
           "style": "road"
         }
       ]

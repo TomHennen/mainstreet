@@ -6,7 +6,7 @@
   "margin": 0,
   "name": "route10",
   "spacing": 0,
-  "tilecount": 42,
+  "tilecount": 43,
   "tiledversion": "1.10.2",
   "tileheight": 16,
   "tilewidth": 16,
@@ -977,6 +977,32 @@
           "name": "style",
           "type": "string",
           "value": "pavers"
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "type": "memorial",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#5e8c50"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#9b978c,#c9c4b8"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "stele"
         }
       ]
     }

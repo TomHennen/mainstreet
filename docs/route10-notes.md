@@ -42,17 +42,35 @@ empty lot: two buildings there burned down a couple of years ago, and the
 wreckage sat for years before it was finally bulldozed. It should be mapped
 as one of the reserved full-size open lots (map rule 4), not filler scenery.
 Stamford also has **Tops**, a grocery store, between Mac-A-Doodles and
-Stamford Coffee. Current map block face may not actually have room for a
-third full-size building there — flagged under Open items below for
-whoever next redraws Stamford. It's the only grocery store within about 30
-minutes, so locals lean on it even though it's rough around the edges
+Stamford Coffee. It's the only grocery store within about 30 minutes, so
+locals lean on it even though it's rough around the edges
 (produce that's a little iffy, regular items — jalapeños, say — often out
 of stock). The genuine local feeling is gratitude that it's there at all,
 not the gripe about what it's missing; see Flavor & story hooks for how
 that has to land in-game. West of Tops was **Mountain Dog Cafe**, now
 closed — see Flavor & story hooks for its story alongside Stamford Coffee.
 **80 Main** is attached directly to Stamford Coffee, its own storefront
-right next door, sharing that same front patio.
+right next door on its **west** side, sharing that same front patio.
+
+**Stamford's Main Street block (settled Sep 2026).** Everything named here is
+on the **south** side of Main Street east of the NY 10 junction, and this is
+the order west to east: Mac-A-Doodles; an unnamed filler on the spot where
+**Mountain Dog Cafe** will go once it is named (it is closed, and Tom's word is
+to wait); a full-size **empty lot** — a parking lot in real life, so it stays
+plain open ground with no label and no story attached to it; **Tops**, bigger
+than a shop, with a striped parking lot beside it; the **Stamford Library**;
+the **Stamford Fire Department**, just west of **Solinsky's**; Solinsky's;
+**Veterans Memorial Park**, a small green with a memorial; then **Academy
+Street** running north off Main to The Belvedere; then **John's Tavern**;
+then **80 Main** and **Stamford Coffee**, which touch and share one patio deck.
+The library is on the **south** side, not the north. The north side of Main
+keeps its unnamed fillers and its reserved open lots, including the burned-out
+lot across from Stamford Coffee.
+
+South of Main and west of Academy Street, **Churchill Avenue** runs down from
+Main to **Railroad Avenue**, which runs east–west parallel to Main. **T.P.'s
+Cafe** and **Ace Hardware** front Railroad Avenue near the Churchill corner,
+and the **Catskill Scenic Trail** follows the old rail bed just south of them.
 
 **Jefferson.** Main Street is the spine and reads as a main street (paved).
 Mill Pond Inn and Middle Brook Cafe are on the south side of Main Street.
@@ -80,35 +98,14 @@ talks across it and cannot walk round.
 ## Open items — pending map work
 
 New businesses/landmarks Tom has named that aren't placed on the map yet.
-Don't guess coordinates for these; they need a real Stamford redraw pass
-(reference imagery + critic rubric, per the map rules below) rather than a
-notes-file guess:
+Don't guess coordinates for these; they need a real redraw pass of the village
+concerned (reference imagery + critic rubric, per the map rules below) rather
+than a notes-file guess:
 
-- **Tops** needs to fit on the Main/Route 23 block face between
-  Mac-A-Doodles and Stamford Coffee. Tom's flagged that the current map
-  likely doesn't have enough room there for a third full-size building —
-  the block may need to be widened, the existing two buildings' lots
-  tightened, or the block face re-thought.
-- **Mountain Dog Cafe** (closed) — west of Tops, so exact position waits
-  on Tops's own placement above.
-- **80 Main** needs its own storefront directly attached to Stamford
-  Coffee, sharing a patio with it — not a lot of its own, but built onto
-  or immediately beside the existing building. Whoever redraws that block
-  should treat the two as a connected pair, not separate buildings with
-  separate approach paths.
-- **Solinsky's** (butcher) — village and exact position not yet given.
-- **The fire department** — west of Solinsky's, so Stamford, same
-  unplaced block as Solinsky's; exact position not yet given.
-- **John's Tavern** — almost certainly Stamford (Tom's contrasting it
-  directly with the Belvedere's crowd), exact position not yet given.
-- **TP's Cafe** and **Ace Hardware** — TP's is "off Railroad Ave, next to
-  Ace Hardware." **Railroad Ave doesn't exist on the current map** — this
-  is the first place a new street name will be needed; treat it as a
-  geometry task (confirm the real alignment, add it to
-  `docs/route10-geometry.md`, then the map) before placing either
-  building.
-- **Veterans Memorial Park** — a possible future addition; village and
-  position not yet given. See the flavor note below on tone.
+- **Mountain Dog Cafe** is deliberately *not* named on the map yet. Its
+  building is on Stamford's Main Street block, west of Tops, as an unnamed
+  filler; naming it waits on Tom.
+
 - **Hobart's bookshop lots.** Hobart is under-built relative to Stamford
   and Jefferson right now. Next time Hobart's map gets attention, reserve
   several full-size open lots along Main Street for bookshops — no need to
@@ -328,13 +325,14 @@ opt-in, everything warm and affectionate) before it reaches the player.
   rivalry, just two good bars with two different personalities; nice for a
   "which one's your spot" beat, or a townsperson explaining the difference
   to a newcomer without putting either place down.
-- **TP's Cafe / Ace Hardware / Railroad Ave.** A new little corridor to
-  open up on a future map pass — TP's sits off Railroad Ave next to Ace
-  Hardware. Good candidate for a "there's a whole street I hadn't
-  noticed" discovery beat once it's mapped.
+- **T.P.'s Cafe / Ace Hardware / Railroad Ave.** A little corridor a block
+  off Main — T.P.'s sits off Railroad Ave next to Ace Hardware, reached down
+  Churchill Ave. Now on the map, and a good candidate for a "there's a whole
+  street I hadn't noticed" discovery beat.
 - **Veterans Memorial Park.** Different register from the rest of this
-  list — a memorial, not a business or a gag. If and when it's added,
-  keep any copy quiet and respectful rather than cute; still warm, but the
+  list — a memorial, not a business or a gag. It is on the map now, a small
+  green on the south side of Main between Solinsky's and Academy Street.
+  Keep any copy quiet and respectful rather than cute; still warm, but the
   "everyone would smile at this" humor bar from CLAUDE.md hard rule 6
   mostly doesn't apply here. Good for a still, reflective beat (a bench, a
   flag, someone tending the flowerbeds) rather than a punchline.
