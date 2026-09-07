@@ -141,10 +141,11 @@ The value is who to credit, not a full sentence — copy.json's `ui.credit`
 string ("Painted by {credit}.") supplies the wording. The file is optional
 (no file = no credits) and can also carry `chars`, `portraits` and `tiles`
 credits by id, keyed the same way. Once a building has both its PNG and a
-credits.json entry, the credit shows as an extra line when the player
-examines the building, after any sign text the episode gives it.
-`validate-assets` rejects a credit for an id that doesn't exist, or one that
-isn't painted yet.
+credits.json entry, the painter is named on the site's front page, under
+that world ("Painted so far") — and later on an in-game credits screen. It
+is deliberately not shown in the building's sign dialogue: that box is for
+what the episode has to say about the place. `validate-assets` rejects a
+credit for an id that doesn't exist, or one that isn't painted yet.
 
 ## Receiving art
 

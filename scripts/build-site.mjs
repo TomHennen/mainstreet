@@ -132,6 +132,26 @@ function worldTitle(id) {
   return { title: world.title ?? id, subtitle: world.subtitle ?? '' };
 }
 
+/**
+ * Who painted what, for the landing page. The painter is named here (and,
+ * later, on an in-game credits screen) rather than in the building's sign
+ * dialogue, which belongs to the story copy (DESIGN.md §2/§4).
+ *
+ * Read the way the engine reads it: credits.json is optional, and a credit
+ * only counts once the building actually has its PNG.
+ */
+function paintedSoFar(id) {
+  const dir = resolve(WORLDS_DIR, id);
+  const creditsFile = resolve(dir, 'credits.json');
+  if (!existsSync(creditsFile)) return [];
+  const buildings = JSON.parse(readFileSync(creditsFile, 'utf-8')).buildings ?? {};
+  const world = JSON.parse(readFileSync(resolve(dir, 'world.json'), 'utf-8'));
+  return Object.entries(buildings)
+    .filter(([buildingId]) => existsSync(resolve(dir, 'assets', 'buildings', `${buildingId}.png`)))
+    .map(([buildingId, painter]) => ({ name: world.buildings?.[buildingId]?.name ?? buildingId, painter }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, (ch) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
@@ -377,12 +397,23 @@ function renderLanding(ids, studioHref, contributeHref) {
       const { title, subtitle } = worldTitle(id);
       const href = `${SITE_BASE}/${id}/`;
       const sub = subtitle ? `<p>${escapeHtml(subtitle)}</p>` : '';
+      const painted = paintedSoFar(id);
+      const credits = painted.length
+        ? `
+        <div class="painted">
+          <h3>Painted so far</h3>
+          <ul>
+${painted.map((p) => `            <li>${escapeHtml(p.name)} &mdash; ${escapeHtml(p.painter)}</li>`).join('\n')}
+          </ul>
+          <p>Press &ldquo;Paint it&rdquo; on an unpainted building in the game and the Studio opens, ready for your take on it.</p>
+        </div>`
+        : '';
       return `
       <li>
         <a href="${escapeHtml(href)}">
           <h2>${escapeHtml(title)}</h2>
           ${sub}
-        </a>
+        </a>${credits}
       </li>`;
     })
     .join('\n');
@@ -424,17 +455,19 @@ function renderLanding(ids, studioHref, contributeHref) {
       margin-bottom: 28px;
     }
     ul { list-style: none; display: flex; flex-direction: column; gap: 12px; }
-    li a {
-      display: block;
+    li {
       background: var(--night);
       border: 2px solid #4c6b58;
       border-radius: 6px;
+      transition: border-color 0.15s ease;
+    }
+    li:hover, li:focus-within { border-color: var(--maple); }
+    li a {
+      display: block;
       padding: 14px 16px;
       text-decoration: none;
       color: inherit;
-      transition: border-color 0.15s ease;
     }
-    li a:hover, li a:focus-visible { border-color: var(--maple); }
     li h2 {
       font-size: 15px;
       color: var(--maple);
@@ -445,6 +478,26 @@ function renderLanding(ids, studioHref, contributeHref) {
       opacity: 0.75;
       line-height: 1.5;
     }
+    li .painted {
+      padding: 0 16px 14px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    li .painted h3 {
+      font-size: 12px;
+      font-weight: normal;
+      opacity: 0.7;
+      margin-bottom: 2px;
+      padding-top: 12px;
+      border-top: 1px solid #33463a;
+    }
+    li .painted ul { display: block; }
+    li .painted li {
+      background: none;
+      border: none;
+      opacity: 0.9;
+    }
+    li .painted p { margin-top: 8px; opacity: 0.6; }
     p.studio {
       margin-top: 22px;
       font-size: 13px;
