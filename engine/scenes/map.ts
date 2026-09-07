@@ -52,6 +52,7 @@ import type {
   EpisodeScene,
   EpisodeSign,
   Facing,
+  MapSign,
   Fixture,
   GameMap,
   LightSpec,
@@ -105,7 +106,7 @@ interface Target {
   /** Index into `walkers` when this is somebody rather than something. */
   person?: number;
   item?: EpisodeItem;
-  sign?: EpisodeSign;
+  sign?: EpisodeSign | MapSign;
   building?: BuildingPlacement;
   fixture?: Fixture;
 }
@@ -943,6 +944,10 @@ export class MapScene extends Phaser.Scene {
     for (const sign of propSignsOn(this.mapId)) {
       if (sign.pos) consider({ kind: 'prop', at: sign.pos, sign }, REACH.prop, 2);
     }
+    // The map's own signs, which are there every week (DESIGN.md §2).
+    for (const sign of this.map.signs ?? []) {
+      consider({ kind: 'prop', at: sign.pos, sign }, REACH.prop, 2);
+    }
     for (const fixture of this.fixtures()) {
       consider({ kind: 'fixture', at: fixture.pos, fixture }, REACH.fixture, 2);
     }
@@ -1179,6 +1184,11 @@ export class MapScene extends Phaser.Scene {
     }
     for (const sign of propSignsOn(this.mapId)) {
       if (sign.pos && sign.pos[0] === tx && sign.pos[1] === ty) {
+        return { target: { kind: 'prop', at: sign.pos, sign }, goal: sign.pos, reach: REACH.prop };
+      }
+    }
+    for (const sign of this.map.signs ?? []) {
+      if (sign.pos[0] === tx && sign.pos[1] === ty) {
         return { target: { kind: 'prop', at: sign.pos, sign }, goal: sign.pos, reach: REACH.prop };
       }
     }

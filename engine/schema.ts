@@ -70,12 +70,27 @@ export interface MapLabel {
  * directories); that is not wired up yet, and the drawn fixture is what
  * ships until it is.
  */
-export const FIXTURE_KINDS = ['suggestion-box'] as const;
+export const FIXTURE_KINDS = ['suggestion-box', 'woodpile'] as const;
 export type FixtureKind = (typeof FIXTURE_KINDS)[number];
 
 export interface Fixture {
   kind: FixtureKind;
   pos: Vec2;
+}
+
+/**
+ * Something on this map that can be read where it stands: a door with a note
+ * on it, a wall worth stopping at, a board propped in a corner. The shape is
+ * an episode prop sign's (DESIGN.md §3) minus the story — no `requires`,
+ * because this belongs to the place rather than to any one week, and it is
+ * still there when no episode is running.
+ *
+ * A sign is not a tile and does not block anything: whatever is drawn at
+ * `pos` decides that. Read from beside it, like an episode's prop sign.
+ */
+export interface MapSign {
+  pos: Vec2;
+  lines: string[];
 }
 
 // --- how a placeholder person looks (DESIGN.md §4) ---------------------------
@@ -212,6 +227,8 @@ export interface MapMeta {
   exits: MapExit[];
   /** Engine-drawn street fixtures on this map. Optional; usually absent. */
   fixtures?: Fixture[];
+  /** Things on this map that can be read where they stand. Optional. */
+  signs?: MapSign[];
   /**
    * Townspeople who belong to the village rather than to an episode: two or
    * three per map is plenty, and the validator says so (DESIGN.md §2).
