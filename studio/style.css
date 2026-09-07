@@ -723,3 +723,34 @@ kbd {
     grid-area: how;
   }
 }
+
+/* --- the picker reads rather than works ------------------------------------
+   The building picker is a page someone reads on a phone before they paint
+   anything, so its cards carry a size to read at; the editor's own dense
+   chrome stays as small as it is. */
+.cards a {
+  font-size: 15px;
+}
+
+.cards strong {
+  font-size: 17px;
+}
+
+.cards .quiet {
+  font-size: 14px;
+}
+
+.cards .tag {
+  font-size: 13px;
+  padding: 2px 10px;
+}
+
+/* The picker's own heading and standfirst, which are read rather than worked
+   in — the editor (#app.editing) keeps its compact ones. */
+#app:not(.editing) .masthead h1 {
+  font-size: 20px;
+}
+
+#app:not(.editing) .masthead .lede {
+  font-size: 15px;
+}

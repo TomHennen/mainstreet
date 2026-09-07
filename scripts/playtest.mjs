@@ -23,10 +23,10 @@
  *         npm run playtest
  */
 import { chromium } from 'playwright';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = process.env.PLAYTEST_URL ?? 'http://localhost:5173/';
@@ -307,11 +307,11 @@ async function clickTile(page, tile, milestone) {
   await page.mouse.click(p.x, p.y);
 }
 
-async function shot(page, slug) {
+async function shot(page, slug, options = {}) {
   shotIndex += 1;
   const name = `${String(shotIndex).padStart(2, '0')}-${slug}.png`;
   const file = resolve(SHOTS, name);
-  await page.screenshot({ path: file });
+  await page.screenshot({ path: file, ...options });
   log(`    shot  ${name}`);
   return file;
 }
@@ -2792,6 +2792,118 @@ async function main() {
       log(`    walked on again once the player stepped away (${resumed.toFixed(1)} tiles in 3s)`);
       await shot(sp, 'stroller-resumed');
     }
+
+    // --- the site's front page ----------------------------------------------
+    // dist/index.html is written by scripts/build-site.mjs out of the world
+    // packs and this repo's own files, never out of anything typed into the
+    // script (hard rule 1), so what it carries is checked here against the pack
+    // on disk. MS_PAGES_ONLY=1 writes that page and the contributing page and
+    // skips the Vite builds, which keeps this to about a second.
+    log('  The front page');
+    const site = spawnSync(process.execPath, [resolve(ROOT, 'scripts', 'build-site.mjs')], {
+      cwd: ROOT,
+      env: { ...process.env, MS_PAGES_ONLY: '1' },
+      encoding: 'utf8'
+    });
+    if (site.status !== 0) {
+      fail('landing', `build-site.mjs exited ${site.status}: ${(site.stderr ?? '').trim() || 'no output'}`);
+    }
+    const landingFile = resolve(ROOT, 'dist', 'index.html');
+    if (!existsSync(landingFile)) fail('landing', 'the build wrote no dist/index.html');
+
+    const landingCtx = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      isMobile: false,
+      deviceScaleFactor: 1
+    });
+    const lp = await landingCtx.newPage();
+    attach(lp, 'landing');
+    await lp.goto(pathToFileURL(landingFile).href, { waitUntil: 'load' });
+
+    const readLinks = (page) =>
+      evalIn(page, 'the links on the page', () =>
+        Array.from(document.querySelectorAll('a')).map((a) => ({
+          href: a.getAttribute('href') ?? '',
+          text: (a.textContent ?? '').replace(/\s+/g, ' ').trim()
+        }))
+      );
+    const links = await readLinks(lp);
+    const wants = (what, test) => {
+      const found = links.find(test);
+      if (!found) fail('landing', `no ${what} on the front page — it links to: ${links.map((l) => l.href).join(', ')}`);
+      return found;
+    };
+
+    const play = wants(`"Play" link for "${WORLD_ID}"`, (l) => l.href.endsWith(`/${WORLD_ID}/`) && /Play/.test(l.text));
+    wants('link to the Studio', (l) => l.href.includes('/studio/'));
+    wants('link to the contributing page', (l) => /\/contributing\/$/.test(l.href));
+    wants('link to the repository', (l) => /^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(l.href));
+    wants('link to the code licence', (l) => /\/LICENSE$/.test(l.href));
+    wants('link to the content licence', (l) => /\/LICENSE-CONTENT\.md$/.test(l.href));
+    const writeTo = WORLD.feedback?.url ?? (WORLD.feedback?.email ? `mailto:${WORLD.feedback.email}` : null);
+    if (writeTo) wants('"Write to us" link', (l) => l.href.startsWith(writeTo) && /Write to us/i.test(l.text));
+    log(`    "${play.text}" goes to ${play.href}, and the Studio, licences and repository are all linked`);
+
+    // Everyone whose painting is in the game is named on the front page, and
+    // the page reads the credits the way the plaque does — a name or a list of
+    // them, and only once the building actually has its PNG (DESIGN.md §4).
+    const creditsFile = resolve(PACK, 'credits.json');
+    const credited = existsSync(creditsFile) ? (readJson(creditsFile).buildings ?? {}) : {};
+    const paintedIds = Object.keys(credited).filter((id) =>
+      existsSync(resolve(PACK, 'assets', 'buildings', `${id}.png`))
+    );
+    if (!paintedIds.length) fail('landing', 'this world pack has no painted building for the front page to credit');
+    const words = await evalIn(lp, "the front page's words", () => document.body.innerText.replace(/\s+/g, ' '));
+    if (!words.includes('Painted so far')) fail('landing', 'the front page has no "Painted so far" list');
+    for (const id of paintedIds) {
+      const name = WORLD.buildings?.[id]?.name ?? id;
+      if (!words.includes(name)) fail('landing', `"Painted so far" never names ${name}`);
+      for (const painter of [].concat(credited[id])) {
+        if (!words.includes(painter)) fail('landing', `${name} is listed without its painter, ${painter}`);
+      }
+    }
+    log(`    "Painted so far" names ${paintedIds.length} building(s) and everyone who painted them`);
+
+    // A phone is where this page is read, so nothing anyone has to hit is
+    // smaller than a fingertip (CLAUDE.md #4).
+    const tooSmall = await evalIn(lp, 'how tall the links are on a phone', () =>
+      Array.from(document.querySelectorAll('ul.towns a, p.do a, ul.links a'))
+        .filter((a) => a.getBoundingClientRect().height < 44)
+        .map((a) => `${(a.textContent ?? '').trim()} (${Math.round(a.getBoundingClientRect().height)}px)`)
+    );
+    if (tooSmall.length) fail('landing', `links too small to tap on a phone: ${tooSmall.join('; ')}`);
+    const overflow = await evalIn(lp, 'whether the page fits the phone sideways', () =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    if (overflow > 0) fail('landing', `the front page is ${overflow}px wider than a 390px phone`);
+    log('    every link is a finger tall, and nothing spills off a 390px screen');
+    await shot(lp, 'landing-phone', { fullPage: true });
+
+    // And the way out of the contributing page: back to the front page.
+    const contributingFile = resolve(ROOT, 'dist', 'contributing', 'index.html');
+    if (!existsSync(contributingFile)) fail('landing', 'the build wrote no dist/contributing/index.html');
+    await lp.goto(pathToFileURL(contributingFile).href, { waitUntil: 'load' });
+    const backLinks = await readLinks(lp);
+    if (!backLinks.some((l) => /mainstreet/i.test(l.text) && l.href.startsWith('/'))) {
+      fail('landing', 'the contributing page has no link back to the front page');
+    }
+    // Its tables are the widest thing on either page, and a table that walks
+    // off the side of a phone takes the whole page with it.
+    const sideways = await evalIn(lp, 'whether the contributing page fits the phone', () =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    if (sideways > 0) fail('landing', `the contributing page is ${sideways}px wider than a 390px phone`);
+    log('    the contributing page links back to the front page, and fits a phone sideways');
+    await shot(lp, 'contributing-phone', { fullPage: true });
+    await landingCtx.close();
+
+    const deskCtx = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+    const dp = await deskCtx.newPage();
+    attach(dp, 'landing-desktop');
+    await dp.goto(pathToFileURL(landingFile).href, { waitUntil: 'load' });
+    await shot(dp, 'landing-desktop', { fullPage: true });
+    await deskCtx.close();
 
     log(`\n  ${PLAYTEST_EPISODE} completed end to end.`);
   } finally {

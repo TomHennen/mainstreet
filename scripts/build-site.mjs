@@ -324,14 +324,23 @@ function renderMarkdown(markdown) {
     closeList();
 
     if (line.includes('|') && lines[i + 1] !== undefined && isTableSeparator(lines[i + 1])) {
-      const header = splitTableRow(line).map((cell) => `<th>${renderInline(cell)}</th>`).join('');
+      // Each cell carries its column's name, so a phone can stack the row and
+      // still say what each part of it is (see the page's CSS).
+      const heads = splitTableRow(line);
+      const labels = heads.map((cell) => cell.replace(/[*`]/g, '').trim());
+      const header = heads.map((cell) => `<th>${renderInline(cell)}</th>`).join('');
       i += 2;
       const rows = [];
       while (i < lines.length && lines[i].trim() && lines[i].includes('|')) {
-        rows.push(`<tr>${splitTableRow(lines[i]).map((cell) => `<td>${renderInline(cell)}</td>`).join('')}</tr>`);
+        const cells = splitTableRow(lines[i]).map(
+          (cell, n) => `<td data-label="${escapeHtml(labels[n] ?? '')}">${renderInline(cell)}</td>`
+        );
+        rows.push(`<tr>${cells.join('')}</tr>`);
         i++;
       }
-      html.push(`<table><thead><tr>${header}</tr></thead><tbody>${rows.join('')}</tbody></table>`);
+      html.push(
+        `<div class="table"><table><thead><tr>${header}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`
+      );
       continue;
     }
 
@@ -369,40 +378,46 @@ function renderContributingPage(bodyHtml, siteHref) {
       --frame: #1d2b23;
       --paper: #f3ead8;
       --maple: #b5542a;
+      --edge: #4c6b58;
+      --rule: #33463a;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { height: 100%; }
     body {
       background: var(--frame);
       color: var(--paper);
       font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 16px;
+      line-height: 1.65;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 48px 20px 64px;
+      padding: 14px 20px 56px;
+      overflow-wrap: break-word;
     }
-    main {
-      width: 100%;
-      max-width: 680px;
-      background: var(--night);
-      border: 2px solid #4c6b58;
-      border-radius: 6px;
-      padding: 28px 32px 36px;
-      line-height: 1.6;
-      font-size: 14px;
+    header, main { width: 100%; max-width: 680px; }
+    header {
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(243, 234, 216, 0.12);
+      margin-bottom: 24px;
     }
-    p.back { max-width: 680px; width: 100%; margin-bottom: 16px; font-size: 13px; }
-    p.back a { color: var(--paper); opacity: 0.8; text-decoration: none; }
-    p.back a:hover, p.back a:focus-visible { opacity: 1; text-decoration: underline; }
+    header a {
+      display: inline-block;
+      min-height: 44px;
+      line-height: 44px;
+      color: var(--maple);
+      text-decoration: none;
+      font-weight: 700;
+    }
+    header a:hover, header a:focus-visible { text-decoration: underline; }
     h1, h2, h3 { color: var(--maple); line-height: 1.3; }
-    h1 { font-size: 22px; margin-bottom: 16px; }
-    h2 { font-size: 17px; margin: 28px 0 12px; }
-    h3 { font-size: 15px; margin: 20px 0 8px; }
+    h1 { font-size: 24px; margin-bottom: 16px; }
+    h2 { font-size: 19px; margin: 34px 0 12px; }
+    h3 { font-size: 17px; margin: 24px 0 8px; }
     p { margin-bottom: 14px; }
     ul { margin: 0 0 14px 22px; }
-    li { margin-bottom: 6px; }
-    a { color: var(--maple); }
-    a:hover, a:focus-visible { text-decoration: none; }
+    li { margin-bottom: 8px; }
+    a { color: var(--maple); text-underline-offset: 4px; }
+    a:hover, a:focus-visible { color: var(--paper); }
     code {
       font-family: inherit;
       background: rgba(181, 84, 42, 0.15);
@@ -415,17 +430,57 @@ function renderContributingPage(bodyHtml, siteHref) {
       display: block;
       margin: 4px 0 14px;
       image-rendering: pixelated;
-      border: 2px solid #4c6b58;
+      border: 2px solid var(--edge);
       border-radius: 4px;
     }
-    hr { border: none; border-top: 1px solid #4c6b58; margin: 24px 0; }
-    table { border-collapse: collapse; width: 100%; margin: 0 0 16px; font-size: 13px; }
-    th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #33463a; }
-    th { color: var(--maple); }
+    hr { border: none; border-top: 1px solid var(--rule); margin: 28px 0; }
+
+    /* A table on a phone is a stack of little entries, one per row: the
+       heading row is put away and each cell carries its own label, so nothing
+       has to be scrolled sideways to be read. Wide screens get the table back.
+       No boxes around any of it — one hairline between rows is enough. */
+    .table { margin: 0 0 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    tbody tr { display: block; padding: 14px 0; border-top: 1px solid var(--rule); }
+    tbody tr:first-child { border-top: none; padding-top: 0; }
+    tbody td { display: block; padding: 0 0 6px; }
+    tbody td:last-child { padding-bottom: 0; }
+    tbody td::before {
+      content: attr(data-label);
+      display: block;
+      font-size: 14px;
+      color: var(--maple);
+      opacity: 0.85;
+    }
+    tbody td:first-child {
+      font-size: 18px;
+      color: var(--maple);
+      padding-bottom: 8px;
+    }
+    tbody td:first-child::before { content: none; }
+    @media (min-width: 720px) {
+      .table { overflow-x: auto; font-size: 15px; }
+      tbody tr { display: table-row; padding: 0; border-top: none; }
+      tbody td { display: table-cell; padding: 10px 16px 10px 0; vertical-align: top; border-bottom: 1px solid var(--rule); }
+      tbody td:first-child { font-size: inherit; padding-bottom: 10px; }
+      tbody td::before { content: none; }
+      thead { position: static; width: auto; height: auto; clip-path: none; }
+      th { text-align: left; padding: 0 16px 10px 0; color: var(--maple); border-bottom: 1px solid var(--rule); }
+    }
+    /* Five columns of prose need more room than a column of text wants to be,
+       so on a wide screen a table steps out past the text and centres itself
+       on the page rather than squeezing every cell into two words a line. */
+    @media (min-width: 960px) {
+      .table {
+        width: min(94vw, 1040px);
+        margin-left: calc((100% - min(94vw, 1040px)) / 2);
+      }
+    }
   </style>
 </head>
 <body>
-  <p class="back"><a href="${escapeHtml(siteHref)}">&larr; mainstreet</a></p>
+  <header><a href="${escapeHtml(siteHref)}">&larr; mainstreet</a></header>
   <main>
 ${bodyHtml}
   </main>
@@ -554,9 +609,9 @@ ${world.credits.map((p) => `          <li>${escapeHtml(p.name)} &mdash; ${escape
     p.do a, ul.links a {
       display: inline-block;
       min-height: 44px;
-      line-height: 44px;
-      text-decoration: none;
-      border-bottom: 1px solid rgba(181, 84, 42, 0.5);
+      padding: 9px 0;
+      text-decoration: underline;
+      text-underline-offset: 4px;
     }
     p.do a:hover, p.do a:focus-visible, ul.links a:hover, ul.links a:focus-visible { color: var(--paper); }
     p.note { opacity: 0.7; font-size: 15px; }
