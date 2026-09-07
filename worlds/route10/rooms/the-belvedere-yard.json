@@ -2,14 +2,42 @@
   "name": "The Belvedere Yard",
   "size": [16, 12],
   "wall": 15,
-  "floor": [40],
+  "floor": [0, 1, 2, 0, 1, 2, 0, 1, 2, 3, 4],
   "door": { "side": "left", "column": 5, "width": 2 },
-  "exit": { "id": "the-belvedere-yard-exit", "to": "the-belvedere-interior", "spawn": [24, 18], "facing": "left" },
+  "exit": { "id": "the-belvedere-yard-exit", "to": "the-belvedere-interior", "spawn": [14, 22], "facing": "left" },
   "props": [
-    { "kind": "firepit", "at": [[8, 6]] },
-    { "kind": "stool", "around": 0 },
-    { "kind": "stool", "at": [[12, 3], [13, 4], [3, 3]] },
+    {
+      "kind": "mat",
+      "tiles": [40],
+      "at": [[7, 5], [8, 5], [9, 5], [7, 6], [8, 6], [9, 6], [7, 7], [8, 7], [9, 7]]
+    },
+    { "kind": "stool", "at": [[6, 5], [6, 7], [10, 5], [10, 7], [8, 4], [8, 8]] },
     { "kind": "planter", "at": [[2, 2], [13, 9]] }
   ],
-  "fixtures": [{ "kind": "woodpile", "pos": [4, 8] }]
+  "fixtures": [
+    {
+      "kind": "woodpile",
+      "pos": [5, 7],
+      "give": "log",
+      "lines": [
+        "You take a split log off the pile. Dry, and lighter than it looks."
+      ],
+      "otherwise": [
+        "You've already got one under your arm. One at a time is how the fire likes it."
+      ]
+    },
+    {
+      "kind": "firepit",
+      "pos": [8, 6],
+      "take": "log",
+      "glow": 60,
+      "lines": [
+        "You set the log on the fire and it catches.",
+        "Everybody round the ring leans back an inch, and somebody says thanks without looking up."
+      ],
+      "otherwise": [
+        "The fire's going fine; it could use a log from the pile."
+      ]
+    }
+  ]
 }

@@ -52,6 +52,12 @@
  * - `counter`, `bar` — a run of counter tiles with a staff strip behind it on
  *   the `behind` side, sealed at both ends the way Stewart's is, so somebody
  *   working back there stays back there.
+ * - `island` — a counter that closes on itself with a walkway in the middle,
+ *   `open` on one side where the staff get in.
+ * - `peninsula` — the same loop with one end against the room's outer wall
+ *   (`attach`, default `"bottom"`), which is what most bars actually are:
+ *   three sides to stand at, the staff strip inside, and the wall closing the
+ *   fourth. Sealed unless it names an `open` side.
  * - `shelf` — a run of shelving, cycling through `tiles` so a long run reads as
  *   separate bays.
  * - `table` — a round cafe table per tile.
@@ -87,6 +93,7 @@ export const PROP_KINDS = [
   'counter',
   'bar',
   'island',
+  'peninsula',
   'shelf',
   'table',
   'stool',
@@ -126,10 +133,15 @@ export interface RoomProp {
   behind?: Side;
   /** `stage`: which side the riser's front face shows on. Default "bottom". */
   front?: Side;
-  /** `island`: the side the staff get in by. Without one the loop is closed. */
+  /** `island`/`peninsula`: the side the staff get in by. Without one it is closed. */
   open?: Side;
-  /** `island`: how wide that way in is, in tiles. Default 1. */
+  /** `island`/`peninsula`: how wide that way in is, in tiles. Default 1. */
   gap?: number;
+  /**
+   * `peninsula`: which side of its rect is against the room's outer wall.
+   * Default "bottom", which is what a bar you walk in alongside reads as.
+   */
+  attach?: Side;
   /**
    * Ring this rectangle — or this earlier prop, by its index in `props` — with
    * one of these per tile, on every cell that faces something solid in it. A
@@ -208,6 +220,7 @@ const SOLID_KINDS: Record<PropKind, boolean> = {
   counter: true,
   bar: true,
   island: true,
+  peninsula: true,
   shelf: true,
   table: true,
   stool: true,
@@ -350,6 +363,8 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
       sealStrip(prop, cells, run[0], where);
     } else if (prop.kind === 'island') {
       island(prop, where, need(prop.tiles?.[0] ?? palette.bar, 'counter'), paint);
+    } else if (prop.kind === 'peninsula') {
+      peninsula(prop, where, need(prop.tiles?.[0] ?? palette.bar, 'counter'), paint);
     } else if (prop.kind === 'hall') {
       corridor(prop, cells, where, paint);
     } else if (prop.kind === 'stage') {
@@ -424,6 +439,98 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
     for (let y = ry; y < ry + rh; y++) {
       for (let x = rx; x < rx + rw; x++) {
         if (edge(x, y) && !isMouth(x, y)) paint([x, y], tile, true);
+        else if (!prop.open) staff.add(at(x, y));
+      }
+    }
+  }
+
+  /**
+   * A bar that joins a wall at one end: counter down three sides with the
+   * room's own wall closing the fourth, and the staff strip inside it. Most
+   * real bars are this rather than an `island` — you can get at three sides of
+   * one, whoever is working stands in the middle, and the end against the wall
+   * is where they come and go.
+   *
+   * The strip is sealed by default, exactly like the pocket behind a counter,
+   * so somebody posted in it stays in it; `open` cuts a way in on one side and
+   * hands the middle back to the room, the way `island` does.
+   */
+  function peninsula(
+    prop: RoomProp,
+    where: string,
+    tile: number,
+    paint: (cell: Vec2, tile: number, isSolid: boolean) => void
+  ): void {
+    if (!prop.rect) throw new RoomError(`${where}: a peninsula needs a "rect" — it is a loop, not a list of tiles`);
+    const [rx, ry, rw, rh] = prop.rect;
+    if (rw < 3 || rh < 3) {
+      throw new RoomError(`${where}: its rect is ${rw}×${rh}; a peninsula needs at least 3×3 to have an inside`);
+    }
+    const attach = prop.attach ?? 'bottom';
+    if (!(attach in STEP)) {
+      throw new RoomError(`${where}: "attach" is "${attach}", not one of top, bottom, left, right`);
+    }
+    // The wall it joins has to actually be there: a peninsula floating in the
+    // middle of the room is an island with a hole in it, and whoever is inside
+    // it would walk straight out through the open end.
+    const against =
+      attach === 'bottom'
+        ? ry + rh - 1 === height - 2
+        : attach === 'top'
+          ? ry === 1
+          : attach === 'left'
+            ? rx === 1
+            : rx + rw - 1 === width - 2;
+    if (!against) {
+      throw new RoomError(
+        `${where}: its ${attach} end does not touch the room's wall — that is what makes it a peninsula rather than an island`
+      );
+    }
+    if (prop.open === attach) {
+      throw new RoomError(`${where}: "open" is "${attach}", which is the end against the wall`);
+    }
+
+    const onAttachEdge = (x: number, y: number) =>
+      attach === 'bottom'
+        ? y === ry + rh - 1
+        : attach === 'top'
+          ? y === ry
+          : attach === 'left'
+            ? x === rx
+            : x === rx + rw - 1;
+    const edge = (x: number, y: number) => x === rx || y === ry || x === rx + rw - 1 || y === ry + rh - 1;
+
+    const mouth: Vec2[] = [];
+    if (prop.open) {
+      if (!(prop.open in STEP)) {
+        throw new RoomError(`${where}: "open" is "${prop.open}", not one of top, bottom, left, right`);
+      }
+      const span = prop.gap ?? 1;
+      const along = prop.open === 'top' || prop.open === 'bottom' ? rw : rh;
+      if (span < 1 || span > along - 2) {
+        throw new RoomError(`${where}: a ${span}-tile way in does not fit in a ${along}-tile side without cutting a corner`);
+      }
+      const start = Math.floor((along - span) / 2);
+      for (let i = 0; i < span; i++) {
+        mouth.push(
+          prop.open === 'top'
+            ? [rx + start + i, ry]
+            : prop.open === 'bottom'
+              ? [rx + start + i, ry + rh - 1]
+              : prop.open === 'left'
+                ? [rx, ry + start + i]
+                : [rx + rw - 1, ry + start + i]
+        );
+      }
+    }
+    const isMouth = (x: number, y: number) => mouth.some(([mx, my]) => mx === x && my === y);
+
+    for (let y = ry; y < ry + rh; y++) {
+      for (let x = rx; x < rx + rw; x++) {
+        // The end against the wall is not drawn — the wall is already there —
+        // unless the cell is also on one of the three sides that are.
+        const counter = edge(x, y) && !(onAttachEdge(x, y) && !edge2(x, y, rx, ry, rw, rh, attach));
+        if (counter && !isMouth(x, y)) paint([x, y], tile, true);
         else if (!prop.open) staff.add(at(x, y));
       }
     }
@@ -601,6 +708,16 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
   if (spec.people?.length) meta.people = spec.people.map((one) => ({ ...one }));
 
   return { width, height, tiles, props, enter, meta };
+}
+
+/**
+ * True where a cell on a peninsula's attach edge is *also* on one of the three
+ * sides that do get drawn — the two corners at the wall, which are the ends of
+ * the counter running away from it.
+ */
+function edge2(x: number, y: number, rx: number, ry: number, rw: number, rh: number, attach: Side): boolean {
+  if (attach === 'bottom' || attach === 'top') return x === rx || x === rx + rw - 1;
+  return y === ry || y === ry + rh - 1;
 }
 
 /** A prop's cells, from its rect and its list, in a fixed order. */

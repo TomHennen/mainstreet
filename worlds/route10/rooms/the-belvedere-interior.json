@@ -1,31 +1,59 @@
 {
   "name": "The Belvedere",
-  "size": [26, 20],
+  "size": [16, 24],
   "wall": 15,
   "floor": [12, 11],
-  "door": { "side": "bottom", "column": 12, "width": 2 },
+  "door": { "side": "bottom", "column": 7, "width": 2 },
   "exit": { "id": "the-belvedere-exit", "to": "stamford", "spawn": [80, 6], "facing": "down" },
   "props": [
-    { "kind": "stage", "rect": [10, 1, 6, 3], "front": "bottom" },
-    { "kind": "shelf", "rect": [16, 2, 1, 2], "tiles": [22] },
-    { "kind": "island", "rect": [4, 6, 3, 8], "open": "bottom" },
-    { "kind": "stool", "around": 2 },
+    { "kind": "stage", "rect": [6, 1, 6, 3], "front": "bottom" },
+    { "kind": "shelf", "rect": [12, 1, 1, 2], "tiles": [22] },
+    { "kind": "peninsula", "rect": [3, 9, 3, 14], "attach": "bottom" },
+    {
+      "kind": "stool",
+      "at": [
+        [3, 8],
+        [4, 8],
+        [5, 8],
+        [2, 10],
+        [2, 12],
+        [2, 14],
+        [2, 18],
+        [6, 10],
+        [6, 11],
+        [6, 13],
+        [6, 16],
+        [6, 17],
+        [6, 19],
+        [6, 20]
+      ]
+    },
     {
       "kind": "panel",
-      "rect": [0, 6, 1, 7],
+      "rect": [0, 10, 1, 8],
+      "tiles": [52],
+      "lines": [
+        "The whole wall behind the bar is a blackboard, and somebody is always partway through covering it.",
+        "This month it's a chalk mural of the valley, road and river and all, drawn by whoever got the ladder first."
+      ]
+    },
+    {
+      "kind": "panel",
+      "rect": [15, 9, 1, 8],
       "tiles": [50],
       "lines": [
         "They papered over this whole wall, and it looks like there are glass doors behind it.",
         "Behind those, they say, is the old hotel's swimming pool — dry for years, and still there."
       ]
     },
-    { "kind": "foosball", "rect": [16, 6, 2, 1] },
-    { "kind": "foosball", "rect": [16, 9, 2, 1] },
-    { "kind": "foosball", "rect": [16, 12, 2, 1] },
-    { "kind": "hall", "rect": [18, 18, 7, 1] },
+    { "kind": "foosball", "rect": [12, 10, 2, 1] },
+    { "kind": "foosball", "rect": [12, 13, 2, 1] },
+    { "kind": "foosball", "rect": [12, 16, 2, 1] },
+    { "kind": "table", "at": [[9, 6], [12, 6], [9, 18]] },
+    { "kind": "hall", "rect": [10, 22, 5, 1] },
     {
       "kind": "panel",
-      "rect": [18, 19, 3, 1],
+      "rect": [10, 21, 3, 1],
       "tiles": [51],
       "lines": [
         "Somebody drew on this wall once, and everybody has been adding to it ever since.",
@@ -34,7 +62,7 @@
     },
     {
       "kind": "door",
-      "at": [[22, 19]],
+      "at": [[12, 23]],
       "lines": [
         "A note taped to this one, in marker: OUT OF ORDER, SORRY — BACK SOON.",
         "Underneath, in a different pen: it's alright, the other one's nicer anyway."
@@ -42,7 +70,7 @@
     },
     {
       "kind": "door",
-      "at": [[24, 19]],
+      "at": [[14, 23]],
       "lines": [
         "The other one: a urinal, a stall, and no sign on the door saying who it's for.",
         "There's a latch on the inside if you'd like the room to yourself."
@@ -50,28 +78,20 @@
     },
     {
       "kind": "exit",
-      "rect": [25, 18, 1, 1],
+      "rect": [15, 22, 1, 1],
       "id": "the-belvedere-yard-door",
       "to": "the-belvedere-yard",
       "spawn": [1, 5],
       "facing": "right"
-    },
-    { "kind": "table", "at": [[9, 16], [11, 16], [8, 3]] },
-    {
-      "kind": "sign",
-      "at": [[10, 18]],
-      "lines": [
-        "A chalkboard propped by the door, wiped and rewritten so many times it has gone soft and grey.",
-        "TONIGHT: whoever turns up, whatever they feel like. Underneath, smaller: the stage is right there and nobody in here is a critic."
-      ]
     }
   ],
   "people": [
     {
-      "id": "bel-barman",
-      "pos": [5, 13],
-      "facing": "down",
-      "look": { "hair": "bald", "skin": "#c98d63", "shirt": "#3f6d7d", "build": "broad" },
+      "id": "bel-bartender",
+      "name": "Marnie",
+      "pos": [4, 15],
+      "facing": "right",
+      "look": { "hair": "long", "hairColor": "#6b4a2f", "skin": "#e0b48c", "shirt": "#7c4a63", "build": "regular" },
       "lines": [
         "Evening. Grab any stool you like.",
         "Anything you need, I'm right here. I'm always right here."

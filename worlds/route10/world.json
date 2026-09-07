@@ -114,7 +114,7 @@
       "sign": [
         "Up the hill and lit early, and it sounds like everybody in there knows everybody.",
         "It was a hotel once, and it is still that big. These days the bar is the part that's open, and the bar is plenty.",
-        "Inside: one long bar you can walk all the way round, foosball, a little corner stage, and a board with tonight's plan chalked on it.",
+        "Inside: one long bar with stools down three sides of it, foosball, a little corner stage, and a wall of chalk behind the taps.",
         "A taped-up flyer teases a big-name comedian, headed this way one of these days. DATE TBA. Guess you'll just have to keep checking back."
       ]
     },
@@ -666,8 +666,8 @@
           ],
           "interior": "the-belvedere-interior",
           "enter": [
-            12,
-            18
+            7,
+            22
           ]
         }
       ],
@@ -968,6 +968,18 @@
           "pause": 1.2,
           "speed": 8
         }
+      ],
+      "signs": [
+        {
+          "pos": [
+            82,
+            6
+          ],
+          "lines": [
+            "A chalkboard by the door, wiped and rewritten so many times it has gone soft and grey.",
+            "TONIGHT: tacos, then a movie. Underneath, smaller: whoever turns up, whatever they feel like."
+          ]
+        }
       ]
     },
     "hobart": {
@@ -1256,8 +1268,8 @@
         {
           "id": "the-belvedere-exit",
           "at": [
-            12,
-            19,
+            7,
+            23,
             2,
             1
           ],
@@ -1272,8 +1284,8 @@
         {
           "id": "the-belvedere-yard-door",
           "at": [
-            25,
-            18,
+            15,
+            22,
             1,
             1
           ],
@@ -1290,7 +1302,17 @@
         {
           "pos": [
             0,
-            9
+            14
+          ],
+          "lines": [
+            "The whole wall behind the bar is a blackboard, and somebody is always partway through covering it.",
+            "This month it's a chalk mural of the valley, road and river and all, drawn by whoever got the ladder first."
+          ]
+        },
+        {
+          "pos": [
+            15,
+            13
           ],
           "lines": [
             "They papered over this whole wall, and it looks like there are glass doors behind it.",
@@ -1299,8 +1321,8 @@
         },
         {
           "pos": [
-            19,
-            19
+            11,
+            21
           ],
           "lines": [
             "Somebody drew on this wall once, and everybody has been adding to it ever since.",
@@ -1309,8 +1331,8 @@
         },
         {
           "pos": [
-            22,
-            19
+            12,
+            23
           ],
           "lines": [
             "A note taped to this one, in marker: OUT OF ORDER, SORRY \u2014 BACK SOON.",
@@ -1319,38 +1341,30 @@
         },
         {
           "pos": [
-            24,
-            19
+            14,
+            23
           ],
           "lines": [
             "The other one: a urinal, a stall, and no sign on the door saying who it's for.",
             "There's a latch on the inside if you'd like the room to yourself."
           ]
-        },
-        {
-          "pos": [
-            10,
-            18
-          ],
-          "lines": [
-            "A chalkboard propped by the door, wiped and rewritten so many times it has gone soft and grey.",
-            "TONIGHT: whoever turns up, whatever they feel like. Underneath, smaller: the stage is right there and nobody in here is a critic."
-          ]
         }
       ],
       "people": [
         {
-          "id": "bel-barman",
+          "id": "bel-bartender",
+          "name": "Marnie",
           "pos": [
-            5,
-            13
+            4,
+            15
           ],
-          "facing": "down",
+          "facing": "right",
           "look": {
-            "hair": "bald",
-            "skin": "#c98d63",
-            "shirt": "#3f6d7d",
-            "build": "broad"
+            "hair": "long",
+            "hairColor": "#6b4a2f",
+            "skin": "#e0b48c",
+            "shirt": "#7c4a63",
+            "build": "regular"
           },
           "lines": [
             "Evening. Grab any stool you like.",
@@ -1375,8 +1389,8 @@
           ],
           "to": "the-belvedere-interior",
           "spawn": [
-            24,
-            18
+            14,
+            22
           ],
           "facing": "left",
           "style": "door"
@@ -1386,8 +1400,31 @@
         {
           "kind": "woodpile",
           "pos": [
-            4,
-            8
+            5,
+            7
+          ],
+          "give": "log",
+          "lines": [
+            "You take a split log off the pile. Dry, and lighter than it looks."
+          ],
+          "otherwise": [
+            "You've already got one under your arm. One at a time is how the fire likes it."
+          ]
+        },
+        {
+          "kind": "firepit",
+          "pos": [
+            8,
+            6
+          ],
+          "take": "log",
+          "glow": 60,
+          "lines": [
+            "You set the log on the fire and it catches.",
+            "Everybody round the ring leans back an inch, and somebody says thanks without looking up."
+          ],
+          "otherwise": [
+            "The fire's going fine; it could use a log from the pile."
           ]
         }
       ]

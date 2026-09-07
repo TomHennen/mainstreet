@@ -6,7 +6,7 @@
   "margin": 0,
   "name": "route10",
   "spacing": 0,
-  "tilecount": 52,
+  "tilecount": 53,
   "tiledversion": "1.10.2",
   "tileheight": 16,
   "tilewidth": 16,
@@ -1232,6 +1232,27 @@
           "name": "style",
           "type": "string",
           "value": "scrawl"
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "type": "panel",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#2f3630,#e8ddc6,#d9a441,#9fbfd0"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "chalkwall"
         }
       ]
     }

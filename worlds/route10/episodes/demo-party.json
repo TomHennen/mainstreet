@@ -10,8 +10,8 @@
       "id": "bel-host",
       "name": "Vera",
       "map": "the-belvedere-interior",
-      "pos": [8, 7],
-      "facing": "left",
+      "pos": [9, 9],
+      "facing": "down",
       "accent": "#9a7bb5",
       "look": { "hair": "bun", "hairColor": "#4a3524", "build": "regular" },
       "dialogue": [
@@ -37,7 +37,7 @@
       "id": "bel-guest-dj",
       "name": "Wren",
       "map": "the-belvedere-interior",
-      "pos": [14, 17],
+      "pos": [13, 20],
       "facing": "up",
       "accent": "#3f7a4c",
       "look": { "hair": "curly", "hairColor": "#2b2320", "skin": "#c98d63", "build": "slim" },
@@ -52,7 +52,7 @@
       "id": "bel-guest-cook",
       "name": "Gus",
       "map": "the-belvedere-interior",
-      "pos": [15, 17],
+      "pos": [11, 19],
       "facing": "up",
       "accent": "#b5542a",
       "look": { "hair": "cap", "hairColor": "#6b6257", "build": "broad" },
@@ -67,7 +67,7 @@
       "id": "bel-guest-neighbour",
       "name": "Thea",
       "map": "the-belvedere-interior",
-      "pos": [16, 17],
+      "pos": [9, 20],
       "facing": "up",
       "accent": "#d9a441",
       "look": { "hair": "long", "hairColor": "#2b2320", "skin": "#a8703f", "build": "regular" },
@@ -91,16 +91,16 @@
           "light": {
             "mode": "party",
             "colours": ["#d9a441", "#b5542a", "#9a7bb5", "#4a7f96"],
-            "at": [[13, 2], [5, 10], [9, 15], [18, 9]],
+            "at": [[9, 2], [4, 12], [10, 10], [12, 19]],
             "period": 10
           }
         },
-        { "camera": { "to": [13, 2], "speed": 12 } },
+        { "camera": { "to": [9, 2], "speed": 12 } },
         { "wait": 1 },
         { "camera": { "to": "player", "speed": 12 } },
         { "move": { "who": "bel-guest-cook", "to": [8, 16], "speed": 3.5 } },
-        { "move": { "who": "bel-guest-neighbour", "path": [[13, 12], [13, 5]], "speed": 3.5 } },
-        { "move": { "who": "bel-guest-dj", "path": [[18, 12], [17, 3]], "speed": 3.5 } },
+        { "move": { "who": "bel-guest-neighbour", "path": [[11, 12], [11, 5]], "speed": 3.5 } },
+        { "move": { "who": "bel-guest-dj", "path": [[14, 11], [12, 4]], "speed": 3.5 } },
         {
           "say": {
             "who": "bel-host",
