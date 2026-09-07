@@ -31,6 +31,7 @@ import type { SceneDriver } from '../scene';
 import {
   creditFor,
   dialogueFor,
+  hasSmallTalk,
   itemVisible,
   itemsOn,
   npcsOn,
@@ -38,7 +39,8 @@ import {
   peopleOn,
   propSignsOn,
   session,
-  signLinesFor
+  signLinesFor,
+  smallTalkFor
 } from '../session';
 import { isSolid, moverWalkable } from '../validate';
 import { lookOf, plaqueTile, SCENE_PLAYER } from '../schema';
@@ -416,7 +418,11 @@ export class MapScene extends Phaser.Scene {
     const state = session();
     if (data.intro && !state.introShown && state.copy.intro) {
       state.introShown = true;
-      bus.emit(EV.say, { speaker: state.copy.intro.speaker, lines: state.copy.intro.lines });
+      // The world intro sets the place and the controls; an episode's own
+      // `intro` (DESIGN.md §3) follows it in the same card, in the same
+      // voice, with this week's opening line or two.
+      const lines = [...state.copy.intro.lines, ...(state.episode.intro ?? [])];
+      bus.emit(EV.say, { speaker: state.copy.intro.speaker, lines });
     }
 
     // Anything this episode stages on arriving here (DESIGN.md §3). It queues
@@ -671,14 +677,16 @@ export class MapScene extends Phaser.Scene {
   private canTalkTo(walker: Walker): boolean {
     if (walker.npc) return true;
     if (walker.person?.lines?.length) return true;
-    return (session().copy.ui.passerby ?? []).length > 0;
+    return hasSmallTalk();
   }
 
-  /** One kind line for somebody with no story to tell, the same one every time. */
+  /**
+   * A line for somebody with no story to tell: their small talk, the same one
+   * every time, or — about one time in five — a line of trivia instead
+   * (`smallTalkFor`, DESIGN.md §2).
+   */
   private passerbyLine(id: string): string | undefined {
-    const lines = session().copy.ui.passerby ?? [];
-    if (!lines.length) return undefined;
-    return lines[hashId(id) % lines.length];
+    return smallTalkFor({ id });
   }
 
   /** Somebody — the player, or one of the others — is standing on this tile. */

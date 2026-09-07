@@ -315,6 +315,17 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
     }
   });
 
+  const checkLines = (lines: string[] | undefined, context: string) => {
+    if (lines === undefined) return;
+    lines.forEach((line, index) => {
+      if (typeof line !== 'string' || line.length === 0) {
+        problems.push(`${where}: ${context} line ${index} must be a non-empty string`);
+      }
+    });
+  };
+  checkLines(episode.intro, '"intro"');
+  checkLines(episode.smallTalk, '"smallTalk"');
+
   checkOverlays(episode, world, maps, declared, problems);
   checkScenes(episode, world, maps, declared, problems);
 

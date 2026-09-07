@@ -381,6 +381,12 @@ could ever walk there — the
 player talks to them across the counter instead, within an interior's talking
 reach (engine/scenes/map.ts), exactly as Hannah is talked to in Stewart's.
 
+About one time in five, a world person's small talk gives way to a line of
+`copy.json` `ui.trivia` instead (`engine/session.ts`'s `smallTalkFor`) — a
+real roll per conversation, not tied to who is asked and never saved, so it
+reads as a nice surprise rather than something to hunt for. A world with no
+`ui.trivia` simply never rolls for it.
+
 Missing NPC sheet = generic townsperson sprite, drawn from that person's
 `look` (§4) in their own accent color. Missing portrait = no portrait pane.
 The floating name plate stays above a building once it's painted too,
@@ -470,6 +476,23 @@ An NPC may carry a `route` or a `wander` (§2, "Townspeople who walk") and move
 about while the story waits. `pos` stays the tile they start on and the one an
 author places them by; they are simply not always standing on it, and they
 stop as soon as the player is close enough to talk to them.
+
+An episode may carry its own `intro`, an array of lines shown right after
+`copy.json`'s world `intro` on a fresh start of that episode — never on
+Continue, since that is exactly when the world intro is skipped too. The world
+intro is episode-neutral: it sets the place and the controls, once, and never
+mentions any one week's story. An episode's `intro` is what says what this
+particular week is about, in the same voice, added onto the same opening card
+rather than a separate one. Optional; an episode with nothing to add here
+simply adds nothing.
+
+An episode may also carry `smallTalk`, an array of lines that take the place
+of `copy.json`'s `ui.passerby` for the length of that episode: a world person
+with no dialogue of their own ordinarily says one of `ui.passerby`'s lines,
+picked by their id so the same person always says the same thing, and
+`smallTalk` is the same mechanism with the running episode's own list, so what
+the village is chatting about can change with the week's story. Optional;
+without it, `ui.passerby` keeps standing.
 
 ### Scenes
 

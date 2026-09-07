@@ -1,6 +1,15 @@
 {
   "id": "ep002",
   "title": "Anybody Headed Down Today?",
+  "intro": [
+    "Word is Priya's out on the green in Jefferson, asking if anybody's driving down to the city today. Hannah at Stewart's heard it first."
+  ],
+  "smallTalk": [
+    "Priya's kid has a big show in the city tonight — I hope somebody's headed down that way.",
+    "Priya's been carrying that costume bag around under one arm all morning.",
+    "Another wet one. The pond's never looked so full.",
+    "This has been the soggiest summer anybody up here can remember, and everybody's got an opinion about it."
+  ],
   "flags": ["heardAsk", "triedStamford", "triedHobart", "done"],
   "npcs": [
     {
@@ -33,11 +42,11 @@
         {
           "requires": [],
           "lines": [
-            "My kid's in a dance showcase in the city tonight, and half his costume's still sitting right here on the table.",
-            "I'm covering the register at Middle Brook till close, or I'd drive it down myself. Here — the bag's by the door, take it with you.",
+            "My kid's in a dance showcase in the city tonight, and half his costume is in this bag.",
+            "I'm due back at the register at Middle Brook by four, or I'd drive it down myself. Here — take it, would you?",
             "If you hear of anybody headed down today, ask them for me. Hannah's behind the counter at Stewart's, down in Stamford; she hears everybody's plans before they make them."
           ],
-          "effects": [{ "set": "heardAsk" }]
+          "effects": [{ "set": "heardAsk" }, { "toast": "You've got the costume bag." }]
         }
       ]
     },
@@ -130,8 +139,8 @@
         {
           "requires": ["triedHobart"],
           "lines": [
-            "Priya's kid's costume? Sure — I'm headed down myself today, every other Friday like clockwork.",
-            "I'll get it to the stage door by six. Tell the kid break a leg."
+            "Priya's kid's costume? Sure — I'm headed down myself today, every other Sunday like clockwork.",
+            "Hand it over — I've got it. I'll get it to the stage door by six. Tell the kid break a leg."
           ],
           "effects": [{ "set": "done" }, { "toast": "Episode complete — new story next week" }]
         },
@@ -144,7 +153,7 @@
         {
           "requires": [],
           "lines": [
-            "Every other Friday I'm elbow-deep in city traffic by nine. Don't ask me why I keep doing it to myself.",
+            "Every other Sunday I load up and head down for the week — traffic and all. Don't ask me why I keep doing it to myself.",
             "If you're new around here, Priya's out on the green — good person to know."
           ]
         }

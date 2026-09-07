@@ -12,6 +12,18 @@
       "Afternoon — mind how you go, and enjoy the village."
     ],
     "passerbyName": "A neighbour",
+    "trivia": [
+      "Hobart was a near-empty Main Street until one antiquarian bookshop opened around 2000 — now there's a whole village of them.",
+      "East of Jefferson stands a real 13-sided barn, built in 1896, about sixty feet across — one of only two on the Register in this part of the state.",
+      "The Catskill Scenic Trail runs from Stamford to Hobart along an old railroad bed — a favorite walk and bike ride.",
+      "Mount Utsayantha, north of Stamford, is named for a princess in local legend — the lake below shares her name.",
+      "Route 23 becomes Main Street the moment it crosses into Stamford.",
+      "The Belvedere started out as a hotel, long before it became Stamford's hippest dive bar.",
+      "Stewart's keeps the local softball league's standings taped right to the ice cream case.",
+      "Tops is the only grocery store for a good half hour in any direction, which is worth remembering when you're out of milk.",
+      "Every June, Hobart's bookshops host three days of readings for the Festival of Women Writers.",
+      "Two coffee shops once opened in Stamford the very same week, neither one knowing the other existed."
+    ],
     "plaque": {
       "painted": "A little plaque by the door: {building}, painted by {credit}. Thank you, {credit}!",
       "anonymous": "A little plaque by the door: somebody painted {building} for everyone to enjoy. Thank you, whoever you are.",
@@ -64,9 +76,8 @@
   "intro": {
     "speaker": "Route 10",
     "lines": [
-      "Late summer in the western Catskills. Route 10 runs north to Jefferson and south-west to Hobart; the road across it is Route 23, which is Main Street through the village.",
-      "Walk with the d-pad or the arrow keys. A — or space — talks, reads, and opens doors. Stewart's door, on the corner, actually opens.",
-      "The fellow out front looks like he's lost something."
+      "Late summer in the western Catskills. Route 10 runs north to Jefferson and south-west to Hobart; the road across it is Route 23, Main Street through the village.",
+      "Tap where you want to go, or use the d-pad. Tap a person, a door or a sign to talk, go in, or read; A does the same."
     ]
   },
   "transitions": {

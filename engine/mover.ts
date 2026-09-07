@@ -14,7 +14,7 @@
  * a whole number is a person standing on that tile, and anything between is a
  * person part-way along a leg of it.
  */
-import { findPath } from './path';
+import { findPath } from './path.ts';
 import type { Walkable } from './path';
 import type { Facing, Route, Vec2, Wander } from './schema';
 

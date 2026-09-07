@@ -6,6 +6,7 @@
  * plain Node, which can only strip types away. The save side, which does need
  * code at runtime, lives in `engine/progress.ts`.
  */
+import { hashId } from './mover.ts';
 import { activeOverlays } from './overlay.ts';
 import type { SaveFile } from './save';
 import type { Flags } from './flags';
@@ -100,6 +101,47 @@ export const npcsOn = (mapId: string): EpisodeNpc[] =>
  * somewhere to be.
  */
 export const peopleOn = (mapId: string): Person[] => session().world.maps[mapId]?.people ?? [];
+
+/** About one time in five, a world person's small talk gives way to trivia instead (DESIGN.md §2). */
+export const TRIVIA_CHANCE = 0.2;
+
+/**
+ * The lines a world person with no story of their own draws small talk from
+ * (DESIGN.md §2/§3): the running episode's own `smallTalk` when it has any,
+ * else the world's `ui.passerby`. Either way it is picked by the person's id,
+ * so the same person always says the same thing.
+ */
+const smallTalkLines = (): string[] => session().episode.smallTalk ?? session().copy.ui.passerby ?? [];
+
+/**
+ * Whether pressing A on a world person with no story of their own does
+ * anything at all. `ui.trivia` never counts on its own here: it only ever
+ * displaces an existing small-talk line (below), so it cannot make somebody
+ * with nothing ordinarily to say suddenly worth talking to.
+ */
+export function hasSmallTalk(): boolean {
+  return smallTalkLines().length > 0;
+}
+
+/**
+ * What a world person with no story of their own says when spoken to
+ * (DESIGN.md §2/§3). Ordinarily their small talk (`smallTalkLines`, above),
+ * picked by id so the same person always says the same thing — but about one
+ * time in five `ui.trivia` gets a turn instead: a real roll, not tied to who
+ * is asked and never saved, so the same person might say it twice running or
+ * never at all. Returns undefined when there is nothing at all to say.
+ * `random` defaults to `Math.random`; a test supplies its own to make the
+ * roll land a chosen way.
+ */
+export function smallTalkFor(person: { id: string }, random: () => number = Math.random): string | undefined {
+  const trivia = session().copy.ui.trivia ?? [];
+  if (smallTalkLines().length > 0 && trivia.length > 0 && random() < TRIVIA_CHANCE) {
+    return trivia[Math.floor(random() * trivia.length)];
+  }
+  const lines = smallTalkLines();
+  if (!lines.length) return undefined;
+  return lines[hashId(person.id) % lines.length];
+}
 
 /**
  * The overlays patching this map right now (DESIGN.md §3): this episode's, in

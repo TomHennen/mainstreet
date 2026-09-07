@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   creditFor,
   dialogueFor,
+  hasSmallTalk,
   itemsOn,
   itemTaken,
   itemVisible,
@@ -11,6 +12,7 @@ import {
   session,
   signFor,
   signLinesFor,
+  smallTalkFor,
   startSession
 } from './session';
 import type { AssetIndex } from './session';
@@ -340,6 +342,78 @@ describe('session helpers', () => {
     it('joins three or more names with commas and "and" before the last, no Oxford comma', () => {
       expect(joinCredits(['Tom', 'Lana', 'Alice'])).toBe('Tom, Lana and Alice');
       expect(joinCredits(['Tom', 'Lana', 'Alice', 'Sam'])).toBe('Tom, Lana, Alice and Sam');
+    });
+  });
+
+  describe('smallTalkFor / hasSmallTalk', () => {
+    /** `startSession` directly, so each test can hand in its own `copy` and episode `smallTalk` without disturbing the shared fixtures above. */
+    function bootFor(copyOverride: WorldCopy, episodeOverride: Partial<Episode> = {}): void {
+      startSession({
+        world,
+        maps: {},
+        copy: copyOverride,
+        episode: { ...episode, ...episodeOverride },
+        flags: fakeFlags([]),
+        assets,
+        credits: {},
+        dialogueOpen: false,
+        lastDialogueClose: 0,
+        locked: false,
+        introShown: false,
+        taken: new Set(),
+        place: { map: 'town', pos: [0, 0], facing: 'down' },
+        light: null,
+        save: emptySave(),
+        recording: false
+      });
+    }
+
+    const bareCopy = copy; // the module-level fixture: no passerby, no trivia
+    const withPasserby: WorldCopy = { ...copy, ui: { ...copy.ui, passerby: ['passerby a', 'passerby b'] } };
+    const withPasserbyAndTrivia: WorldCopy = {
+      ...copy,
+      ui: { ...copy.ui, passerby: ['passerby only line'], trivia: ['trivia a', 'trivia b'] }
+    };
+
+    it('has nothing to say, and nothing to roll for, with no passerby, smallTalk or trivia', () => {
+      bootFor(bareCopy, { smallTalk: undefined });
+      expect(hasSmallTalk()).toBe(false);
+      expect(smallTalkFor({ id: 'earl' })).toBeUndefined();
+    });
+
+    it('falls back to ui.passerby, picked by id, when the episode has no smallTalk', () => {
+      bootFor(withPasserby, { smallTalk: undefined });
+      expect(hasSmallTalk()).toBe(true);
+      const line = smallTalkFor({ id: 'earl' }, () => 0.99); // 0.99 never rolls trivia
+      expect(['passerby a', 'passerby b']).toContain(line);
+      expect(smallTalkFor({ id: 'earl' }, () => 0.99)).toBe(line); // same person, same line, every time
+    });
+
+    it("prefers the running episode's own smallTalk over ui.passerby when both are set", () => {
+      bootFor(withPasserby, { smallTalk: ['episode line'] });
+      expect(smallTalkFor({ id: 'earl' }, () => 0.99)).toBe('episode line');
+    });
+
+    it('rolls trivia about one time in five, via the injected random function', () => {
+      bootFor(withPasserbyAndTrivia, { smallTalk: undefined });
+      // random() < 0.2 wins the roll; a second call picks which trivia line.
+      expect(smallTalkFor({ id: 'earl' }, () => 0)).toBe('trivia a');
+      // Just under the cutoff still wins it.
+      expect(smallTalkFor({ id: 'earl' }, () => 0.19)).toBe('trivia a');
+      // At or past the cutoff, small talk wins instead.
+      expect(smallTalkFor({ id: 'earl' }, () => 0.2)).toBe('passerby only line');
+      expect(smallTalkFor({ id: 'earl' }, () => 0.99)).toBe('passerby only line');
+    });
+
+    it('never rolls trivia when the world has none, whatever the roll', () => {
+      bootFor(withPasserby, { smallTalk: ['episode line'] });
+      expect(smallTalkFor({ id: 'earl' }, () => 0)).toBe('episode line');
+    });
+
+    it('is a real roll, not saved or tied to which person is asked: the same id can get either', () => {
+      bootFor(withPasserbyAndTrivia, { smallTalk: undefined });
+      expect(smallTalkFor({ id: 'earl' }, () => 0)).toBe('trivia a');
+      expect(smallTalkFor({ id: 'earl' }, () => 0.99)).toBe('passerby only line');
     });
   });
 

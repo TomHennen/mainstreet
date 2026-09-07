@@ -436,6 +436,17 @@ export interface WorldCopy {
      */
     passerbyName?: string;
     /**
+     * A pinch of local trivia (DESIGN.md §2), an easter egg rather than
+     * something to notice: about one time in five, a world person's small
+     * talk gives way to one of these instead of their usual line
+     * (`engine/session.ts`'s `smallTalkFor`) — a real roll, not tied to who
+     * is asked and never saved, so it is only ever a nice surprise, never a
+     * rung to climb. Keep each one true, kind, and short — under 140
+     * characters is plenty. Optional; a world with none simply never rolls
+     * for it.
+     */
+    trivia?: string[];
+    /**
      * The title screen (DESIGN.md §2). The engine draws the world's name and
      * its list of episodes; every word on it comes from here. `play` is the
      * action on an episode not started yet, `continue` on one with a save to
@@ -590,6 +601,28 @@ export interface Episode {
   scenes?: EpisodeScene[];
   /** Flag-gated patches to a village's one canonical map. */
   overlays?: MapOverlay[];
+  /**
+   * This episode's own opening, shown right after `copy.json`'s world `intro`
+   * on a fresh start of this episode — never on Continue, since that is
+   * exactly when the world intro is skipped too (DESIGN.md §3). The world
+   * intro sets the place and the controls, once; this is the one or two
+   * lines that say what this particular week is about, in the world intro's
+   * own voice. Optional: an episode with nothing to add here simply adds
+   * nothing. Each line must be non-empty.
+   */
+  intro?: string[];
+  /**
+   * This week's small talk (DESIGN.md §3). A world person with no dialogue of
+   * their own ordinarily says one of `copy.json`'s `ui.passerby` lines, the
+   * same person always getting the same line; when the running episode sets
+   * `smallTalk`, its lines take passerby's place for the length of that
+   * episode, picked the same way, so what the village is chatting about can
+   * change with the week's story without every episode having to repeat
+   * `ui.passerby`'s lines. Optional: an episode with nothing to say here
+   * simply leaves `ui.passerby` standing. Each line must be non-empty.
+   * `engine/session.ts`'s `smallTalkFor` is where this is read.
+   */
+  smallTalk?: string[];
 }
 
 // --- scenes (DESIGN.md §3) ---------------------------------------------------
