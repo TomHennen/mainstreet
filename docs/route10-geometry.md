@@ -187,7 +187,9 @@ Honest list, so the next pass knows what it is allowed to undo.
   about 140 m over 600 m going west; that is drawn as a stepped diagonal.
 - **Hobart: the Catskill Scenic Trail is not drawn.** It runs right through the
   frame, parallel to Main Street, and would read as a second road. Worth adding
-  later as a distinct path.
+  later as a distinct path. *(Superseded by §11: it is drawn now, one tile
+  wide, coming in at the top edge rather than running the length of the
+  village.)*
 - **Hobart: one of the two small mapped ponds east of the village** is kept; the
   other is under a tile wide at this scale and rendered as a puddle, so it went.
 - **All three: unnamed footprints.** The small two-tone blocks along each street
@@ -375,9 +377,10 @@ east, each with its door on the wrap-around sidewalk at y23:
 - **The West Branch moved south**, y27–28 to y37–38, to leave room for
   Railroad Avenue and the trail. Its west end steps down over four tiles
   instead of stopping square.
-- **The Catskill Scenic Trail is drawn** — one sandy tile at y33, running the
-  full width on the old rail bed and crossing NY 10. One tile wide against a
-  side street's two and a route's three, and labelled, so it reads as a path.
+- **The Catskill Scenic Trail is drawn** — one sandy tile at y33, on the old
+  rail bed. One tile wide against a side street's two and a route's three, and
+  labelled, so it reads as a path. §11 supersedes where it goes: it no longer
+  crosses NY 10, and it now turns south to leave the map for Hobart.
 - **Stamford Coffee's patio and lot moved with it.** The deck is now 7 × 3 at
   x85–91, y23–25, shared with 80 Main, which touches Coffee's west wall; the
   lot is x92–95, y20–25 with a two-tile drive at (92–93, 19). §8's coordinates
@@ -420,3 +423,86 @@ Stewart's, and the reason a room's door reads as a door.
 The tileset gained three tiles for these (ids 43-45): a stage floor, the same
 planks again for the stage's near row with the riser's front face on it, and a
 standing board. A bar top is the wooden counter tile over again.
+
+## 11. The scenic trail bends south (Sep 2026)
+
+Tom's ground truth for the Catskill Scenic Trail, which §9 had drawn as a
+straight sandy line across the whole Stamford map: **between Stamford and
+Hobart the old Ulster & Delaware rail bed stays east of Route 10 and west of
+the West Branch of the Delaware.** It threads the valley between the road and
+the river and never crosses the highway. So the trail no longer crosses NY 10,
+and it is now a way to get to Hobart rather than scenery.
+
+**Stamford (96 × 42).**
+
+| what                    | tiles                                      |
+|-------------------------|--------------------------------------------|
+| trail, east–west        | y33, x24–95 (unchanged east of the bend)   |
+| the bend                | (24, 33)                                   |
+| trail, north–south      | x24, y33–41                                |
+| footbridge              | (24, 37) and (24, 38)                      |
+| grass gap from NY 10    | x23, y33–41 (water at y37–38)              |
+| NY 10's own bridge      | x20–22, y37–38                             |
+| `stamford-hobart-trail` | exit at [24, 41, 1, 1] → hobart, spawn (36, 1), facing down |
+
+- **West of NY 10 the trail is gone.** y33, x0–19 is hillside grass again,
+  with the same scattered trees as the bands at y32 and y34. The
+  `stamford-trail-west` road end went with it; `stamford-trail-east` at
+  (95, 33) stays, because the rail bed really does keep running east.
+- **One tile of grass separates the trail from the road.** NY 10 occupies
+  x20–22; x23 is left clear the whole way down so the two lines never touch
+  and never read as one four-tile road.
+- **The West Branch now runs the full width of the map.** It used to stop in
+  the grass at x30/x34 (§9's "steps down over four tiles"), which left the
+  trail's new southward run with nothing to cross. The river is a real
+  through-flow — it comes down the valley from the east and runs on
+  south-west to Hobart — so y37–38 is water from x0 to x95, and both lines
+  cross it: NY 10 on a 3 × 2 bridge deck at x20–22, the trail on a 1 × 2
+  footbridge at x24, one tile of water between them. Real NY 10 crosses the
+  West Branch several times on the way down to Hobart; this is the first of
+  them, drawn where the map can show it. **What this cost:** the road's
+  dashed centre line breaks for the two rows of the bridge, and the river's
+  stepped west end is gone.
+- **South of the water the trail is on the river's far side.** Stamford's
+  West Branch is drawn as one east–west band across the bottom of the map, so
+  anything heading south has to cross it; in the real valley the rail bed
+  stays on the near side of the water for a good while yet and crosses much
+  further down. The footbridge is where that crossing got spent.
+- **A mown verge either side of the trail.** The trees at y32 and y34 are
+  cleared from x24 to x44, and at (25, 41). A one-tile path with a wall of
+  trees along both sides has nowhere for two people to pass: a townsperson
+  walking the trail would path all the way out to NY 10 to get round the
+  player. Grass either side is both what a rail-bed trail looks like and
+  what lets somebody step aside.
+
+**Hobart (52 × 30).** Here the real alignment lands on the grid almost by
+itself: NY 10 comes down x32–34 and the West Branch comes down x38, so there
+is a three-tile corridor between them and the trail takes the middle of it.
+
+| what                    | tiles                                      |
+|-------------------------|--------------------------------------------|
+| trail                   | x36, y0–19                                 |
+| grass gaps              | x35 (from the road) and x37 (from the river) |
+| spur onto Main Street   | (35, 19), touching the asphalt at (34, 19) |
+| trailhead marker        | stele at (35, 18)                          |
+| benches                 | (37, 19) and (35, 20)                      |
+| `hobart-stamford-trail` | exit at [36, 0, 1, 1] → stamford, spawn (24, 40), facing up |
+
+- **The trailhead is at the east end of Main Street, not north of it.** NY 10
+  runs down the map to y18 and only then turns west as Main Street, so there
+  is no block face north of Main east of the highway to put a trailhead on.
+  The trail comes down past the junction instead and lands beside Main's east
+  end, which is where somebody coming off the rail bed would actually step
+  onto the street.
+- **The label is short.** Stamford's says `CATSKILL SCENIC TRAIL`; Hobart's
+  says `SCENIC TRAIL` at (37, 9), because the full name centred on a
+  three-tile corridor would print across both NY 10 and the river.
+- **Trees in the corridor were cleared at y14–20** on x35 and x37, so the
+  trailhead reads as a path arriving rather than a gap in the woods. The
+  bands at the top of the map are untouched.
+
+Both exits use `style: "road"`, so they show the same travel card the drive
+does, with their own copy under `transitions` in `copy.json`
+(`stamford-hobart-trail`, `hobart-stamford-trail`). The `stamford-hobart`
+and `hobart-stamford` road exits, and everything else on either map, are
+unchanged.

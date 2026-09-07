@@ -260,6 +260,28 @@ export interface MapExit {
 }
 
 /**
+ * A road that runs out rather than going anywhere (DESIGN.md §2): a
+ * rectangle shaped exactly like an exit's `at`, but instead of leading
+ * somewhere it shows `lines` in the say box, narrator-voiced, the moment the
+ * player walks into it. Once per visit — leaving the rectangle and coming
+ * back shows it again, but standing there (or the box staying open) never
+ * repeats it. No flags, no effects, nothing saved: it is scenery talking,
+ * not the story.
+ *
+ * `edges` is how a *particular* road gets its own line ("NY 10 keeps going
+ * north from here..."); a road at a map's edge with no `exits` entry and no
+ * matching `edges` entry falls back to the engine's own generic
+ * `copy.ui.roadEnd` instead (never shown for grass or trees, only for a road
+ * that simply hasn't been mapped further).
+ */
+export interface MapEdge {
+  id: string;
+  /** Trigger area in tiles: [x, y, w, h], the same shape as an exit's `at`. */
+  at: Rect;
+  lines: string[];
+}
+
+/**
  * Everything about a map that world.json holds: its name, whether it is a
  * village or an interior, and every gameplay position on it. The tiles
  * themselves live in a Tiled file at `maps/<map id>.json` (DESIGN.md §2).
@@ -270,6 +292,8 @@ export interface MapMeta {
   buildings: BuildingPlacement[];
   labels: MapLabel[];
   exits: MapExit[];
+  /** Roads that dead-end here with their own line, rather than an exit (DESIGN.md §2). */
+  edges?: MapEdge[];
   /** Engine-drawn street fixtures on this map. Optional; usually absent. */
   fixtures?: Fixture[];
   /** Things on this map that can be read where they stand. Optional. */
@@ -494,6 +518,17 @@ export interface WorldCopy {
      * Keep them short, warm and about nobody in particular.
      */
     passerby?: string[];
+    /**
+     * What the narrator says when a road simply runs out — the player has
+     * walked a stretch of paving right up to the edge of what is mapped, and
+     * there is neither an `exits` entry there nor that map's own `edges`
+     * line for the spot (DESIGN.md §2). One is picked by the tile's own
+     * position, so the same dead end always says the same thing rather than
+     * changing on every visit. Never shown for grass or trees at an edge,
+     * only for a road that hasn't been mapped further; a world with none of
+     * these simply shows nothing there (hard rule 3).
+     */
+    roadEnd?: string[];
     /**
      * The name on the dialogue box when one of those townspeople has none of
      * their own (DESIGN.md §2). A world person is somebody the player passes

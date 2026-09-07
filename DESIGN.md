@@ -286,6 +286,41 @@ the world writes — brief labelled prompts the sender fills in or deletes. A
 `ui.suggest.link`, and the box simply reads with no link (hard rule 3). No
 address, subject or wording appears anywhere in engine code.
 
+**Road ends.** A village map is deliberately smaller than the real place, so
+most roads simply stop at the edge of what's drawn. Rather than the player
+bouncing off an invisible wall there, a map may give a specific road its own
+line, in a rectangle shaped exactly like an exit's `at`:
+
+```jsonc
+"maps": {
+  "jefferson": {
+    "edges": [
+      { "id": "jefferson-ny10-north", "at": [48, 0, 3, 1],
+        "lines": ["NY 10 keeps going north out of Jefferson, on up the valley. Another week, maybe."] }
+    ]
+  }
+}
+```
+
+Walking into the rectangle shows `lines` in the say box, narrator-voiced,
+once per visit — leaving the rectangle and coming back shows it again, but
+standing there, or the box staying open, never repeats it (`engine/edges.ts`,
+`MapScene.checkEdges`, beside `checkExits`). No flags, no effects, nothing
+saved: it is the road talking, not the story. The validator (`validate.ts`)
+checks an edge's rectangle sits inside the map, that it never shares a tile
+with an actual `exits` entry — a road cannot both leave town and dead-end in
+the same place — and that its `lines` are a non-empty list of non-empty
+strings.
+
+A road at a map's edge with neither an `exits` entry nor a matching `edges`
+entry falls back to `copy.json`'s `ui.roadEnd`, a short list of generic lines
+("Not today. There's plenty to see back in town.") the engine picks from by
+the tile's own position, so the same spot always says the same thing. This
+only fires on an actual road tile — walking off the mapped area into grass or
+trees shows nothing at all, since that reads as open country rather than a
+road that ran out. A world with no `ui.roadEnd` simply shows nothing for the
+roads nobody wrote a line for (hard rule 3).
+
 **Townspeople who walk.** Nothing on a map moves but the player unless the
 data says otherwise, and two shapes of data say otherwise. Both belong to a
 person — an episode NPC (§3) or one of a village's own people, below — and

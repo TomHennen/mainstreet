@@ -608,6 +608,63 @@ describe('validateWorld', () => {
     });
     expect(runWorld(world).join('\n')).toContain('unknown fixture kind');
   });
+
+  // Road ends (DESIGN.md §2): a rectangle shaped like an exit's `at`, but it
+  // says a line instead of leading anywhere.
+  describe('edges', () => {
+    it('accepts an edge inside the map with non-empty lines', () => {
+      const world = makeWorld({
+        maps: { town: makeMap({ edges: [{ id: 'north-road', at: [0, 0, 2, 1], lines: ['On it goes.'] }] }) }
+      });
+      expect(runWorld(world)).toEqual([]);
+    });
+
+    it('flags an edge that reaches outside the map', () => {
+      const world = makeWorld({
+        maps: { town: makeMap({ edges: [{ id: 'north-road', at: [3, 0, 2, 1], lines: ['On it goes.'] }] }) }
+      });
+      expect(runWorld(world).join('\n')).toContain('map "town" edge "north-road" is outside the map');
+    });
+
+    it('flags an edge that overlaps an exit', () => {
+      const world = makeWorld({
+        maps: {
+          town: makeMap({
+            exits: [{ id: 'town-away', at: [0, 0, 2, 1], to: 'away', spawn: [0, 0], facing: 'down', style: 'road' }],
+            edges: [{ id: 'north-road', at: [1, 0, 2, 1], lines: ['On it goes.'] }]
+          })
+        }
+      });
+      expect(runWorld(world).join('\n')).toContain('map "town" edge "north-road" overlaps exit "town-away"');
+    });
+
+    it('accepts an edge that merely sits beside an exit, not overlapping it', () => {
+      const world = makeWorld({
+        maps: {
+          town: makeMap({
+            exits: [{ id: 'town-away', at: [0, 0, 1, 1], to: 'away', spawn: [0, 0], facing: 'down', style: 'road' }],
+            edges: [{ id: 'north-road', at: [1, 0, 2, 1], lines: ['On it goes.'] }]
+          }),
+          away: makeMap()
+        }
+      });
+      expect(runWorld(world)).toEqual([]);
+    });
+
+    it('flags an edge with no lines', () => {
+      const world = makeWorld({
+        maps: { town: makeMap({ edges: [{ id: 'north-road', at: [0, 0, 2, 1], lines: [] }] }) }
+      });
+      expect(runWorld(world).join('\n')).toContain('map "town" edge "north-road" has no "lines"');
+    });
+
+    it('flags an edge with an empty line', () => {
+      const world = makeWorld({
+        maps: { town: makeMap({ edges: [{ id: 'north-road', at: [0, 0, 2, 1], lines: ['Fine.', '  '] }] }) }
+      });
+      expect(runWorld(world).join('\n')).toContain('map "town" edge "north-road" line 1 is empty');
+    });
+  });
 });
 
 describe('isSolid', () => {

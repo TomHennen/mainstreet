@@ -20,6 +20,7 @@ import {
   vehicleTexture
 } from '../art';
 import { currentDialogue, currentToast, publishDebug } from '../debug';
+import { edgeAt, roadEndLine } from '../edges';
 import { isHeld, onAction, onTap } from '../input';
 import { feedbackUrl } from '../feedback';
 import { improveUrl, paintUrl } from '../paint';
@@ -198,6 +199,8 @@ export class MapScene extends Phaser.Scene {
   private fixtureSprites = new Map<string, Phaser.GameObjects.Image>();
   private exitArmed = false;
   private enterArmed = false;
+  /** id of the `edges` entry (or a `road-end:<x>,<y>` key) currently shown, so it says its line once per visit rather than every frame. */
+  private edgeShown: string | null = null;
   private spawnX = 0;
   private spawnY = 0;
   private unbindAction: (() => void) | null = null;
@@ -250,6 +253,7 @@ export class MapScene extends Phaser.Scene {
     this.facing = data.facing;
     this.exitArmed = false;
     this.enterArmed = false;
+    this.edgeShown = null;
     this.itemSprites = new Map();
     this.fixtureSprites = new Map();
     this.facades = [];
@@ -938,6 +942,7 @@ export class MapScene extends Phaser.Scene {
     this.updatePrompt();
     this.updateMarker();
     this.checkExits();
+    this.checkEdges();
   }
 
   /**
@@ -1684,6 +1689,46 @@ export class MapScene extends Phaser.Scene {
       spawn: on.spawn,
       facing: on.facing
     });
+  }
+
+  /**
+   * A road that runs out at the edge of what's mapped (DESIGN.md §2): the
+   * map's own `edges` line for this tile if it has one, otherwise the
+   * generic `copy.ui.roadEnd` where the tile is a road at the map's edge
+   * with no way out. Says its line once per visit — the box stays shown
+   * while `edgeShown` matches, and only resets (so it can fire again) once
+   * the player has actually stepped off the spot — the same arm/disarm
+   * shape `checkExits` uses for its own doorstep rule, standing in for a
+   * cooldown without needing a clock.
+   */
+  private checkEdges(): void {
+    const tx = Math.floor((this.px + TILE / 2) / TILE);
+    const ty = Math.floor((this.py + TILE / 2) / TILE);
+    if (this.exitAt(tx, ty)) {
+      this.edgeShown = null;
+      return;
+    }
+
+    const edge = edgeAt(this.map, tx, ty);
+    if (edge) {
+      if (this.edgeShown !== edge.id) {
+        this.edgeShown = edge.id;
+        bus.emit(EV.say, { speaker: session().copy.ui.narrator, lines: edge.lines });
+      }
+      return;
+    }
+
+    const line = roadEndLine(this.map, tx, ty, session().copy.ui.roadEnd);
+    if (line) {
+      const key = `road-end:${tx},${ty}`;
+      if (this.edgeShown !== key) {
+        this.edgeShown = key;
+        bus.emit(EV.say, { speaker: session().copy.ui.narrator, lines: [line] });
+      }
+      return;
+    }
+
+    this.edgeShown = null;
   }
 
   private leave(opts: {

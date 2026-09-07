@@ -20,11 +20,15 @@ only two 13-sided barns on the Register in this part of the state. Real
 oddity, well documented, no living private person involved — strong future
 episode or landmark material, alongside the Princess Utsayantha legend
 (DESIGN.md §5). The **Catskill Scenic Trail** runs from Stamford to Hobart
-(a former rail bed) — locals and tourists both bike and walk it, and it's a
-standard thing for a visitor to do. Exact alignment relative to Route 10
-not yet confirmed; worth checking against OSM/USGS when Hobart or the
-Stamford-Hobart stretch next gets geometry work, since it's a real
-alternate path between two villages the engine already models.
+(a former rail bed — the old Ulster & Delaware line) — locals and tourists
+both bike and walk it, and it's a standard thing for a visitor to do.
+**Alignment (Tom, Sep 2026): between Stamford and Hobart the trail stays
+east of Route 10 and west of the West Branch of the Delaware** — the rail
+bed threads the valley between the road and the river, and does not cross
+Route 10. It is a real alternate path between two villages the engine
+already models, and since Sep 2026 the maps let you walk it: Stamford's
+bottom edge and Hobart's top edge carry a trail exit of their own beside
+the Route 10 one.
 
 **Stamford.** Stewart's is on the north-west corner of the 10/23 junction.
 Mac-A-Doodles is on the east side of Route 10, south of Route 23 (the
@@ -71,6 +75,10 @@ South of Main and west of Academy Street, **Churchill Avenue** runs down from
 Main to **Railroad Avenue**, which runs east–west parallel to Main. **T.P.'s
 Cafe** and **Ace Hardware** front Railroad Avenue near the Churchill corner,
 and the **Catskill Scenic Trail** follows the old rail bed just south of them.
+The trail comes in from the east and stops at Route 10: it does **not** cross
+the highway. Where the two meet it turns south and runs down the east side of
+Route 10, over the West Branch on a footbridge, and off the bottom of the map
+toward Hobart.
 
 **Jefferson.** Main Street is the spine and reads as a main street (paved).
 Mill Pond Inn and Middle Brook Cafe are on the south side of Main Street.
@@ -404,7 +412,10 @@ opt-in, everything warm and affectionate) before it reaches the player.
   it too. Good material for a "visiting for the day" episode framing, a
   tourist NPC asking for directions, or simply an alternate way to
   narrate the travel-screen trip between those two villages (a bike ride
-  along the trail instead of a drive down 10) once the geometry's mapped.
+  along the trail instead of a drive down 10). The geometry is mapped now:
+  the trail leaves Stamford at the bottom edge east of Route 10 and comes
+  into Hobart at the top edge, with its own travel card ("SCENIC TRAIL")
+  either way.
 - **Jefferson Town Hall.** Dog licensing happens there, though hardly
   anyone actually goes and does it. Town court sits about once a month.
   Metal recycling drop-off is the first Saturday of the month. Good
