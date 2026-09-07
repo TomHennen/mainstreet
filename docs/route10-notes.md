@@ -47,7 +47,8 @@ minutes, so locals lean on it even though it's rough around the edges
 (produce that's a little iffy, regular items — jalapeños, say — often out
 of stock). The genuine local feeling is gratitude that it's there at all,
 not the gripe about what it's missing; see Flavor & story hooks for how
-that has to land in-game.
+that has to land in-game. West of Tops was **Mountain Dog Cafe**, now
+closed — see Flavor & story hooks for its story alongside Stamford Coffee.
 
 **Jefferson.** Main Street is the spine and reads as a main street (paved).
 Mill Pond Inn and Middle Brook Cafe are on the south side of Main Street.
@@ -83,6 +84,8 @@ notes-file guess:
   likely doesn't have enough room there for a third full-size building —
   the block may need to be widened, the existing two buildings' lots
   tightened, or the block face re-thought.
+- **Mountain Dog Cafe** (closed) — west of Tops, so exact position waits
+  on Tops's own placement above.
 - **Solinsky's** (butcher) — village and exact position not yet given.
 - **The fire department** — west of Solinsky's, so Stamford, same
   unplaced block as Solinsky's; exact position not yet given.
@@ -211,6 +214,20 @@ opt-in, everything warm and affectionate) before it reaches the player.
   (hard rule 5, and no name was given anyway); it works as something the
   current fictional owner or a longtime regular says, retelling it as
   local lore ("the old owner used to say...").
+- **Mountain Dog Cafe and Stamford Coffee's shared origin story.** A true,
+  delightful coincidence: Stamford had no coffee shop, then two opened
+  the very same week — Mountain Dog Cafe (west of Tops) and Stamford
+  Coffee — neither one knowing the other existed until it happened. For a
+  while the town had a gentle, good-natured split: more of the longtime
+  locals went to Mountain Dog, more of the city transplants and visitors
+  went to Stamford Coffee. Not a real rivalry, just two good options and
+  people had their habits. Mountain Dog is closed now. Handle the closure
+  like Hillhaven Farms above — matter-of-fact and a little wistful, never
+  framed as "the local place lost," which would read as a knock on
+  Stamford Coffee (a real, currently-open business) and against hard rule
+  6. Good material for an old-timer reminiscing ("used to be you could
+  tell who was new in town by which coffee they drank") or a "remember
+  when" aside rather than a story that takes sides.
 - **Middle Brook Cafe's lot.** Dollar General had been eyeing that land
   before the cafe went in — locals are quietly glad DG ended up down the
   road to the east instead. Frame this warmly (relief that the cafe is
