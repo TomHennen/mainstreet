@@ -109,6 +109,11 @@
       "name": "Ace Hardware",
       "wall": "#8fa8a0",
       "roof": "#4f6660"
+    },
+    "jh-gas-station": {
+      "name": "J&H",
+      "wall": "#d6d2c4",
+      "roof": "#8f3b2b"
     }
   },
   "maps": {
@@ -174,6 +179,21 @@
           "door": [
             45,
             22
+          ]
+        },
+        {
+          "id": "jh-gas-station",
+          "pos": [
+            43,
+            9
+          ],
+          "size": [
+            5,
+            3
+          ],
+          "door": [
+            45,
+            12
           ]
         }
       ],
