@@ -15,7 +15,9 @@ import {
   plateLift,
   plaqueArt,
   promptTexture,
-  TILE
+  TILE,
+  vehicleFrame,
+  vehicleTexture
 } from '../art';
 import { currentDialogue, currentToast, publishDebug } from '../debug';
 import { isHeld, onAction, onTap } from '../input';
@@ -24,6 +26,7 @@ import { improveUrl, paintUrl } from '../paint';
 import { Lighting } from '../lighting';
 import { hashId, Mover, STROLL_FACTOR } from '../mover';
 import { patchFor, withOverlays } from '../overlay';
+import { Driver, DRIVE_FACTOR } from '../vehicle';
 import { findPath, pathToTile } from '../path';
 import { autosave } from '../progress';
 import { SceneRunner, sceneTriggered } from '../scene';
@@ -40,9 +43,10 @@ import {
   propSignsOn,
   session,
   signLinesFor,
-  smallTalkFor
+  smallTalkFor,
+  vehiclesOn
 } from '../session';
-import { isSolid, moverWalkable } from '../validate';
+import { driveable, isSolid, moverWalkable } from '../validate';
 import { lookOf, plaqueTile, SCENE_PLAYER } from '../schema';
 import type { PlateBox } from '../art';
 import type {
@@ -129,6 +133,18 @@ interface Walker {
   sprite: Phaser.GameObjects.Sprite;
 }
 
+/**
+ * One car going about its day on this map's paved routes (DESIGN.md §2, issue
+ * #72). It is a driver and a sprite and nothing else: no name, no dialogue, no
+ * tap target and no entry in `walkers`, which is what keeps it out of every
+ * other thing this scene does — collision, routing, the A button, the save.
+ */
+interface Car {
+  id: string;
+  driver: Driver;
+  sprite: Phaser.GameObjects.Sprite;
+}
+
 /** A rectangle of world pixels. */
 interface Box {
   x: number;
@@ -193,6 +209,8 @@ export class MapScene extends Phaser.Scene {
 
   /** Everybody on this map who is not the player, in draw order-agnostic order. */
   private walkers: Walker[] = [];
+  /** The ambient traffic on this map. Nothing else in the scene knows about it. */
+  private cars: Car[] = [];
   /** What a person may walk on here: worked out once, since the ground never moves. */
   private ground: (x: number, y: number) => boolean = () => false;
 
@@ -240,6 +258,7 @@ export class MapScene extends Phaser.Scene {
     this.walkTarget = null;
     this.walkFollow = null;
     this.walkers = [];
+    this.cars = [];
     this.replans = 0;
     this.lastReplan = 0;
     this.runner = null;
@@ -373,6 +392,7 @@ export class MapScene extends Phaser.Scene {
     for (const person of peopleOn(this.mapId)) {
       this.addWalker({ id: person.id, name: person.name ?? '', person });
     }
+    this.addCars();
 
     const playerKey = assets.chars.has(world.player.id)
       ? `art:char:${world.player.id}`
@@ -637,6 +657,91 @@ export class MapScene extends Phaser.Scene {
   }
 
   /**
+   * The village's ambient traffic (DESIGN.md §2, issue #72). Everything about
+   * a car is in this method, `updateCars` and the driver it hands off to: it
+   * is never added to `walkers`, so it is never solid, never a tap target,
+   * never something A can be pressed on and never anything a save hears about.
+   *
+   * A painted `assets/vehicles/<id>.png` replaces the drawn car by convention;
+   * a missing one is the normal case (hard rule 3).
+   */
+  private addCars(): void {
+    const { assets } = session();
+    const drivable = driveable(this.map);
+    for (const vehicle of vehiclesOn(this.mapId)) {
+      const key = assets.vehicles.has(vehicle.id)
+        ? `art:vehicle:${vehicle.id}`
+        : vehicleTexture(this, vehicle.kind, vehicle.colour);
+      const driver = new Driver({
+        pos: vehicle.pos,
+        path: vehicle.path,
+        loop: vehicle.loop,
+        pause: vehicle.pause,
+        // Tiles per second, like everybody else's, so a car drives the same on
+        // any screen and at any frame rate.
+        speed: vehicle.speed ?? (SPEED * DRIVE_FACTOR) / TILE,
+        drivable,
+        facing: vehicle.facing
+      });
+      // Origin at the middle of the car, which is what its tile position
+      // means: a car lies along the lane it is in rather than standing on it.
+      const sprite = this.add.sprite(0, 0, key, vehicleFrame(driver.facing)).setOrigin(0.5, 0.5);
+      this.cars.push({ id: vehicle.id, driver, sprite });
+    }
+    if (this.cars.length) this.drawCars();
+  }
+
+  /**
+   * The traffic's frame. A car drives on whatever else is happening — a
+   * village does not hold its breath while somebody reads a sign — and gives
+   * way to the player, and to any car listed before it on the map.
+   *
+   * That last rule is one-way on purpose: a car only ever waits for cars
+   * *earlier* in the list, so two of them can never sit waiting on each other
+   * at a crossroads. Nobody waits for a car, which is the whole point of them.
+   */
+  private updateCars(delta: number): void {
+    if (!this.cars.length) return;
+    const dt = delta / 1000;
+    this.cars.forEach((car, index) => {
+      car.driver.update(dt, {
+        blocked: (x, y) => {
+          for (const tile of this.playerTiles()) {
+            if (tile[0] === x && tile[1] === y) return true;
+          }
+          for (let i = 0; i < index; i++) {
+            for (const tile of this.cars[i].driver.mover.tiles()) {
+              if (tile[0] === x && tile[1] === y) return true;
+            }
+          }
+          return false;
+        }
+      });
+    });
+    this.drawCars();
+  }
+
+  /**
+   * Where the traffic is drawn, and how deep.
+   *
+   * **Depth.** A car sits at its own centre line — half a tile above the
+   * ground line of the row it is in — so it draws over the road and behind
+   * anything standing further down the street. It is then capped just under
+   * the player's own depth, so wherever the two overlap the player is in
+   * front: a car passes *under* the player, never over them, which is the
+   * drawn half of "never a hazard" (DESIGN.md §1).
+   */
+  private drawCars(): void {
+    const under = this.py + HITBOX - 1;
+    for (const car of this.cars) {
+      const { driver, sprite } = car;
+      sprite.setPosition(Math.round(driver.x * TILE) + TILE / 2, Math.round(driver.y * TILE) + TILE / 2);
+      sprite.setDepth(Math.min((driver.y + 0.5) * TILE, under));
+      sprite.setFrame(vehicleFrame(driver.facing));
+    }
+  }
+
+  /**
    * Everybody else's frame. People stand still while a box is open and while
    * the player is close enough to talk to them, so somebody with something to
    * say is never walked away from mid-sentence; they never step onto the
@@ -743,6 +848,14 @@ export class MapScene extends Phaser.Scene {
         y: walker.mover.y,
         tiles: walker.mover.tiles().map((tile) => [tile[0], tile[1]] as [number, number])
       })),
+      vehicles: this.cars.map((car) => ({
+        id: car.id,
+        x: car.driver.x,
+        y: car.driver.y,
+        facing: car.driver.facing,
+        stopped: car.driver.stopped,
+        yielding: car.driver.yielding
+      })),
       flags: state.flags.snapshot(),
       dialogue: currentDialogue(),
       scene: this.runner ? { id: this.runner.id, holds: this.runner.holds } : null,
@@ -759,8 +872,11 @@ export class MapScene extends Phaser.Scene {
     this.lighting.update(dt);
     this.runScene(dt);
     // Everybody else moves first, and keeps moving on their own clock: the
-    // town does not stop because the player is standing still.
+    // town does not stop because the player is standing still. The traffic
+    // keeps moving through a dialogue box too — a car outside the window does
+    // not wait for a conversation to finish.
     this.updateWalkers(delta);
+    this.updateCars(delta);
     if (state.locked || (state.dialogueOpen && !this.sceneWalk)) {
       // A card or a box means the trip is over: the walk does not pick itself
       // back up behind the player's back once they have read the line.

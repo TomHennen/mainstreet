@@ -22,6 +22,7 @@ import type {
   MapOverlay,
   Person,
   Vec2,
+  Vehicle,
   World,
   WorldCopy
 } from './schema';
@@ -33,6 +34,8 @@ export interface AssetIndex {
   portraits: Set<string>;
   /** Tilesets whose image is painted; the rest fall back to drawn tiles. */
   tilesets: Set<string>;
+  /** Vehicles with a painted sheet; the rest fall back to the drawn car. */
+  vehicles: Set<string>;
 }
 
 export interface Session {
@@ -149,6 +152,9 @@ export function smallTalkFor(person: { id: string }, random: () => number = Math
  */
 export const overlaysOn = (mapId: string): MapOverlay[] =>
   activeOverlays(session().episode.overlays, mapId, session().flags);
+
+/** The ambient traffic on a map (DESIGN.md §2). Village data, never an episode's. */
+export const vehiclesOn = (mapId: string): Vehicle[] => session().world.maps[mapId]?.vehicles ?? [];
 
 export const itemsOn = (mapId: string): EpisodeItem[] =>
   (session().episode.items ?? []).filter((item) => item.map === mapId);

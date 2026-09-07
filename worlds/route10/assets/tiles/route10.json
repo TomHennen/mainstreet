@@ -583,6 +583,11 @@
           "value": "#52525b"
         },
         {
+          "name": "drive",
+          "type": "bool",
+          "value": true
+        },
+        {
           "name": "solid",
           "type": "bool",
           "value": false
@@ -607,6 +612,11 @@
           "name": "colors",
           "type": "string",
           "value": "#45454d"
+        },
+        {
+          "name": "drive",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "solid",
@@ -635,6 +645,11 @@
           "value": "#d9a441"
         },
         {
+          "name": "drive",
+          "type": "bool",
+          "value": true
+        },
+        {
           "name": "solid",
           "type": "bool",
           "value": false
@@ -659,6 +674,11 @@
           "name": "colors",
           "type": "string",
           "value": "#d9a441"
+        },
+        {
+          "name": "drive",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "solid",
@@ -863,6 +883,11 @@
           "name": "colors",
           "type": "string",
           "value": "#d8cfc0"
+        },
+        {
+          "name": "drive",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "solid",

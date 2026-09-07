@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseTiledMap, parseTileset, tilesetSources } from './tiled';
 import type { TilesetDef } from './tiled';
-import { isSolid, moverWalkable, overlayNotes, validateEpisode, validateWorld } from './validate';
+import { driveable, isSolid, moverWalkable, overlayNotes, validateEpisode, validateWorld } from './validate';
 import { hashId, Mover } from './mover';
 import { plaqueTile } from './schema';
 import type { BuildingDef, BuildingPlacement, Episode, Fixture, GameMap, MapMeta, World } from './schema';
@@ -21,9 +21,9 @@ const TILESET = {
   image: 'test.png',
   tilewidth: 16,
   tileheight: 16,
-  columns: 2,
-  tilecount: 2,
-  imagewidth: 32,
+  columns: 3,
+  tilecount: 3,
+  imagewidth: 48,
   imageheight: 16,
   tiles: [
     {
@@ -43,11 +43,23 @@ const TILESET = {
         { name: 'solid', type: 'bool', value: true },
         { name: 'style', type: 'string', value: 'flat' }
       ]
+    },
+    // The paved surface a vehicle may drive along: `drive`, like `solid`, is a
+    // tileset property rather than anything the engine knows the name of.
+    {
+      id: 2,
+      type: 'asphalt',
+      properties: [
+        { name: 'colors', type: 'string', value: '#333' },
+        { name: 'drive', type: 'bool', value: true },
+        { name: 'solid', type: 'bool', value: false },
+        { name: 'style', type: 'string', value: 'flat' }
+      ]
     }
   ]
 };
 
-/** `.` walkable, `#` solid — one `ground` layer, as the engine expects. */
+/** `.` walkable, `#` solid, `=` paved and drivable — one `ground` layer. */
 function tiledMap(rows: string[]) {
   const height = rows.length;
   const width = height ? rows[0].length : 0;
@@ -67,7 +79,7 @@ function tiledMap(rows: string[]) {
         visible: true,
         width,
         height,
-        data: rows.flatMap((row) => [...row].map((ch) => (ch === '#' ? 2 : 1)))
+        data: rows.flatMap((row) => [...row].map((ch) => (ch === '#' ? 2 : ch === '=' ? 3 : 1)))
       }
     ]
   };
@@ -1558,5 +1570,150 @@ describe('a person’s own lines', () => {
       })
     );
     expect(problems).toEqual([]);
+  });
+});
+
+/**
+ * Ambient traffic (DESIGN.md §2, issue #72). A car's path is data like
+ * everything else, and the one rule about it — cars keep to the paved routes —
+ * is a rule about tiles, so it is checked here against real parsed map data.
+ */
+describe('vehicles', () => {
+  // A three-lane paved route across the middle, a sandy side street below it.
+  const ROADS = [
+    '..........',
+    '==========',
+    '==========',
+    '==========',
+    '..........'
+  ];
+
+  const townWith = (vehicles: unknown) =>
+    makeWorld({
+      maps: {
+        town: makeMap({ vehicles: vehicles as MapMeta['vehicles'] }, ROADS)
+      }
+    });
+
+  const car = (overrides: Record<string, unknown> = {}) => ({
+    id: 'car1',
+    kind: 'car',
+    colour: '#9babb2',
+    path: [[1, 3], [8, 3], [8, 1], [1, 1]],
+    ...overrides
+  });
+
+  it('accepts a car looping the paved route', () => {
+    expect(runWorld(townWith([car()]))).toEqual([]);
+  });
+
+  it('accepts a map with no vehicles at all', () => {
+    expect(runWorld(makeWorld({ maps: { town: makeMap({}, ROADS) } }))).toEqual([]);
+  });
+
+  it('rejects a waypoint off the paved route', () => {
+    const problems = runWorld(townWith([car({ path: [[1, 3], [1, 4]] })]));
+    expect(problems.join('\n')).toContain('cars keep to the paved routes');
+  });
+
+  it('rejects a waypoint outside the map', () => {
+    expect(runWorld(townWith([car({ path: [[1, 3], [40, 3]] })])).join('\n')).toContain('is outside the map');
+  });
+
+  it('rejects a path with one waypoint', () => {
+    expect(runWorld(townWith([car({ path: [[1, 3]] })])).join('\n')).toContain('fewer than two waypoints');
+  });
+
+  it('rejects an unknown kind', () => {
+    expect(runWorld(townWith([car({ kind: 'tractor' })])).join('\n')).toContain('unknown kind "tractor"');
+  });
+
+  it('rejects a colour that is not a colour', () => {
+    expect(runWorld(townWith([car({ colour: 'green' })])).join('\n')).toContain("a \"colour\" that isn't a hex colour");
+  });
+
+  it('rejects a speed that is not a number of tiles per second', () => {
+    expect(runWorld(townWith([car({ speed: 0 })])).join('\n')).toContain("a \"speed\" that isn't");
+  });
+
+  it('rejects a pause that is not a number of seconds', () => {
+    expect(runWorld(townWith([car({ pause: -1 })])).join('\n')).toContain("a \"pause\" that isn't");
+  });
+
+  it('rejects a car with no id, and the same car listed twice', () => {
+    expect(runWorld(townWith([car({ id: '' })])).join('\n')).toContain('every vehicle needs an id');
+    expect(runWorld(townWith([car(), car()])).join('\n')).toContain('is listed twice');
+  });
+
+  it('rejects a leg with no paved way through', () => {
+    // Two stretches of pavement with a field between them.
+    const split = ['..........', '===..=====', '..........'];
+    const problems = runWorld(
+      makeWorld({
+        maps: {
+          town: makeMap({ vehicles: [car({ path: [[1, 1], [8, 1]], loop: false }) as never] }, split)
+        }
+      })
+    );
+    expect(problems.join('\n')).toContain('no paved way through');
+  });
+
+  it('accepts a parked car on the pavement', () => {
+    expect(runWorld(townWith([{ id: 'parked', kind: 'pickup', colour: '#547e64', pos: [4, 1], facing: 'left' }]))).toEqual(
+      []
+    );
+  });
+
+  it('rejects a parked car left on the grass', () => {
+    const problems = runWorld(townWith([{ id: 'parked', kind: 'pickup', colour: '#547e64', pos: [4, 0] }]));
+    expect(problems.join('\n')).toContain('cars keep to the paved routes');
+  });
+
+  it('rejects a car with neither a path nor a pos', () => {
+    expect(runWorld(townWith([{ id: 'nowhere', kind: 'car', colour: '#9babb2' }])).join('\n')).toContain(
+      'neither a "path" to drive nor a "pos" to be parked on'
+    );
+  });
+
+  it('rejects an unknown facing', () => {
+    const problems = runWorld(townWith([car({ facing: 'sideways' })]));
+    expect(problems.join('\n')).toContain('unknown "facing"');
+  });
+
+  it('lets a map with no paved tiles park a car anywhere it fits', () => {
+    const yard = ['....', '..##', '....'];
+    const parked = (pos: number[]) => ({ id: 'parked', kind: 'van', colour: '#ab947a', pos });
+    const town = (pos: number[]) => makeMap({ vehicles: [parked(pos) as never] }, yard);
+    expect(runWorld(makeWorld({ maps: { town: town([0, 0]) } }))).toEqual([]);
+    expect(runWorld(makeWorld({ maps: { town: town([2, 1]) } })).join('\n')).toContain(
+      'somewhere no vehicle could be left'
+    );
+  });
+
+  it('checks the tile a moving car starts on, when it is given one', () => {
+    const problems = runWorld(townWith([car({ pos: [4, 0] })]));
+    expect(problems.join('\n')).toContain('cars keep to the paved routes');
+  });
+
+  it('rejects more traffic than a village reads as', () => {
+    const many = [0, 1, 2, 3].map((n) => car({ id: `car${n}` }));
+    expect(runWorld(townWith(many)).join('\n')).toContain('as much traffic as a village reads as');
+  });
+});
+
+describe('driveable', () => {
+  const ROADS = ['....', '====', '....'];
+
+  it('is true only on paved tiles inside the map', () => {
+    const drive = driveable(makeMap({}, ROADS));
+    expect(drive(1, 1)).toBe(true);
+    expect(drive(1, 0)).toBe(false);
+    expect(drive(-1, 1)).toBe(false);
+    expect(drive(9, 1)).toBe(false);
+  });
+
+  it('is false where a building stands on the pavement', () => {
+    const map = makeMap({ buildings: [{ id: 'shop', pos: [1, 1], size: [1, 1], door: [1, 2] }] }, ROADS);
+    expect(driveable(map)(1, 1)).toBe(false);
   });
 });

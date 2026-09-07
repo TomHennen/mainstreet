@@ -1,8 +1,19 @@
 import Phaser from 'phaser';
 import { drawFigure, figureKey } from './figure';
+import { drawVehicle, VEHICLE_CELL } from './motor';
 import { FACINGS, plaqueTile } from './schema';
 import { TILE } from './tiled';
-import type { BuildingDef, BuildingPlacement, Facing, Fixture, FixtureKind, GameMap, Look, Vec2 } from './schema';
+import type {
+  BuildingDef,
+  BuildingPlacement,
+  Facing,
+  Fixture,
+  FixtureKind,
+  GameMap,
+  Look,
+  Vec2,
+  VehicleKind
+} from './schema';
 import type { TileDef, TilesetDef } from './tiled';
 
 /**
@@ -971,6 +982,41 @@ export function characterTexture(scene: Phaser.Scene, look: Look): string {
 
 export function frameIndex(dir: Facing, step: number): number {
   return FACINGS.indexOf(dir) * 3 + step;
+}
+
+// --- vehicles ----------------------------------------------------------------
+
+/** Re-exported with the rest of the art sizes: one frame of a vehicle sheet. */
+export { VEHICLE_CELL };
+
+/**
+ * The placeholder car (DESIGN.md §2/§4, issue #72), laid out exactly like a
+ * painted sheet so a dropped-in PNG uses the same frame indices: four rows of
+ * 32x32, one per facing, in the same order as a character sheet and with no
+ * walk frames — a car is the same car whether or not it is moving. A painted
+ * `assets/vehicles/<id>.png` is therefore 32x128.
+ *
+ * The recipe itself lives in engine/motor.ts, which needs no browser; this
+ * wraps it in a Phaser texture, one per kind-and-colour.
+ */
+export function vehicleTexture(scene: Phaser.Scene, kind: VehicleKind, colour: string): string {
+  const key = `vehicle:${kind}:${colour}`;
+  if (scene.textures.exists(key)) return key;
+
+  const { texture, ctx } = canvas(scene, key, VEHICLE_CELL, VEHICLE_CELL * FACINGS.length);
+  FACINGS.forEach((dir, row) => drawVehicle(ctx, 0, row * VEHICLE_CELL, dir, kind, colour));
+  texture.refresh();
+
+  FACINGS.forEach((_, row) => {
+    texture.add(row, 0, 0, row * VEHICLE_CELL, VEHICLE_CELL, VEHICLE_CELL);
+  });
+
+  return key;
+}
+
+/** Which frame of a vehicle sheet a car pointing this way uses. */
+export function vehicleFrame(dir: Facing): number {
+  return FACINGS.indexOf(dir);
 }
 
 // --- small props -------------------------------------------------------------

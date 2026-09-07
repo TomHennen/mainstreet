@@ -425,6 +425,33 @@
             "pause": 2
           }
         }
+      ],
+      "vehicles": [
+        {
+          "id": "jefferson-main-van",
+          "kind": "van",
+          "colour": "#ab947a",
+          "path": [
+            [
+              2,
+              15
+            ],
+            [
+              60,
+              15
+            ],
+            [
+              60,
+              13
+            ],
+            [
+              2,
+              13
+            ]
+          ],
+          "pause": 1.2,
+          "speed": 8
+        }
       ]
     },
     "stamford": {
@@ -807,6 +834,58 @@
             "pause": 2
           }
         }
+      ],
+      "vehicles": [
+        {
+          "id": "stamford-main-car",
+          "kind": "car",
+          "colour": "#9babb2",
+          "path": [
+            [
+              2,
+              18
+            ],
+            [
+              88,
+              18
+            ],
+            [
+              88,
+              16
+            ],
+            [
+              2,
+              16
+            ]
+          ],
+          "pause": 1.2,
+          "speed": 8
+        },
+        {
+          "id": "stamford-route10-pickup",
+          "kind": "pickup",
+          "colour": "#547e64",
+          "path": [
+            [
+              20,
+              2
+            ],
+            [
+              20,
+              39
+            ],
+            [
+              22,
+              39
+            ],
+            [
+              22,
+              2
+            ]
+          ],
+          "pause": 1.2,
+          "speed": 8
+        }
       ]
     },
     "hobart": {
@@ -935,6 +1014,33 @@
             "radius": 3,
             "pause": 2
           }
+        }
+      ],
+      "vehicles": [
+        {
+          "id": "hobart-main-car",
+          "kind": "car",
+          "colour": "#966c6c",
+          "path": [
+            [
+              2,
+              20
+            ],
+            [
+              30,
+              20
+            ],
+            [
+              30,
+              18
+            ],
+            [
+              2,
+              18
+            ]
+          ],
+          "pause": 1.2,
+          "speed": 8
         }
       ]
     },

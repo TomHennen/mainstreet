@@ -131,6 +131,11 @@ function validateWorldAssets(dir: string, worldId: string): void {
     ...episodes.flatMap((ep) => ep.npcs.map((npc) => npc.id)),
     ...Object.values(world.maps).flatMap((meta) => (meta.people ?? []).map((person) => person.id))
   ]);
+  // Ambient traffic is village data, so a vehicle sheet is checked against
+  // what the maps actually place (DESIGN.md §2, issue #72).
+  const vehicleIds = new Set(
+    Object.values(world.maps).flatMap((meta) => (meta.vehicles ?? []).map((vehicle) => vehicle.id))
+  );
 
   // A building's facade width is checked against its footprint, which lives
   // in world.json's per-map placements, not in the building registry itself.
@@ -174,6 +179,7 @@ function validateWorldAssets(dir: string, worldId: string): void {
   const paintedChars = new Set<string>();
   const paintedPortraits = new Set<string>();
   const paintedTilesets = new Set<string>();
+  const paintedVehicles = new Set<string>();
 
   for (const file of files) {
     const full = join(assetsDir, file);
@@ -241,6 +247,20 @@ function validateWorldAssets(dir: string, worldId: string): void {
       }
       if (palette) checkPixels(worldId, full, png, palette);
       paintedPortraits.add(id);
+    } else if (top === 'vehicles') {
+      const id = base.slice(0, -4);
+      if (!vehicleIds.has(id)) {
+        fail(worldId, full, `no vehicle "${id}" on any of world.json's maps`);
+        continue;
+      }
+      const png = loadPng(worldId, full);
+      if (!png) continue;
+      if (png.width !== 32 || png.height !== 128) {
+        fail(worldId, full, `is ${png.width}×${png.height}px, expected 32×128 (4 directions of 32×32, no walk frames)`);
+        continue;
+      }
+      if (palette) checkPixels(worldId, full, png, palette);
+      paintedVehicles.add(id);
     } else if (top === 'tiles') {
       const tileset = tilesetsByImage.get(base);
       if (!tileset) {
@@ -323,7 +343,8 @@ function validateWorldAssets(dir: string, worldId: string): void {
   }
 
   if (!problems.some((p) => p.startsWith(`✗ ${worldId}:`))) {
-    const paintedCount = paintedBuildings.size + paintedChars.size + paintedPortraits.size + paintedTilesets.size;
+    const paintedCount =
+      paintedBuildings.size + paintedChars.size + paintedPortraits.size + paintedTilesets.size + paintedVehicles.size;
     console.log(`✓ ${worldId} (${paintedCount} painted asset${paintedCount === 1 ? '' : 's'})`);
   }
 }

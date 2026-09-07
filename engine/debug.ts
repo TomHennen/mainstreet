@@ -45,6 +45,13 @@ export interface DebugSnapshot {
    * the harness cannot take their placed position for where they are.
    */
   people: { id: string; x: number; y: number; tiles: [number, number][] }[];
+  /**
+   * The ambient traffic on this map, where it is *now* — tile coordinates as
+   * floats, which way it is pointing, and whether it is standing still. Cars
+   * give way to the player (engine/vehicle.ts), so the harness needs to see
+   * both the moving and the stopping.
+   */
+  vehicles: { id: string; x: number; y: number; facing: Facing; stopped: boolean; yielding: boolean }[];
   flags: Record<string, boolean>;
   /** The page of dialogue on screen, or null when no box is open. */
   dialogue: DebugDialogue | null;

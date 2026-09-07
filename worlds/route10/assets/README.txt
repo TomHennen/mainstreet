@@ -1,7 +1,7 @@
 Painted art for Route 10 drops in under this folder by convention — see
 README.md at the repo root for the full "Adding art" table. Missing files
 fall back to engine-built placeholders (buildings/, chars/, portraits/,
-tiles/ each carry their own README with size and layout details).
+tiles/, vehicles/ each carry their own README with size and layout details).
 
 Palette
 -------

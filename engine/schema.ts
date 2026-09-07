@@ -203,6 +203,51 @@ export interface Person {
   lines?: string[];
 }
 
+/**
+ * The vehicles the engine knows how to draw (DESIGN.md §2). A fixed
+ * vocabulary, like `FIXTURE_KINDS` and the hair styles: a world pack can only
+ * ask for a shape the engine can actually paint, and a typo is a validator
+ * error rather than a car that quietly turns into a saloon.
+ */
+export const VEHICLE_KINDS = ['car', 'pickup', 'van'] as const;
+export type VehicleKind = (typeof VEHICLE_KINDS)[number];
+
+/**
+ * A car going about its day on a village's paved route (DESIGN.md §2).
+ *
+ * It is ambient and nothing else: it is never solid, never a hazard, has
+ * nothing to say, is not a tap target, and never touches a save. It gives way
+ * to the player rather than the other way round — see `engine/vehicle.ts`.
+ *
+ * `path` is waypoints in order, exactly as a person's `route` is, and the
+ * engine's own pathfinder fills in the tiles between them. Every one of those
+ * tiles has to carry the tileset's `drive` property, which is what keeps cars
+ * on the paved routes and off the quiet side streets (engine/validate.ts).
+ *
+ * A vehicle with no `path` at all is a **parked** one: it sits on `pos`,
+ * facing where it was left, drawn exactly like a moving one and just as
+ * un-solid. That is how somebody's pickup ends up in a lot for an episode
+ * without the engine gaining any idea of whose it is.
+ */
+export interface Vehicle {
+  id: string;
+  kind: VehicleKind;
+  /** Body colour of the engine-drawn placeholder. Ignored once painted. */
+  colour: string;
+  /** The tile it sits on. Defaults to the first waypoint; required when parked. */
+  pos?: Vec2;
+  /** Which way it points. Default 'down'; a moving car turns as it drives. */
+  facing?: Facing;
+  /** Waypoints, in order. Each one has to be somewhere a vehicle can drive. */
+  path?: Vec2[];
+  /** Back to the first waypoint after the last. Default true. */
+  loop?: boolean;
+  /** Tiles per second. Default: the player's walking speed x 3. */
+  speed?: number;
+  /** Seconds spent standing at each waypoint. Default 0.8. */
+  pause?: number;
+}
+
 export interface MapExit {
   id: string;
   /** Trigger area in tiles: [x, y, w, h]. */
@@ -234,6 +279,11 @@ export interface MapMeta {
    * three per map is plenty, and the validator says so (DESIGN.md §2).
    */
   people?: Person[];
+  /**
+   * Ambient traffic on this map's paved routes (DESIGN.md §2). One or two per
+   * village is what makes a street read as lived-in; the validator says so.
+   */
+  vehicles?: Vehicle[];
 }
 
 /** A map as the engine plays it: world.json's metadata plus its Tiled grid. */
