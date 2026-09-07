@@ -19,7 +19,9 @@ Street east of it; Route 10 is Lake Street north of the corner and Hobart Road
 south of it. Stamford Coffee is on the south side of Main Street. The
 Belvedere is up Academy Street, a long walk uphill from Main Street, and
 Academy Street is west of Stamford Coffee. Mount Utsayantha and its lake are
-north-east up Lake Street. Across Main Street from Stamford Coffee is a full
+north-east up Lake Street. The south-west corner of the 10/23 junction was
+Hillhaven Farms, now closed — the owners retired to Alaska (upstate New York
+winters weren't cold enough for them). Across Main Street from Stamford Coffee is a full
 empty lot: two buildings there burned down a couple of years ago, and the
 wreckage sat for years before it was finally bulldozed. It should be mapped
 as one of the reserved full-size open lots (map rule 4), not filler scenery.
@@ -125,6 +127,12 @@ opt-in, everything warm and affectionate) before it reaches the player.
   here" debate among townspeople, a pop-up farmers market or community
   garden using the space in the meantime, or a hopeful beat about something
   finally being planned for it.
+- **Hillhaven Farms (closed).** Used to sit on the south-west corner of the
+  10/23 junction in Stamford. The owners retired to Alaska — the joke being
+  that upstate New York winters weren't cold enough for them. A fond,
+  funny closure rather than a sad one; good for an affectionate aside from
+  a local ("last I heard from them, they were shoveling snow in July and
+  loving it") rather than a story about the business itself.
 - **Jefferson Town Hall.** Dog licensing happens there, though hardly
   anyone actually goes and does it. Town court sits about once a month.
   Metal recycling drop-off is the first Saturday of the month. Good
