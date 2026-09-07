@@ -1828,9 +1828,18 @@ async function main() {
       fail('studio-markers', `the code never settled${differentFrom ? ' after moving a marker' : ''}`);
     }
 
+    // The marker rows sit behind "More" now — the strip under the drawing is
+    // the everyday way to move a marker, and the buttons are there for a
+    // keyboard, a screen reader, or anyone who would rather not drag.
+    if (await sp.locator('#doorrow').isVisible()) {
+      fail('studio-markers', 'the door row is on the phone editor before "More" has been opened');
+    }
+    await sp.locator('#moretoggle').click({ timeout: 20000 });
+    await sleep(200);
     for (const sel of ['#doorrow', '#plaquerow', '#doorleft', '#doorright', '#doorreset', '#markers']) {
       if (!(await sp.locator(sel).isVisible({ timeout: 20000 }))) fail('studio-markers', `${sel} is not on the page`);
     }
+    log('    "More" reveals the door and plaque rows');
     const doorAt = async () => (await sp.locator('#doorwhere').innerText({ timeout: 20000 })).trim();
     const restingPlace = await doorAt();
     if (!restingPlace) fail('studio-markers', 'the door marker does not say which column it is in');
@@ -1988,100 +1997,113 @@ async function main() {
     await autoCtx.close();
 
     // --- the Studio's send step ---------------------------------------------
-    // A mailto: that goes nowhere looks exactly like one that worked — which
-    // is what a desktop browser with no mail app does — so the studio shows
-    // every other way to send after every send, and never claims the mail app
-    // opened. Two things matter here: the panel appears at all, and the routes
-    // agree with each other about the address while disagreeing, correctly,
-    // about whether the drawing's code fits in their kind of link.
-    log('  Studio: sending, and every way out of it');
+    // This world pack carries a `submit.art` block, so Send posts the drawing
+    // straight to the form the pack names: no mail app, no account, and no
+    // address or field id anywhere in the studio's own code (hard rule 1). The
+    // post is intercepted here — a playtest never submits anything for real —
+    // and read back field by field, because a cross-origin form post comes
+    // back opaque and a wrong field id would otherwise look like a success.
+    log('  Studio: sending to the form the world pack names');
     const send = await touchCtx.newPage();
     attach(send, 'studio-send');
 
-    /** Every send route the panel offers, with its body decoded back to text. */
-    async function sendRoutes(page) {
-      return evalIn(page, 'the send panel\u2019s links', () => {
-        const body = (href, key) => {
-          const q = href.slice(href.indexOf('?') + 1);
-          const found = new URLSearchParams(q).get(key);
-          return found ?? '';
-        };
-        const href = (id) => document.getElementById(id).getAttribute('href') ?? '';
-        return {
-          shown: !document.getElementById('fallback').hidden,
-          address: document.querySelector('.fallback .address strong')?.textContent ?? '',
-          mailto: { href: href('sendmail'), body: body(href('sendmail'), 'body') },
-          gmail: { href: href('gmail'), body: body(href('gmail'), 'body') },
-          outlook: { href: href('outlook'), body: body(href('outlook'), 'body') }
-        };
-      });
+    const FORM = WORLD.submit?.art;
+    if (!FORM) fail('studio-send', 'this world pack has no submit.art for the studio to post to');
+
+    let posted = null;
+    await send.route(FORM.form, async (route) => {
+      posted = { method: route.request().method(), body: route.request().postData() ?? '' };
+      await route.fulfill({ status: 200, contentType: 'text/plain', body: 'ok' });
+    });
+
+    /** Waits for the intercepted post, and hands back its fields. */
+    async function waitForPost(what) {
+      for (let i = 0; i < 100; i++) {
+        if (posted) {
+          const fields = new URLSearchParams(posted.body);
+          const seen = posted;
+          posted = null;
+          return { method: seen.method, fields };
+        }
+        await sleep(100);
+      }
+      fail('studio-send', `pressing Send posted nothing to the form ${what}`);
     }
 
     await send.goto(`${BASE}studio/?world=${WORLD_ID}&building=${bare.id}`, { waitUntil: 'load' });
     await send.waitForSelector('#markers', { timeout: 20000 });
-    if (await send.locator('#fallback').isVisible()) {
-      fail('studio-send', 'the send panel was showing before anything had been sent');
+    if (await send.locator('#insurance').isVisible()) {
+      fail('studio-send', 'the "Didn\u2019t go through?" note was showing before anything had been sent');
     }
+    // With a form configured there is no email route at all — one way to send,
+    // and it is the one that needs nothing of the painter's machine.
+    for (const gone of ['#sendmail', '#gmail', '#outlook', '#fallback']) {
+      if (await send.locator(gone).count()) {
+        fail('studio-send', `${gone} is still on the page, and this world posts to a form`);
+      }
+    }
+    const mailLinks = await evalIn(send, 'any mailto: link left on the page', () =>
+      Array.from(document.querySelectorAll('a[href^="mailto:"]')).length
+    );
+    if (mailLinks) fail('studio-send', `${mailLinks} mailto: link(s) on a page that posts to a form`);
+
     // The drawing code is the long line that starts with the codec's magic;
     // the paste box's own placeholder is where the harness learns it.
     const MAGIC = (await send.locator('#codebox').getAttribute('placeholder')).split('|')[0];
 
-    // A small drawing: the code fits in a mailto, so every route carries it.
     await send.locator('#fromguide').click({ timeout: 20000 });
     await sleep(400);
     await send.locator('#credit').fill('A resident');
+    await send.locator('#notes').fill('The awning is green in summer.');
     await send.locator('#consent').check({ timeout: 20000 });
     await send.locator('#send').click({ timeout: 20000 });
-    await sleep(400);
 
-    const small = await sendRoutes(send);
-    if (!small.shown) fail('studio-send', 'pressing Send left the panel of other ways to send hidden');
-    if (!small.address.includes('@')) fail('studio-send', `the panel shows no address to send to ("${small.address}")`);
-    if (!small.mailto.href.startsWith(`mailto:${small.address}`)) {
-      fail('studio-send', `the mail-app link does not go to the address the panel shows: ${small.mailto.href.slice(0, 60)}`);
+    const small = await waitForPost('for a small drawing');
+    if (small.method !== 'POST') fail('studio-send', `the studio sent a ${small.method}, not a POST`);
+    const want = [
+      ['building', FORM.fields.building, bare.id],
+      ['world', FORM.fields.world, WORLD_ID],
+      ['credit', FORM.fields.credit, 'A resident'],
+      ['notes', FORM.fields.notes, 'The awning is green in summer.']
+    ];
+    for (const [what, id, value] of want) {
+      if (!id) continue;
+      const got = small.fields.get(id);
+      if (got !== value) fail('studio-send', `the form's "${what}" field (${id}) carried "${got}", not "${value}"`);
     }
-    for (const [name, route, host] of [
-      ['Gmail', small.gmail, 'https://mail.google.com/mail/'],
-      ['Outlook', small.outlook, 'https://outlook.live.com/mail/']
-    ]) {
-      if (!route.href.startsWith(host)) fail('studio-send', `the ${name} link goes to ${route.href.slice(0, 60)}`);
-      if (!route.href.includes(encodeURIComponent(small.address))) {
-        fail('studio-send', `the ${name} link is not addressed to ${small.address}`);
-      }
-      if (!route.body.includes('A resident')) fail('studio-send', `the ${name} message carries no credit name`);
-      if (!route.body.includes(MAGIC)) fail('studio-send', `the ${name} message carries no drawing`);
+    const smallCode = small.fields.get(FORM.fields.code) ?? '';
+    if (!smallCode.startsWith(MAGIC)) {
+      fail('studio-send', `the form's code field carried "${smallCode.slice(0, 40)}", which is not a drawing`);
     }
-    if (!small.mailto.body.includes(MAGIC)) fail('studio-send', 'a small drawing did not fit in the mail-app link');
-    log(`    a small drawing rides in all three: your email app, Gmail, Outlook (${small.address})`);
+    await sleep(300);
+    const said = (await send.locator('#sendstatus').innerText({ timeout: 20000 })).trim();
+    if (!said.includes('Thank you, A resident')) fail('studio-send', `after sending, the studio said "${said}"`);
+    if (!(await send.locator('#insurance').isVisible({ timeout: 20000 }))) {
+      fail('studio-send', 'the "Didn\u2019t go through?" note stayed hidden after a send');
+    }
+    log(`    posted ${[...small.fields.keys()].length} fields to the pack's form; it said "${said}"`);
+    await send.locator('#sendstatus').scrollIntoViewIfNeeded({ timeout: 20000 });
+    await sleep(150);
     await shot(send, 'studio-send');
 
-    // A finished facade: too long for a mailto, but a webmail link is an
-    // ordinary https URL and takes it comfortably. The two budgets are the
-    // point — holding every route to the shortest one would strip the drawing
-    // out of links that could have carried it.
+    // A finished facade: far too long for any email link, and a non-event for
+    // a form post — which is the point of having one.
     await send.goto(`${BASE}studio/?world=${WORLD_ID}&building=${anyPainted.id}&improve=1`, { waitUntil: 'load' });
     await send.waitForSelector('#markers', { timeout: 20000 });
     await sleep(800);
     await send.locator('#credit').fill('A resident');
     await send.locator('#consent').check({ timeout: 20000 });
     await send.locator('#send').click({ timeout: 20000 });
-    await sleep(400);
-
-    const big = await sendRoutes(send);
-    if (!big.shown) fail('studio-send', 'the panel of other ways to send stayed hidden on a finished facade');
-    if (!big.gmail.body.includes(MAGIC)) {
-      fail('studio-send', 'a webmail link should carry a whole finished facade, and this one did not');
+    const big = await waitForPost('for a finished facade');
+    const bigCode = big.fields.get(FORM.fields.code) ?? '';
+    if (!bigCode.startsWith(MAGIC)) fail('studio-send', 'a finished facade did not reach the form as a drawing');
+    if (bigCode.length <= smallCode.length) {
+      fail('studio-send', `a finished facade should be the longer code, and it was ${bigCode.length} to ${smallCode.length}`);
     }
-    if (big.mailto.body.includes(MAGIC) && big.mailto.body.length > 1800) {
-      fail('studio-send', 'a mail-app link was let past its budget');
+    if (big.fields.get(FORM.fields.building) !== anyPainted.id) {
+      fail('studio-send', 'the form was told the wrong building for a touch-up');
     }
-    if (!big.mailto.body.includes(MAGIC) && !big.mailto.body.includes('attached')) {
-      fail('studio-send', 'a mail-app link that cannot carry the drawing should ask for the PNG instead');
-    }
-    log(
-      `    ${anyPainted.id}: Gmail carries the drawing (${big.gmail.body.length} chars); ` +
-        `the mail-app link ${big.mailto.body.includes(MAGIC) ? 'does too' : 'asks for the PNG instead'}`
-    );
+    log(`    ${anyPainted.id}: the whole facade goes in one post (${bigCode.length} characters of code)`);
     await shot(send, 'studio-send-finished');
 
     // Everything before this is finished with, and the phone section is the
@@ -2133,6 +2155,73 @@ async function main() {
     const zoomNow = () => pp.locator('#zoomlevel').innerText({ timeout: 20000 });
     log(`    opens ${room.drawing}px wide in a ${room.stage}px stage, at ${await zoomNow()}`);
     await shot(pp, 'studio-phone');
+
+    // The first screen has to hold the drawing and something to draw with.
+    // Before the reorder it held two paragraphs of prose and no control at
+    // all, with the nearest button more than a screen further down.
+    const reach = await evalIn(pp, 'what the first screen holds', () => {
+      const box = (selector) => {
+        const found = document.querySelector(selector);
+        if (!found) return null;
+        const rect = found.getBoundingClientRect();
+        return { top: Math.round(rect.top + window.scrollY), bottom: Math.round(rect.bottom + window.scrollY) };
+      };
+      return {
+        fold: window.innerHeight,
+        page: document.documentElement.scrollHeight,
+        canvas: box('#view'),
+        tool: box('#toolrow .tool'),
+        swatch: box('.palettebar .swatch'),
+        colours: box('#allcolours')
+      };
+    });
+    if (!reach.canvas) fail('studio-phone', 'there is no drawing on the page');
+    if (reach.canvas.top > 700) fail('studio-phone', `the canvas starts ${reach.canvas.top}px down the page`);
+    for (const [what, where] of [
+      ['a tool', reach.tool],
+      ['the colour in hand', reach.swatch],
+      ['the way to all the colours', reach.colours]
+    ]) {
+      if (!where) fail('studio-phone', `${what} is not on the page at all`);
+      if (where.bottom > reach.fold) {
+        fail('studio-phone', `${what} ends ${where.bottom}px down, past the ${reach.fold}px fold`);
+      }
+    }
+    log(
+      `    canvas at ${reach.canvas.top}px, with a tool and the colours above the ${reach.fold}px fold ` +
+        `(the whole editor is ${reach.page}px tall)`
+    );
+
+    // Choosing a tool says so, in the status line beside the drawing — before
+    // this the only sign was a button two screens below the canvas.
+    const statusNow = () => pp.locator('#status').innerText({ timeout: 20000 });
+    for (const [tool, word] of [['fill', 'Fill'], ['pencil', 'Pencil']]) {
+      await pp.locator(`#toolrow .tool[data-tool="${tool}"]`).click({ timeout: 20000 });
+      await sleep(150);
+      const said = (await statusNow()).trim();
+      if (!said.startsWith(word)) fail('studio-phone', `choosing ${word} left the status line saying "${said}"`);
+      const chosen = await evalIn(pp, 'the tool that looks chosen', () =>
+        document.querySelector('#toolrow .tool.on')?.dataset.tool ?? null
+      );
+      if (chosen !== tool) fail('studio-phone', `choosing ${word} left "${chosen}" looking like the chosen tool`);
+    }
+    log('    choosing a tool selects it and says so in the status line');
+
+    // The palette bar keeps the colours lately used beside the one in hand, so
+    // changing colour stops being a scroll down to a grid of sixty-four.
+    const recentCount = () =>
+      evalIn(pp, 'the colours lately used', () => document.querySelectorAll('#recents .swatch').length);
+    const recentsBefore = await recentCount();
+    for (const nth of [3, 9]) {
+      await pp.locator('#allcolours').click({ timeout: 20000 });
+      await sleep(150);
+      await pp.locator('#palette .swatch').nth(nth).click({ timeout: 20000 });
+      await sleep(200);
+    }
+    const recentsAfter = await recentCount();
+    if (recentsAfter < 1) fail('studio-phone', 'picking two colours left the row beside the current one empty');
+    log(`    picking colours fills the palette bar (${recentsBefore} -> ${recentsAfter})`);
+    await shot(pp, 'studio-phone-recents');
 
     /** Pointer events by id, which is the studio's only input path. */
     async function pointerSteps(steps) {
@@ -2269,6 +2358,37 @@ async function main() {
     const scrolled = await evalIn(pp, 'how far the phone page scrolled', () => window.scrollY);
     if (scrolled <= 0) fail('studio-phone', 'a finger could not scroll the page past a locked canvas');
     log(`    Lock keeps one finger from painting, and lets it scroll the page (${Math.round(scrolled)}px)`);
+
+    // Zoomed right in, every column of the drawing has to be reachable. A
+    // centred scroll container quietly loses the ones off its left-hand side:
+    // the overflow on the start side of a centred flex box is not added to
+    // scrollWidth, so no scroll and no pinch can ever get to it.
+    for (let i = 0; i < 14; i++) {
+      if ((await zoomNow()).trim() === '\u00d78') break;
+      await pp.locator('#zoomin').click({ timeout: 20000 });
+      await sleep(80);
+    }
+    const edges = await evalIn(pp, 'how far the stage scrolls', () => {
+      const stage = document.getElementById('stage');
+      const view = document.getElementById('view');
+      stage.scrollLeft = 0;
+      const left = Math.round(view.getBoundingClientRect().left - stage.getBoundingClientRect().left);
+      stage.scrollLeft = stage.scrollWidth;
+      const right = Math.round(view.getBoundingClientRect().right - stage.getBoundingClientRect().right);
+      return { left, right, scrollWidth: stage.scrollWidth, drawing: view.offsetWidth };
+    });
+    const zoomedTo = await zoomNow();
+    if (edges.drawing > edges.scrollWidth) {
+      fail('studio-phone', `at ${zoomedTo} the drawing is ${edges.drawing}px in a stage that only scrolls ${edges.scrollWidth}px`);
+    }
+    if (edges.left < 0) {
+      fail('studio-phone', `at ${zoomedTo} the first column sits ${-edges.left}px off the left of the stage, out of reach`);
+    }
+    if (edges.right > 0) {
+      fail('studio-phone', `at ${zoomedTo} the last column sits ${edges.right}px off the right of the stage, out of reach`);
+    }
+    log(`    at ${zoomedTo} both edges of the drawing are still reachable`);
+    await shot(pp, 'studio-phone-zoomed');
 
     // --- townspeople who walk -----------------------------------------------
     // A village has people in it who belong to no story: they stroll a route or

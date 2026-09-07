@@ -1,23 +1,39 @@
 # Receiving art: the runbook
 
-How a piece of art goes from a contributor's email to a painted building in
-the game. Written so Tom can say "here's a submission" and an agent does the
+How a piece of art goes from a contributor's submission to a painted building
+in the game. Written so Tom can say "here's a submission" and an agent does the
 rest. The standing GitHub issue for this work is #27; every art PR references
 it and its branch is `agent/27/<building>`.
+
+## Where submissions arrive
+
+Pressing **Send it to the town** in the Studio posts the drawing to the Google
+Form named in the world pack (`submit.art` in `world.json`), so submissions
+land as rows in that form's responses sheet: building id, world id, the credit
+name, the `MSA1|…` code, and anything the painter wanted to say. Tom pastes the
+row's code here exactly as he used to paste an email. Nothing else changes —
+the code is the same code, and `decode-art` reads it the same way.
+
+Email still arrives too, and is just as welcome: the Studio offers the address
+under "Didn't go through?", anyone painting in another app emails their PNG,
+and a world pack with no form in it sends by email as before.
 
 ## What Tom sends
 
 Any of these is enough:
 
-- The email forwarded or pasted, including the `MSA1|…` line the Studio put
-  in the body, and the name the person asked to be credited as.
+- The row from the form's sheet, pasted — the `MSA1|…` code and the name the
+  person asked to be credited as.
+- The email forwarded or pasted, including the `MSA1|…` line, and the credit
+  name.
 - A PNG the person attached, plus the building id (or its name) and the
   credit name.
 - Several of the above at once; do one PR per contributor.
 
 The Studio also lets the artist say which column the door and the little
 plaque go in. When they have moved either one, the code ends in a sixth part
-like `|door=2,plaque=3`, and the email carries the same thing in words. Those
+like `|door=2,plaque=3`, and an emailed submission carries the same thing in
+words. Those
 are tile columns across the front of the building, counting from 0 at its left
 edge. `decode-art` moves the tiles for you; you never work them out by hand.
 
@@ -28,9 +44,10 @@ the name given, spelled as given. First name only is fine.
 
 1. `rein declare 27 --repo TomHennen/mainstreet` (Tom approves on his
    terminal), then a branch from `main` named `agent/27/<building>`.
-2. Save the email text to the scratchpad and run
+2. Save the submission — the sheet row, or the email text — to the scratchpad
+   and run
    ```
-   npm run decode-art -- path/to/email.txt --credit "Their Name"
+   npm run decode-art -- path/to/submission.txt --credit "Their Name"
    ```
    It finds the `MSA1|` line, checks the building exists and the size fits
    the footprint, writes `worlds/<id>/assets/buildings/<building>.png`, adds
@@ -45,8 +62,9 @@ the name given, spelled as given. First name only is fine.
    which ones would, so he can pass it back kindly; never quietly move it
    somewhere else on their behalf.
 
-   Someone can also say where the door goes in the body of the email rather
-   than in the code — "the door should be on the left-hand side", say. Pass it
+   Someone can also say where the door goes in words — in the form's "anything
+   you'd like to say with it" box, or in an email — rather than in the code:
+   "the door should be on the left-hand side", say. Pass it
    on with `--door <col>` and `--plaque <col>`, counting from 0 at the
    building's left edge, so the left-most column is `--door 0` and "third
    column along" is `--door 2`. If the code already says something different,

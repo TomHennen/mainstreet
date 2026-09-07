@@ -98,6 +98,10 @@ function stripHeight(): number {
 /** The closest the canvas will come: screen pixels per drawing pixel. */
 const MAX_ZOOM = 12;
 
+type Tool = 'pencil' | 'fill' | 'eraser' | 'eyedropper' | 'line' | 'rect';
+type BrushSize = 1 | 2 | 3;
+type Marker = 'door' | 'plaque';
+
 const CONSENT =
   "I made this, I'm happy for it to appear in mainstreet with credit to the " +
   'name above, and I license it under the terms on the contributing page.';
@@ -107,6 +111,31 @@ const GUIDANCE = "Draw the storefront as you remember it; please don't paste a l
 const GESTURES =
   'One finger paints; two fingers zoom and pan, and so does ctrl with a mouse ' +
   'wheel. Lock the canvas when you would rather a finger scrolled the page past it.';
+
+/**
+ * What the status line says when a tool is chosen — the same courtesy the
+ * eyedropper has always had, now given to all six, so choosing a tool on a
+ * phone tells you what you have in your hand without scrolling anywhere.
+ */
+const TOOL_SAID: Record<Tool, string> = {
+  pencil: 'Pencil. One finger paints, and a drag draws a line.',
+  fill: 'Fill. Tap a patch and the whole of it takes the colour.',
+  eraser: 'Eraser. Tap or drag to take the paint back off.',
+  eyedropper: 'Pick. Tap a pixel to borrow its colour.',
+  line: 'Line. Drag from one end of it to the other.',
+  rect: 'Rect. Drag out a box — Filled makes it solid.'
+};
+
+/** The most colours the palette bar keeps beside the one in hand. */
+const RECENT_SHOWN = 7;
+
+/**
+ * Colour families for the full palette, worked out from the colours themselves
+ * at runtime (hue and saturation, below) rather than from any world's palette
+ * order — so grouping them costs no world its own arrangement, and hard rule 1
+ * holds.
+ */
+const FAMILIES = ['Neutrals', 'Reds', 'Oranges and yellows', 'Greens', 'Blues', 'Purples and pinks'];
 
 const LOCK_ON = 'Locked, so a finger can scroll the page past the drawing. Two fingers still zoom and pan.';
 
@@ -122,10 +151,6 @@ const IMPROVE_SUCCESS =
 
 const IMPROVE_FAILURE =
   "Couldn't fetch the current painting just now, so this starts from the guide instead.";
-
-type Tool = 'pencil' | 'fill' | 'eraser' | 'eyedropper' | 'line' | 'rect';
-type BrushSize = 1 | 2 | 3;
-type Marker = 'door' | 'plaque';
 
 // --- world pack shapes (read-only; the engine owns the real schema) ----------
 
@@ -161,10 +186,22 @@ interface MapDef {
   buildings?: Placement[];
 }
 
+/**
+ * Where this world's finished art goes (engine/schema.ts `Submit`). The form
+ * and every field id are the world pack's, never the Studio's: a world that
+ * configures one gets a send that posts straight to it, a world that doesn't
+ * gets the older email route, and no address of either kind is written here.
+ */
+interface SubmitArt {
+  form: string;
+  fields: { building: string; world: string; credit: string; code: string; notes?: string };
+}
+
 interface World {
   id: string;
   title: string;
   subtitle?: string;
+  submit?: { art?: SubmitArt };
   palette?: string;
   /** What this world's palette is called, and where it lives, if the pack says
    *  — for anyone painting in an editor that can fetch a palette by name. */
@@ -177,6 +214,8 @@ interface World {
 interface Entry {
   placement: Placement;
   def: BuildingDef;
+  /** The map the building stands on, for grouping the picker by village. */
+  mapId: string;
   mapName: string;
   painted: boolean;
 }
@@ -266,6 +305,44 @@ async function loadPalette(world: World): Promise<(string | null)[]> {
     colours.push(`#${[data[i], data[i + 1], data[i + 2]].map((v) => v.toString(16).padStart(2, '0')).join('')}`);
   }
   return colours.slice(0, TRANSPARENT);
+}
+
+/**
+ * A colour's lightness, 0 to 1 — the ordering inside a family, so a wall grey
+ * and a shadow grey are not the same distance apart on screen as in the file.
+ */
+function lightnessOf(hex: string): number {
+  const [r, g, b] = rgbOf(hex).map((v) => v / 255);
+  return (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
+}
+
+/**
+ * Which of FAMILIES a colour belongs in, measured from the colour itself: a
+ * washed-out or nearly black/white one is a neutral, and everything else falls
+ * where its hue falls. Nothing about any particular palette is written down
+ * here, so a world that ships a different one is grouped just as sensibly
+ * (hard rule 1).
+ */
+function hueFamily(hex: string): number {
+  const [r, g, b] = rgbOf(hex).map((v) => v / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  const light = (max + min) / 2;
+  const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * light - 1));
+  if (saturation < 0.18 || light < 0.07 || light > 0.95) return 0;
+
+  let hue: number;
+  if (max === r) hue = ((g - b) / delta) % 6;
+  else if (max === g) hue = (b - r) / delta + 2;
+  else hue = (r - g) / delta + 4;
+  hue = (hue * 60 + 360) % 360;
+
+  if (hue < 20 || hue >= 330) return 1;
+  if (hue < 70) return 2;
+  if (hue < 165) return 3;
+  if (hue < 260) return 4;
+  return 5;
 }
 
 // --- the placeholder facade, as a faint reference ----------------------------
@@ -362,31 +439,46 @@ function renderWorldPicker(ids: string[]): void {
 function renderBuildingPicker(world: World, entries: Entry[]): void {
   app.classList.remove('editing');
   here.textContent = world.title;
-  const cards = entries
-    .map((entry) => {
-      const [w, h] = entry.placement.size;
-      const state = entry.painted
-        ? '<span class="tag painted">already painted — repaints welcome</span>'
-        : '<span class="tag">waiting for paint</span>';
-      return `
+
+  const card = (entry: Entry) => {
+    const [w, h] = entry.placement.size;
+    const state = entry.painted
+      ? '<span class="tag painted">already painted — repaints welcome</span>'
+      : '<span class="tag">waiting for paint</span>';
+    return `
       <li>
         <a href="?world=${encodeURIComponent(world.id)}&amp;building=${encodeURIComponent(entry.placement.id)}">
           <strong>${esc(entry.def.name)}</strong>
-          <span class="quiet">${esc(entry.mapName)} · ${esc(plural(w, 'tile', 'tiles'))} wide,
-            ${esc(plural(h, 'tile', 'tiles'))} deep · ${w * TILE} pixels across</span>
           ${state}
+          <span class="quiet">${w * TILE} pixels across · ${esc(plural(w, 'tile', 'tiles'))} wide,
+            ${esc(plural(h, 'tile', 'tiles'))} deep</span>
         </a>
       </li>`;
+  };
+
+  // One heading per village, in the order the world pack lists them, with the
+  // buildings still waiting for paint first — the person we most hope for is
+  // someone from one of these places, looking for the shop they walk past.
+  const villages = Object.keys(world.maps ?? {})
+    .map((mapId) => {
+      const mine = entries.filter((entry) => entry.mapId === mapId);
+      if (!mine.length) return '';
+      const waiting = mine.filter((entry) => !entry.painted);
+      const painted = mine.filter((entry) => entry.painted);
+      return `
+      <section class="village">
+        <h2>${esc(mine[0].mapName)}</h2>
+        <ul class="cards">${[...waiting, ...painted].map(card).join('')}</ul>
+      </section>`;
     })
     .join('');
 
   app.innerHTML = `
     <section class="masthead">
       <h1>Paint a building in ${esc(world.title)}</h1>
-      <p class="lede">Here is every building in ${esc(world.title)}. Pick one you
-        know and paint the front of it. ${esc(GUIDANCE)}</p>
+      <p class="lede">Pick one you know and paint the front of it. ${esc(GUIDANCE)}</p>
     </section>
-    <ul class="cards">${cards}</ul>
+    ${villages}
     <footer class="how">
       <p>New to this? The <a class="link" href="${esc(contributingUrl())}">contributing page</a>
         explains what happens to a drawing after you send it, and the licence it goes under.</p>
@@ -404,6 +496,8 @@ interface EditorState {
   extraRows: number;
   pixels: Uint8Array;
   colour: number;
+  /** Colours lately painted with, newest first — the palette bar's short row. */
+  recent: number[];
   tool: Tool;
   brushSize: BrushSize;
   rectFilled: boolean;
@@ -521,6 +615,7 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
     extraRows: DEFAULT_EXTRA_ROWS,
     pixels: blankPixels(footW, footH + DEFAULT_EXTRA_ROWS * TILE),
     colour: palette.findIndex((c) => c !== null),
+    recent: [],
     tool: 'pencil',
     brushSize: 1,
     rectFilled: false,
@@ -554,181 +649,64 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
         : '.')
     : '';
 
-  const swatches = palette
-    .map((colour, index) =>
-      colour === null
-        ? ''
-        : `<button class="swatch" data-colour="${index}" style="background:${esc(colour)}"
-             title="Colour ${index}" aria-label="Colour ${index}, ${esc(colour)}"></button>`
-    )
-    .join('');
+  const usable = palette.filter((colour) => colour !== null).length;
 
-  app.innerHTML = `
-    <section class="masthead">
-      <h1>${esc(def.name)}</h1>
-      <p class="where" id="shape"></p>
-      <p class="guidance">${esc(GUIDANCE)} A drawing of the place as you see it
-        is worth far more to us than anything traced.</p>
-    </section>
+  const swatch = (index: number, colour: string) =>
+    `<button class="swatch" data-colour="${index}" style="background:${esc(colour)}"
+       title="Colour ${index}" aria-label="Colour ${index}, ${esc(colour)}"></button>`;
 
-    <div class="stage" id="stage">
-      <div class="canvasstack">
-        <canvas id="view" role="img" aria-label="The drawing, ${esc(def.name)}"></canvas>
-        <canvas id="markers" aria-hidden="true"></canvas>
-      </div>
-    </div>
-    <p class="quiet" id="gesturenote">${esc(GESTURES)}</p>
-    <p class="quiet" id="guidenote" hidden>Guide only. It isn't part of your drawing.</p>
+  // The whole palette, in families worked out from the colours themselves
+  // (hueFamily, above) and lightest first inside each — a finding order rather
+  // than the ramp order a palette file is written in. No world's palette is
+  // named or reordered on disk by any of this.
+  const families = FAMILIES.map((label, family) => {
+    const members = palette
+      .map((colour, index) => ({ colour, index }))
+      .filter((entry): entry is { colour: string; index: number } => entry.colour !== null)
+      .filter((entry) => hueFamily(entry.colour) === family)
+      .sort((a, b) => lightnessOf(b.colour) - lightnessOf(a.colour));
+    if (!members.length) return '';
+    return `<div class="palettegroup"><span class="quiet">${esc(label)}</span>
+        <div class="palette">${members.map((entry) => swatch(entry.index, entry.colour)).join('')}</div>
+      </div>`;
+  }).join('');
 
-    <p class="statusline" id="status" role="status" aria-live="polite">&nbsp;</p>
+  // Where this world's finished art goes, if the pack says (hard rule 1). With
+  // a form, Send posts to it and that is the whole of the journey; without one,
+  // Send hands the drawing to the painter's own email app as it always has.
+  const art = world.submit?.art ?? null;
 
-    <section class="preview">
-      <canvas id="previewcanvas" role="img" aria-label="What you'll send"></canvas>
-      <p class="quiet">What you'll send: just what you drew.</p>
-      <p class="quiet" id="sendcolumns" hidden></p>
-    </section>
+  const notesField = art?.fields.notes
+    ? `<label class="field">
+        <span>Anything you'd like to say with it? (optional)</span>
+        <textarea id="notes" rows="2" spellcheck="true"
+          placeholder="Which corner it is on, what you remember about it — anything at all."></textarea>
+      </label>`
+    : '';
 
-    <section class="tools">
-      <div class="row" id="toolrow">
-        <button class="tool" data-tool="pencil">Pencil<kbd>B</kbd></button>
-        <button class="tool" data-tool="fill">Fill<kbd>F</kbd></button>
-        <button class="tool" data-tool="eraser">Eraser<kbd>E</kbd></button>
-        <button class="tool" data-tool="eyedropper">Pick<kbd>I</kbd></button>
-        <button class="tool" data-tool="line">Line<kbd>L</kbd></button>
-        <button class="tool" data-tool="rect">Rect<kbd>R</kbd></button>
+  const sendStep = art
+    ? `<div class="row sendrow">
+        <button id="send" class="primary">Send it to the town</button>
       </div>
-      <div class="row" id="sizerow">
-        <span class="quiet">Brush</span>
-        <button class="size" data-size="1">1<kbd>1</kbd></button>
-        <button class="size" data-size="2">2<kbd>2</kbd></button>
-        <button class="size" data-size="3">3<kbd>3</kbd></button>
-        <button id="rectfilled" class="toggle">Filled</button>
-        <button id="mirror" class="toggle">Mirror<kbd>M</kbd></button>
-      </div>
-      <div class="row">
-        <button id="undo">Undo<kbd>⌘Z</kbd></button>
-        <button id="redo">Redo<kbd>⇧⌘Z</kbd></button>
-        <button id="zoomout" aria-label="Zoom out">Zoom −<kbd>[</kbd></button>
-        <button id="zoomin" aria-label="Zoom in">Zoom +<kbd>]</kbd></button>
-        <span class="quiet zoomlevel" id="zoomlevel">×4</span>
-        <button id="grid" class="toggle">Grid<kbd>G</kbd></button>
-        <button id="reference" class="toggle">Reference<kbd>V</kbd></button>
-        <button id="lock" class="toggle" aria-pressed="false"
-          aria-describedby="gesturenote">Lock<kbd>K</kbd></button>
-      </div>
-      <div class="row rows">
-        <span class="quiet" id="rowslabel"></span>
-        <button id="fewerrows">Fewer rows above</button>
-        <button id="morerows">More rows above</button>
-      </div>
-      <div class="row marker" id="doorrow">
-        <span class="marker-key" style="background:${DOOR_MARK}" aria-hidden="true"></span>
-        <span class="marker-name" id="doorname">Door</span>
-        <button id="doorleft" aria-label="Move the door one column left"
-          aria-describedby="doorwhere">◀</button>
-        <span class="marker-where" id="doorwhere"></span>
-        <button id="doorright" aria-label="Move the door one column right"
-          aria-describedby="doorwhere">▶</button>
-        <button id="doorreset" aria-label="Put the door back where the town has it">Reset</button>
-      </div>
-      <div class="row marker" id="plaquerow">
-        <span class="marker-key" style="background:${PLAQUE_MARK}" aria-hidden="true"></span>
-        <span class="marker-name" id="plaquename">Plaque</span>
-        <button id="plaqueleft" aria-label="Move the plaque one column left"
-          aria-describedby="plaquewhere">◀</button>
-        <span class="marker-where" id="plaquewhere"></span>
-        <button id="plaqueright" aria-label="Move the plaque one column right"
-          aria-describedby="plaquewhere">▶</button>
-        <button id="plaquereset" aria-label="Put the plaque back where the town has it">Reset</button>
-      </div>
-      <p class="quiet" id="markernote">Where the door and the little plaque will
-        be. The game draws the plaque; you draw the door. Drag either marker
-        under the canvas, or use the arrows — they are markers only, and never
-        end up in the picture.</p>
-      <div class="palette" id="palette">${swatches}</div>
-    </section>
+      <p class="statusline" id="sendstatus" role="status" aria-live="polite">&nbsp;</p>
 
-    <section class="files">
-      <h2>Files</h2>
-      <div class="row">
-        <!-- A real <button> opens the picker, so a keyboard reaches Import the
-             same way it reaches every other control here. The input itself is
-             hidden off to one side rather than with display:none, which some
-             browsers take as a reason not to open a file picker at all. -->
-        <button id="importbutton">Import a PNG</button>
-        <input id="import" type="file" accept="image/png,image/*" class="offscreen"
-               tabindex="-1" aria-hidden="true" />
-        <button id="pastecode" aria-expanded="false" aria-controls="pastepanel">Paste a code</button>
-        <button id="export">Export a PNG</button>
-        ${entry.painted ? '<button id="improveit">Improve it?</button>' : ''}
-        <button id="fromguide">Start from the guide</button>
-        <button id="clear">Start again</button>
-      </div>
-      <p class="quiet">Painting in another app instead? Lovely — "Painting
-        somewhere else?" below has the exact size to use, the palette to load,
-        and a few apps people like. Export a PNG and import it here to send
-        it in.</p>
-      <p class="quiet">"Start from the guide" turns the faint guide into real
-        pixels you can edit and send.</p>
-      ${entry.painted ? '<p class="quiet">"Improve it?" brings in the painting as it ships in the game today, as real pixels — a touch-up starts from there instead of the guide.</p>' : ''}
-      <p class="quiet">Sent a drawing in already and want to carry on with it?
-        The code is in your sent email — paste it back and it picks up right
-        where it left off.</p>
-
-      <div class="paste" id="pastepanel" hidden>
-        <label class="field" for="codebox">
-          <span>Paste the code from your email — line breaks and all, they don't matter</span>
-          <textarea id="codebox" rows="3" spellcheck="false" autocomplete="off"
-            autocapitalize="off" placeholder="${esc(MAGIC)}|…"></textarea>
-        </label>
-        <div class="row">
-          <button id="codeload" class="primary">Bring it back</button>
-          <button id="codecancel">Never mind</button>
-        </div>
-        <p class="statusline" id="codestatus" role="status" aria-live="polite">&nbsp;</p>
-      </div>
-
-      <details class="elsewhere">
-        <summary>Painting somewhere else?</summary>
+      <!--
+        A form post across origins comes back opaque: we cannot read whether it
+        arrived. So the studio never has to guess, there is one small insurance
+        policy tucked under here — the code, and an address to paste it to.
+      -->
+      <details class="elsewhere" id="insurance" hidden>
+        <summary>Didn't go through?</summary>
         <div class="elsewhere-body">
-          <p class="quiet" id="elsewheresize"></p>
-          <p class="quiet">Export a PNG with a transparent background — no
-            anti-aliasing or smoothing — using only the palette colours below.
-            The footprint sits at the very bottom of the canvas; any spare
-            rows for a roof, sign or awning go above it. The game adds a small
-            plaque low on the wall beside the door — that's where it thanks
-            you — so there's no need to paint one.</p>
+          <p class="quiet">Paste the code into a note to
+            <strong class="address">${esc(SUBMIT_ADDRESS)}</strong> and it lands in the same place.</p>
           <div class="row">
-            <a class="button" id="downloadpalette" href="#" download>Download the palette PNG</a>
-            <button id="downloadhex">Download the palette as .hex</button>
+            <button id="copy" data-status="fallbackstatus">Copy the code</button>
           </div>
-          <p class="quiet">The .hex file is one colour per line, which
-            Aseprite, Piskel and Lospec all read straight in.${paletteNamed}</p>
-          <p class="quiet">Not sure which app to paint in? The
-            <a class="link" href="${esc(contributingUrl())}">contributing
-            page</a> lists a few that people use, on a phone and at a desk,
-            with what each one costs and whether it can load our palette.</p>
-          <p class="quiet">Import a PNG above afterwards and the Studio sorts
-            out the small things itself: it moves any colour that isn't quite
-            on the palette to the nearest one that is, makes up its mind about
-            soft edges, and tells you what it changed. If the size is one it
-            can't use, it says exactly which one it's after.</p>
+          <p class="statusline" id="fallbackstatus" role="status" aria-live="polite">&nbsp;</p>
         </div>
-      </details>
-    </section>
-
-    <section class="send">
-      <h2>Send it in</h2>
-      <label class="field">
-        <span>Name for the credit</span>
-        <input id="credit" type="text" autocomplete="name" placeholder="However you'd like to be thanked" />
-      </label>
-      <label class="consent">
-        <input id="consent" type="checkbox" />
-        <span>${esc(CONSENT)}</span>
-      </label>
-      <p class="quiet" id="submitnote" hidden></p>
-      <div class="row">
+      </details>`
+    : `<div class="row sendrow">
         <button id="send" class="primary">Open an email with my drawing</button>
         <button id="copy">Copy the code</button>
       </div>
@@ -757,15 +735,208 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
           <a class="button" id="sendmail" href="#">Your own email app</a>
         </div>
         <p class="statusline" id="fallbackstatus" role="status" aria-live="polite">&nbsp;</p>
-      </div>
-    </section>
+      </div>`;
 
-    <footer class="how">
-      <p><strong>How this works:</strong> your drawing becomes a short line of
+  const howItWorks = art
+    ? `<p><strong>How this works:</strong> your drawing becomes a short line of
+        text, and Send carries it to us with the name you would like on it. No
+        account, no email app, and nothing leaves this page until you press it.</p>`
+    : `<p><strong>How this works:</strong> your drawing becomes a short line of
         text, and the studio hands it to you in a message ready to send — to
         your own email app, to your webmail, or on the clipboard if you would
         rather paste it somewhere yourself. Nothing leaves this page until you
-        send it.</p>
+        send it.</p>`;
+
+  app.innerHTML = `
+    <section class="masthead">
+      <h1>${esc(def.name)}</h1>
+      <p class="where" id="shape"></p>
+    </section>
+
+    <!-- Zoom and Lock ride on the canvas frame, since both are about the
+         canvas rather than about the drawing. -->
+    <div class="frame">
+      <div class="framebar">
+        <button id="zoomout" aria-label="Zoom out">−<kbd>[</kbd></button>
+        <span class="quiet zoomlevel" id="zoomlevel">×4</span>
+        <button id="zoomin" aria-label="Zoom in">+<kbd>]</kbd></button>
+        <span class="framespacer"></span>
+        <button id="lock" class="toggle" aria-pressed="false"
+          aria-label="Lock the canvas, so a finger scrolls the page past it">Lock<kbd>K</kbd></button>
+      </div>
+      <div class="stage" id="stage">
+        <div class="canvasstack">
+          <canvas id="view" role="img" aria-label="The drawing, ${esc(def.name)}"></canvas>
+          <canvas id="markers" aria-hidden="true"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <p class="statusline" id="status" role="status" aria-live="polite">&nbsp;</p>
+
+    <section class="tools" id="tools">
+      <div class="row" id="toolrow">
+        <button class="tool" data-tool="pencil">Pencil<kbd>B</kbd></button>
+        <button class="tool" data-tool="fill">Fill<kbd>F</kbd></button>
+        <button class="tool" data-tool="eraser">Eraser<kbd>E</kbd></button>
+        <button class="tool" data-tool="eyedropper">Pick<kbd>I</kbd></button>
+        <button id="undo">Undo<kbd>⌘Z</kbd></button>
+        <button id="redo">Redo<kbd>⇧⌘Z</kbd></button>
+        <button id="moretoggle" class="toggle" aria-expanded="false" aria-controls="more">More ▾</button>
+      </div>
+
+      <!-- Everything a first facade never needs, one press away. Open to start
+           with on a wide screen, where there is room for all of it. -->
+      <div class="more" id="more" hidden>
+        <div class="row" id="shaperow">
+          <button class="tool" data-tool="line">Line<kbd>L</kbd></button>
+          <button class="tool" data-tool="rect">Rect<kbd>R</kbd></button>
+          <button id="rectfilled" class="toggle">Filled</button>
+          <button id="mirror" class="toggle">Mirror<kbd>M</kbd></button>
+        </div>
+        <div class="row" id="sizerow">
+          <span class="quiet">Brush</span>
+          <button class="size" data-size="1">1<kbd>1</kbd></button>
+          <button class="size" data-size="2">2<kbd>2</kbd></button>
+          <button class="size" data-size="3">3<kbd>3</kbd></button>
+          <button id="grid" class="toggle">Grid<kbd>G</kbd></button>
+          <button id="reference" class="toggle">Reference<kbd>V</kbd></button>
+        </div>
+        <div class="row rows">
+          <span class="quiet" id="rowslabel"></span>
+          <button id="fewerrows">Fewer rows above</button>
+          <button id="morerows">More rows above</button>
+        </div>
+        <p class="quiet" id="rowsnote"></p>
+        <div class="row marker" id="doorrow">
+          <span class="marker-key" style="background:${DOOR_MARK}" aria-hidden="true"></span>
+          <span class="marker-name" id="doorname">Door</span>
+          <button id="doorleft" aria-label="Move the door one column left"
+            aria-describedby="doorwhere">◀</button>
+          <span class="marker-where" id="doorwhere"></span>
+          <button id="doorright" aria-label="Move the door one column right"
+            aria-describedby="doorwhere">▶</button>
+          <button id="doorreset" aria-label="Put the door back where the town has it">Reset</button>
+        </div>
+        <div class="row marker" id="plaquerow">
+          <span class="marker-key" style="background:${PLAQUE_MARK}" aria-hidden="true"></span>
+          <span class="marker-name" id="plaquename">Plaque</span>
+          <button id="plaqueleft" aria-label="Move the plaque one column left"
+            aria-describedby="plaquewhere">◀</button>
+          <span class="marker-where" id="plaquewhere"></span>
+          <button id="plaqueright" aria-label="Move the plaque one column right"
+            aria-describedby="plaquewhere">▶</button>
+          <button id="plaquereset" aria-label="Put the plaque back where the town has it">Reset</button>
+        </div>
+        <p class="quiet" id="markernote">The game knocks here and hangs your plaque
+          here — drag the chips under the drawing if they are wrong.</p>
+        <p class="quiet" id="gesturenote">${esc(GESTURES)}</p>
+        <p class="quiet" id="guidenote" hidden>Guide only. It isn't part of your drawing.</p>
+      </div>
+
+      <!-- The colour in hand, then the last few, then all of them. -->
+      <div class="row palettebar">
+        <span class="swatch current" id="currentcolour" aria-hidden="true"></span>
+        <div class="recents" id="recents"></div>
+        <button id="allcolours" aria-expanded="false" aria-controls="palette">All ${usable} colours</button>
+      </div>
+      <div id="palette" hidden>${families}</div>
+    </section>
+
+    <section class="preview">
+      <canvas id="previewcanvas" role="img" aria-label="What you'll send"></canvas>
+      <p class="quiet">What you'll send: just what you drew.</p>
+      <p class="quiet" id="sendcolumns" hidden></p>
+    </section>
+
+    <section class="send">
+      <label class="field">
+        <span>Name for the credit</span>
+        <input id="credit" type="text" autocomplete="name" placeholder="However you'd like to be thanked" />
+      </label>
+      ${notesField}
+      <p class="quiet">${esc(GUIDANCE)}</p>
+      <label class="consent">
+        <input id="consent" type="checkbox" />
+        <span>${esc(CONSENT)}</span>
+      </label>
+      <p class="quiet" id="submitnote" hidden></p>
+      ${sendStep}
+    </section>
+
+    <section class="files">
+      <div class="row">
+        <!-- A real <button> opens the picker, so a keyboard reaches Import the
+             same way it reaches every other control here. The input itself is
+             hidden off to one side rather than with display:none, which some
+             browsers take as a reason not to open a file picker at all. -->
+        <button id="importbutton">Import a PNG</button>
+        <input id="import" type="file" accept="image/png,image/*" class="offscreen"
+               tabindex="-1" aria-hidden="true" />
+        <button id="pastecode" aria-expanded="false" aria-controls="pastepanel">Paste a code</button>
+        <button id="export">Export a PNG</button>
+        ${
+          entry.painted
+            ? '<button id="improveit" title="Brings in the painting as it stands in the game today, to carry on from">Improve it?</button>'
+            : ''
+        }
+        <button id="fromguide" title="Turns the faint guide into real pixels you can edit and send">Start from the guide</button>
+        <button id="clear" title="Clears the canvas — undo brings it all back">Start again</button>
+      </div>
+      <p class="quiet">Painted somewhere else, or carrying on from a code you
+        kept? Import the PNG, or paste the code back in. Your drawing is saved
+        on this device as you go, either way.</p>
+
+      <div class="paste" id="pastepanel" hidden>
+        <label class="field" for="codebox">
+          <span>Paste the code — line breaks and all, they don't matter</span>
+          <textarea id="codebox" rows="3" spellcheck="false" autocomplete="off"
+            autocapitalize="off" placeholder="${esc(MAGIC)}|…"></textarea>
+        </label>
+        <div class="row">
+          <button id="codeload" class="primary">Bring it back</button>
+          <button id="codecancel">Never mind</button>
+        </div>
+        <p class="statusline" id="codestatus" role="status" aria-live="polite">&nbsp;</p>
+      </div>
+
+      <details class="elsewhere">
+        <summary>What we need</summary>
+        <div class="elsewhere-body">
+          <p class="quiet" id="elsewheresize"></p>
+          <p class="quiet">A PNG with a transparent background and no smoothing —
+            pixel art likes hard, clean edges.</p>
+          <p class="quiet">Only the palette colours, which you are very welcome to take away:</p>
+          <div class="row">
+            <a class="button" id="downloadpalette" href="#" download>Download the palette PNG</a>
+            <button id="downloadhex">Download the palette as .hex</button>
+          </div>
+          <details class="elsewhere">
+            <summary>Painting in another app?</summary>
+            <div class="elsewhere-body">
+              <p class="quiet">The .hex file is one colour per line, which
+                Aseprite, Piskel and Lospec all read straight in.${paletteNamed}</p>
+              <p class="quiet">Not sure which app to paint in? The
+                <a class="link" href="${esc(contributingUrl())}">contributing
+                page</a> lists a few that people use, on a phone and at a desk,
+                with what each one costs and whether it can load our palette.</p>
+              <p class="quiet">The footprint sits at the very bottom of the canvas;
+                any spare rows for a roof, sign or awning go above it. The game
+                adds a small plaque low on the wall beside the door — that's
+                where it thanks you — so there's no need to paint one.</p>
+              <p class="quiet">Import a PNG afterwards and the Studio sorts out
+                the small things itself: it moves any colour that isn't quite on
+                the palette to the nearest one that is, makes up its mind about
+                soft edges, and tells you what it changed. If the size is one it
+                can't use, it says exactly which one it's after.</p>
+            </div>
+          </details>
+        </div>
+      </details>
+    </section>
+
+    <footer class="how">
+      ${howItWorks}
       <p><a class="link" href="${esc(contributingUrl())}">What happens next, and the licence</a></p>
     </footer>`;
 
@@ -805,6 +976,80 @@ function wireEditor(state: EditorState): void {
   function saySend(message: string): void {
     sendStatus.textContent = message || ' ';
   }
+
+  /** Where style.css puts the tools beside the drawing instead of under it. */
+  function wideScreen(): boolean {
+    return window.matchMedia('(min-width: 900px)').matches;
+  }
+
+  /**
+   * The tool in hand, said out loud. The eyedropper has always told the status
+   * line what it did; now all six do, so choosing one on a phone never means
+   * scrolling back to see which button went orange.
+   */
+  function pickTool(tool: Tool): void {
+    state.tool = tool;
+    refreshChrome();
+    say(TOOL_SAID[tool]);
+  }
+
+  /**
+   * A colour, chosen. The palette bar keeps the last few beside the one in
+   * hand, so the commonest thing anybody does on a phone — change colour —
+   * costs a tap rather than a hunt through all of them.
+   */
+  function useColour(index: number): void {
+    state.colour = index;
+    state.recent = [index, ...state.recent.filter((colour) => colour !== index)].slice(0, RECENT_SHOWN + 1);
+    if (state.tool === 'eraser' || state.tool === 'eyedropper') state.tool = 'pencil';
+    // On a phone the full grid has done its job the moment a colour is picked;
+    // on a wide screen it is a column of its own and stays open.
+    if (!wideScreen()) showColours(false);
+    refreshChrome();
+    saveDraft(state);
+  }
+
+  /** The colour in hand, and the ones lately in hand, under the tools. */
+  function renderPaletteBar(): void {
+    el<HTMLElement>('currentcolour').style.background = state.palette[state.colour] ?? 'transparent';
+    const recents = state.recent.filter((colour) => colour !== state.colour).slice(0, RECENT_SHOWN);
+    el<HTMLElement>('recents').innerHTML = recents
+      .map((index) => {
+        const colour = state.palette[index];
+        return colour
+          ? `<button class="swatch" data-colour="${index}" style="background:${esc(colour)}"
+               title="Colour ${index}" aria-label="Colour ${index}, ${esc(colour)}"></button>`
+          : '';
+      })
+      .join('');
+  }
+
+  const moreToggle = el<HTMLButtonElement>('moretoggle');
+  const morePanel = el<HTMLDivElement>('more');
+
+  function showMore(open: boolean): void {
+    morePanel.hidden = !open;
+    moreToggle.textContent = open ? 'More \u25b4' : 'More \u25be';
+    moreToggle.classList.toggle('on', open);
+    moreToggle.setAttribute('aria-expanded', String(open));
+  }
+
+  const coloursToggle = el<HTMLButtonElement>('allcolours');
+  const colourGrid = el<HTMLDivElement>('palette');
+
+  function showColours(open: boolean): void {
+    colourGrid.hidden = !open;
+    coloursToggle.classList.toggle('on', open);
+    coloursToggle.setAttribute('aria-expanded', String(open));
+  }
+
+  moreToggle.addEventListener('click', () => showMore(morePanel.hidden));
+  coloursToggle.addEventListener('click', () => showColours(colourGrid.hidden));
+
+  // A wide screen has room for all of it at once, which is the layout the
+  // critique liked; a phone opens with the short version of both.
+  showMore(wideScreen());
+  showColours(wideScreen());
 
   // --- painting ---------------------------------------------------------
 
@@ -882,18 +1127,20 @@ function wireEditor(state: EditorState): void {
       for (let y = 0; y < h; y += 8) ctx.fillRect(mid - 1, y, 2, 4);
     }
 
-    drawMarkers(ctx, w, h);
+    drawMarkers(ctx, h);
     renderStrip();
     renderPreview();
   }
 
   /**
-   * The door and the plaque, outlined on the bottom row of the canvas. They are
-   * drawn here, on the view, and nowhere else: `pix` — which the preview, the
+   * The door and the plaque, outlined on the bottom row of the canvas — the
+   * outline alone, since the chips on the strip below already say which is
+   * which and saying it twice, six pixels apart, only crowded the drawing.
+   * They are drawn here, on the view, and nowhere else: `pix` — which the preview, the
    * exported PNG and the code all read from — never sees them, so a marker
    * cannot end up in somebody's drawing.
    */
-  function drawMarkers(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  function drawMarkers(ctx: CanvasRenderingContext2D, h: number): void {
     const tile = TILE * state.zoom;
     const inset = Math.min(2.5, Math.max(1.5, state.zoom / 2));
     for (const mark of markerList()) {
@@ -908,18 +1155,6 @@ function wireEditor(state: EditorState): void {
       ctx.setLineDash([3, 3]);
       ctx.strokeRect(...box);
       ctx.setLineDash([]);
-
-      if (tile >= 34) {
-        ctx.font = '9px ui-monospace, Menlo, Consolas, monospace';
-        ctx.textAlign = 'center';
-        const label = mark.label;
-        const plate = Math.ceil(ctx.measureText(label).width) + 6;
-        const mid = Math.min(w - plate / 2, Math.max(plate / 2, x + tile / 2));
-        ctx.fillStyle = 'rgba(18,22,15,.8)';
-        ctx.fillRect(mid - plate / 2, y + inset + 2, plate, 11);
-        ctx.fillStyle = mark.colour;
-        ctx.fillText(label, mid, y + inset + 10.5);
-      }
     }
   }
 
@@ -1013,28 +1248,28 @@ function wireEditor(state: EditorState): void {
   function describeShape(): void {
     const [tw, th] = state.entry.placement.size;
     const rows = state.extraRows;
-    const above =
-      rows === 0
-        ? 'There are no spare rows above the footprint just now, so the drawing stops at the roofline.'
-        : `Above the footprint there ${rows === 1 ? 'is' : 'are'} ${plural(rows, 'spare row', 'spare rows')} of
-           16 pixels for a roof, an awning or a sign.`;
+    // One line above the canvas: where the building is and how big the canvas
+    // is. Everything else about the shape belongs beside the control for it.
     el<HTMLElement>('shape').textContent =
-      `${state.entry.def.name} stands ${plural(tw, 'tile', 'tiles')} wide and ${plural(th, 'tile', 'tiles')} deep ` +
-      `in ${state.entry.mapName}, so the canvas is ${state.width} pixels across and ${state.height} pixels tall. ` +
-      above.replace(/\s+/g, ' ');
+      `${state.entry.mapName} · ${state.width} × ${state.height} px · ${plural(tw, 'tile', 'tiles')} wide`;
+
     el<HTMLElement>('rowslabel').textContent = `${plural(rows, 'row', 'rows')} above the footprint`;
+    el<HTMLElement>('rowsnote').textContent =
+      rows === 0
+        ? 'The drawing stops at the roofline just now. Add a row for a roof, an awning or a sign.'
+        : `${plural(rows, 'spare row', 'spare rows')} of 16 pixels above the footprint, ` +
+          'which is where a roof, an awning or a sign goes.';
 
     const footH = th * TILE;
-    const minH = footH;
-    const maxH = footH + MAX_EXTRA_ROWS * TILE;
+    const heights: number[] = [];
+    for (let h = footH; h <= footH + MAX_EXTRA_ROWS * TILE; h += TILE) heights.push(h);
     el<HTMLElement>('elsewheresize').textContent =
-      `Right now this canvas is ${state.width} pixels wide and ${state.height} pixels tall. ` +
-      `The width is fixed at ${state.width}; the height can be any multiple of 16 from ${minH} up to ${maxH}, ` +
-      'depending on how many spare rows you leave for a roof, sign or awning — import one at any of those ' +
-      'heights and the canvas follows it.';
+      `Exactly ${state.width} pixels wide, and ${heights.slice(0, -1).join(', ')} or ` +
+      `${heights[heights.length - 1]} pixels tall — import any of those heights and the canvas follows it.`;
   }
 
   function refreshChrome(): void {
+    renderPaletteBar();
     for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>('.tool'))) {
       button.classList.toggle('on', button.dataset.tool === state.tool);
     }
@@ -1443,8 +1678,7 @@ function wireEditor(state: EditorState): void {
         state.tool = 'eraser';
         say('That spot is empty, so the eraser is ready instead.');
       } else {
-        state.colour = value;
-        state.tool = 'pencil';
+        useColour(value);
         say(`Picked colour ${value}. Back to the pencil.`);
       }
       refreshChrome();
@@ -1677,18 +1911,27 @@ function wireEditor(state: EditorState): void {
     });
   }
 
-  el<HTMLDivElement>('toolrow').addEventListener('click', (event) => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('.tool');
-    if (!button || !button.dataset.tool) return;
-    state.tool = button.dataset.tool as Tool;
-    refreshChrome();
-  });
-
-  el<HTMLDivElement>('sizerow').addEventListener('click', (event) => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('.size');
-    if (!button || !button.dataset.size) return;
-    state.brushSize = Number(button.dataset.size) as BrushSize;
-    refreshChrome();
+  /**
+   * One click handler for every control beside the drawing — a tool, a brush
+   * size or a colour — since they all live in the same section now. A
+   * <button> on `click` is one path for a finger, a mouse and a keyboard
+   * alike (hard rule 4).
+   */
+  el<HTMLElement>('tools').addEventListener('click', (event) => {
+    const target = event.target as HTMLElement;
+    const tool = target.closest<HTMLButtonElement>('.tool');
+    if (tool?.dataset.tool) {
+      pickTool(tool.dataset.tool as Tool);
+      return;
+    }
+    const size = target.closest<HTMLButtonElement>('.size');
+    if (size?.dataset.size) {
+      state.brushSize = Number(size.dataset.size) as BrushSize;
+      refreshChrome();
+      return;
+    }
+    const swatch = target.closest<HTMLButtonElement>('.swatch');
+    if (swatch?.dataset.colour) useColour(Number(swatch.dataset.colour));
   });
 
   el<HTMLButtonElement>('rectfilled').addEventListener('click', () => {
@@ -1704,14 +1947,6 @@ function wireEditor(state: EditorState): void {
         ? "Mirroring on — paint one side and the other fills in to match."
         : 'Mirroring is off; both sides are their own now.'
     );
-  });
-
-  el<HTMLDivElement>('palette').addEventListener('click', (event) => {
-    const swatch = (event.target as HTMLElement).closest<HTMLButtonElement>('.swatch');
-    if (!swatch) return;
-    state.colour = Number(swatch.dataset.colour);
-    if (state.tool === 'eraser' || state.tool === 'eyedropper') state.tool = 'pencil';
-    refreshChrome();
   });
 
   function undo(): void {
@@ -1805,7 +2040,8 @@ function wireEditor(state: EditorState): void {
   }
 
   el<HTMLButtonElement>('export').addEventListener('click', download);
-  el<HTMLButtonElement>('attachexport').addEventListener('click', download);
+  // Only the email route has a "Download the PNG" of its own to wire up.
+  document.getElementById('attachexport')?.addEventListener('click', download);
 
   // --- for anyone painting in another program ----------------------------
 
@@ -2197,7 +2433,7 @@ function wireEditor(state: EditorState): void {
   function maybeReminder(): void {
     const note = el<HTMLElement>('submitnote');
     if (state.showReference || paintedShare() < LIGHT_PAINT_SHARE) {
-      note.textContent = "Just a reminder: only what you drew goes in the email; the faint building is a guide.";
+      note.textContent = 'Just a reminder: only what you drew is sent; the faint building is a guide.';
       note.hidden = false;
     } else {
       note.hidden = true;
@@ -2231,15 +2467,19 @@ function wireEditor(state: EditorState): void {
     return copied;
   }
 
-  el<HTMLButtonElement>('copy').addEventListener('click', () => {
+  // "Copy the code" sits beside Send on a world that sends by email, and inside
+  // the "Didn't go through?" note on a world with a form. `data-status` says
+  // which status line it should speak into, so one handler serves both.
+  const copyButton = el<HTMLButtonElement>('copy');
+  copyButton.addEventListener('click', () => {
     maybeReminder();
     void (async () => {
       const copied = await putOnClipboard(currentCode());
-      saySend(
-        copied
-          ? 'Copied. Paste it anywhere you like — a text, an email, a note to yourself.'
-          : 'This browser keeps the clipboard to itself. Downloading the PNG and attaching it works just as well.'
-      );
+      const message = copied
+        ? 'Copied. Paste it anywhere you like — a text, an email, a note to yourself.'
+        : 'This browser keeps the clipboard to itself. Downloading the PNG and attaching it works just as well.';
+      const line = document.getElementById(copyButton.dataset.status ?? 'sendstatus');
+      if (line) line.textContent = message;
     })();
   });
 
@@ -2313,6 +2553,42 @@ function wireEditor(state: EditorState): void {
     return { body: [...bodyLines(name), 'My PNG is attached to this email.', ''].join('\n'), whole: false };
   }
 
+  /**
+   * A world that carries a `submit.art` block posts the drawing straight to
+   * the form the world pack names — no mail app, no account, nothing typed
+   * out by hand (hard rules 1 and 7: the URL and every field id are the
+   * pack's, and none of them appears in this file). The post is an ordinary
+   * form post, urlencoded exactly as a browser's own <form> would send it,
+   * with `no-cors` because we are posting across origins and cannot read the
+   * answer. That opacity is why the small note below it exists.
+   */
+  async function postToForm(form: SubmitArt, name: string, code: string): Promise<void> {
+    const body = new URLSearchParams();
+    body.set(form.fields.building, state.entry.placement.id);
+    body.set(form.fields.world, state.world.id);
+    body.set(form.fields.credit, name);
+    body.set(form.fields.code, code);
+    const notes = document.getElementById('notes') as HTMLTextAreaElement | null;
+    if (form.fields.notes && notes?.value.trim()) body.set(form.fields.notes, notes.value.trim());
+
+    saySend('Sending it in…');
+    const insurance = el<HTMLDetailsElement>('insurance');
+    try {
+      await fetch(form.form, { method: 'POST', mode: 'no-cors', body });
+    } catch {
+      // The one failure a `no-cors` post does show us: it never left the
+      // building. The drawing is safe on this page, and the code still sends.
+      insurance.hidden = false;
+      insurance.open = true;
+      saySend("That didn't get out just now, and nothing is lost — the note below has the other way to send it.");
+      return;
+    }
+    // Nothing comes back that we could read, so this says what we did rather
+    // than what the form did, and leaves the other way one press away.
+    insurance.hidden = false;
+    saySend(`Sent. Thank you, ${name}! Your name goes on the plaque beside the door.`);
+  }
+
   el<HTMLButtonElement>('send').addEventListener('click', () => {
     maybeReminder();
     const name = el<HTMLInputElement>('credit').value.trim();
@@ -2340,9 +2616,16 @@ function wireEditor(state: EditorState): void {
       return;
     }
 
-    // Every route gets filled in, every time, and the panel below always
-    // opens: a mailto: that goes nowhere is indistinguishable from one that
-    // worked, so the studio offers the other ways rather than assuming.
+    const form = state.world.submit?.art;
+    if (form) {
+      void postToForm(form, name, code);
+      return;
+    }
+
+    // No form in the pack: the older route. Every way of sending gets filled
+    // in, every time, and the panel below always opens — a mailto: that goes
+    // nowhere is indistinguishable from one that worked, so the studio offers
+    // the other ways rather than assuming.
     const mail = messageFor(name, code, MAILTO_BUDGET);
     const web = messageFor(name, code, WEBMAIL_BUDGET);
     // The clipboard has no length to run out of, so the copied message always
@@ -2371,7 +2654,7 @@ function wireEditor(state: EditorState): void {
     );
   });
 
-  el<HTMLButtonElement>('copymessage').addEventListener('click', () => {
+  document.getElementById('copymessage')?.addEventListener('click', () => {
     void (async () => {
       const copied = await putOnClipboard(copyable);
       sayFallback(
@@ -2382,7 +2665,7 @@ function wireEditor(state: EditorState): void {
     })();
   });
 
-  el<HTMLButtonElement>('fallbackcode').addEventListener('click', () => {
+  document.getElementById('fallbackcode')?.addEventListener('click', () => {
     void (async () => {
       const copied = await putOnClipboard(currentCode());
       sayFallback(
@@ -2416,23 +2699,23 @@ function wireEditor(state: EditorState): void {
     switch (event.key.toLowerCase()) {
       case 'b':
       case 'p':
-        state.tool = 'pencil';
-        break;
+        pickTool('pencil');
+        return;
       case 'f':
-        state.tool = 'fill';
-        break;
+        pickTool('fill');
+        return;
       case 'e':
-        state.tool = 'eraser';
-        break;
+        pickTool('eraser');
+        return;
       case 'i':
-        state.tool = 'eyedropper';
-        break;
+        pickTool('eyedropper');
+        return;
       case 'l':
-        state.tool = 'line';
-        break;
+        pickTool('line');
+        return;
       case 'r':
-        state.tool = 'rect';
-        break;
+        pickTool('rect');
+        return;
       case '1':
         state.brushSize = 1;
         break;
@@ -2492,7 +2775,10 @@ function wireEditor(state: EditorState): void {
     say('Fetching the painting as it is in the game…');
     void improvePicture();
   } else {
-    say(`${plural(state.palette.filter((c) => c !== null).length, 'colour', 'colours')} to paint with. Take your time.`);
+    say(
+      `Pencil ready, and ${plural(state.palette.filter((c) => c !== null).length, 'colour', 'colours')} ` +
+        'to paint with. Take your time.'
+    );
   }
 }
 
@@ -2502,7 +2788,7 @@ function saveDraft(state: EditorState): void {
   try {
     localStorage.setItem(
       draftKey(state.world.id, state.entry.placement.id),
-      JSON.stringify({ saved: Date.now(), code: encode(drawingOf(state)) })
+      JSON.stringify({ saved: Date.now(), code: encode(drawingOf(state)), recent: state.recent })
     );
   } catch {
     // A full or blocked localStorage is not worth interrupting anyone over.
@@ -2518,7 +2804,14 @@ function restoreDraft(state: EditorState): void {
   }
   if (!raw) return;
   try {
-    const saved = JSON.parse(raw) as { code?: string };
+    const saved = JSON.parse(raw) as { code?: string; recent?: number[] };
+    // The colours this painter was last reaching for, so the palette bar picks
+    // up where they left off. Anything odd in there is simply not restored.
+    if (Array.isArray(saved.recent)) {
+      state.recent = saved.recent
+        .filter((index) => Number.isInteger(index) && index >= 0 && index < state.palette.length)
+        .slice(0, RECENT_SHOWN + 1);
+    }
     if (!saved.code) return;
     const drawing = decode(saved.code);
     const footW = state.entry.placement.size[0] * TILE;
@@ -2572,12 +2865,15 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Kept in the pack's own map order, so the picker's villages come out in the
+  // order the world lists them; the names inside a village are sorted, which is
+  // how anyone looks for a shop they know.
   const entries: Entry[] = [];
-  for (const map of Object.values(world.maps ?? {})) {
+  for (const [mapId, map] of Object.entries(world.maps ?? {})) {
     for (const placement of map.buildings ?? []) {
       const def = world.buildings?.[placement.id];
       if (!def) continue;
-      entries.push({ placement, def, mapName: map.name, painted: false });
+      entries.push({ placement, def, mapId, mapName: map.name, painted: false });
     }
   }
   entries.sort((a, b) => a.def.name.localeCompare(b.def.name));

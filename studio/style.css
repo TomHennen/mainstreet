@@ -154,13 +154,38 @@ a.link {
 
 /* --- the canvas ------------------------------------------------------------ */
 
+/* Zoom and Lock ride on the frame around the canvas, since both are about the
+   canvas rather than about the drawing on it. */
+.frame {
+  background: var(--night);
+  border: 2px solid var(--edge);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.framebar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(243, 234, 216, 0.12);
+}
+
+.framebar button {
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.framespacer {
+  flex: 1 1 auto;
+}
+
 /* A settled height rather than a range: the editor picks its zoom from the
    room the stage has, so the room has to be the same before and after the
    first canvas appears in it. */
 .stage {
   background: var(--night);
-  border: 2px solid var(--edge);
-  border-radius: 6px;
   /* Scrolls itself when the drawing is zoomed in past it, and deliberately
      without overscroll-behavior: contain — with the canvas locked, a finger has
      to be able to scroll the stage and then carry on down the page, which is
@@ -168,13 +193,18 @@ a.link {
   overflow: auto;
   /* Tall enough on a phone that the width is what decides the opening zoom,
      even with a full-size marker strip under the drawing. */
-  height: 50vh;
-  min-height: 240px;
+  height: 42vh;
+  min-height: 220px;
+  /*
+   * Deliberately *not* justify-content/align-items: center. Overflow on the
+   * start side of a centred flex container is not added to scrollWidth, so a
+   * zoomed-in drawing loses its left-hand columns to a place no scroll and no
+   * pinch can reach. Auto margins on the child centre it exactly the same way
+   * while there is room, and resolve to zero the moment there is not — which
+   * puts every overflowing pixel on the scrollable side.
+   */
   display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 4px;
-  margin-bottom: 6px;
 }
 
 /* The canvas and the strip of door/plaque markers travel together, so the
@@ -344,6 +374,64 @@ kbd {
   flex: 1 1 100%;
 }
 
+/* The colour in hand, the last few used, and the way to all of them. */
+.palettebar {
+  align-items: center;
+  gap: 6px;
+}
+
+.recents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1 1 auto;
+}
+
+.palettebar .swatch {
+  width: 34px;
+  height: 34px;
+  aspect-ratio: auto;
+  flex: none;
+}
+
+.palettebar .swatch.current {
+  border-color: var(--paper);
+  outline: 2px solid var(--maple);
+  cursor: default;
+}
+
+.palettegroup {
+  margin-bottom: 10px;
+}
+
+.palettegroup > .quiet {
+  display: block;
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+/* Everything a first facade never needs, one press away. */
+.more {
+  border-left: 2px solid var(--edge);
+  padding-left: 8px;
+  margin-bottom: 10px;
+}
+
+.more p:last-child {
+  margin-bottom: 0;
+}
+
+/* One primary action, the width of the page. */
+.sendrow #send {
+  flex: 1 1 100%;
+  justify-content: center;
+}
+
+/* One heading per village in the picker. */
+.village h2 {
+  margin-bottom: 8px;
+}
+
 .palette {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
@@ -380,9 +468,15 @@ kbd {
   .tool,
   .size,
   .toggle,
-  .marker button {
+  .marker button,
+  .framebar button {
     min-width: 44px;
     justify-content: center;
+  }
+
+  .palettebar .swatch {
+    width: 44px;
+    height: 44px;
   }
 
   .palette {
@@ -588,14 +682,17 @@ kbd {
     max-width: 1000px;
     display: grid;
     grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+    /* The drawing, what it will look like and the note that sends it run down
+       the left; the tools sit beside them and span as far as they need. The
+       left-hand stack is the taller of the two, so nothing has to stretch to
+       fill a gap. */
     grid-template-areas:
       'head head'
-      'stage tools'
-      'gestures tools'
-      'guide tools'
+      'frame tools'
       'status tools'
-      'files preview'
-      'files send'
+      'preview tools'
+      'send tools'
+      'files files'
       'how how';
     column-gap: 24px;
     align-items: start;
@@ -604,16 +701,10 @@ kbd {
   .editing .masthead {
     grid-area: head;
   }
-  .editing .stage {
-    grid-area: stage;
+  .editing .frame {
+    grid-area: frame;
   }
-  .editing #gesturenote {
-    grid-area: gestures;
-  }
-  .editing #guidenote {
-    grid-area: guide;
-  }
-  .editing .statusline {
+  .editing .statusline#status {
     grid-area: status;
   }
   .editing .tools {

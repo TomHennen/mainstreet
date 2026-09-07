@@ -41,13 +41,18 @@ The Studio is happy on a phone, and this is all there is to it:
   pixels, and slide to move around a drawing that's bigger than the screen.
   Starting a pinch never leaves a stray dot behind: whatever the first
   finger touched goes back the way it was.
-- **Lock** (the button under the drawing) tells the canvas to ignore one
+- **Lock** (on the canvas frame, top right) tells the canvas to ignore one
   finger, so you can scroll the page past it to reach the tools and the
   palette. Two fingers still zoom and pan while it's locked. Tap it again
   to paint.
+- **More** opens the rest of the tools — line, rectangle, mirror, brush
+  size, the grid, the faint guide, the extra rows above the roofline, and
+  the buttons that step the door and plaque markers along.
 
 The drawing opens sized to fit your screen, and the little **×6** beside
-the zoom buttons says how big a pixel is right now.
+the zoom buttons on the frame says how big a pixel is right now. Under the
+tools sit the colour you're painting with and the last few you used, with
+**All 64 colours** to open the whole palette, grouped by colour family.
 
 ### Prefer a real pixel-art app?
 
@@ -116,23 +121,27 @@ first tries are welcome too. We'll help you get it over the line.
 - **Height** is a multiple of 16, and can be taller than the footprint —
   the art sits on the bottom of the canvas, and any extra rows above are
   where a roof, awning, or hanging sign goes.
-- **You choose where the door goes.** Two little markers sit on the bottom
-  row of the Studio's canvas, one for the door and one for the plaque, and
-  you can put them in any column you like — drag them along the strip under
-  the drawing, or use the ◀ ▶ buttons beside it. The game reads them for
-  where a player knocks and where your name hangs. They're markers, not
-  paint: they never appear in the picture.
+- **You choose where the door goes.** Two little chips sit on the strip
+  under the Studio's canvas, one for the door and one for the plaque, and
+  you can put them in any column you like — drag them along the strip, or
+  use the ◀ ▶ buttons under **More**. The game reads them for where a
+  player knocks and where your name hangs. They're markers, not paint: they
+  never appear in the picture.
 
 Exact sizes for every open building are below.
 
 ## How to send it
 
-The Studio's **Open an email with my drawing** button opens an email to
-**tom.hennen+mainstreet@gmail.com** with a text code of your drawing
-already in the body — just hit send. (A very detailed drawing can outgrow what
-an email link will carry; the Studio notices, says so, and offers you the PNG
-to attach instead.) If you moved the door or the plaque, the
-code brings that along, and the email says so in words as well.
+The Studio's **Send it to the town** button sends the drawing straight to us
+— there's no account to make and no email app to wrestle with. Your drawing
+travels as a short line of text, along with the name you'd like credited and
+anything you'd like to say with it, and the size of the drawing doesn't
+matter. If you moved the door or the plaque, that goes along too. Then it
+says thank you, and you're done.
+
+Nothing comes back to tell us it arrived, so if you'd like to be sure, open
+**Didn't go through?** underneath, copy the code, and paste it into an email
+to **tom.hennen+mainstreet@gmail.com** — it lands in exactly the same place.
 
 Painted outside the Studio? Email that same address and attach the PNG. If
 you'd like the door somewhere other than where the placeholder has it, just

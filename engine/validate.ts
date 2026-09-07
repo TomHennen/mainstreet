@@ -2,7 +2,7 @@
 // needs under Node's type stripping (see that file's header).
 import { findPath } from './path.ts';
 import { BUILDS, FIXTURE_KINDS, HAIR_STYLES, plaqueTile } from './schema.ts';
-import type { Episode, GameMap, Look, Route, Vec2, Wander, World } from './schema';
+import type { Episode, GameMap, Look, Route, Submit, Vec2, Wander, World } from './schema';
 
 /**
  * Load-time validation of a world pack (DESIGN.md §3), run both in the browser
@@ -22,6 +22,7 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
   if (!mapIds.length) problems.push('world has no maps');
 
   checkLook(world.player.look, `player "${world.player.id}"`, problems);
+  checkSubmit(world.submit, problems);
 
   // A building's standing sign is the copy its door shows on an ordinary day
   // (DESIGN.md §3). Every building actually standing on a map needs one: the
@@ -399,6 +400,45 @@ function checkMovement(
     if (!spots) {
       problems.push(`${context} has a "wander" with no tile within ${wander.radius} of ${who.pos.join(',')} to walk to`);
     }
+  }
+}
+
+/**
+ * `submit.art` — where the Studio posts a finished drawing (DESIGN.md §4).
+ * Optional entirely; a world without it keeps the Studio's email route. What
+ * is checked is only what would fail silently across origins: the post is
+ * opaque, so a mistyped field id would look exactly like a submission that
+ * worked. Hence https (a form post carries somebody's name), and a real id
+ * for every part the Studio always sends.
+ */
+function checkSubmit(submit: Submit | undefined, problems: string[]): void {
+  if (submit === undefined) return;
+  if (typeof submit !== 'object' || Array.isArray(submit)) {
+    problems.push('world has a "submit" that is not an object');
+    return;
+  }
+  const art = submit.art;
+  if (art === undefined) return;
+  if (typeof art !== 'object' || Array.isArray(art)) {
+    problems.push('world has a "submit.art" that is not an object');
+    return;
+  }
+  if (typeof art.form !== 'string' || !art.form.startsWith('https://')) {
+    problems.push('world "submit.art" needs a "form" URL beginning https://');
+  }
+  const fields = art.fields;
+  if (typeof fields !== 'object' || fields === null || Array.isArray(fields)) {
+    problems.push('world "submit.art" needs a "fields" object naming the form\'s field ids');
+    return;
+  }
+  for (const name of ['building', 'world', 'credit', 'code'] as const) {
+    const value = fields[name];
+    if (typeof value !== 'string' || value.trim() === '') {
+      problems.push(`world "submit.art" has no field id for "${name}"`);
+    }
+  }
+  if (fields.notes !== undefined && (typeof fields.notes !== 'string' || fields.notes.trim() === '')) {
+    problems.push('world "submit.art" has a "notes" field id that is empty');
   }
 }
 
