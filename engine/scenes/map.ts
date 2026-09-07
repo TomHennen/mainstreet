@@ -60,6 +60,36 @@ interface Target {
   fixture?: Fixture;
 }
 
+/** A rectangle of world pixels. */
+interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const covers = (box: Box, x: number, y: number): boolean =>
+  x >= box.x && x < box.x + box.w && y >= box.y && y < box.y + box.h;
+
+/** A fingertip is bigger than a six-pixel plaque, so its hit box is padded. */
+const PLAQUE_PAD = 4;
+
+/**
+ * Where a building's picture actually is, in world pixels, so a tap can be
+ * given to the building it looks like it landed on. A facade is drawn taller
+ * than its footprint — roof, upper storeys, the name plate floating over the
+ * lot — and all of that reads as the building to whoever is tapping it.
+ */
+interface Facade {
+  building: BuildingPlacement;
+  /** The footprint, the picture standing on it, and the name plate above. */
+  boxes: Box[];
+  /** The little brass plaque on the wall, padded out to a tappable size. */
+  plaque: Box | null;
+  /** Draw depth, so the building in front wins where two pictures overlap. */
+  depth: number;
+}
+
 /**
  * Villages and interiors are the same thing: a tile grid with exits. Giving a
  * building an interior later is a world-data change with no engine change,
@@ -85,11 +115,16 @@ export class MapScene extends Phaser.Scene {
   private unbindAction: (() => void) | null = null;
   private unbindTap: (() => void) | null = null;
 
+  /** What every building's picture covers, for tap targeting. */
+  private facades: Facade[] = [];
+  /** The same boxes, flat, for the dev-only snapshot. */
+  private artBoxes: Box[] = [];
+
   /** Tiles still to walk, nearest first, while a tapped walk is running. */
   private walkPath: Vec2[] | null = null;
   private walkGoal: Vec2 | null = null;
-  /** Whether arriving should read whatever was tapped, as if A had been pressed. */
-  private walkReads = false;
+  /** What arriving should read, as if A had been pressed there; null reads nothing. */
+  private walkTarget: Target | null = null;
 
   constructor() {
     super('Map');
@@ -106,9 +141,11 @@ export class MapScene extends Phaser.Scene {
     this.exitArmed = false;
     this.enterArmed = false;
     this.itemSprites = new Map();
+    this.facades = [];
+    this.artBoxes = [];
     this.walkPath = null;
     this.walkGoal = null;
-    this.walkReads = false;
+    this.walkTarget = null;
   }
 
   create(data: MapSceneData): void {
@@ -126,14 +163,39 @@ export class MapScene extends Phaser.Scene {
       const lift = plateLift(this, placement, def, paintedKey, plates);
       const art = buildingArt(this, placement, def, paintedKey, lift);
       const depth = (placement.pos[1] + placement.size[1]) * TILE;
-      this.add.image(art.x, art.y, art.key).setOrigin(0, 0).setDepth(depth);
+      const image = this.add.image(art.x, art.y, art.key).setOrigin(0, 0).setDepth(depth);
+
+      // What the building covers on screen, kept as it is drawn rather than
+      // worked out again later: the footprint it stands on and the picture
+      // above it, which is what a finger aims at (CLAUDE.md #4).
+      const facade: Facade = {
+        building: placement,
+        boxes: [
+          {
+            x: placement.pos[0] * TILE,
+            y: placement.pos[1] * TILE,
+            w: placement.size[0] * TILE,
+            h: placement.size[1] * TILE
+          },
+          { x: image.x, y: image.y, w: image.displayWidth, h: image.displayHeight }
+        ],
+        plaque: null,
+        depth
+      };
+      this.facades.push(facade);
 
       // Every building carries its plaque, painted or not: it is the engine's
       // own little fixture, sitting over the facade so no artist has to paint
       // one (DESIGN.md §2/§4).
       const plaque = plaqueArt(this, placement);
       if (plaque) {
-        this.add.image(plaque.x, plaque.y, plaque.key).setOrigin(0, 0).setDepth(depth + 2);
+        const brass = this.add.image(plaque.x, plaque.y, plaque.key).setOrigin(0, 0).setDepth(depth + 2);
+        facade.plaque = {
+          x: brass.x - PLAQUE_PAD,
+          y: brass.y - PLAQUE_PAD,
+          w: brass.displayWidth + PLAQUE_PAD * 2,
+          h: brass.displayHeight + PLAQUE_PAD * 2
+        };
       }
 
       if (art.painted) {
@@ -142,7 +204,8 @@ export class MapScene extends Phaser.Scene {
         // own here (issue #32), unless the placement opts out.
         if (placement.label !== false) {
           const plate = namePlateArt(this, placement, def, art.y, lift);
-          this.add.image(plate.x, plate.y, plate.key).setOrigin(0, 0).setDepth(depth + 1);
+          const sign = this.add.image(plate.x, plate.y, plate.key).setOrigin(0, 0).setDepth(depth + 1);
+          facade.boxes.push({ x: sign.x, y: sign.y, w: sign.displayWidth, h: sign.displayHeight });
         }
       } else {
         // "Needs an artist" shimmer — visible, claimable, and deliberate.
@@ -167,6 +230,14 @@ export class MapScene extends Phaser.Scene {
           ease: 'Sine.easeInOut'
         });
       }
+    }
+
+    // Dev only, for the playtest harness: which ground is plain ground, and
+    // which is somebody's shopfront (engine/debug.ts).
+    if (import.meta.env.DEV) {
+      this.artBoxes = this.facades.flatMap((facade) =>
+        facade.plaque ? [...facade.boxes, facade.plaque] : facade.boxes
+      );
     }
 
     // The engine's own street furniture: drawn on the tile it stands on, at
@@ -249,6 +320,7 @@ export class MapScene extends Phaser.Scene {
       locked: state.locked,
       walkTo: this.walkGoal ? [this.walkGoal[0], this.walkGoal[1]] : null,
       view: { x: view.x, y: view.y, width: view.width, height: view.height, tile: TILE },
+      art: this.artBoxes,
       flags: state.flags.snapshot(),
       dialogue: currentDialogue()
     });
@@ -428,19 +500,20 @@ export class MapScene extends Phaser.Scene {
     const state = session();
     if (state.locked || state.dialogueOpen) return;
 
-    const tile = this.tileAt(clientX, clientY);
-    if (!tile) return;
+    const point = this.pointAt(clientX, clientY);
+    if (!point) return;
+    const tile: Vec2 = [Math.floor(point.x / TILE), Math.floor(point.y / TILE)];
 
-    const readable = this.readableAt(tile[0], tile[1]);
-    const goal = readable?.at ?? tile;
+    const hit = this.tapTargetAt(tile, point.x, point.y);
+    const goal = hit?.goal ?? tile;
     const start = this.startTile();
     const walkable = this.walkableTo(goal);
     let route = pathToTile(start, goal, walkable);
-    if (!route && readable) {
+    if (!route && hit) {
       // Somebody behind a counter has no free tile beside them, and is still
       // perfectly easy to talk to across it. Failing that, stand anywhere the
       // A button would reach them from — the same reach findTarget() uses.
-      route = findPath(start, (x, y) => Math.hypot(x - goal[0], y - goal[1]) <= readable.reach, walkable);
+      route = findPath(start, (x, y) => Math.hypot(x - goal[0], y - goal[1]) <= hit.reach, walkable);
     }
     if (!route?.length) {
       this.refuse(tile);
@@ -449,13 +522,13 @@ export class MapScene extends Phaser.Scene {
 
     this.walkPath = route;
     this.walkGoal = route[route.length - 1];
-    this.walkReads = readable !== null;
+    this.walkTarget = hit?.target ?? null;
     this.tweens.killTweensOf(this.marker);
     this.marker.setPosition(this.walkGoal[0] * TILE, this.walkGoal[1] * TILE).setAlpha(1).setVisible(true);
   }
 
-  /** Client pixels to a tile, through the canvas box and the camera. */
-  private tileAt(clientX: number, clientY: number): Vec2 | null {
+  /** Client pixels to a point in the world, through the canvas box and the camera. */
+  private pointAt(clientX: number, clientY: number): { x: number; y: number } | null {
     const rect = this.game.canvas.getBoundingClientRect();
     if (!rect.width || !rect.height) return null;
     const x = clientX - rect.left;
@@ -463,7 +536,7 @@ export class MapScene extends Phaser.Scene {
     if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
     const { width, height } = this.scale.gameSize;
     const point = this.cameras.main.getWorldPoint((x * width) / rect.width, (y * height) / rect.height);
-    return [Math.floor(point.x / TILE), Math.floor(point.y / TILE)];
+    return { x: point.x, y: point.y };
   }
 
   /**
@@ -511,31 +584,100 @@ export class MapScene extends Phaser.Scene {
   }
 
   /**
-   * What the player tapped, if it was something readable, and the tile the
-   * reading is done from. Order matches findTarget()'s: people, then things,
-   * then buildings. People are drawn two tiles tall, so their head counts as
-   * them; a building answers for its door tile, the doorway above it, and its
-   * plaque.
+   * What the player tapped, the tile the walk should end on, and how close
+   * that has to get for the reading to work. Order matches findTarget()'s:
+   * people, then things, then buildings. People are drawn two tiles tall, so
+   * their head counts as them; a fixture is tapped where it stands and read
+   * from beside it.
+   *
+   * A building answers for more than a tile. Its door — and the doorway drawn
+   * on the wall above it — opens the place when there is an interior and reads
+   * the sign when there is not. Its plaque answers on the tile it is read from
+   * and on the little brass plaque hanging over the facade. Everything else
+   * the picture covers, roof and name plate included, is the facade: walk to
+   * the front and read the sign, which is what tapping a shop means (CLAUDE.md
+   * #4). All of it comes from the map and the picture — never from what the
+   * building is (hard rule 1).
    */
-  private readableAt(tx: number, ty: number): { at: Vec2; reach: number } | null {
+  private tapTargetAt(tile: Vec2, x: number, y: number): { target: Target; goal: Vec2; reach: number } | null {
+    const [tx, ty] = tile;
     const npcReach = this.map.kind === 'interior' ? REACH.npcInterior : REACH.npcVillage;
-    for (const npc of npcsOn(this.mapId)) {
-      if (npc.pos[0] === tx && (npc.pos[1] === ty || npc.pos[1] - 1 === ty)) return { at: npc.pos, reach: npcReach };
-    }
-    for (const item of itemsOn(this.mapId)) {
-      if (itemVisible(item) && item.pos[0] === tx && item.pos[1] === ty) return { at: item.pos, reach: REACH.item };
-    }
-    for (const sign of propSignsOn(this.mapId)) {
-      if (sign.pos && sign.pos[0] === tx && sign.pos[1] === ty) return { at: sign.pos, reach: REACH.prop };
-    }
-    for (const building of this.map.buildings) {
-      const plaque = plaqueTile(building);
-      if (plaque && plaque[0] === tx && plaque[1] === ty) return { at: plaque, reach: REACH.plaque };
-      if (building.door[0] === tx && (building.door[1] === ty || building.door[1] - 1 === ty)) {
-        return { at: building.door, reach: REACH.door };
+    const npcs = npcsOn(this.mapId);
+    for (let i = 0; i < npcs.length; i++) {
+      const npc = npcs[i];
+      if (npc.pos[0] === tx && (npc.pos[1] === ty || npc.pos[1] - 1 === ty)) {
+        return { target: { kind: 'npc', at: npc.pos, npcIndex: i }, goal: npc.pos, reach: npcReach };
       }
     }
+    for (const item of itemsOn(this.mapId)) {
+      if (itemVisible(item) && item.pos[0] === tx && item.pos[1] === ty) {
+        return { target: { kind: 'item', at: item.pos, item }, goal: item.pos, reach: REACH.item };
+      }
+    }
+    for (const sign of propSignsOn(this.mapId)) {
+      if (sign.pos && sign.pos[0] === tx && sign.pos[1] === ty) {
+        return { target: { kind: 'prop', at: sign.pos, sign }, goal: sign.pos, reach: REACH.prop };
+      }
+    }
+    for (const fixture of this.fixtures()) {
+      if (fixture.pos[0] === tx && fixture.pos[1] === ty) {
+        return { target: { kind: 'fixture', at: fixture.pos, fixture }, goal: fixture.pos, reach: REACH.fixture };
+      }
+    }
+
+    for (const building of this.map.buildings) {
+      const plaque = plaqueTile(building);
+      if (plaque && plaque[0] === tx && plaque[1] === ty) return this.plaqueTap(building, plaque);
+    }
+
+    const hit = this.facadeAt(x, y);
+    if (hit?.plaque) {
+      const plaque = plaqueTile(hit.facade.building);
+      if (plaque) return this.plaqueTap(hit.facade.building, plaque);
+    }
+    for (const building of this.map.buildings) {
+      if (building.door[0] === tx && (building.door[1] === ty || building.door[1] - 1 === ty)) {
+        return this.doorTap(building, building.interior ? 'enter' : 'sign');
+      }
+    }
+    if (hit) return this.doorTap(hit.facade.building, 'sign');
     return null;
+  }
+
+  private plaqueTap(building: BuildingPlacement, plaque: Vec2): { target: Target; goal: Vec2; reach: number } {
+    return {
+      target: { kind: 'plaque', at: [plaque[0], plaque[1] - 1], building },
+      goal: [plaque[0], plaque[1]],
+      reach: REACH.plaque
+    };
+  }
+
+  /** The front step: where a sign is read from, and where a door is opened. */
+  private doorTap(building: BuildingPlacement, kind: 'enter' | 'sign'): { target: Target; goal: Vec2; reach: number } {
+    return {
+      target: { kind, at: [building.door[0], building.door[1] - 1], building },
+      goal: [building.door[0], building.door[1]],
+      reach: REACH.door
+    };
+  }
+
+  /**
+   * The building whose picture covers this point. A plaque beats a picture,
+   * because it is small and deliberate; otherwise the one drawn in front wins,
+   * which is the one the player can see.
+   */
+  private facadeAt(x: number, y: number): { facade: Facade; plaque: boolean } | null {
+    let best: { facade: Facade; plaque: boolean } | null = null;
+    for (const facade of this.facades) {
+      const plaque = facade.plaque !== null && covers(facade.plaque, x, y);
+      if (!plaque && !facade.boxes.some((box) => covers(box, x, y))) continue;
+      if (best) {
+        if (best.plaque && !plaque) continue;
+        if (best.plaque === plaque && facade.depth <= best.facade.depth) continue;
+      }
+      best = { facade, plaque };
+    }
+    return best;
   }
 
   /**
@@ -586,11 +728,12 @@ export class MapScene extends Phaser.Scene {
     }
 
     if (!path.length) {
-      const reads = this.walkReads;
+      const target = this.walkTarget;
       this.stopWalk();
-      // The arrival press, once. interact() is guarded against firing mid-walk,
-      // so this is the only place a tapped walk ever reads anything.
-      if (reads) this.interact();
+      // The arrival press, once, on the very thing that was tapped rather than
+      // on whatever happens to be in reach of where the walk ended — tapping a
+      // shop front reads its sign even when the walk finishes on its doorstep.
+      if (target) this.act(target);
     }
     return moved;
   }
@@ -598,7 +741,7 @@ export class MapScene extends Phaser.Scene {
   private stopWalk(): void {
     this.walkPath = null;
     this.walkGoal = null;
-    this.walkReads = false;
+    this.walkTarget = null;
     this.marker.setVisible(false);
   }
 
@@ -643,19 +786,23 @@ export class MapScene extends Phaser.Scene {
     this.prompt.setVisible(true);
   }
 
+  /** The A button: whatever is in reach, if anything. */
   private interact(): void {
-    const state = session();
-    // The dialogue overlay owns the action button while it is open, and for a
-    // beat after it closes, so dismissing a line can never re-trigger a talk.
-    if (state.locked || state.dialogueOpen || performance.now() - state.lastDialogueClose < 200) return;
     // A tapped walk is a promise to arrive. A press part-way there would either
     // strand the player or strike up a conversation with somebody they were
     // only walking past, so A waits until the walk is done — and the walk
     // presses A itself if the tap was on something to read.
     if (this.walkPath) return;
-
     const target = this.findTarget();
-    if (!target) return;
+    if (target) this.act(target);
+  }
+
+  /** Read it, open it, pick it up or go in. The one place any of that happens. */
+  private act(target: Target): void {
+    const state = session();
+    // The dialogue overlay owns the action button while it is open, and for a
+    // beat after it closes, so dismissing a line can never re-trigger a talk.
+    if (state.locked || state.dialogueOpen || performance.now() - state.lastDialogueClose < 200) return;
 
     if (target.kind === 'npc') {
       const npc = npcsOn(this.mapId)[target.npcIndex ?? 0];
@@ -748,6 +895,9 @@ export class MapScene extends Phaser.Scene {
     }
 
     if (target.kind === 'enter' && target.building?.interior && target.building.enter) {
+      // The doorstep rule findTarget() keeps too (see armEnters): stepping out
+      // of a door and tapping it straight back must not go in again.
+      if (!this.enterArmed) return;
       this.leave({
         style: 'door',
         hold: HOLD.enter,

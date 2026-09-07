@@ -31,6 +31,13 @@ export interface DebugSnapshot {
    * canvas and tap it.
    */
   view: { x: number; y: number; width: number; height: number; tile: number };
+  /**
+   * Every rectangle of world pixels a building's picture covers on this map —
+   * footprint, the art standing on it, its name plate and its plaque. A tap
+   * inside one of these is a tap on that building, so the harness knows which
+   * ground is plain ground (engine/scenes/map.ts tapTargetAt).
+   */
+  art: { x: number; y: number; w: number; h: number }[];
   flags: Record<string, boolean>;
   /** The page of dialogue on screen, or null when no box is open. */
   dialogue: DebugDialogue | null;
