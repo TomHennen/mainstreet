@@ -74,7 +74,9 @@ notes-file guess:
   likely doesn't have enough room there for a third full-size building —
   the block may need to be widened, the existing two buildings' lots
   tightened, or the block face re-thought.
-- **Solinsky's** (butcher) — village and position not yet given.
+- **Solinsky's** (butcher) — village and exact position not yet given.
+- **The fire department** — west of Solinsky's, so Stamford, same
+  unplaced block as Solinsky's; exact position not yet given.
 - **John's Tavern** — almost certainly Stamford (Tom's contrasting it
   directly with the Belvedere's crowd), exact position not yet given.
 - **TP's Cafe** and **Ace Hardware** — TP's is "off Railroad Ave, next to
@@ -226,6 +228,14 @@ opt-in, everything warm and affectionate) before it reaches the player.
   "everyone would smile at this" humor bar from CLAUDE.md hard rule 6
   mostly doesn't apply here. Good for a still, reflective beat (a bench, a
   flag, someone tending the flowerbeds) rather than a punchline.
+- **The fire department.** Volunteer-run, and a lot of people end up
+  joining who never expected to — including city transplants who moved up
+  for a quieter life and somehow wound up as volunteer firefighters. Warm,
+  slightly funny material: someone's whole self-image shifting ("I used to
+  work in finance, now I show up when the siren goes"), or a proud, low-key
+  local-hero energy around the department without making it a big dramatic
+  thing. Ties nicely into the small-town-density and NYC-commuter notes
+  above — this is the same kind of person who'd have that arc.
 - **Catskill Scenic Trail.** Runs Stamford to Hobart along an old rail
   bed; a standard tourist thing to do, and plenty of locals bike or walk
   it too. Good material for a "visiting for the day" episode framing, a
