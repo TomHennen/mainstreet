@@ -286,7 +286,19 @@ opt-in, everything warm and affectionate) before it reaches the player.
   more showman than tradesman, brings a crowd. A good "help someone" or
   "witness an event" episode could turn a mundane errand (something's
   wrong with the septic) into a chance to meet three new characters at
-  once, purely through his orbit.
+  once, purely through his orbit. He really does wells too, but he's known
+  around town for septic. When a tank fills up, the fix is a call for the
+  truck that pumps it out — locally nicknamed the **"honey wagon"** — and
+  that's a fun, silly, warm bit of texture on its own (the kind of thing a
+  newcomer hears for the first time and can't quite believe is real). A
+  good visual beat for a "watch the honey wagon at work" moment: the truck
+  parked at the tank, hose down, pumping with a slow rhythmic pulse — the
+  sort of thing an idle animation could sell nicely if the engine ever
+  grows a way to animate an object sitting on the map (it doesn't yet;
+  today's only precedent is the travel screen's rolling-road effect,
+  DESIGN.md, which is a different, screen-specific mechanism, not a
+  general one). Worth keeping in mind next time animation support comes up
+  as its own engine feature, rather than something to bolt on for one gag.
 - **Small-town density.** Wherever you are on Route 10, you will run into
   someone you know. Good recurring texture for episodes: NPCs who greet the
   player by name away from their "home" location, or a travel-card beat
