@@ -147,6 +147,62 @@ describe('Driver', () => {
     expect(car.tile()).toEqual([4, 1]);
     expect(car.facing).toBe('left');
   });
+
+  // A scene sending a car somewhere (engine/scene.ts, DESIGN.md §3): the
+  // parked pickup that pulls out of the lot and drives off down the road.
+  describe('sendTo', () => {
+    const parked = () => new Driver({ pos: [2, 1], speed: 6, drivable: ROAD, facing: 'down' });
+
+    it('drives a parked car to where a scene sent it', () => {
+      const car = parked();
+      expect(car.sendTo([15, 1])).toBe(true);
+      expect(car.driving).toBe(true);
+      expect(car.parked).toBe(false);
+      run(car, 4);
+      expect(car.tile()).toEqual([15, 1]);
+      expect(car.facing).toBe('right');
+      // Arrived: it is a parked car again, and it stays where it was left.
+      expect(car.driving).toBe(false);
+      expect(car.parked).toBe(true);
+      run(car, 5);
+      expect(car.tile()).toEqual([15, 1]);
+    });
+
+    it('reads as moving rather than stopped while it is on its way', () => {
+      const car = parked();
+      car.sendTo([15, 1]);
+      run(car, 1);
+      expect(car.stopped).toBe(false);
+      expect(car.x).toBeGreaterThan(4);
+    });
+
+    it('waits for somebody in the road rather than driving round them', () => {
+      const car = parked();
+      car.sendTo([15, 1]);
+      run(car, 6, standingAt([9, 1]));
+      expect(car.yielding).toBe(true);
+      expect(car.y).toBe(1);
+      expect(car.x).toBeLessThan(9);
+      // And carries on the moment they step off.
+      run(car, 3);
+      expect(car.tile()).toEqual([15, 1]);
+    });
+
+    it('says so when there is no paved way there', () => {
+      const car = parked();
+      expect(car.sendTo([5, 9])).toBe(false);
+      run(car, 3);
+      expect(car.tile()).toEqual([2, 1]);
+    });
+
+    it('takes a speed of its own for the one trip', () => {
+      const slow = parked();
+      slow.sendTo([15, 1], 1);
+      run(slow, 2);
+      expect(slow.x).toBeLessThan(6);
+      expect(slow.driving).toBe(true);
+    });
+  });
 });
 
 describe('Mover.ahead', () => {
