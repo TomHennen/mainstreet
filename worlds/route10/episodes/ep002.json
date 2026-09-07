@@ -24,17 +24,18 @@
         },
         {
           "requires": ["triedStamford"],
-          "lines": ["Any luck yet? I really do appreciate this."]
+          "lines": ["Renata might know something — Cellar Door, down in Hobart."]
         },
         {
           "requires": ["heardAsk"],
-          "lines": ["The bag's got everything — tights, the headpiece, all of it. Whoever you find, they can't miss it."]
+          "lines": ["Hannah's over at Stewart's, in Stamford — start there if you haven't yet."]
         },
         {
           "requires": [],
           "lines": [
             "My kid's in a dance showcase in the city tonight, and half his costume's still sitting right here on the table.",
-            "I've got the firehouse tonight, or I'd drive it down myself. If you hear of anybody headed that way today, would you ask them for me?"
+            "I've got the firehouse tonight, or I'd drive it down myself. Here — the bag's by the door, take it with you.",
+            "If you hear of anybody headed down today, ask them for me. Hannah's behind the counter at Stewart's, down in Stamford; she hears everybody's plans before they make them."
           ],
           "effects": [{ "set": "heardAsk" }]
         }
@@ -54,7 +55,7 @@
         },
         {
           "requires": ["triedHobart"],
-          "lines": ["Any luck down at Cellar Door? Renata usually knows who's headed where."]
+          "lines": ["Renata sent you to Walt, then — J&H, the gas station up in Jefferson."]
         },
         {
           "requires": ["heardAsk"],
@@ -66,7 +67,10 @@
         },
         {
           "requires": [],
-          "lines": ["Morning! Coffee's on, and the sundae bar's real, if you're curious."]
+          "lines": [
+            "Morning! Coffee's on, and the sundae bar's real, if you're curious.",
+            "Priya called down from Jefferson asking if anybody's driving to the city today — she's out on the green up there, if you're headed that way."
+          ]
         }
       ]
     },
@@ -90,10 +94,17 @@
           "requires": ["triedStamford"],
           "lines": [
             "Not me today — my truck's in the shop.",
-            "But I saw someone loading a cooler bag into their trunk up at the gas station this morning. That's a city grocery run, and it didn't come from Tops.",
-            "That'll be Walt. Ask at J&H."
+            "But I saw someone loading a cooler bag into their trunk up at the gas station this morning. Nobody packs a cooler for a trip up the road — that's a city run.",
+            "That'll be Walt — J&H, the gas station up in Jefferson."
           ],
           "effects": [{ "set": "triedHobart" }]
+        },
+        {
+          "requires": ["heardAsk"],
+          "lines": [
+            "Priya's costume run? Word travels. Not me today — my truck's in the shop.",
+            "Ask Hannah at the counter in Stewart's, up in Stamford; she'll know who was in this morning."
+          ]
         },
         {
           "requires": [],
@@ -105,21 +116,27 @@
       "id": "walt",
       "name": "Walt",
       "map": "jefferson",
-      "pos": [46, 13],
-      "facing": "up",
+      "pos": [48, 11],
+      "facing": "down",
       "accent": "#8a6b48",
       "dialogue": [
         {
           "requires": ["done"],
-          "lines": ["Tell the kid I said break a leg, wherever he heard that from."]
+          "lines": ["Tell the kid break a leg from me. Had it there by six, like I said."]
         },
         {
           "requires": ["triedHobart"],
           "lines": [
-            "Priya's kid's costume? Sure, I'm headed down myself today — every other Friday, like clockwork.",
-            "Hand it here, I'll have it at the stage door by six."
+            "Priya's kid's costume? Sure — I'm headed down myself today, every other Friday like clockwork.",
+            "I'll get it to the stage door by six. Tell the kid break a leg."
           ],
           "effects": [{ "set": "done" }, { "toast": "Episode complete — new story next week" }]
+        },
+        {
+          "requires": ["heardAsk"],
+          "lines": [
+            "Heard something's going around about a favor for Priya. Nothing solid on my end, but you never know who overhears what."
+          ]
         },
         {
           "requires": [],
@@ -133,6 +150,11 @@
       "building": "jh-gas-station",
       "requires": ["heardAsk"],
       "lines": ["Taped by the register: \"Anybody headed down today? Ask around!\" Half the county's already heard."]
+    },
+    {
+      "building": "tops",
+      "requires": ["heardAsk"],
+      "lines": ["Pinned to the board by the door: someone's asking if anybody's headed down to the city today. Half the county's seen it already."]
     }
   ]
 }
