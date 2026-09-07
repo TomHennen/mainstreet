@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { bus, EV } from '../bus';
 import { noteDialogue } from '../debug';
 import type { SayRequest } from '../bus';
+import { isMailto } from '../feedback';
 import { onAction } from '../input';
 import { autosave } from '../progress';
 import { session } from '../session';
@@ -175,6 +176,16 @@ export class UiScene extends Phaser.Scene {
     }
     el.href = link.url;
     el.textContent = link.label;
+    // A page opens in a new tab, keeping the game's own tab where the player
+    // left it (see isMailto's doc); a mailto hands off to the mail app, and
+    // target="_blank" there just leaves a stray blank tab behind.
+    if (isMailto(link.url)) {
+      el.removeAttribute('target');
+      el.removeAttribute('rel');
+    } else {
+      el.target = '_blank';
+      el.rel = 'noopener';
+    }
     // The title screen positions this same anchor from the top left; a stale
     // left/top alongside a right/bottom would stretch it across the stage.
     el.style.left = 'auto';

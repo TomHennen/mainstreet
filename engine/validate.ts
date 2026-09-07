@@ -404,12 +404,14 @@ function checkMovement(
 }
 
 /**
- * `submit.art` — where the Studio posts a finished drawing (DESIGN.md §4).
- * Optional entirely; a world without it keeps the Studio's email route. What
- * is checked is only what would fail silently across origins: the post is
- * opaque, so a mistyped field id would look exactly like a submission that
- * worked. Hence https (a form post carries somebody's name), and a real id
- * for every part the Studio always sends.
+ * `submit.art` — where the Studio sends a painter to finish a drawing
+ * (DESIGN.md §4). Optional entirely; a world without it keeps the Studio's
+ * email route. `form` and `fields` are checked because a mistyped one would
+ * fail in a way nobody could see: the field ids only get exercised by a real
+ * prefilled link, so a typo here would quietly send the town's name into the
+ * wrong box on Google's page rather than failing anywhere obvious. `page`, if
+ * given, is checked the same way `form` is; a pack that leaves it out gets it
+ * derived from `form` instead (studio.ts).
  */
 function checkSubmit(submit: Submit | undefined, problems: string[]): void {
   if (submit === undefined) return;
@@ -425,6 +427,9 @@ function checkSubmit(submit: Submit | undefined, problems: string[]): void {
   }
   if (typeof art.form !== 'string' || !art.form.startsWith('https://')) {
     problems.push('world "submit.art" needs a "form" URL beginning https://');
+  }
+  if (art.page !== undefined && (typeof art.page !== 'string' || !art.page.startsWith('https://'))) {
+    problems.push('world "submit.art" has a "page" that is not a URL beginning https://');
   }
   const fields = art.fields;
   if (typeof fields !== 'object' || fields === null || Array.isArray(fields)) {

@@ -196,6 +196,18 @@ describe('validateWorld', () => {
         'world "submit.art" has a "notes" field id that is empty'
       );
     });
+
+    it('accepts an explicit https "page" alongside the form', () => {
+      const submit = art({ page: 'https://example.test/forms/d/e/abc/viewform' });
+      expect(runWorld(makeWorld({ submit: submit as never }))).toEqual([]);
+    });
+
+    it('flags a "page" that is not https', () => {
+      const submit = art({ page: 'http://example.test/forms/d/e/abc/viewform' });
+      expect(runWorld(makeWorld({ submit: submit as never })).join('\n')).toContain(
+        'world "submit.art" has a "page" that is not a URL beginning https://'
+      );
+    });
   });
 
   it('flags a map with no tile grid loaded (a missing maps/<id>.json)', () => {

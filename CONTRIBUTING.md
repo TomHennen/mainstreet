@@ -54,7 +54,7 @@ the zoom buttons on the frame says how big a pixel is right now. Under the
 tools sit the colour you're painting with and the last few you used, with
 **All 64 colours** to open the whole palette, grouped by colour family.
 
-### Prefer a real pixel-art app?
+### Prefer a real pixel-art app? {#apps}
 
 That works just as well, and some of them are lovely to draw in. Our sizes
 are small and exact (32 to 96 pixels wide, heights in steps of 16), the
@@ -132,16 +132,19 @@ Exact sizes for every open building are below.
 
 ## How to send it
 
-The Studio's **Send it to the town** button sends the drawing straight to us
-— there's no account to make and no email app to wrestle with. Your drawing
-travels as a short line of text, along with the name you'd like credited and
-anything you'd like to say with it, and the size of the drawing doesn't
-matter. If you moved the door or the plaque, that goes along too. Then it
-says thank you, and you're done.
+The Studio's **Send it to the town** button opens a short form with your
+drawing filled in; press Submit there and you're done — there's no account to
+make and no email app to wrestle with. Your drawing travels as a short line
+of text, along with the name you'd like credited and anything you'd like to
+say with it, and the size of the drawing doesn't matter. If you moved the
+door or the plaque, that goes along too. A very large drawing leaves the code
+out of the form's link and copies it for you instead — the Studio tells you
+when that happens, and where to paste it in.
 
-Nothing comes back to tell us it arrived, so if you'd like to be sure, open
-**Didn't go through?** underneath, copy the code, and paste it into an email
-to **tom.hennen+mainstreet@gmail.com** — it lands in exactly the same place.
+Since pressing Submit on that page is between you and Google, if you'd like
+to be sure it arrived, open **Didn't go through?** underneath, copy the code,
+and paste it into an email to **tom.hennen+mainstreet@gmail.com** — it lands
+in exactly the same place.
 
 Painted outside the Studio? Email that same address and attach the PNG. If
 you'd like the door somewhere other than where the placeholder has it, just

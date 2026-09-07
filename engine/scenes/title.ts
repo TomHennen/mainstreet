@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { publishTitle } from '../debug';
-import { feedbackUrl } from '../feedback';
+import { feedbackUrl, isMailto } from '../feedback';
 import { isHeld, onAction, onDirection, onDrag, onTap } from '../input';
 import { forgetAll, hasProgress, isCompleted, resetEpisode } from '../save';
 import { creditFor, joinCredits } from '../session';
@@ -199,6 +199,17 @@ export class TitleScene extends Phaser.Scene {
       // dialogue box's button (style.css `#say-link.row-link`); taken off
       // again on shutdown so the dialogue box gets its own look back.
       this.linkEl.classList.add('row-link');
+      // Same rule as the in-game link (engine/scenes/ui.ts): a form URL opens
+      // in a new tab so the title screen is still there afterwards; a
+      // mailto hands off to the mail app instead, and target="_blank" would
+      // only leave a stray blank tab behind.
+      if (isMailto(this.writeUrl)) {
+        this.linkEl.removeAttribute('target');
+        this.linkEl.removeAttribute('rel');
+      } else {
+        this.linkEl.target = '_blank';
+        this.linkEl.rel = 'noopener';
+      }
     }
 
     // "Forget everything", last on the list, kindly worded and never fired
