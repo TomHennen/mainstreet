@@ -231,6 +231,66 @@ describe('buildRoom: an island bar', () => {
   });
 });
 
+describe('buildRoom: a peninsula bar', () => {
+  /** 10x8, so the bottom wall is row 7 and a peninsula against it ends on row 6. */
+  const bar = (props: RoomProp[]) => buildRoom({ ...BASE, props }, PALETTE);
+
+  it('draws three sides and lets the room wall close the fourth', () => {
+    const r = bar([{ kind: 'peninsula', rect: [1, 3, 3, 4] }]);
+    // the three sides that are counter, corners at the wall included
+    for (const [x, y] of [[1, 3], [2, 3], [3, 3], [1, 4], [3, 4], [1, 6], [3, 6]]) {
+      expect(tileAt(r, x, y), `${x},${y}`).toBe(PALETTE.bar);
+    }
+    // the end against the wall is not drawn: the wall is already there
+    expect(PALETTE.floor).toContain(tileAt(r, 2, 6));
+    // and the strip inside is floor all the way to it
+    for (const y of [4, 5, 6]) expect(PALETTE.floor, `2,${y}`).toContain(tileAt(r, 2, y));
+  });
+
+  it('seals the strip, so somebody posted in it stays in it', () => {
+    // buildRoom's own checks would have thrown if the room could be walked
+    // into the strip from the door, or if the floor were cut off by the bar.
+    expect(() =>
+      buildRoom(
+        { ...BASE, props: [{ kind: 'peninsula', rect: [1, 3, 3, 4] }], people: [{ id: 'her', pos: [2, 5] }] },
+        PALETTE
+      )
+    ).not.toThrow();
+  });
+
+  it('opens a way in on the side the spec names, and hands the middle back', () => {
+    const r = bar([{ kind: 'peninsula', rect: [1, 3, 3, 4], open: 'top' }]);
+    expect(PALETTE.floor).toContain(tileAt(r, 2, 3));
+    expect(tileAt(r, 1, 3)).toBe(PALETTE.bar);
+    expect(tileAt(r, 3, 3)).toBe(PALETTE.bar);
+  });
+
+  it('refuses one that does not reach a wall, or opens at the end that does', () => {
+    expect(() => bar([{ kind: 'peninsula', rect: [1, 2, 3, 3] }])).toThrow(/does not touch the room's wall/);
+    expect(() => bar([{ kind: 'peninsula', rect: [1, 3, 3, 4], open: 'bottom' }])).toThrow(
+      /the end against the wall/
+    );
+    expect(() => bar([{ kind: 'peninsula', rect: [1, 4, 2, 3] }])).toThrow(/at least 3×3/);
+    expect(() => bar([{ kind: 'peninsula', at: [[3, 3]] }])).toThrow(/needs a "rect"/);
+  });
+
+  it('attaches to whichever wall the spec names', () => {
+    const left = buildRoom(
+      {
+        ...BASE,
+        size: [12, 10],
+        door: { side: 'bottom', column: 6, width: 2 },
+        props: [{ kind: 'peninsula', rect: [1, 3, 4, 3], attach: 'left' }]
+      },
+      PALETTE
+    );
+    // the left column is the wall's job; the other three sides are counter
+    expect(PALETTE.floor).toContain(tileAt(left, 1, 4));
+    expect(tileAt(left, 1, 3)).toBe(PALETTE.bar);
+    expect(tileAt(left, 4, 4)).toBe(PALETTE.bar);
+  });
+});
+
 describe('buildRoom: stools around something', () => {
   it('rings whatever is solid, skipping the corners and the way in', () => {
     const r = buildRoom(

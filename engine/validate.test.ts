@@ -664,6 +664,43 @@ describe('validateWorld', () => {
       });
       expect(runWorld(world).join('\n')).toContain('map "town" edge "north-road" line 1 is empty');
     });
+
+  // The carry verbs (DESIGN.md §2): one fixture hands a token over, another
+  // spends it, and both have to have the words for it happening and for it
+  // not happening.
+  const carrying = (fixture: Partial<Fixture>) =>
+    runWorld(
+      makeWorld({
+        maps: { town: makeMap({ fixtures: [{ kind: 'woodpile', pos: [2, 2], ...fixture } as Fixture] }) }
+      })
+    ).join('\n');
+
+  it('takes a fixture that gives a token and says both halves of it', () => {
+    expect(
+      carrying({ give: 'log', lines: ['You take one off the pile.'], otherwise: ["You've got one already."] })
+    ).toBe('');
+  });
+
+  it('flags a fixture that gives something but has nothing to say about it', () => {
+    expect(carrying({ give: 'log', lines: ['You take one off the pile.'] })).toContain('no "otherwise" to say');
+    expect(carrying({ give: 'log', otherwise: ["You've got one already."] })).toContain('no "lines" to say');
+  });
+
+  it('flags a fixture that both gives and takes, and an unnamed token', () => {
+    expect(
+      carrying({ give: 'log', take: 'log', lines: ['On it goes.'], otherwise: ['Not yet.'] })
+    ).toContain('does one or the other');
+    expect(carrying({ give: '  ', lines: ['On it goes.'], otherwise: ['Not yet.'] })).toContain(
+      'not a name for the thing being carried'
+    );
+  });
+
+  it('only lets something that takes a token glow, and only for real seconds', () => {
+    expect(carrying({ give: 'log', lines: ['a'], otherwise: ['b'], glow: 60 })).toContain('takes nothing');
+    expect(carrying({ take: 'log', lines: ['a'], otherwise: ['b'], glow: 0 })).toContain(
+      'has to be more than none'
+    );
+    expect(carrying({ take: 'log', lines: ['a'], otherwise: ['b'], glow: 60 })).toBe('');
   });
 });
 

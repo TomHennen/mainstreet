@@ -464,7 +464,7 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
     if (!prop.rect) throw new RoomError(`${where}: a peninsula needs a "rect" — it is a loop, not a list of tiles`);
     const [rx, ry, rw, rh] = prop.rect;
     if (rw < 3 || rh < 3) {
-      throw new RoomError(`${where}: its rect is ${rw}x${rh}; a peninsula needs at least 3x3 to have an inside`);
+      throw new RoomError(`${where}: its rect is ${rw}×${rh}; a peninsula needs at least 3×3 to have an inside`);
     }
     const attach = prop.attach ?? 'bottom';
     if (!(attach in STEP)) {
