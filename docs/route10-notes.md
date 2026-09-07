@@ -59,26 +59,14 @@ Stamford.
 **Hobart.** Route 10 is Main Street, running south-west to north-east. The
 village hugs the West Branch; Maple Avenue crosses it on a bridge. Hobart is
 a real **book village** — half a dozen or so independent bookshops on Main
-Street, walkable end to end (real names on record: Adams' Antiquarian,
-Book Nook, More Good Books, Creative Corner Books, among others — don't use
-any of these in-game without the friendly-heads-up step in DESIGN.md §5).
-The real designation only dates to the early 2000s (Don Dales began leasing
-empty storefronts to booksellers around 2001-2005) — correction from an
-earlier version of this note: the rule isn't "never reveal this," it's
-**no anniversary/founding-date sign posted in the town itself**. A visible
-"20 years of Book Village!" sign would read wrong to a visitor walking
-through — it'd make the place feel newer than it feels. But the recency is
-itself great story material: an episode about how Hobart became a book
-village (empty storefronts, one bookseller taking a chance, others
-following), or a beat where a townsperson casually surprises the player
-with "you know this all used to be empty, right? Not that long ago
-either" — that reveal-to-a-visitor moment is exactly the fun version of
-this fact. So: keep it off physical signage, but it's fair game for
-dialogue and even a future episode's whole premise. Hobart is currently
-the least developed of the three
-villages and is the natural place to grow bookshop lots over time — reserve
-several full-size open lots along Main Street per map rule 4, and let named
-shops fill in gradually rather than all at once.
+Street, walkable end to end (real shop names on record — don't use any
+in-game without the friendly-heads-up step in DESIGN.md §5). The
+designation is recent (early-to-mid 2000s); full origin story and the rule
+on how that recency may/may not show up in-game are under Flavor & story
+hooks below. Hobart is currently the least developed of the three villages
+and is the natural place to grow bookshop lots over time — reserve several
+full-size open lots along Main Street per map rule 4, and let named shops
+fill in gradually rather than all at once.
 
 **Stewart's interior.** The clerk is enclosed behind the counter; the player
 talks across it and cannot walk round.
@@ -172,6 +160,38 @@ dialogue. These are raw material, not finished copy — run anything derived
 from them through hard rules 5 and 6 (no real private people without
 opt-in, everything warm and affectionate) before it reaches the player.
 
+- **How Hobart became a book village — real origin story, strong episode
+  material.** Hobart was a near-ghost town on Main Street when a couple
+  opened an antiquarian bookshop around 2000, mostly to store their
+  overflow books from a Manhattan apartment. A local who'd returned to the
+  area (former concert pianist, ex-IBM, restored furniture in between)
+  thought the idea was ridiculous — "the dumbest thing I'd ever heard, an
+  antiquarian bookstore in a ghost village" — until someone brought up
+  Hay-on-Wye, the real "town of books" in Wales that draws bibliophiles by
+  the tens of thousands. He came around, opened two more shops himself in
+  2005, and started renting out empty storefronts to other booksellers.
+  That's a genuinely great small-town story: skepticism turning into a
+  whole village's identity, on a bet, over a shared joke about a town in
+  Wales. Strong candidate for an actual episode (told in flashback by a
+  present-day character, or as an oral-history "how did this all start"
+  conversation with a visitor. That distinction matters: **no
+  anniversary/founding-date sign posted in the village itself** — a
+  visible "20 years of Book Village!" placard would make Hobart read as
+  newer to a visitor than it feels, which is the wrong direction. But
+  spoken aloud, by a character, as a surprise reveal to a newcomer ("you
+  know this was all empty storefronts, not that long ago?") is exactly the
+  fun version of the same fact — fair game for dialogue and even a whole
+  episode's premise. Sign vs. story, not silence vs. story. The real
+  founder and the couple who opened the first shop are real, named people —
+  per hard rule 5, any character built on this needs to be its own invented
+  local (a fictional "town historian" or old-timer telling the story
+  secondhand), not a stand-in for them, unless they opt in.
+- **Hobart Festival of Women Writers.** Real annual event, founded 2013,
+  three days of workshops and public readings held through the village's
+  actual bookstores each June. Good calendar-reactive material (DESIGN.md
+  §1) for a June episode — a village-wide happening rather than a
+  single-building story, and a natural way to show off several bookshops
+  at once without inventing shop names prematurely.
 - **The Belvedere ("the Bel").** From the outside it's the spookiest
   building in Stamford: big, visibly leaning, a single door tucked on a side
   wall that reads a little "sus," the kind of place that looks haunted. The
