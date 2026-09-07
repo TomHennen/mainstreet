@@ -3279,9 +3279,79 @@ async function main() {
         60000
       );
       const passing = (seen.people ?? []).find((p) => p.id === stroller.id);
-      const aim = [Math.round(passing.x), Math.round(passing.y)];
-      await tapTile(sp, scdp, aim);
-      const talking = await waitUntil(sp, (s) => s.dialogueOpen, `"${stroller.id}" to be talked to after a tap`, 25000);
+      log(`    they came past at ${passing.x.toFixed(1)},${passing.y.toFixed(1)}`);
+
+      /**
+       * Aims at the middle of somebody's *picture*, worked out inside the page
+       * so that reading where they are and turning it into a point on the
+       * canvas is one round trip — somebody walking cannot get out from under
+       * the finger in between. A person is drawn 16x32 standing on their tile
+       * (engine/scenes/map.ts `personBox`), so their chest is half a tile
+       * above the tile they are on, at whatever sub-tile position they have
+       * walked to.
+       */
+      async function pointOfPerson(page, id) {
+        const point = await page.evaluate((wanted) => {
+          const s = window.__mainstreet;
+          const canvas = document.querySelector('#stage canvas');
+          const who = (s?.people ?? []).find((q) => q.id === wanted);
+          if (!s?.view || !canvas || !who) return null;
+          const r = canvas.getBoundingClientRect();
+          const v = s.view;
+          const wx = who.x * v.tile + v.tile / 2;
+          const wy = who.y * v.tile;
+          return {
+            x: r.left + ((wx - v.x) / v.width) * r.width,
+            y: r.top + ((wy - v.y) / v.height) * r.height,
+            at: [who.x, who.y]
+          };
+        }, id);
+        if (!point) fail('walkers', `"${id}" is not on screen to aim at`);
+        return point;
+      }
+
+      /** waitUntil, but a timeout is an answer rather than a failure. */
+      async function tryUntil(page, predicate, ms) {
+        const t0 = Date.now();
+        while (Date.now() - t0 < ms) {
+          const state = await snap(page);
+          if (state && predicate(state)) return state;
+          await sleep(25);
+        }
+        return null;
+      }
+
+      // A finger that comes down beside somebody walking is a miss, and a real
+      // player would simply tap again. What happens once it lands on them is
+      // what this section is about, and all of that is exact.
+      let talking = null;
+      let hailed = null;
+      for (let attempt = 1; attempt <= 3 && !talking; attempt++) {
+        const point = await pointOfPerson(sp, stroller.id);
+        await Promise.all([
+          touchAt(scdp, 'touchStart', point.x, point.y),
+          touchAt(scdp, 'touchEnd', point.x, point.y)
+        ]);
+        // Tapped, they wait: the engine hails whoever a walk is aimed at, so
+        // walking over to somebody is never walking over to where they were.
+        await sleep(120);
+        hailed = await whereIs(stroller.id);
+        talking = await tryUntil(sp, (s) => s.dialogueOpen, 12000);
+        if (!talking) {
+          log(`    (tap ${attempt} came down beside them at ${point.at.map((n) => n.toFixed(1))} — aiming again)`);
+          await sleep(600);
+        }
+      }
+      if (!talking) fail('walkers', `three taps in a row never got a word out of "${stroller.id}"`);
+      const waited = (talking.people ?? []).find((p) => p.id === stroller.id);
+      if (!waited || Math.hypot(waited.x - hailed.x, waited.y - hailed.y) > 0.05) {
+        fail(
+          'walkers',
+          `"${stroller.id}" carried on walking while the player crossed to them: ` +
+            `${[hailed.x, hailed.y]} -> ${[waited?.x, waited?.y]}`
+        );
+      }
+      const aim = [Math.round(hailed.x), Math.round(hailed.y)];
       const lines = COPY.ui.passerby ?? [];
       if (!lines.length) fail('walkers', 'copy.json has no ui.passerby for a townsperson to say');
       if (!lines.includes(talking.dialogue?.text)) {

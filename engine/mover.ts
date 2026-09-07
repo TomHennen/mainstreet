@@ -21,7 +21,7 @@ import type { Facing, Route, Vec2, Wander } from './schema';
 /** Seconds a person waits at a waypoint, or between wanders, by default. */
 export const DEFAULT_PAUSE = 1.5;
 /** A townsperson is strolling; the player is going somewhere. */
-export const STROLL_FACTOR = 0.8;
+export const STROLL_FACTOR = 0.45;
 /** How long a blocked person waits for the way to clear before re-routing. */
 const REPLAN_AFTER = 0.6;
 /** Sub-pixel slack, in tiles. */
@@ -103,6 +103,8 @@ export class Mover {
   private held = 0;
   /** Which waypoint comes next. */
   private next = 0;
+  /** True while somebody is on their way over to say hello. */
+  private waiting = false;
 
   /**
    * An errand: somewhere a scene has sent this person, which overrides
@@ -211,7 +213,36 @@ export class Mover {
     this.path = route.slice(1);
     this.wait = 0;
     this.held = 0;
+    // A scene taking charge of somebody ends any "wait there, I'm coming
+    // over": the errand is what they are doing now, and whoever was walking
+    // across to them finds them where the errand leaves them.
+    this.waiting = false;
     return true;
+  }
+
+  /**
+   * Somebody has set off across the street to talk to this person, so they
+   * wait where they are until whoever it is gets here (DESIGN.md §2). It is
+   * the same standing still as when the player is already within reach, held
+   * a little earlier: without it, walking over to somebody would be walking
+   * over to where they *were*, and on a slow frame they would be gone by the
+   * time the walk ended.
+   *
+   * An errand outranks it: somebody a scene has sent somewhere keeps going,
+   * and stands still for whoever hailed them once they get there.
+   */
+  hail(): void {
+    this.waiting = true;
+  }
+
+  /** They arrived, or thought better of it: carry on where the walk left off. */
+  release(): void {
+    this.waiting = false;
+  }
+
+  /** True while somebody is on their way over. */
+  get hailed(): boolean {
+    return this.waiting;
   }
 
   /** Turn to look at a point in tile space — what being spoken to does. */
@@ -226,13 +257,18 @@ export class Mover {
    * One frame. `dt` is in seconds, so the walk is the same on any machine.
    * A held person stands exactly where they are: their pause is not counted
    * down, so stopping to say hello never costs them their place in the walk.
+   * Being hailed — somebody walking over to talk — holds them the same way.
+   * An errand outranks both: a scene that has sent somebody somewhere is not
+   * something the player can interrupt by standing near them.
    */
   update(dt: number, step: MoverStep): void {
     this.moving = false;
     if (!this.walks && !this.onErrand) return;
-    // An errand is a scene's instruction, so it is not held: somebody crossing
-    // the room on cue keeps crossing it even with the player standing there.
-    if (step.held && !this.onErrand) return;
+    // An errand is a scene's instruction, so nothing holds it: somebody
+    // crossing the room on cue keeps crossing it with the player standing
+    // there, and keeps crossing it when the player taps them on the way. Any
+    // hail waits for them at the far end of the errand.
+    if (!this.onErrand && (step.held || this.waiting)) return;
 
     let left = dt;
     if (!this.path.length) {

@@ -295,7 +295,7 @@ tiles:
 "route":  { "path": [[75, 15], [42, 15]],   // waypoints, walked in order
             "loop": true,                    // default: back to the first
             "pause": 1.2,                    // seconds at each one, default 1.5
-            "speed": 5.1 },                  // tiles/s, default walking x 0.8
+            "speed": 5.1 },                  // tiles/s, default walking x 0.45
 "wander": { "radius": 3, "pause": 2 }        // or: potter about near home
 ```
 
@@ -319,9 +319,16 @@ to talk to them, so nobody is ever chased down the street or walks off
 mid-sentence; they turn to face whoever comes over, and carry on once the
 player steps away. They never walk onto the player or onto each other, going
 round where there is a way round and waiting where there is not. A tap lands
-on where somebody *is*, not where the data placed them, and the walk follows
-them if they carry on. None of it touches the save: where a townsperson got to
-is not progress.
+on where somebody *is*, not where the data placed them — on any tile their
+picture covers, which for somebody mid-step is two — and the moment it does,
+they wait where they are until the player gets there. Walking over to somebody
+is never walking over to where they were, however slow the frame rate; call
+the walk off, or aim it somewhere else, and they carry on. An errand outranks
+all of it: somebody a scene has sent somewhere (§3, `move`) keeps going with
+the player standing right there and keeps going when the player taps them,
+because a scene is not something a passer-by can interrupt half way through —
+the tap is not lost, and they stand still for it once the errand is done.
+None of it touches the save: where a townsperson got to is not progress.
 
 **A village's own people.** A map may carry a `people` list — townspeople who
 belong to the village rather than to any one story, so a street is not empty

@@ -121,6 +121,48 @@ describe('Mover', () => {
     expect(mover.x).toBeGreaterThan(paused);
   });
 
+  it('waits where it is once somebody has set off to talk to it', () => {
+    const mover = new Mover({ home: [0, 0], speed: 8, walkable: OPEN, route: { path: [[9, 0]], pause: 0.1 } });
+    run(mover, 0.5);
+    const hailedAt = mover.x;
+    expect(hailedAt).toBeGreaterThan(0);
+
+    // Somebody taps them and starts walking over: they stand and wait, however
+    // long the trip takes, so arriving is never arriving where they *were*.
+    mover.hail();
+    expect(mover.hailed).toBe(true);
+    run(mover, 4);
+    expect(mover.x).toBe(hailedAt);
+    expect(mover.moving).toBe(false);
+
+    // And once the conversation is over, they carry on from where they stopped.
+    mover.release();
+    expect(mover.hailed).toBe(false);
+    run(mover, 0.5);
+    expect(mover.x).toBeGreaterThan(hailedAt);
+  });
+
+  it('holds a hailed person even before the player is within reach', () => {
+    // `held` is the player standing right there; the hail is the walk over.
+    const mover = new Mover({ home: [0, 0], speed: 8, walkable: OPEN, route: { path: [[9, 0]], pause: 0 } });
+    mover.hail();
+    run(mover, 3, { held: false, blocked: () => false });
+    expect(mover.tile()).toEqual([0, 0]);
+    expect(mover.x).toBe(0);
+  });
+
+  it('a hail does not cost them their pause, or their place in the route', () => {
+    const mover = new Mover({ home: [0, 0], speed: 4, walkable: OPEN, route: { path: [[4, 0], [4, 2]], pause: 0.5 } });
+    run(mover, 1.6);
+    expect(mover.tile()).toEqual([4, 0]);
+    mover.hail();
+    run(mover, 5);
+    expect(mover.tile()).toEqual([4, 0]);
+    mover.release();
+    run(mover, 1.4);
+    expect(mover.tile()).toEqual([4, 2]);
+  });
+
   it('waits rather than walking into somebody, where there is no way round', () => {
     // One row wide, so the person standing on [2, 0] cannot be gone around.
     const corridor = ground(['.....']);
@@ -267,6 +309,41 @@ describe('sendTo', () => {
     // Two tiles a second, not eight: two seconds' walking is still to come.
     expect(slow.x).toBeGreaterThan(1.5);
     expect(slow.x).toBeLessThan(2.5);
+  });
+
+  /**
+   * A scene's instruction outranks a hail: the player tapping somebody who is
+   * crossing the room on cue must not stop the scene half way through it. The
+   * hail is not lost, though — it is waiting for them at the far end.
+   */
+  it('carries on with an errand even when somebody has hailed it', () => {
+    const mover = new Mover({ home: [1, 1], speed: 4, walkable: OPEN });
+    mover.sendTo([5, 1]);
+    mover.hail();
+    run(mover, 2);
+    expect(at(mover)).toEqual([5, 1]);
+    expect(mover.onErrand).toBe(false);
+    // And now they stand there, because somebody is still on their way over.
+    expect(mover.hailed).toBe(true);
+    run(mover, 3);
+    expect(at(mover)).toEqual([5, 1]);
+  });
+
+  it('takes an errand over a hail that came first', () => {
+    const mover = new Mover({
+      home: [1, 1],
+      speed: 4,
+      walkable: OPEN,
+      route: { path: [[1, 4], [1, 1]], pause: 0.2 }
+    });
+    mover.hail();
+    run(mover, 1);
+    expect(at(mover)).toEqual([1, 1]);
+    // The scene takes charge, and the hail goes with the walk it belonged to.
+    expect(mover.sendTo([5, 1])).toBe(true);
+    expect(mover.hailed).toBe(false);
+    run(mover, 1.2);
+    expect(at(mover)).toEqual([5, 1]);
   });
 
   it('picks its own route back up once the errand is over', () => {

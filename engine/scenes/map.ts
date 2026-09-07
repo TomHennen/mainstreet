@@ -653,7 +653,6 @@ export class MapScene extends Phaser.Scene {
         blocked: (x, y) => this.occupied(walker, x, y)
       });
 
-
       const { mover, sprite } = walker;
       sprite.setPosition(Math.round(mover.x * TILE) + TILE / 2, Math.round(mover.y * TILE) + TILE);
       sprite.setDepth(mover.y * TILE + TILE);
@@ -975,17 +974,31 @@ export class MapScene extends Phaser.Scene {
     const tile: Vec2 = [Math.floor(point.x / TILE), Math.floor(point.y / TILE)];
 
     const hit = this.tapTargetAt(tile, point.x, point.y);
-    this.walkFollow = null;
+    this.follow(null);
     this.replans = 0;
     if (!this.aimWalk(hit?.goal ?? tile, hit?.target ?? null, hit?.reach ?? 0)) {
       this.refuse(tile);
       return;
     }
     // A tap on somebody is a tap on *them*, not on the paving they happened to
-    // be standing on: if they stroll on, the walk goes after them.
+    // be standing on. They stand and wait rather than strolling on, so that
+    // walking over to somebody is never walking over to where they were; if
+    // the walk is called off or aimed somewhere else, they carry on.
     if (hit?.target.kind === 'npc' && hit.target.person !== undefined) {
-      this.walkFollow = this.walkers[hit.target.person];
+      this.follow(this.walkers[hit.target.person]);
     }
+  }
+
+  /**
+   * Who the walk is for, if it is for somebody. Whoever it was picks their
+   * walk back up, and whoever it is now waits where they are until the player
+   * gets there (engine/mover.ts `hail`).
+   */
+  private follow(walker: Walker | null): void {
+    if (this.walkFollow === walker) return;
+    this.walkFollow?.mover.release();
+    this.walkFollow = walker;
+    walker?.mover.hail();
   }
 
   /**
@@ -1029,7 +1042,7 @@ export class MapScene extends Phaser.Scene {
       this.stopWalk();
       return false;
     }
-    this.walkFollow = follow;
+    this.follow(follow);
     return true;
   }
 
@@ -1139,10 +1152,15 @@ export class MapScene extends Phaser.Scene {
     const [tx, ty] = tile;
     const npcReach = this.map.kind === 'interior' ? REACH.npcInterior : REACH.npcVillage;
     for (let i = 0; i < this.walkers.length; i++) {
-      if (!this.canTalkTo(this.walkers[i])) continue;
-      // Where they are now, head included: people are drawn two tiles tall.
-      const at = this.walkers[i].mover.tile();
-      if (at[0] === tx && (at[1] === ty || at[1] - 1 === ty)) {
+      const walker = this.walkers[i];
+      if (!this.canTalkTo(walker)) continue;
+      // A person is judged by their picture, exactly as a building is, rather
+      // than by the tile underneath it: they are drawn two tiles tall, and
+      // somebody mid-step is drawn between two tiles. A finger comes down on
+      // what it can see, and where somebody walking is concerned the tile they
+      // are anchored to is not it.
+      if (covers(this.personBox(walker), x, y)) {
+        const at = walker.mover.tile();
         return { target: { kind: 'npc', at, person: i }, goal: at, reach: npcReach };
       }
     }
@@ -1179,6 +1197,19 @@ export class MapScene extends Phaser.Scene {
     }
     if (hit) return this.doorTap(hit.facade.building, 'sign');
     return null;
+  }
+
+  /**
+   * Where somebody's sprite actually is, in world pixels: the same sum
+   * `updateWalkers` draws them with, so what a tap hits is what is on screen.
+   */
+  private personBox(walker: Walker): Box {
+    return {
+      x: Math.round(walker.mover.x * TILE),
+      y: Math.round(walker.mover.y * TILE) - TILE,
+      w: TILE,
+      h: TILE * 2
+    };
   }
 
   private plaqueTap(building: BuildingPlacement, plaque: Vec2): { target: Target; goal: Vec2; reach: number } {
@@ -1266,8 +1297,9 @@ export class MapScene extends Phaser.Scene {
       const target = this.walkTarget;
       const follow = this.walkFollow;
       if (follow && target) {
-        // They may have strolled on while the walk was under way. Near enough
-        // to say hello is near enough; otherwise go after them again.
+        // A hailed person waits, so this is all but always already true. It
+        // still costs nothing to check: near enough to say hello is near
+        // enough, and otherwise the walk is aimed at them once more.
         const at = follow.mover.tile();
         const me = this.centre();
         if (Math.hypot(me.x - (at[0] + 0.5), me.y - (at[1] + 0.5)) > this.walkReach) {
@@ -1291,7 +1323,7 @@ export class MapScene extends Phaser.Scene {
     this.walkPath = null;
     this.walkGoal = null;
     this.walkTarget = null;
-    this.walkFollow = null;
+    this.follow(null);
     this.marker.setVisible(false);
   }
 

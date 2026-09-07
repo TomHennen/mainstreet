@@ -139,7 +139,7 @@ export interface Route {
   loop?: boolean;
   /** Seconds spent standing at each waypoint. Default 1.5. */
   pause?: number;
-  /** Tiles per second. Default: the player's walking speed x 0.8. */
+  /** Tiles per second. Default: the player's walking speed x 0.45, an amble. */
   speed?: number;
 }
 
