@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { FACINGS, plaqueTile } from './schema';
 import { TILE } from './tiled';
-import type { BuildingDef, BuildingPlacement, Facing, GameMap } from './schema';
+import type { BuildingDef, BuildingPlacement, Facing, Fixture, FixtureKind, GameMap } from './schema';
 import type { TileDef, TilesetDef } from './tiled';
 
 /**
@@ -661,6 +661,64 @@ export function plaqueArt(scene: Phaser.Scene, placement: BuildingPlacement): Pl
     x: tile[0] * TILE + (TILE - PLAQUE_W) / 2,
     y: groundY - PLAQUE_LIFT - PLAQUE_H
   };
+}
+
+// --- street fixtures ---------------------------------------------------------
+
+/** The suggestion box, in pixels. Small: it is a thing on a sidewalk. */
+const FIXTURE_W = 8;
+const FIXTURE_H = 10;
+/** How far its foot sits above the bottom edge of its tile. */
+const FIXTURE_FOOT = 2;
+
+export interface FixtureArt {
+  key: string;
+  x: number;
+  y: number;
+  /** Draw at this depth so a player standing behind it passes behind it. */
+  depth: number;
+}
+
+/**
+ * A little post box on a leg: two colours, engine-drawn, standing on its own
+ * tile (DESIGN.md §2). Like the plaque it belongs to the engine rather than to
+ * any world, so a town gets one by naming a tile in `world.json` and never by
+ * painting anything.
+ */
+export function fixtureArt(scene: Phaser.Scene, fixture: Fixture): FixtureArt {
+  const key = `prop:fixture:${fixture.kind}`;
+  if (!scene.textures.exists(key)) drawFixture(scene, key, fixture.kind);
+
+  const [tx, ty] = fixture.pos;
+  return {
+    key,
+    x: tx * TILE + (TILE - FIXTURE_W) / 2,
+    y: (ty + 1) * TILE - FIXTURE_FOOT - FIXTURE_H,
+    depth: (ty + 1) * TILE
+  };
+}
+
+function drawFixture(scene: Phaser.Scene, key: string, kind: FixtureKind): void {
+  const { texture, ctx } = canvas(scene, key, FIXTURE_W, FIXTURE_H);
+  // One shape so far. Lit from the top left like everything else in town.
+  const body = '#3f5f4c';
+  const trim = '#d8b268';
+
+  switch (kind) {
+    case 'suggestion-box':
+    default:
+      ctx.fillStyle = body;
+      ctx.fillRect(0, 0, FIXTURE_W, 7); // the box
+      ctx.fillRect(3, 7, 2, FIXTURE_H - 7); // the post it stands on
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.fillRect(FIXTURE_W - 1, 1, 1, 6); // the shaded side
+      ctx.fillStyle = trim;
+      ctx.fillRect(0, 0, FIXTURE_W, 1); // the lid
+      ctx.fillRect(2, 3, 4, 1); // the slot
+      break;
+  }
+
+  texture.refresh();
 }
 
 // --- characters --------------------------------------------------------------

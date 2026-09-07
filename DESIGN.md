@@ -81,8 +81,8 @@ tileset; painting the sheet is the fix, and it is on the M3 art list.)
 
 **What stays in `world.json`, and why.** Everything a content author positions:
 the building registry and its placements (footprint, door, interior + spawn),
-map labels, exits and the travel graph, the start position, map names and
-whether a map is a village or an interior. Tiled *could* carry those as object
+map labels, exits and the travel graph, street fixtures, the start position,
+map names and whether a map is a village or an interior. Tiled *could* carry those as object
 layers, but then a door would live in two files and a footprint would have two
 sources of truth. One place to edit gameplay positions is worth more than
 seeing them in the map editor, so Tiled carries the tile grid and nothing else,
@@ -134,6 +134,47 @@ building's *sign* entirely to the story: no link, no credit, because meta text
 in the middle of the words gets in the way of reading. If the episode gives an
 unpainted building no sign copy at all, the box would open empty, so
 `copy.json` `ui.unpainted` supplies one short line instead.
+
+**Street fixtures, and the suggestion box.** A map may list engine-drawn
+furniture that belongs to no building and no episode:
+
+```jsonc
+"maps": {
+  "jefferson": {
+    "fixtures": [{ "kind": "suggestion-box", "pos": [5, 12] }]
+  }
+}
+```
+
+`kind` is one of the shapes the engine knows how to draw (today: just
+`suggestion-box`, a little post box in two colours). A fixture stands on its
+own tile, is drawn at that tile's depth so the player passes behind it going
+up the street, and is **solid** — the player walks up beside it and presses A
+rather than standing on it, which is the one way it differs from the plaque.
+The validator refuses a fixture that is off the map, on a solid tile, on a
+door or plaque tile, or on the tile the player arrives at (the world start, or
+an exit's spawn). Painted art for a fixture would arrive by the usual
+convention (`assets/props/<kind>.png`); that is not wired up yet, and the drawn
+shape is what ships until it is.
+
+The suggestion box is how somebody with a story idea — or a correction — says
+so, with no backend and no account anywhere in it (hard rule 7). Its lines are
+`copy.json` `ui.suggest.lines`, and `ui.suggest.link` labels the DOM link that
+sits beside the box for every page of the entry, exactly like "Paint it". The
+link itself is composed from `world.json`'s top-level `feedback`:
+
+```jsonc
+"feedback": {
+  "email": "tom.hennen+mainstreet@gmail.com",
+  "subject": "A story idea for Route 10"
+}
+```
+
+which becomes a `mailto:` whose body is `ui.suggest.body`, an array of lines
+the world writes — brief labelled prompts the sender fills in or deletes. A
+`feedback` with a `url` instead opens that page. No `feedback`, or no
+`ui.suggest.link`, and the box simply reads with no link (hard rule 3). No
+address, subject or wording appears anywhere in engine code.
 
 Missing NPC sheet = generic townsperson
 sprite in a per-NPC accent color. Missing portrait = no portrait pane. The

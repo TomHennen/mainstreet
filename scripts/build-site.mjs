@@ -152,6 +152,21 @@ function paintedSoFar(id) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/**
+ * Where a world sends someone who has something to say — the same
+ * `world.json` `feedback` block the suggestion box in the game reads
+ * (DESIGN.md §2), turned into the same kind of link. Mirrors
+ * engine/feedback.ts deliberately: no address is written down here.
+ */
+function feedbackHref(id) {
+  const { feedback } = JSON.parse(readFileSync(resolve(WORLDS_DIR, id, 'world.json'), 'utf-8'));
+  if (!feedback) return null;
+  if (feedback.url) return feedback.url;
+  if (!feedback.email) return null;
+  const subject = feedback.subject ? `?subject=${encodeURIComponent(feedback.subject)}` : '';
+  return `mailto:${feedback.email}${subject}`;
+}
+
 function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, (ch) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
@@ -391,7 +406,7 @@ ${bodyHtml}
 `;
 }
 
-function renderLanding(ids, studioHref, contributeHref) {
+function renderLanding(ids, studioHref, contributeHref, writeHref) {
   const cards = ids
     .map((id) => {
       const { title, subtitle } = worldTitle(id);
@@ -526,6 +541,7 @@ ${cards}
     </ul>
     <p class="studio"><a href="${escapeHtml(studioHref)}">Paint a building &rarr;</a></p>
     <p class="studio"><a href="${escapeHtml(contributeHref)}">How to contribute art &rarr;</a></p>
+${writeHref ? `    <p class="studio"><a href="${escapeHtml(writeHref)}">Have a story idea, a bit of local lore, someone who should be in it, or something we should fix? Write to us &rarr;</a></p>` : ''}
     <footer>More towns are always welcome, and so is a fresh coat of paint.</footer>
   </main>
 </body>
@@ -575,7 +591,7 @@ function main() {
   const contributeHref = `${SITE_BASE}/contributing/`;
   writeFileSync(
     resolve(DIST_DIR, 'index.html'),
-    renderLanding(ids, `${SITE_BASE}/studio/?world=${ids[0]}`, contributeHref)
+    renderLanding(ids, `${SITE_BASE}/studio/?world=${ids[0]}`, contributeHref, feedbackHref(ids[0]))
   );
   buildContributingPage();
   // Pages runs Jekyll by default, which ignores files/folders starting with

@@ -57,6 +57,27 @@ export interface MapLabel {
   pos: Vec2;
 }
 
+/**
+ * The engine's own little street fixtures — things it draws and lets a player
+ * press A on that belong to no building and no episode. Like the plaque, a
+ * fixture is drawn by the engine so nobody has to paint one, and like the
+ * plaque it is a shape with a job, never a specific world's furniture: what
+ * the box in a particular town says comes from `copy.json`.
+ *
+ * A fixture stands on its own tile and blocks it, so the player walks up
+ * beside it rather than through it. Painted art for one would arrive by the
+ * usual convention (an `assets/props/<kind>.png` alongside the other asset
+ * directories); that is not wired up yet, and the drawn fixture is what
+ * ships until it is.
+ */
+export const FIXTURE_KINDS = ['suggestion-box'] as const;
+export type FixtureKind = (typeof FIXTURE_KINDS)[number];
+
+export interface Fixture {
+  kind: FixtureKind;
+  pos: Vec2;
+}
+
 export interface MapExit {
   id: string;
   /** Trigger area in tiles: [x, y, w, h]. */
@@ -79,6 +100,8 @@ export interface MapMeta {
   buildings: BuildingPlacement[];
   labels: MapLabel[];
   exits: MapExit[];
+  /** Engine-drawn street fixtures on this map. Optional; usually absent. */
+  fixtures?: Fixture[];
 }
 
 /** A map as the engine plays it: world.json's metadata plus its Tiled grid. */
@@ -90,12 +113,29 @@ export interface BuildingDef {
   roof: string;
 }
 
+/**
+ * Where a world sends someone who has something to say — a story idea, or a
+ * correction. Either an address to mail or a full URL to open; the engine
+ * composes the link and never knows what either one is (CLAUDE.md hard rule
+ * 1). A world with no `feedback` simply gets no link (hard rule 3).
+ */
+export interface Feedback {
+  /** Address a "write to us" link mails. */
+  email?: string;
+  /** A page to open instead — a form, say. Wins over `email` when both are set. */
+  url?: string;
+  /** Subject line for the mail. Ignored when `url` is used. */
+  subject?: string;
+}
+
 export interface World {
   id: string;
   title: string;
   subtitle?: string;
   /** Shown on unpainted buildings, per DESIGN.md §2. */
   contribute?: string;
+  /** Where a suggestion-box fixture writes to (DESIGN.md §2). */
+  feedback?: Feedback;
   palette?: string;
   episodes: string[];
   player: { id: string; accent: string };
@@ -147,6 +187,19 @@ export interface WorldCopy {
       painted: string;
       anonymous: string;
       unpainted: string;
+    };
+    /**
+     * What a `suggestion-box` fixture says (DESIGN.md §2). `lines` is the
+     * dialogue, `link` labels the "write to us" link beside it — no label
+     * means no link, and the box still reads fine on its own — and `body`
+     * is the note the link starts the writer off with, one array entry per
+     * line. All of it is world copy: the engine supplies the box and the
+     * link, never a word of either.
+     */
+    suggest?: {
+      lines: string[];
+      link?: string;
+      body?: string[];
     };
   };
   intro?: { speaker: string; lines: string[] };

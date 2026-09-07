@@ -39,6 +39,7 @@ const WORLD_ID = worldId();
 const PACK = resolve(ROOT, 'worlds', WORLD_ID);
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
 const WORLD = readJson(resolve(PACK, 'world.json'));
+const COPY = readJson(resolve(PACK, 'copy.json'));
 const EPISODE = readJson(resolve(PACK, 'episodes', `${WORLD.episodes[0]}.json`));
 
 /**
@@ -98,6 +99,15 @@ function npcAt(mapId, x, y) {
   return EPISODE.npcs.some((n) => n.map === mapId && n.pos[0] === x && n.pos[1] === y);
 }
 
+/**
+ * Street fixtures stand on a walkable tile and block it, so — like NPCs, and
+ * for the same reason — they are not in isSolid() but MapScene.solidTile()
+ * stops the player on them (DESIGN.md §2).
+ */
+function fixtureAt(mapId, x, y) {
+  return (WORLD.maps[mapId].fixtures ?? []).some((f) => f.pos[0] === x && f.pos[1] === y);
+}
+
 function exitTiles(map) {
   const set = new Set();
   for (const e of map.exits) {
@@ -126,7 +136,7 @@ function findPath(mapId, from, to) {
       const ny = cur[1] + dy;
       const k = `${nx},${ny}`;
       if (prev.has(k)) continue;
-      if (isSolid(map, nx, ny) || npcAt(mapId, nx, ny)) continue;
+      if (isSolid(map, nx, ny) || npcAt(mapId, nx, ny) || fixtureAt(mapId, nx, ny)) continue;
       if (avoid.has(k) && k !== goal) continue;
       prev.set(k, cur);
       if (k === goal) {
@@ -518,6 +528,76 @@ async function main() {
     await advanceDialogue(page, 'pen', pen.lines.length);
     expectFlag(await snap(page), 'pen', 'hasPen');
     await shot(page, 'pen-toast');
+
+    // --- the suggestion box --------------------------------------------------
+    // The engine's own street fixture: a solid little post box standing on a
+    // tile of its own, read from beside it, with a "write to us" link riding
+    // alongside every page of the dialogue exactly as "Paint it" does
+    // (DESIGN.md §2). No backend and no account anywhere in it — the link is a
+    // mailto the player's own mail app opens.
+    const box = (WORLD.maps.jefferson.fixtures ?? []).find((f) => f.kind === 'suggestion-box');
+    if (box) {
+      log('  the suggestion box');
+      const suggest = COPY.ui?.suggest;
+      if (!suggest?.lines?.length) fail('suggestion-box', 'copy.json has no ui.suggest.lines for the box to say');
+      // Read from alongside rather than from below: the box is a low thing on
+      // its own tile, and a player standing south of it stands in front of it.
+      const jefferson = WORLD.maps.jefferson;
+      const taken = jefferson.buildings.flatMap((b) => [b.door, plaqueOf(b)].filter(Boolean));
+      const beside = [[-1, 0], [1, 0], [0, 1], [0, -1]]
+        .map(([dx, dy]) => [box.pos[0] + dx, box.pos[1] + dy])
+        .find(
+          (tile) =>
+            !isSolid(jefferson, tile[0], tile[1]) && !taken.some((t) => t[0] === tile[0] && t[1] === tile[1])
+        );
+      if (!beside) fail('suggestion-box', `there is nowhere to stand beside the box at ${box.pos}`);
+      await walkTo(page, 'suggestion-box', beside);
+      await pressA(page);
+      await expectDialogue(page, 'suggestion-box', 'the suggestion box');
+
+      const write = page.locator('a[data-overlay="link"]');
+      if (!(await write.isVisible())) fail('suggestion-box', 'no link beside the suggestion box');
+      const writeHref = (await write.getAttribute('href')) ?? '';
+      if (!writeHref.startsWith('mailto:')) fail('suggestion-box', `the link href is "${writeHref}"`);
+      const subject = WORLD.feedback?.subject;
+      if (subject && !writeHref.includes(encodeURIComponent(subject))) {
+        fail('suggestion-box', `the link carries no "${subject}" subject: "${writeHref}"`);
+      }
+      const writeBox = await write.boundingBox();
+      if (!writeBox || writeBox.width < 44 || writeBox.height < 24) {
+        fail('suggestion-box', `the link is not a tappable size: ${JSON.stringify(writeBox)}`);
+      }
+      await shot(page, 'suggestion-box');
+
+      const boxPages = await readDialogue(page, 'suggestion-box', suggest.lines.length, async (i) => {
+        if (!(await write.isVisible())) fail('suggestion-box', `the link went missing on page ${i + 1}`);
+      });
+      if (boxPages !== suggest.lines.length) {
+        fail('suggestion-box', `the box read ${boxPages} page(s) for ${suggest.lines.length} line(s) of copy`);
+      }
+      if (await write.isVisible()) fail('suggestion-box', 'the link outlived the dialogue');
+      log(`    "${suggest.link}" -> ${writeHref.slice(0, 60)}… (held for all ${boxPages} page(s))`);
+
+      // It blocks its tile, so it is walked around rather than through. Walking
+      // straight at it from the tile below must stop the player at its near
+      // edge — the hitbox is inset 4px, so a quarter tile of overlap is as far
+      // in as anything solid ever lets them get.
+      const below = [box.pos[0], box.pos[1] + 1];
+      if (!isSolid(jefferson, below[0], below[1])) {
+        await walkTo(page, 'suggestion-box-solid', below);
+        await page.keyboard.down(KEY.up);
+        await sleep(700);
+        await page.keyboard.up(KEY.up);
+        await sleep(200);
+        const pushed = await snap(page);
+        if (pushed.y < box.pos[1] - 0.4) {
+          fail('suggestion-box', `the player walked through the box: stopped at y ${pushed.y.toFixed(2)}`);
+        }
+        log(`    solid: walking into it from below stopped at y ${pushed.y.toFixed(2)}`);
+      }
+    } else {
+      log('  (this world has no suggestion box — skipping that check)');
+    }
 
     // --- a painted building: thanks on the plaque, story on the sign ---------
     // The painter is thanked on the plaque beside the door and named on the
