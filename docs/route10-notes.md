@@ -10,7 +10,16 @@ file current when he corrects a map; it is what every agent reads first.
 then Stamford, then Hobart south-west of Stamford along the West Branch of the
 Delaware. Route 23 runs east to west through Stamford and *is* Main Street in
 the village. Route 10 does not really pass through Harpersfield; never mention
-it.
+it. Along Route 10 between Jefferson and Stamford stands the real **Parker
+13-Sided Barn**: built 1896 by Richtmyer Hubbell, three stories, ~60 ft
+diameter, double-hipped roof topped by a matching 13-sided cupola. It
+supplied the two creameries in the Village of Jefferson as a dairy barn,
+later served as a chicken barn and then a veal operation, and has been on
+the National Register of Historic Places since September 29, 1984 — one of
+only two 13-sided barns on the Register in this part of the state. Real
+oddity, well documented, no living private person involved — strong future
+episode or landmark material, alongside the Princess Utsayantha legend
+(DESIGN.md §5).
 
 **Stamford.** Stewart's is on the north-west corner of the 10/23 junction.
 Mac-A-Doodles is on the east side of Route 10, south of Route 23 (the
