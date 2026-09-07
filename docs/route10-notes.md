@@ -665,5 +665,8 @@ opt-in, everything warm and affectionate) before it reaches the player.
   every word of this: if it is ever told in copy it is the town's fond
   story, the kind he would tell on himself, with the mayor as the one
   laughing hardest — never a punchline at his expense, and never a warning
-  story. Keep it out of the room's own copy for now: the papered wall in
-  `the-belvedere-interior` says only that the pool is behind it.
+  story. Tom okayed the exact wording, and it is now in `copy.json`'s
+  `ui.trivia` pool, so it can come up in small talk with anyone in the
+  world (the Belvedere bartender included) — the papered wall in
+  `the-belvedere-interior` itself still says only that the pool is behind
+  it.
