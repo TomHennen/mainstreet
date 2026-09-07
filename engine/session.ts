@@ -6,7 +6,7 @@
  * plain Node, which can only strip types away. The save side, which does need
  * code at runtime, lives in `engine/progress.ts`.
  */
-import { activeOverlays } from './overlay';
+import { activeOverlays } from './overlay.ts';
 import type { SaveFile } from './save';
 import type { Flags } from './flags';
 import type {
