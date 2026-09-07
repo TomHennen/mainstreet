@@ -66,18 +66,16 @@ body {
   background: var(--night);
 }
 
-/* The engine's one DOM control over the canvas: a real link, so touch, Tab
-   and Enter all work without the game handling any of them. The UI scene
-   positions it against the dialogue box (right/bottom, in stage pixels). */
-#say-link {
+/* The engine's own DOM controls over the canvas: real links, so touch, Tab
+   and Enter all work without the game handling any of them (engine/input.ts
+   `isOverlay`, keyed off `data-overlay`). Shared by the dialogue box's one
+   link (`#say-link`, positioned by engine/scenes/ui.ts) and the title
+   screen's own pool of them — "write to us" and, in Credits, About/Paint/
+   Source (engine/scenes/title.ts) — since Credits can show more than one at
+   once, unlike the dialogue box. */
+.overlay-link {
   position: absolute;
   z-index: 2;
-  padding: 8px 12px;
-  background: var(--maple);
-  border: 2px solid #e0a171;
-  border-radius: 3px;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
-  color: var(--paper);
   font-family: ui-monospace, Menlo, Consolas, monospace;
   font-size: 12px;
   font-weight: 700;
@@ -88,21 +86,32 @@ body {
   touch-action: manipulation;
 }
 
+/* #say-link's own look when it is the dialogue box's button rather than one
+   of the title screen's rows (below). */
+#say-link {
+  padding: 8px 12px;
+  background: var(--maple);
+  border: 2px solid #e0a171;
+  border-radius: 3px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+  color: var(--paper);
+}
+
 #say-link:active {
   background: #8f401f;
 }
 
-/* The title screen's "write to us" is the same anchor, but sits as one row
-   of its list rather than a standalone button: no fill or border of its
-   own, sized and left-padded to match the row underneath, which the title
-   scene draws on the canvas (engine/scenes/title.ts). The scene toggles the
-   text colour as the cursor moves onto and off it, same as every other row. */
-#say-link.row-link:not([hidden]) {
+/* Any overlay link sitting as one row of the title screen's list rather than
+   a standalone button: no fill or border of its own, sized and left-padded
+   to match the row underneath, which the title scene draws on the canvas
+   (engine/scenes/title.ts). The scene toggles the text colour as the cursor
+   moves onto and off it, same as every other row. */
+.row-link:not([hidden]) {
   display: flex;
   align-items: center;
 }
 
-#say-link.row-link {
+.row-link {
   padding: 0 14px 0 0;
   background: transparent;
   border: none;
@@ -114,11 +123,11 @@ body {
   white-space: normal;
 }
 
-#say-link.row-link:active {
+.row-link:active {
   background: transparent;
 }
 
-#say-link:focus-visible {
+.overlay-link:focus-visible {
   outline: 3px solid var(--paper);
   outline-offset: 2px;
 }

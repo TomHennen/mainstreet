@@ -25,7 +25,21 @@
         from here. data-overlay tells the input layer to leave it alone so the
         browser can handle taps, Tab and Enter on a real link.
       -->
-      <a id="say-link" data-overlay="link" hidden target="_blank" rel="noopener"></a>
+      <a id="say-link" class="overlay-link" data-overlay="link" hidden target="_blank" rel="noopener"></a>
+
+      <!--
+        A small pool of DOM anchors for the Credits screen's own link rows —
+        About this game, Paint a building, Open source on GitHub (issue #65).
+        Real links, so touch, Tab and Enter are the browser's job rather than
+        the game's (data-overlay keeps engine/input.ts's own pointer path off
+        them, same as #say-link above); hidden and repointed by
+        engine/scenes/title.ts, one anchor per row that is actually on
+        screen. A fixed pool rather than one shared anchor because, unlike
+        #say-link, Credits can show more than one of these at once.
+      -->
+      <a class="overlay-link row-link credit-link" data-overlay="link" hidden target="_blank" rel="noopener"></a>
+      <a class="overlay-link row-link credit-link" data-overlay="link" hidden target="_blank" rel="noopener"></a>
+      <a class="overlay-link row-link credit-link" data-overlay="link" hidden target="_blank" rel="noopener"></a>
     </div>
 
     <div id="controls">
