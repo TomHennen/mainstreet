@@ -17,15 +17,21 @@
         },
         {
           "requires": ["gotDog"],
-          "lines": ["Well, would you look at that. Get Scout down to Nora before he changes his mind about the arrangement."]
+          "lines": ["Well, would you look at that. Get Scout along to Nora — she's on the patio at Stamford Coffee, up Main."]
         },
         {
           "requires": ["sawJefferson"],
-          "lines": ["Sounds like you're closing in on Scout. My money's on the mill pond in Jefferson — every dog ends up there."]
+          "lines": [
+            "Sounds like you're closing in on Scout. My money's on the mill pond in Jefferson — every dog ends up there.",
+            "Bring him back to Nora when you have him. She's on the patio at Stamford Coffee, along Main here."
+          ]
         },
         {
           "requires": ["sawHobart"],
-          "lines": ["Scout got all the way to Hobart? He's putting on miles. Try Dot, outside Middle Brook Cafe in Jefferson."]
+          "lines": [
+            "Renata had him, then — good. Try Dot next, outside Middle Brook Cafe in Jefferson; she misses nothing.",
+            "And Nora's waiting on the patio at Stamford Coffee, right here in the village, whenever you find him."
+          ]
         },
         {
           "requires": ["metEarl"],
@@ -60,12 +66,12 @@
         },
         {
           "requires": ["sawHobart"],
-          "lines": ["Told you — Scout gave this shop a full inspection. Next is Dot, outside Middle Brook Cafe in Jefferson."]
+          "lines": ["Told you — Scout had that bench to himself a good ten minutes. Next is Dot, outside Middle Brook Cafe in Jefferson."]
         },
         {
           "requires": ["metEarl"],
           "lines": [
-            "Oh, Scout! Grey muzzle, one ear straight up — he walked in yesterday and had a good look round like a customer.",
+            "Oh, Scout! Grey muzzle, one ear straight up — he came up onto the patio yesterday and sat by the bench like a customer.",
             "Then out the door and off north. Ask Dot, outside Middle Brook Cafe in Jefferson — nothing on that street gets past her."
           ],
           "effects": [{ "set": "sawHobart" }]
@@ -90,17 +96,17 @@
         },
         {
           "requires": ["gotDog"],
-          "lines": ["You found Scout?! Bring him by — everyone inside has been rooting for the pair of you all week."]
+          "lines": ["You found Scout?! Get him to Nora — she's on the patio at Stamford Coffee, down in Stamford. Go on, quick."]
         },
         {
           "requires": ["sawJefferson"],
-          "lines": ["The mill pond, past the Mill Pond Inn at the west end of Main Street. Scout will be there, and so will Nora."]
+          "lines": ["The mill pond, past the Mill Pond Inn at the west end of Main Street. Scout loves that shade by the water."]
         },
         {
           "requires": ["sawHobart"],
           "lines": [
             "Scout! He was right outside our window yesterday, ear straight up, gone before anyone could set down a cup.",
-            "Try the mill pond, past the Mill Pond Inn, at the west end of Main Street. Nora's down there looking for him."
+            "Try the mill pond, past the Mill Pond Inn, at the west end of Main Street. There's shade by the water there."
           ],
           "effects": [{ "set": "sawJefferson" }]
         },
@@ -117,20 +123,20 @@
     {
       "id": "nora",
       "name": "Nora",
-      "map": "jefferson",
-      "pos": [17, 20],
+      "map": "stamford",
+      "pos": [88, 25],
       "facing": "down",
       "accent": "#6b7fa3",
       "dialogue": [
         {
           "requires": ["done"],
-          "lines": ["Scout hasn't left my side since. Thank you again — and I meant it about the coffee, any time you like."]
+          "lines": ["Scout hasn't left my side since. Thank you again — and that offer of a coffee does not expire."]
         },
         {
           "requires": ["gotDog"],
           "lines": [
-            "Scout! Oh — oh, thank you. I have been up and down this road for two days calling that name.",
-            "Come by Stamford Coffee sometime and let me buy you whatever you like. I mean that, truly."
+            "Scout! Oh — oh, thank you. I have sat on this patio all week asking everybody who walked past.",
+            "Sit down a minute, would you — anything you like from the counter is on me. I mean that, truly."
           ],
           "effects": [
             { "set": "done" },
@@ -140,15 +146,15 @@
         {
           "requires": ["metEarl"],
           "lines": [
-            "Still no Scout. Grey muzzle, one ear straight up — he was right here an hour ago, then off toward the villages.",
-            "Whichever way he went, somebody on Route 10 will have seen him. Scout has never once passed a village quietly."
+            "Still no Scout. He slipped out of the yard on Tuesday and I have asked everyone up and down Route 10 since.",
+            "Somebody has seen him, I know it. Scout has never once passed a village quietly in his life."
           ]
         },
         {
           "requires": [],
           "lines": [
-            "Have you seen a scruffy dog, grey muzzle, one ear straight up? That's Scout. He answers to it in theory.",
-            "He was right here, then off toward the villages. Ask Earl, outside Stewart's in Stamford — he hears everything."
+            "Have you seen a scruffy dog, grey muzzle, one ear straight up? That's Scout. He slipped the yard on Tuesday.",
+            "I have been asking up and down Route 10 all week. Try Earl, outside Stewart's — he hears every sighting first."
           ]
         }
       ]

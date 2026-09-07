@@ -91,7 +91,9 @@ on how that recency may/may not show up in-game are under Flavor & story
 hooks below. Hobart is currently the least developed of the three villages
 and is the natural place to grow bookshop lots over time — reserve several
 full-size open lots along Main Street per map rule 4, and let named shops
-fill in gradually rather than all at once.
+fill in gradually rather than all at once. **Cellar Door Wines** has a small
+patio out front — really just a bench — so a scene set outside the shop
+should be a bench, not a deck full of tables.
 
 **Stewart's interior.** The clerk is enclosed behind the counter; the player
 talks across it and cannot walk round.
