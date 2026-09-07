@@ -1,5 +1,6 @@
 // Runtime import, so it carries the extension scripts/validate-episodes.ts
 // needs under Node's type stripping (see that file's header).
+import { rectsOverlap } from './edges.ts';
 import { findPath } from './path.ts';
 import { canCoOccur, combinations, overlapsIn, patchFor, withOverlays } from './overlay.ts';
 import {
@@ -246,6 +247,32 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
       // A destination with no grid is already reported against that map.
       if (dest && isSolid(dest, exit.spawn[0], exit.spawn[1])) {
         problems.push(`exit "${exit.id}" spawns on a solid tile in "${exit.to}"`);
+      }
+    }
+
+    // Road ends (DESIGN.md §2): a rectangle shaped like an exit's, but it
+    // says something instead of leading somewhere. It has to sit inside the
+    // map, and it must never share a tile with an actual way out — a road
+    // cannot both leave town and dead-end in the same place.
+    for (const edge of map.edges ?? []) {
+      const where = `map "${mapId}" edge "${edge.id}"`;
+      const [ex, ey, ew, eh] = edge.at;
+      if (ex < 0 || ey < 0 || ex + ew > map.width || ey + eh > map.height) {
+        problems.push(`${where} is outside the map`);
+      }
+      for (const exit of map.exits) {
+        if (rectsOverlap(exit.at, edge.at)) {
+          problems.push(`${where} overlaps exit "${exit.id}"`);
+        }
+      }
+      if (!Array.isArray(edge.lines) || edge.lines.length === 0) {
+        problems.push(`${where} has no "lines"`);
+      } else {
+        edge.lines.forEach((line, index) => {
+          if (typeof line !== 'string' || line.trim() === '') {
+            problems.push(`${where} line ${index} is empty`);
+          }
+        });
       }
     }
   }
