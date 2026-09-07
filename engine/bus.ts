@@ -71,5 +71,12 @@ export const bus = new EventBus();
 
 export const EV = {
   say: 'say',
-  toast: 'toast'
+  toast: 'toast',
+  /**
+   * A flag has just been set. Carries the flag's name. Overlays and scenes
+   * both hang off this (DESIGN.md §3): a patch to a map appears the moment the
+   * flag gating it is set, and a scene triggered `on: { flag }` starts there
+   * and then — wherever the player happens to be standing.
+   */
+  flags: 'flags'
 } as const;

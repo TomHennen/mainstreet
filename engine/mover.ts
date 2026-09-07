@@ -104,6 +104,16 @@ export class Mover {
   /** Which waypoint comes next. */
   private next = 0;
 
+  /**
+   * An errand: somewhere a scene has sent this person, which overrides
+   * whatever their route or wander had in mind until they get there
+   * (DESIGN.md §3). Somebody with no route at all can still be sent on one,
+   * which is how a townsperson who normally stands at the bar walks in
+   * through the door when the party starts.
+   */
+  private errandGoal: Vec2 | null = null;
+  private errandSpeed: number | undefined;
+
   constructor(options: MoverOptions) {
     this.home = [options.home[0], options.home[1]];
     this.x = options.home[0];
@@ -165,6 +175,45 @@ export class Mover {
     return Boolean(this.route || this.wander);
   }
 
+  /** True while this person is on an errand a scene sent them on. */
+  get onErrand(): boolean {
+    return this.errandGoal !== null;
+  }
+
+  /**
+   * Go here, now (DESIGN.md §3). Returns false when there is no way through,
+   * so a scene can carry on with the rest of itself rather than waiting on
+   * somebody who is never going to arrive. `clear` is an optional stricter
+   * walkability — "and nobody standing in it" — tried first, so a route goes
+   * round whoever is in the way when it can and straight at them when it
+   * cannot.
+   */
+  sendTo(goal: Vec2, speed?: number, clear?: Walkable): boolean {
+    this.errandSpeed = speed;
+    const standing = this.x === this.anchor[0] && this.y === this.anchor[1];
+    if (goal[0] === this.anchor[0] && goal[1] === this.anchor[1]) {
+      // Already there — or a stride short of it, in which case the last step
+      // is finished rather than abandoned half way across a tile.
+      this.path = standing ? [] : [[this.anchor[0], this.anchor[1]]];
+      this.errandGoal = standing ? null : [goal[0], goal[1]];
+      this.wait = 0;
+      return true;
+    }
+    const isGoal = (x: number, y: number) => x === goal[0] && y === goal[1];
+    const route =
+      (clear ? findPath(this.anchor, isGoal, (x, y) => this.walkable(x, y) && clear(x, y)) : null) ??
+      findPath(this.anchor, isGoal, this.walkable);
+    if (!route || route.length < 2) {
+      this.errandGoal = null;
+      return false;
+    }
+    this.errandGoal = [goal[0], goal[1]];
+    this.path = route.slice(1);
+    this.wait = 0;
+    this.held = 0;
+    return true;
+  }
+
   /** Turn to look at a point in tile space — what being spoken to does. */
   faceToward(x: number, y: number): void {
     const dx = x - (this.x + 0.5);
@@ -180,8 +229,10 @@ export class Mover {
    */
   update(dt: number, step: MoverStep): void {
     this.moving = false;
-    if (!this.walks) return;
-    if (step.held) return;
+    if (!this.walks && !this.onErrand) return;
+    // An errand is a scene's instruction, so it is not held: somebody crossing
+    // the room on cue keeps crossing it even with the player standing there.
+    if (step.held && !this.onErrand) return;
 
     let left = dt;
     if (!this.path.length) {
@@ -199,7 +250,9 @@ export class Mover {
 
   /** Walks along the current leg, exactly as the player's tapped walk does. */
   private walk(dt: number, step: MoverStep): void {
-    let budget = this.speed * dt;
+    // An errand may set its own pace; everybody else keeps theirs.
+    const speed = (this.onErrand && this.errandSpeed) || this.speed;
+    let budget = speed * dt;
 
     while (budget > EPS && this.path.length) {
       const [tx, ty] = this.path[0];
@@ -214,6 +267,12 @@ export class Mover {
           this.held = 0;
           this.path = [];
           this.wait = 0;
+          // Somebody on an errand has somewhere to be, so they go round rather
+          // than falling back on their route; when there is no way round at
+          // all the errand is given up on, which the scene takes as arrival.
+          if (this.errandGoal && !this.sendTo(this.errandGoal, this.errandSpeed, (x, y) => !step.blocked(x, y))) {
+            this.errandGoal = null;
+          }
         }
         return;
       }
@@ -234,7 +293,7 @@ export class Mover {
       this.y += (dy / len) * use;
       budget -= use;
       this.moving = true;
-      this.walkTime += use / this.speed;
+      this.walkTime += use / speed;
       if (use >= len - EPS) {
         this.x = tx;
         this.y = ty;
@@ -244,8 +303,13 @@ export class Mover {
     }
 
     // Arrived: stand a while before the next leg, less whatever of this frame
-    // was left over once the last step was taken.
-    if (!this.path.length) this.wait = Math.max(0, this.pause - budget / this.speed);
+    // was left over once the last step was taken. An errand ends here, and
+    // whatever route or wander this person had picks up again after the pause.
+    if (!this.path.length) {
+      this.errandGoal = null;
+      this.errandSpeed = undefined;
+      this.wait = Math.max(0, this.pause - budget / speed);
+    }
   }
 
   /**

@@ -6,6 +6,7 @@
  * plain Node, which can only strip types away. The save side, which does need
  * code at runtime, lives in `engine/progress.ts`.
  */
+import { activeOverlays } from './overlay';
 import type { SaveFile } from './save';
 import type { Flags } from './flags';
 import type {
@@ -16,6 +17,8 @@ import type {
   EpisodeSign,
   Facing,
   GameMap,
+  LightSpec,
+  MapOverlay,
   Person,
   Vec2,
   World,
@@ -54,6 +57,13 @@ export interface Session {
   taken: Set<string>;
   /** Where the player is standing, kept current by the map scene for the save. */
   place: { map: string; pos: Vec2; facing: Facing };
+  /**
+   * The lighting a scene asked to keep through a map change (DESIGN.md §3).
+   * Null is plain daylight, which is what walking out of a lit room gives you
+   * unless the scene said otherwise. Never saved: an episode relights what it
+   * wants lit, so a save can never strand somebody in the dark.
+   */
+  light: LightSpec | null;
   /** The world's save file, in memory: mutated, then written in one go. */
   save: SaveFile;
   /**
@@ -90,6 +100,13 @@ export const npcsOn = (mapId: string): EpisodeNpc[] =>
  * somewhere to be.
  */
 export const peopleOn = (mapId: string): Person[] => session().world.maps[mapId]?.people ?? [];
+
+/**
+ * The overlays patching this map right now (DESIGN.md §3): this episode's, in
+ * the order it lists them, with every `requires` met and no `unless` set.
+ */
+export const overlaysOn = (mapId: string): MapOverlay[] =>
+  activeOverlays(session().episode.overlays, mapId, session().flags);
 
 export const itemsOn = (mapId: string): EpisodeItem[] =>
   (session().episode.items ?? []).filter((item) => item.map === mapId);
@@ -172,12 +189,25 @@ export function propSignsOn(mapId: string): EpisodeSign[] {
   const { episode, flags } = session();
   const seen = new Set<string>();
   const out: EpisodeSign[] = [];
-  for (const sign of episode.signs ?? []) {
-    if (sign.map !== mapId || !sign.pos || !flags.met(sign.requires)) continue;
+  const add = (sign: EpisodeSign) => {
+    if (!sign.pos) return;
     const at = `${sign.pos[0]},${sign.pos[1]}`;
-    if (seen.has(at)) continue;
+    if (seen.has(at)) return;
     seen.add(at);
     out.push(sign);
+  };
+  for (const sign of episode.signs ?? []) {
+    if (sign.map !== mapId || !sign.pos || !flags.met(sign.requires)) continue;
+    add(sign);
+  }
+  // A prop an overlay brought with it reads exactly like any other one; its
+  // `requires` are the overlay's, which is what put it on the map at all
+  // (DESIGN.md §3). The episode's own signs are listed first, so a sign
+  // written for a tile still wins over a patch that covers the same tile.
+  for (const overlay of overlaysOn(mapId)) {
+    for (const prop of overlay.props ?? []) {
+      add({ map: mapId, pos: prop.pos, requires: overlay.requires, lines: prop.lines });
+    }
   }
   return out;
 }

@@ -207,6 +207,85 @@ describe('Mover', () => {
   });
 });
 
+/**
+ * An errand is where a scene sends somebody (DESIGN.md §3). It overrides
+ * whatever the world pack had them doing, it is not held by the player
+ * standing close by — a scene's walk happens on cue — and it hands the person
+ * back to their own route when it is done.
+ */
+describe('sendTo', () => {
+  const BLOCKED = ground([
+    '..........',
+    '..........',
+    '..#####...',
+    '..........',
+    '..........'
+  ]);
+
+  it('walks somebody with no route at all to a tile', () => {
+    const mover = new Mover({ home: [1, 1], speed: 4, walkable: OPEN });
+    expect(mover.walks).toBe(false);
+    expect(mover.sendTo([5, 1])).toBe(true);
+    expect(mover.onErrand).toBe(true);
+    run(mover, 2);
+    expect(at(mover)).toEqual([5, 1]);
+    expect(mover.onErrand).toBe(false);
+  });
+
+  it('keeps walking with the player standing right there', () => {
+    const mover = new Mover({ home: [1, 1], speed: 4, walkable: OPEN });
+    mover.sendTo([5, 1]);
+    run(mover, 2, { held: true, blocked: () => false });
+    expect(at(mover)).toEqual([5, 1]);
+  });
+
+  it('goes round the long way rather than through a wall', () => {
+    const mover = new Mover({ home: [4, 1], speed: 6, walkable: BLOCKED });
+    expect(mover.sendTo([4, 4])).toBe(true);
+    run(mover, 4);
+    expect(at(mover)).toEqual([4, 4]);
+  });
+
+  it('says so when there is no way through', () => {
+    const island = ground(['..#..', '..#..', '..#..']);
+    const mover = new Mover({ home: [0, 0], speed: 4, walkable: island });
+    expect(mover.sendTo([4, 0])).toBe(false);
+    expect(mover.onErrand).toBe(false);
+  });
+
+  it('is already there when it is sent where it stands', () => {
+    const mover = new Mover({ home: [2, 2], speed: 4, walkable: OPEN });
+    expect(mover.sendTo([2, 2])).toBe(true);
+    expect(mover.busy).toBe(false);
+    expect(mover.onErrand).toBe(false);
+  });
+
+  it('takes the pace the scene asked for', () => {
+    const slow = new Mover({ home: [0, 0], speed: 8, walkable: OPEN });
+    slow.sendTo([8, 0], 2);
+    run(slow, 1);
+    // Two tiles a second, not eight: two seconds' walking is still to come.
+    expect(slow.x).toBeGreaterThan(1.5);
+    expect(slow.x).toBeLessThan(2.5);
+  });
+
+  it('picks its own route back up once the errand is over', () => {
+    const mover = new Mover({
+      home: [0, 0],
+      speed: 6,
+      walkable: OPEN,
+      route: { path: [[0, 4], [0, 0]], pause: 2 }
+    });
+    mover.sendTo([6, 2]);
+    run(mover, 1.5);
+    expect(at(mover)).toEqual([6, 2]);
+    expect(mover.onErrand).toBe(false);
+    run(mover, 4);
+    // Back on the route: somewhere on the way to a waypoint, not stood still.
+    expect(at(mover)).not.toEqual([6, 2]);
+  });
+});
+
 describe('rng and hashId', () => {
   it('gives the same stream for the same seed', () => {
     const a = rng(1234);

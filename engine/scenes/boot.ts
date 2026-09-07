@@ -8,6 +8,7 @@ import { restoreEpisode, resumePoint } from '../progress';
 import { startSession } from '../session';
 import type { AssetIndex } from '../session';
 import { validateEpisode, validateWorld } from '../validate';
+import { sceneFlags } from '../schema';
 import type { Episode } from '../schema';
 
 /** Letters, digits, "-" and "_" only — keeps `?episode=` off the filesystem path. */
@@ -156,7 +157,10 @@ export function startEpisode(
     maps,
     copy,
     episode,
-    flags: new Flags(episode.flags),
+    // A `once` scene declares its own `scene:<id>` flag, so an episode never
+    // has to write one down and a save remembers the scene played
+    // (DESIGN.md §3).
+    flags: new Flags([...episode.flags, ...sceneFlags(episode)]),
     assets,
     credits,
     dialogueOpen: false,
@@ -165,6 +169,7 @@ export function startEpisode(
     introShown: false,
     taken: new Set<string>(),
     place,
+    light: null,
     save,
     recording
   };

@@ -83,7 +83,7 @@ describe('bus', () => {
     expect(order).toEqual(['first', 'second']);
   });
 
-  it('EV names the two engine-wide events', () => {
-    expect(EV).toEqual({ say: 'say', toast: 'toast' });
+  it('EV names the engine-wide events', () => {
+    expect(EV).toEqual({ say: 'say', toast: 'toast', flags: 'flags' });
   });
 });
