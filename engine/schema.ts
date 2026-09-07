@@ -78,6 +78,51 @@ export interface Fixture {
   pos: Vec2;
 }
 
+// --- how a placeholder person looks (DESIGN.md §4) ---------------------------
+
+/**
+ * The hair the engine knows how to draw. A fixed vocabulary rather than free
+ * text, so a world pack can only ask for something the engine can actually
+ * paint, and a typo is caught by the validator instead of quietly falling back
+ * (engine/figure.ts draws them).
+ */
+export const HAIR_STYLES = ['flat', 'short', 'long', 'curly', 'ponytail', 'bun', 'cap', 'bald'] as const;
+export type HairStyle = (typeof HAIR_STYLES)[number];
+
+/** How wide a person is through the shoulders — a pixel or two either way. */
+export const BUILDS = ['slim', 'regular', 'broad'] as const;
+export type Build = (typeof BUILDS)[number];
+
+/**
+ * How one person looks *before anyone has painted them*: the recipe the engine
+ * draws its placeholder townsperson from, so a cast reads as a cast while it
+ * waits for art (CLAUDE.md hard rule 3). Every field is optional and falls
+ * back to the original townsperson, so old content keeps the look it had.
+ *
+ * This is a vocabulary, not a picture: the engine owns the shapes and the
+ * world pack owns who wears which. A painted `assets/chars/<id>.png` replaces
+ * the placeholder outright and the look is then ignored.
+ */
+export interface Look {
+  hair?: HairStyle;
+  hairColor?: string;
+  skin?: string;
+  /** Shirt colour. The older spelling for the same thing is `accent`. */
+  shirt?: string;
+  build?: Build;
+}
+
+/**
+ * One person's look, with the older `accent` spelling folded in. `accent` came
+ * first and is still how most of a world pack names a shirt colour, so it
+ * keeps working everywhere; an explicit `look.shirt` wins where both are set.
+ */
+export function lookOf(who: { accent?: string; look?: Look }): Look {
+  const look = who.look ?? {};
+  if (look.shirt !== undefined || who.accent === undefined) return look;
+  return { ...look, shirt: who.accent };
+}
+
 export interface MapExit {
   id: string;
   /** Trigger area in tiles: [x, y, w, h]. */
@@ -153,7 +198,8 @@ export interface World {
   paletteName?: string;
   paletteLink?: string;
   episodes: string[];
-  player: { id: string; accent: string };
+  /** The player's own placeholder look; `accent` is `look.shirt`'s older name. */
+  player: { id: string; accent?: string; look?: Look };
   start: { map: string; pos: Vec2; facing: Facing };
   buildings: Record<string, BuildingDef>;
   maps: Record<string, MapMeta>;
@@ -260,8 +306,10 @@ export interface EpisodeNpc {
   map: string;
   pos: Vec2;
   facing?: Facing;
-  /** Used for the fallback townsperson sprite when there is no character sheet. */
+  /** Shirt colour of the fallback townsperson. Shorthand for `look.shirt`. */
   accent?: string;
+  /** How the fallback townsperson is drawn — ignored once a sheet is painted. */
+  look?: Look;
   dialogue: DialogueEntry[];
 }
 

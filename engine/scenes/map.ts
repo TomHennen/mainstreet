@@ -23,7 +23,7 @@ import { improveUrl, paintUrl } from '../paint';
 import { findPath, pathToTile } from '../path';
 import { creditFor, dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signLinesFor } from '../session';
 import { isSolid } from '../validate';
-import { plaqueTile } from '../schema';
+import { lookOf, plaqueTile } from '../schema';
 import type { PlateBox } from '../art';
 import type { BuildingPlacement, EpisodeItem, EpisodeSign, Facing, Fixture, GameMap, MapExit, Vec2 } from '../schema';
 
@@ -259,7 +259,7 @@ export class MapScene extends Phaser.Scene {
     }
 
     for (const npc of npcsOn(this.mapId)) {
-      const key = assets.chars.has(npc.id) ? `art:char:${npc.id}` : characterTexture(this, npc.accent ?? '#7a7a6a');
+      const key = assets.chars.has(npc.id) ? `art:char:${npc.id}` : characterTexture(this, lookOf(npc));
       const dir = npc.facing ?? 'down';
       this.add
         .sprite(npc.pos[0] * TILE + TILE / 2, npc.pos[1] * TILE + TILE, key, frameIndex(dir, 0))
@@ -269,7 +269,7 @@ export class MapScene extends Phaser.Scene {
 
     const playerKey = assets.chars.has(world.player.id)
       ? `art:char:${world.player.id}`
-      : characterTexture(this, world.player.accent);
+      : characterTexture(this, lookOf(world.player));
     this.player = this.add.sprite(0, 0, playerKey, frameIndex(this.facing, 0)).setOrigin(0.5, 1);
     this.syncPlayerSprite();
 

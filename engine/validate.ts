@@ -1,7 +1,7 @@
 // Runtime import, so it carries the extension scripts/validate-episodes.ts
 // needs under Node's type stripping (see that file's header).
-import { FIXTURE_KINDS, plaqueTile } from './schema.ts';
-import type { Episode, GameMap, World } from './schema';
+import { BUILDS, FIXTURE_KINDS, HAIR_STYLES, plaqueTile } from './schema.ts';
+import type { Episode, GameMap, Look, World } from './schema';
 
 /**
  * Load-time validation of a world pack (DESIGN.md §3), run both in the browser
@@ -19,6 +19,8 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
   const mapIds = Object.keys(world.maps);
 
   if (!mapIds.length) problems.push('world has no maps');
+
+  checkLook(world.player.look, `player "${world.player.id}"`, problems);
 
   // A building's standing sign is the copy its door shows on an ordinary day
   // (DESIGN.md §3). It is optional, but an empty one — or an empty page in the
@@ -165,6 +167,7 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
 
   for (const npc of episode.npcs) {
     checkPos(npc.map, npc.pos, `npc "${npc.id}"`);
+    checkLook(npc.look, `${where}: npc "${npc.id}"`, problems);
 
     let catchAllAt = -1;
     npc.dialogue.forEach((entry, index) => {
@@ -224,6 +227,42 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
   });
 
   return problems;
+}
+
+/** Colour fields accept the two hex spellings a world pack ever writes. */
+const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+const LOOK_FIELDS = ['hair', 'hairColor', 'skin', 'shirt', 'build'] as const;
+
+/**
+ * A placeholder person's `look` (DESIGN.md §4). Everything in it is optional,
+ * so the check is only that what *is* there is something the engine can draw:
+ * a hair style and a build from the vocabulary, colours that are colours, and
+ * no field the engine has never heard of — a misspelt one would otherwise
+ * silently leave that character looking like everybody else.
+ */
+function checkLook(look: Look | undefined, context: string, problems: string[]): void {
+  if (look === undefined) return;
+  if (typeof look !== 'object' || Array.isArray(look)) {
+    problems.push(`${context} has a "look" that isn't an object`);
+    return;
+  }
+  for (const field of Object.keys(look)) {
+    if (!(LOOK_FIELDS as readonly string[]).includes(field)) {
+      problems.push(`${context} look has unknown field "${field}" — expected one of ${LOOK_FIELDS.join(', ')}`);
+    }
+  }
+  if (look.hair !== undefined && !(HAIR_STYLES as readonly string[]).includes(look.hair)) {
+    problems.push(`${context} look has unknown hair "${look.hair}" — expected one of ${HAIR_STYLES.join(', ')}`);
+  }
+  if (look.build !== undefined && !(BUILDS as readonly string[]).includes(look.build)) {
+    problems.push(`${context} look has unknown build "${look.build}" — expected one of ${BUILDS.join(', ')}`);
+  }
+  for (const field of ['hairColor', 'skin', 'shirt'] as const) {
+    const value = look[field];
+    if (value !== undefined && (typeof value !== 'string' || !HEX.test(value))) {
+      problems.push(`${context} look has a "${field}" that isn't a hex colour like "#a06c3f"`);
+    }
+  }
 }
 
 /**

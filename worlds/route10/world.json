@@ -15,7 +15,10 @@
   ],
   "player": {
     "id": "player",
-    "accent": "#b5542a"
+    "accent": "#b5542a",
+    "look": {
+      "hair": "short"
+    }
   },
   "start": {
     "map": "stamford",

@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
+import { drawFigure, figureKey } from './figure';
 import { FACINGS, plaqueTile } from './schema';
 import { TILE } from './tiled';
-import type { BuildingDef, BuildingPlacement, Facing, Fixture, FixtureKind, GameMap } from './schema';
+import type { BuildingDef, BuildingPlacement, Facing, Fixture, FixtureKind, GameMap, Look } from './schema';
 import type { TileDef, TilesetDef } from './tiled';
 
 /**
@@ -723,62 +724,20 @@ function drawFixture(scene: Phaser.Scene, key: string, kind: FixtureKind): void 
 
 // --- characters --------------------------------------------------------------
 
-function drawFigure(
-  ctx: CanvasRenderingContext2D,
-  ox: number,
-  oy: number,
-  dir: Facing,
-  step: number,
-  accent: string
-): void {
-  const skin = '#e8c39a';
-  const hair = '#3a2c1e';
-  const legs = '#33404f';
-  const swing = step === 1 ? 1 : step === 2 ? -1 : 0;
-
-  ctx.fillStyle = 'rgba(0,0,0,.28)';
-  ctx.fillRect(ox + 3, oy + 29, 10, 3);
-
-  ctx.fillStyle = legs;
-  ctx.fillRect(ox + 4, oy + 24, 3, 7 + swing);
-  ctx.fillRect(ox + 9, oy + 24, 3, 7 - swing);
-
-  ctx.fillStyle = accent;
-  ctx.fillRect(ox + 4, oy + 15, 8, 10);
-  ctx.fillStyle = 'rgba(0,0,0,.18)';
-  ctx.fillRect(ox + 3, oy + 16, 1, 7);
-  ctx.fillRect(ox + 12, oy + 16, 1, 7);
-
-  ctx.fillStyle = skin;
-  ctx.fillRect(ox + 4, oy + 7, 8, 8);
-
-  ctx.fillStyle = hair;
-  ctx.fillRect(ox + 4, oy + 5, 8, 4);
-  if (dir === 'up') ctx.fillRect(ox + 4, oy + 5, 8, 8);
-  if (dir === 'left') ctx.fillRect(ox + 9, oy + 5, 3, 6);
-  if (dir === 'right') ctx.fillRect(ox + 4, oy + 5, 3, 6);
-
-  if (dir !== 'up') {
-    const eye = dir === 'left' ? 4 : dir === 'right' ? 8 : 6;
-    ctx.fillStyle = '#2a231a';
-    ctx.fillRect(ox + eye, oy + 11, 1, 1);
-    ctx.fillRect(ox + eye + 3, oy + 11, 1, 1);
-  }
-}
-
 /**
- * Generic townsperson in a per-character accent colour, laid out exactly like a
- * real sheet (DESIGN.md §4: 4 directions down/left/right/up x 3 frames) so a
- * dropped-in PNG uses the same frame indices.
+ * Generic townsperson drawn from a `look` (DESIGN.md §4), laid out exactly like
+ * a real sheet (4 directions down/left/right/up x 3 frames) so a dropped-in
+ * PNG uses the same frame indices. The recipe itself lives in engine/figure.ts,
+ * which needs no browser; this wraps it in a Phaser texture.
  */
-export function characterTexture(scene: Phaser.Scene, accent: string): string {
-  const key = `townsperson:${accent}`;
+export function characterTexture(scene: Phaser.Scene, look: Look): string {
+  const key = `townsperson:${figureKey(look)}`;
   if (scene.textures.exists(key)) return key;
 
   const { texture, ctx } = canvas(scene, key, CHAR_W * 3, CHAR_H * FACINGS.length);
   FACINGS.forEach((dir, row) => {
     for (let step = 0; step < 3; step++) {
-      drawFigure(ctx, step * CHAR_W, row * CHAR_H, dir, step, accent);
+      drawFigure(ctx, step * CHAR_W, row * CHAR_H, dir, step, look);
     }
   });
   texture.refresh();
