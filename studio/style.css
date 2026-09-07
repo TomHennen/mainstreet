@@ -525,6 +525,31 @@ kbd {
   accent-color: var(--maple);
 }
 
+/*
+ * Every way of sending a drawing, shown after every send. The address is
+ * plain, selectable text and breaks anywhere rather than pushing a phone
+ * sideways, because it is the one thing here that always works.
+ */
+.fallback {
+  margin-top: 12px;
+  background: var(--night);
+  border: 1px solid rgba(243, 234, 216, 0.12);
+  border-radius: 6px;
+  padding: 12px 12px 2px;
+}
+
+.fallback .address {
+  font-size: 13px;
+  margin-bottom: 10px;
+  overflow-wrap: anywhere;
+}
+
+.fallback .address strong {
+  color: var(--maple);
+  -webkit-user-select: all;
+  user-select: all;
+}
+
 .notice {
   background: var(--night);
   border: 2px solid var(--maple);
