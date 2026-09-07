@@ -124,7 +124,8 @@ const assets: AssetIndex = {
   buildings: new Set(),
   chars: new Set(),
   portraits: new Set(),
-  tilesets: new Set()
+  tilesets: new Set(),
+  vehicles: new Set()
 };
 
 function boot(flags: Flags, overrides: { assets?: AssetIndex; credits?: Credits; taken?: string[] } = {}): void {

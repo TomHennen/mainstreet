@@ -1629,6 +1629,43 @@ describe('vehicles', () => {
     expect(problems.join('\n')).toContain('no paved way through');
   });
 
+  it('accepts a parked car on the pavement', () => {
+    expect(runWorld(townWith([{ id: 'parked', kind: 'pickup', colour: '#547e64', pos: [4, 1], facing: 'left' }]))).toEqual(
+      []
+    );
+  });
+
+  it('rejects a parked car left on the grass', () => {
+    const problems = runWorld(townWith([{ id: 'parked', kind: 'pickup', colour: '#547e64', pos: [4, 0] }]));
+    expect(problems.join('\n')).toContain('cars keep to the paved routes');
+  });
+
+  it('rejects a car with neither a path nor a pos', () => {
+    expect(runWorld(townWith([{ id: 'nowhere', kind: 'car', colour: '#9babb2' }])).join('\n')).toContain(
+      'neither a "path" to drive nor a "pos" to be parked on'
+    );
+  });
+
+  it('rejects an unknown facing', () => {
+    const problems = runWorld(townWith([car({ facing: 'sideways' })]));
+    expect(problems.join('\n')).toContain('unknown "facing"');
+  });
+
+  it('lets a map with no paved tiles park a car anywhere it fits', () => {
+    const yard = ['....', '..##', '....'];
+    const parked = (pos: number[]) => ({ id: 'parked', kind: 'van', colour: '#ab947a', pos });
+    const town = (pos: number[]) => makeMap({ vehicles: [parked(pos) as never] }, yard);
+    expect(runWorld(makeWorld({ maps: { town: town([0, 0]) } }))).toEqual([]);
+    expect(runWorld(makeWorld({ maps: { town: town([2, 1]) } })).join('\n')).toContain(
+      'somewhere no vehicle could be left'
+    );
+  });
+
+  it('checks the tile a moving car starts on, when it is given one', () => {
+    const problems = runWorld(townWith([car({ pos: [4, 0] })]));
+    expect(problems.join('\n')).toContain('cars keep to the paved routes');
+  });
+
   it('rejects more traffic than a village reads as', () => {
     const many = [0, 1, 2, 3].map((n) => car({ id: `car${n}` }));
     expect(runWorld(townWith(many)).join('\n')).toContain('as much traffic as a village reads as');

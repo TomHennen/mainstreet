@@ -208,14 +208,23 @@ export type VehicleKind = (typeof VEHICLE_KINDS)[number];
  * engine's own pathfinder fills in the tiles between them. Every one of those
  * tiles has to carry the tileset's `drive` property, which is what keeps cars
  * on the paved routes and off the quiet side streets (engine/validate.ts).
+ *
+ * A vehicle with no `path` at all is a **parked** one: it sits on `pos`,
+ * facing where it was left, drawn exactly like a moving one and just as
+ * un-solid. That is how somebody's pickup ends up in a lot for an episode
+ * without the engine gaining any idea of whose it is.
  */
 export interface Vehicle {
   id: string;
   kind: VehicleKind;
   /** Body colour of the engine-drawn placeholder. Ignored once painted. */
   colour: string;
+  /** The tile it sits on. Defaults to the first waypoint; required when parked. */
+  pos?: Vec2;
+  /** Which way it points. Default 'down'; a moving car turns as it drives. */
+  facing?: Facing;
   /** Waypoints, in order. Each one has to be somewhere a vehicle can drive. */
-  path: Vec2[];
+  path?: Vec2[];
   /** Back to the first waypoint after the last. Default true. */
   loop?: boolean;
   /** Tiles per second. Default: the player's walking speed x 3. */

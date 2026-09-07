@@ -139,7 +139,11 @@ export async function indexAssets(loaded: LoadedWorld): Promise<AssetIndex> {
     ...Object.values(world.maps).flatMap((meta) => (meta.people ?? []).map((person) => person.id))
   ];
 
-  const [buildings, chars, portraits, painted] = await Promise.all([
+  // A vehicle's sheet is painted per vehicle id, the same way a character's is
+  // (DESIGN.md §2/§4). No file simply means the engine draws the car.
+  const vehicleIds = Object.values(world.maps).flatMap((meta) => (meta.vehicles ?? []).map((v) => v.id));
+
+  const [buildings, chars, portraits, painted, vehicles] = await Promise.all([
     filterExisting(buildingIds, (id) => `${root}/assets/buildings/${id}.png`),
     filterExisting(charIds, (id) => `${root}/assets/chars/${id}.png`),
     filterExisting(charIds, (id) => `${root}/assets/portraits/${id}.png`),
@@ -148,10 +152,11 @@ export async function indexAssets(loaded: LoadedWorld): Promise<AssetIndex> {
     filterExisting(
       tilesets.map((tileset) => tileset.name),
       (name) => tilesets.find((tileset) => tileset.name === name)?.imageUrl ?? ''
-    )
+    ),
+    filterExisting(vehicleIds, (id) => `${root}/assets/vehicles/${id}.png`)
   ]);
 
-  return { buildings, chars, portraits, tilesets: painted };
+  return { buildings, chars, portraits, tilesets: painted, vehicles };
 }
 
 async function filterExisting(ids: string[], url: (id: string) => string): Promise<Set<string>> {
@@ -168,6 +173,10 @@ export function queueAssets(load: Phaser.Loader.LoaderPlugin, loaded: LoadedWorl
     load.spritesheet(`art:char:${id}`, `${root}/assets/chars/${id}.png`, { frameWidth: 16, frameHeight: 32 });
   }
   for (const id of assets.portraits) load.image(`art:portrait:${id}`, `${root}/assets/portraits/${id}.png`);
+  // Four 32x32 frames, one per facing, in the same order as a character sheet.
+  for (const id of assets.vehicles) {
+    load.spritesheet(`art:vehicle:${id}`, `${root}/assets/vehicles/${id}.png`, { frameWidth: 32, frameHeight: 32 });
+  }
   for (const tileset of loaded.tilesets) {
     if (assets.tilesets.has(tileset.name) && tileset.imageUrl) {
       load.image(`art:tiles:${tileset.name}`, tileset.imageUrl);

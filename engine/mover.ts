@@ -26,6 +26,8 @@ export const STROLL_FACTOR = 0.45;
 const REPLAN_AFTER = 0.6;
 /** Sub-pixel slack, in tiles. */
 const EPS = 1e-6;
+/** One tile in each facing, for looking along the way ahead. */
+const STEPS: Record<Facing, Vec2> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 export interface MoverOptions {
   /** The tile the person is placed on, and the middle of a wander. */
@@ -165,6 +167,28 @@ export class Mover {
     const to = this.path[0];
     if (!to || (to[0] === at[0] && to[1] === at[1])) return [at];
     return [at, [to[0], to[1]]];
+  }
+
+  /**
+   * The next `count` tiles of the way ahead: the planned leg while there is
+   * one, and otherwise the tiles straight on from where this mover is facing,
+   * so somebody standing at a waypoint still knows what is in front of them.
+   * Nothing here says whether they may be walked on — it is what the road
+   * ahead *is*, which is what a driver looks at before pulling away
+   * (engine/vehicle.ts).
+   */
+  ahead(count: number): Vec2[] {
+    const out: Vec2[] = [];
+    for (let i = 0; i < count && i < this.path.length; i++) out.push([this.path[i][0], this.path[i][1]]);
+    if (out.length >= count) return out;
+    const [dx, dy] = STEPS[this.facing];
+    let [x, y] = out.length ? out[out.length - 1] : this.tile();
+    while (out.length < count) {
+      x += dx;
+      y += dy;
+      out.push([x, y]);
+    }
+    return out;
   }
 
   /** True while this person has somewhere to be. */

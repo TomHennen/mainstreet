@@ -4,6 +4,7 @@ import { findPath } from './path.ts';
 import { canCoOccur, combinations, overlapsIn, patchFor, withOverlays } from './overlay.ts';
 import {
   BUILDS,
+  FACINGS,
   FIXTURE_KINDS,
   HAIR_STYLES,
   MAX_WAIT,
@@ -872,9 +873,16 @@ export function driveable(map: GameMap): (x: number, y: number) => boolean {
 
 /**
  * One ambient vehicle (DESIGN.md §2): a kind the engine can draw, a colour it
- * can paint it in, and a path whose every tile — waypoints and the tiles the
- * engine fills in between them — is drivable. A loop closes by road too, so a
- * car that sets off can always get back round.
+ * can paint it in, and either a path whose every tile — waypoints and the
+ * tiles the engine fills in between them — is drivable, or no path at all,
+ * which is a car parked where somebody left it.
+ *
+ * A loop closes by road too, so a car that sets off can always get back round.
+ * A parked car has only to be somewhere a car could plausibly have been left:
+ * a drivable tile, which covers both the road and a lot's marked stalls. On a
+ * map with no drivable tiles anywhere — an interior, say — that rule would
+ * make every tile wrong, so there it falls back to "anywhere solid nothing
+ * stands", which is the kindest reading of a map with no roads on it.
  */
 function checkVehicle(vehicle: Vehicle, map: GameMap, context: string, problems: string[]): void {
   if (!(VEHICLE_KINDS as readonly string[]).includes(vehicle.kind)) {
@@ -882,6 +890,9 @@ function checkVehicle(vehicle: Vehicle, map: GameMap, context: string, problems:
   }
   if (typeof vehicle.colour !== 'string' || !HEX.test(vehicle.colour)) {
     problems.push(`${context} has a "colour" that isn't a hex colour like "#9babb2"`);
+  }
+  if (vehicle.facing !== undefined && !(FACINGS as readonly string[]).includes(vehicle.facing)) {
+    problems.push(`${context} has an unknown "facing" — expected one of ${FACINGS.join(', ')}`);
   }
   if (vehicle.loop !== undefined && typeof vehicle.loop !== 'boolean') {
     problems.push(`${context} has a "loop" that isn't a boolean`);
@@ -893,35 +904,36 @@ function checkVehicle(vehicle: Vehicle, map: GameMap, context: string, problems:
     problems.push(`${context} has a "pause" that isn't a number of seconds`);
   }
 
+  const drive = driveable(map);
   const path = vehicle.path;
+  const parked = path === undefined;
+
+  if (parked) {
+    if (vehicle.pos === undefined) {
+      problems.push(`${context} has neither a "path" to drive nor a "pos" to be parked on`);
+      return;
+    }
+    // A map with no paved tiles at all has nowhere a car could be parked by
+    // the usual rule, so anywhere it would fit will do (hard rule 3).
+    const paved = anyDrivable(map);
+    checkPark(map, vehicle.pos, `${context} "pos"`, paved ? drive : (x, y) => !isSolid(map, x, y), paved, problems);
+    return;
+  }
+
   if (!Array.isArray(path) || path.length < 2) {
     problems.push(`${context} has a "path" with fewer than two waypoints`);
     return;
   }
-  const drive = driveable(map);
   let ok = true;
+  if (vehicle.pos !== undefined && !checkPark(map, vehicle.pos, `${context} "pos"`, drive, true, problems)) ok = false;
   path.forEach((point, index) => {
-    const where = `${context} waypoint ${index}`;
-    if (!Array.isArray(point) || point.length !== 2 || !point.every((n) => Number.isInteger(n))) {
-      problems.push(`${where} is not a tile like [12, 4]`);
-      ok = false;
-      return;
-    }
-    const [x, y] = point;
-    if (x < 0 || y < 0 || x >= map.width || y >= map.height) {
-      problems.push(`${where} is outside the map`);
-      ok = false;
-      return;
-    }
-    if (!drive(x, y)) {
-      problems.push(`${where} at ${x},${y} is not a tile a vehicle can drive on — cars keep to the paved routes`);
-      ok = false;
-    }
+    if (!checkPark(map, point, `${context} waypoint ${index}`, drive, true, problems)) ok = false;
   });
   if (!ok) return;
 
-  // Each leg in turn, ending back at the first waypoint when the path loops.
-  const legs: Vec2[] = [...path];
+  // Each leg in turn, from the tile the car starts on and ending back at the
+  // first waypoint when the path loops.
+  const legs: Vec2[] = [vehicle.pos ?? path[0], ...path];
   if (vehicle.loop !== false) legs.push(path[0]);
   for (let i = 1; i < legs.length; i++) {
     const from = legs[i - 1];
@@ -931,6 +943,44 @@ function checkVehicle(vehicle: Vehicle, map: GameMap, context: string, problems:
       problems.push(`${context} cannot drive from ${from.join(',')} to ${to.join(',')} — no paved way through`);
     }
   }
+}
+
+/** Whether this map has any paved tile on it at all. */
+function anyDrivable(map: GameMap): boolean {
+  const drive = driveable(map);
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) if (drive(x, y)) return true;
+  }
+  return false;
+}
+
+/** A tile a vehicle may sit on or drive over, with the reason if not. */
+function checkPark(
+  map: GameMap,
+  pos: Vec2 | undefined,
+  context: string,
+  allowed: (x: number, y: number) => boolean,
+  paved: boolean,
+  problems: string[]
+): boolean {
+  if (!Array.isArray(pos) || pos.length !== 2 || !pos.every((n) => Number.isInteger(n))) {
+    problems.push(`${context} is not a tile like [12, 4]`);
+    return false;
+  }
+  const [x, y] = pos;
+  if (x < 0 || y < 0 || x >= map.width || y >= map.height) {
+    problems.push(`${context} is outside the map`);
+    return false;
+  }
+  if (!allowed(x, y)) {
+    problems.push(
+      paved
+        ? `${context} at ${x},${y} is not a tile a vehicle can drive on — cars keep to the paved routes`
+        : `${context} at ${x},${y} is somewhere no vehicle could be left — a wall, or inside a building`
+    );
+    return false;
+  }
+  return true;
 }
 
 /** A tile that is at least on the map and shaped like one, with the reason if not. */
