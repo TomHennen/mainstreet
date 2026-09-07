@@ -142,7 +142,7 @@
             "Priya's kid's costume? Sure — I'm headed down myself today, every other Sunday like clockwork.",
             "Hand it over — I've got it. I'll get it to the stage door by six. Tell the kid break a leg."
           ],
-          "effects": [{ "set": "done" }, { "toast": "Episode complete — new story next week" }]
+          "effects": [{ "set": "done" }]
         },
         {
           "requires": ["heardAsk"],
@@ -157,6 +157,28 @@
             "If you're new around here, Priya's out on the green — good person to know."
           ]
         }
+      ]
+    }
+  ],
+  "vehicles": [
+    {
+      "id": "walts-pickup",
+      "map": "jefferson",
+      "kind": "pickup",
+      "colour": "#5f6f5a",
+      "pos": [43, 12],
+      "facing": "down"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "walt-heads-down",
+      "on": { "flag": "done" },
+      "steps": [
+        { "move": { "who": "walt", "to": [43, 12] } },
+        { "move": { "who": "vehicle:walts-pickup", "path": [[43, 15], [63, 15]], "speed": 6 } },
+        { "wait": 1 },
+        { "toast": "Episode complete — new story next week" }
       ]
     }
   ],

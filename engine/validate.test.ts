@@ -1371,6 +1371,15 @@ describe('scenes', () => {
     );
   });
 
+  it('accepts a car the episode brought with it', () => {
+    const paved = makeWorld({ maps: { town: makeMap({}, ['======', '..##..', '======', '......', '......', '......']) } });
+    const episode = makeEpisode({
+      vehicles: [{ id: 'pickup', map: 'town', kind: 'pickup', colour: '#8a6b48', pos: [1, 0] }] as never,
+      scenes: [{ id: 'welcome', on: { enter: 'town' }, steps: [{ move: { who: 'vehicle:pickup', to: [4, 0] } }] }] as never
+    });
+    expect(runEpisode(episode, paved)).toEqual([]);
+  });
+
   it('flags a vehicle no map has', () => {
     expect(runEpisode(withScene([{ move: { who: 'vehicle:pickup', to: [3, 3] } }]), world()).join('\n')).toContain(
       'which is not a vehicle on map "town"'
@@ -1382,6 +1391,39 @@ describe('scenes', () => {
       maps: { town: { ...makeMap({}, ROWS), vehicles: [{ id: 'pickup' }] } as never }
     });
     expect(runEpisode(withScene([{ move: { who: 'vehicle:pickup', to: [3, 3] } }]), withCar)).toEqual([]);
+  });
+
+  it('drives a car over the paved routes, out through an exit if that is where the road goes', () => {
+    // The road runs east into an exit; nobody on foot may stand in an exit
+    // tile, and a car driving out of town very much may.
+    const ROADS = ['======', '..##..', '......', '......', '......', '......'];
+    const paved = makeWorld({
+      maps: { town: makeMap({ exits: [{ id: 'east', at: [5, 0, 1, 1], to: 'town', spawn: [1, 1], facing: 'down', style: 'road' }] }, ROADS) }
+    });
+    const episode = makeEpisode({
+      vehicles: [{ id: 'pickup', map: 'town', kind: 'pickup', colour: '#8a6b48', pos: [0, 0] }] as never,
+      scenes: [{ id: 'off', on: { flag: 'done' }, steps: [{ move: { who: 'vehicle:pickup', path: [[3, 0], [5, 0]] } }] }] as never
+    });
+    expect(runEpisode(episode, paved)).toEqual([]);
+    expect(
+      runEpisode(makeEpisode({ npcs: [{ id: 'npc1', name: 'NPC', map: 'town', pos: [1, 1], dialogue: [{ requires: [], lines: ['hi'] }] }], scenes: [{ id: 'off', on: { enter: 'town' }, steps: [{ move: { who: 'npc1', to: [5, 0] } }] }] as never }), paved).join('\n')
+    ).toContain('is somewhere "npc1" cannot stand');
+  });
+
+  it('flags a car sent somewhere off the paved routes, and one with no way through', () => {
+    const ROADS = ['======', '..##..', '......', '......', '=.....', '=====.'];
+    const paved = makeWorld({ maps: { town: makeMap({}, ROADS) } });
+    const stranded = (to: [number, number]) =>
+      runEpisode(
+        makeEpisode({
+          vehicles: [{ id: 'pickup', map: 'town', kind: 'pickup', colour: '#8a6b48', pos: [0, 0] }] as never,
+          scenes: [{ id: 'off', on: { flag: 'done' }, steps: [{ move: { who: 'vehicle:pickup', to } }] }] as never
+        }),
+        paved
+      ).join('\n');
+    expect(stranded([3, 3])).toContain('is not a tile a vehicle can drive on');
+    // Paved at both ends, with lawn in between.
+    expect(stranded([0, 4])).toContain('no paved way through');
   });
 
   it('flags a speaker who is not in the episode, and empty lines', () => {
@@ -1755,6 +1797,55 @@ describe('vehicles', () => {
   it('rejects more traffic than a village reads as', () => {
     const many = [0, 1, 2, 3].map((n) => car({ id: `car${n}` }));
     expect(runWorld(townWith(many)).join('\n')).toContain('as much traffic as a village reads as');
+  });
+
+  // The cars a week's story brings with it (DESIGN.md §3). Same rules, on the
+  // map each one names, and gone again when the episode stops playing.
+  describe("an episode's own", () => {
+    const withCars = (vehicles: unknown) => makeEpisode({ vehicles: vehicles as never });
+    const truck = (overrides: Record<string, unknown> = {}) => ({
+      id: 'pickup',
+      map: 'town',
+      kind: 'pickup',
+      colour: '#8a6b48',
+      pos: [4, 2],
+      facing: 'down',
+      ...overrides
+    });
+
+    it('accepts one parked on the paved route', () => {
+      expect(runEpisode(withCars([truck()]), townWith([]))).toEqual([]);
+    });
+
+    it('flags one left on the grass', () => {
+      expect(runEpisode(withCars([truck({ pos: [4, 0] })]), townWith([])).join('\n')).toContain(
+        'cars keep to the paved routes'
+      );
+    });
+
+    it('flags one on a map that does not exist', () => {
+      expect(runEpisode(withCars([truck({ map: 'nowhere' })]), townWith([])).join('\n')).toContain(
+        'is on unknown map "nowhere"'
+      );
+    });
+
+    it('flags one that shares an id with a car the village already has', () => {
+      expect(runEpisode(withCars([truck({ id: 'car1' })]), townWith([car()])).join('\n')).toContain(
+        'has the same id as a car already on map "town"'
+      );
+    });
+
+    it('flags two of its own with the same id', () => {
+      expect(runEpisode(withCars([truck(), truck({ pos: [5, 2] })]), townWith([])).join('\n')).toContain(
+        'is listed twice'
+      );
+    });
+
+    it('flags one with neither a path nor a place to be parked', () => {
+      expect(runEpisode(withCars([{ id: 'pickup', map: 'town', kind: 'pickup', colour: '#8a6b48' }]), townWith([])).join('\n')).toContain(
+        'has neither a "path" to drive nor a "pos" to be parked on'
+      );
+    });
   });
 });
 

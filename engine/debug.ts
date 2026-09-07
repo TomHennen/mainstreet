@@ -175,6 +175,7 @@ declare global {
   interface Window {
     __mainstreet?: DebugSnapshot;
     __mainstreetTitle?: DebugTitle | null;
+    __mainstreetSetFlag?: (name: string) => boolean;
   }
 }
 
@@ -184,4 +185,19 @@ export function publishDebug(snapshot: DebugSnapshot): void {
 
 export function publishTitle(title: DebugTitle | null): void {
   window.__mainstreetTitle = title;
+}
+
+/**
+ * Dev-only, and the one thing here that writes rather than reads: sets an
+ * episode flag from outside the game, so the headless harness can stand a
+ * story up at a later rung instead of walking every leg of it again
+ * (scripts/playtest.mjs). It goes through `Flags.set` like a line of dialogue
+ * does, so everything that follows from a flag — a map overlay, a scene
+ * waiting on it — follows from this too, and a flag the episode never
+ * declared is refused rather than invented. Published behind the same
+ * `import.meta.env.DEV` guard as the snapshot, so no build a player runs has
+ * it at all.
+ */
+export function publishFlagSetter(set: ((name: string) => boolean) | undefined): void {
+  window.__mainstreetSetFlag = set;
 }

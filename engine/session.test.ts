@@ -8,6 +8,7 @@ import {
   itemVisible,
   joinCredits,
   npcsOn,
+  vehiclesOn,
   propSignsOn,
   session,
   signFor,
@@ -21,7 +22,7 @@ import { emptySave, loadSave, saveKey } from './save';
 import type { StorageLike } from './save';
 import { Flags as RealFlags } from './flags';
 import type { Flags } from './flags';
-import type { Credits, Episode, EpisodeItem, EpisodeNpc, World, WorldCopy } from './schema';
+import type { Credits, Episode, EpisodeItem, EpisodeNpc, EpisodeVehicle, World, WorldCopy } from './schema';
 
 /**
  * A stand-in for the real Flags class (engine/flags.ts). session.ts only ever
@@ -128,13 +129,22 @@ const assets: AssetIndex = {
   vehicles: new Set()
 };
 
-function boot(flags: Flags, overrides: { assets?: AssetIndex; credits?: Credits; taken?: string[] } = {}): void {
+function boot(
+  flags: Flags,
+  overrides: {
+    assets?: AssetIndex;
+    credits?: Credits;
+    taken?: string[];
+    world?: World;
+    episode?: Episode;
+  } = {}
+): void {
   startSession({
-    world,
+    world: overrides.world ?? world,
     // session.ts never touches the tile grids, only the episode lookups.
     maps: {},
     copy,
-    episode,
+    episode: overrides.episode ?? episode,
     flags,
     assets: overrides.assets ?? assets,
     credits: overrides.credits ?? {},
@@ -165,6 +175,39 @@ describe('session() before boot', () => {
 describe('session helpers', () => {
   beforeEach(() => {
     boot(fakeFlags([]));
+  });
+
+  // A village's ambient traffic and the cars this week's story brought with
+  // it are one list by the time anything reads them (DESIGN.md §2/§3).
+  describe('vehiclesOn', () => {
+    const van = { id: 'van', kind: 'van' as const, colour: '#ab947a', path: [[0, 0], [5, 0]] as [number, number][] };
+    const truck = { id: 'truck', map: 'town', kind: 'pickup' as const, colour: '#8a6b48', pos: [2, 2] as [number, number] };
+    const coupe = { id: 'coupe', map: 'other', kind: 'car' as const, colour: '#5c7f8f', pos: [1, 1] as [number, number] };
+
+    const withTraffic = (episodeVehicles: EpisodeVehicle[]) =>
+      boot(fakeFlags([]), {
+        world: {
+          ...world,
+          maps: {
+            town: { name: 'Town', kind: 'village', buildings: [], labels: [], exits: [], vehicles: [van] },
+            other: { name: 'Other', kind: 'village', buildings: [], labels: [], exits: [] }
+          }
+        },
+        episode: { ...episode, vehicles: episodeVehicles }
+      });
+
+    it('reads a village\'s own traffic when the episode brings none', () => {
+      withTraffic([]);
+      expect(vehiclesOn('town').map((v) => v.id)).toEqual(['van']);
+      expect(vehiclesOn('other')).toEqual([]);
+    });
+
+    it('adds the episode\'s own cars, on the map each one names', () => {
+      withTraffic([truck, coupe]);
+      expect(vehiclesOn('town').map((v) => v.id)).toEqual(['van', 'truck']);
+      expect(vehiclesOn('other').map((v) => v.id)).toEqual(['coupe']);
+      expect(vehiclesOn('nowhere')).toEqual([]);
+    });
   });
 
   it('npcsOn filters npcs by their declared map', () => {

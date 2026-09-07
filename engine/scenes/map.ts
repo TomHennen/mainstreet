@@ -19,7 +19,7 @@ import {
   vehicleFrame,
   vehicleTexture
 } from '../art';
-import { currentDialogue, currentToast, publishDebug } from '../debug';
+import { currentDialogue, currentToast, publishDebug, publishFlagSetter } from '../debug';
 import { edgeAt, roadEndLine } from '../edges';
 import { isHeld, onAction, onTap } from '../input';
 import { feedbackUrl } from '../feedback';
@@ -49,7 +49,7 @@ import {
   vehiclesOn
 } from '../session';
 import { driveable, isSolid, moverWalkable } from '../validate';
-import { lookOf, plaqueTile, SCENE_PLAYER } from '../schema';
+import { lookOf, plaqueTile, SCENE_PLAYER, SCENE_VEHICLE } from '../schema';
 import type { PlateBox } from '../art';
 import type {
   BuildingPlacement,
@@ -424,13 +424,23 @@ export class MapScene extends Phaser.Scene {
     this.unbindAction = onAction(() => this.interact());
     this.unbindTap = onTap((x, y) => this.tap(x, y));
     bus.on(EV.flags, this.onFlag, this);
-    if (import.meta.env.DEV) this.events.on(Phaser.Scenes.Events.RENDER, this.publishState, this);
+    if (import.meta.env.DEV) {
+      this.events.on(Phaser.Scenes.Events.RENDER, this.publishState, this);
+      // The harness's way of standing a story up at a later rung (engine/debug.ts).
+      publishFlagSetter((name) => {
+        const flags = session().flags;
+        if (!flags.declared(name) || flags.get(name)) return false;
+        flags.set(name);
+        return true;
+      });
+    }
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unbindAction?.();
       this.unbindAction = null;
       this.unbindTap?.();
       this.unbindTap = null;
       bus.off(EV.flags, this.onFlag, this);
+      if (import.meta.env.DEV) publishFlagSetter(undefined);
       this.lighting.clear();
       this.events.off(Phaser.Scenes.Events.RENDER, this.publishState, this);
       this.scale.off(Phaser.Scale.Events.RESIZE, this.applyCamera, this);
@@ -500,12 +510,21 @@ export class MapScene extends Phaser.Scene {
           this.sceneWalk = this.aimWalk(to, null, 0);
           return this.sceneWalk;
         }
+        // A car takes the road rather than the pavement, and never routes
+        // round anybody standing in it — it slows down for them instead
+        // (engine/vehicle.ts).
+        const car = this.carFor(who);
+        if (car) return car.sendTo(to, speed);
         const mover = this.moverFor(who);
         if (!mover) return false;
         return mover.sendTo(to, speed, (x, y) => !this.occupiedBySomeoneElse(mover, x, y));
       },
       moving: (who) => {
         if (who === SCENE_PLAYER) return this.walkPath !== null;
+        // A car with a route of its own is busy all day long, so what says a
+        // scene's move is over is the errand it was sent on, nothing else.
+        const car = this.carFor(who);
+        if (car) return car.driving;
         const mover = this.moverFor(who);
         return Boolean(mover && (mover.busy || mover.onErrand));
       },
@@ -543,12 +562,22 @@ export class MapScene extends Phaser.Scene {
 
   /**
    * Whatever `who` names that can be given a path and says when it has
-   * arrived: an episode NPC today, and a `vehicle:<id>` once a map has
-   * vehicles on it. The runner keeps `who` opaque on purpose, so a new kind of
-   * thing that moves needs no change to it (engine/scene.ts).
+   * arrived: somebody on this map, or a `"vehicle:<id>"` — a car on the
+   * village's own list or on the running episode's (DESIGN.md §2/§3). The
+   * runner keeps `who` opaque on purpose, so a new kind of thing that moves
+   * needs no change to it (engine/scene.ts).
    */
   private moverFor(who: string): Mover | null {
+    const car = this.carFor(who);
+    if (car) return car.mover;
     return this.walkers.find((walker) => walker.id === who)?.mover ?? null;
+  }
+
+  /** The car a `"vehicle:<id>"` names on this map, if there is one. */
+  private carFor(who: string): Driver | null {
+    if (!who.startsWith(SCENE_VEHICLE)) return null;
+    const id = who.slice(SCENE_VEHICLE.length);
+    return this.cars.find((car) => car.id === id)?.driver ?? null;
   }
 
   /** As `occupied`, but taking the mover rather than the walker around it. */

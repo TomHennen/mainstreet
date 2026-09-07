@@ -706,6 +706,25 @@ export interface EpisodeSign {
   replace?: boolean;
 }
 
+/**
+ * A vehicle an episode brings with it (DESIGN.md §3): the same `Vehicle` a
+ * village lists on a map, plus the map it belongs to, and standing on that
+ * map only while this episode is the one being played.
+ *
+ * A village's own `maps.<id>.vehicles` is the traffic that is there every
+ * week; this is the pickup parked outside the gas station because *this*
+ * week's story needs somebody to be about to drive down the valley. The
+ * engine merges the two — `vehiclesOn` in engine/session.ts — so nothing
+ * downstream of that knows or cares which list a car came off, and an episode
+ * that ends takes its own cars away with it. They are validated exactly like
+ * a map's own (engine/validate.ts): a kind the engine can draw, a colour it
+ * can paint, and either a drivable path or a `pos` a car could be left on.
+ */
+export interface EpisodeVehicle extends Vehicle {
+  /** Which map it is parked or driving on. */
+  map: string;
+}
+
 export interface Episode {
   id: string;
   title: string;
@@ -713,6 +732,8 @@ export interface Episode {
   npcs: EpisodeNpc[];
   items?: EpisodeItem[];
   signs?: EpisodeSign[];
+  /** Cars this week's story brings with it: see `EpisodeVehicle`. */
+  vehicles?: EpisodeVehicle[];
   /** Staged moments: see `EpisodeScene` and DESIGN.md §3. */
   scenes?: EpisodeScene[];
   /** Flag-gated patches to a village's one canonical map. */
@@ -771,7 +792,8 @@ export const SCENE_PLAYER = 'player';
 
 /**
  * `move.who` prefix for something that moves but is nobody: a car on a map's
- * `vehicles` list, addressed as `"vehicle:<id>"`. The scene runner treats
+ * `vehicles` list — or on the running episode's own (`EpisodeVehicle`) —
+ * addressed as `"vehicle:<id>"`. The scene runner treats
  * every `who` as an opaque id and hands it to whatever is driving the scene,
  * so a new kind of thing that can be given a path and says when it has
  * arrived needs no change to the runner at all.
