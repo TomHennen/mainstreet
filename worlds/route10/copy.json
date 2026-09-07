@@ -24,6 +24,12 @@
       "Every June, Hobart's bookshops host three days of readings for the Festival of Women Writers.",
       "Two coffee shops once opened in Stamford the very same week, neither one knowing the other existed."
     ],
+    "roadEnd": [
+        "Not today. There's plenty to see back in town.",
+        "The road goes on, but the story's back this way.",
+        "That's as far as this week's story goes — might as well turn back.",
+        "Nothing more to find this way just yet. The village is waiting behind you."
+    ],
     "plaque": {
       "painted": "A little plaque by the door: {building}, painted by {credit}. Thank you, {credit}!",
       "anonymous": "A little plaque by the door: somebody painted {building} for everyone to enjoy. Thank you, whoever you are.",

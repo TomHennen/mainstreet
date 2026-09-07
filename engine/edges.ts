@@ -6,8 +6,8 @@
  * "this exact spot always says the same thing" hashing — is what
  * `engine/edges.test.ts` exercises without a scene.
  */
+import { tileAt } from './tiled.ts';
 import type { GameMap, MapEdge, Rect } from './schema';
-import { tileAt } from './tiled';
 
 const within = (at: Rect, x: number, y: number): boolean =>
   x >= at[0] && x < at[0] + at[2] && y >= at[1] && y < at[1] + at[3];

@@ -363,6 +363,23 @@
           "style": "road"
         }
       ],
+      "edges": [
+        {
+          "id": "jefferson-ny10-north",
+          "at": [48, 0, 3, 1],
+          "lines": ["NY 10 keeps going north out of Jefferson, on up the valley. Another week, maybe."]
+        },
+        {
+          "id": "jefferson-creamery-south",
+          "at": [40, 29, 2, 1],
+          "lines": ["Creamery Street runs on south, out past where the old creameries once stood. Another day's walk."]
+        },
+        {
+          "id": "jefferson-mainst-west",
+          "at": [0, 13, 1, 3],
+          "lines": ["Main Street carries on west out of the village. Another week, maybe."]
+        }
+      ],
       "fixtures": [
         {
           "kind": "suggestion-box",
@@ -788,6 +805,33 @@
           "style": "road"
         }
       ],
+      "edges": [
+        {
+          "id": "stamford-ny23-west",
+          "at": [0, 16, 1, 3],
+          "lines": ["Harper Street keeps going west out of the village, NY 23 the whole way. Another week, maybe."]
+        },
+        {
+          "id": "stamford-ny23-east",
+          "at": [95, 16, 1, 3],
+          "lines": ["Main Street runs on east as NY 23, out along the valley. Another week, maybe."]
+        },
+        {
+          "id": "stamford-academy-top",
+          "at": [76, 2, 2, 1],
+          "lines": ["Academy Street keeps climbing past the Belvedere, but that's a walk for another day."]
+        },
+        {
+          "id": "stamford-trail-west",
+          "at": [0, 33, 1, 1],
+          "lines": ["The Catskill Scenic Trail keeps going, quiet and shaded, along the old rail bed. Another day's walk."]
+        },
+        {
+          "id": "stamford-trail-east",
+          "at": [95, 33, 1, 1],
+          "lines": ["The old rail bed keeps running this way too — the Catskill Scenic Trail covers a lot of ground. Another day's walk."]
+        }
+      ],
       "people": [
         {
           "id": "stamford-main-walker",
@@ -968,6 +1012,18 @@
           ],
           "facing": "up",
           "style": "road"
+        }
+      ],
+      "edges": [
+        {
+          "id": "hobart-ny10-west",
+          "at": [0, 18, 1, 3],
+          "lines": ["NY 10 keeps going as Main Street runs out, south toward Delhi. Another week, maybe."]
+        },
+        {
+          "id": "hobart-maple-south",
+          "at": [20, 29, 2, 1],
+          "lines": ["Maple Avenue keeps going south past the bridge. Another day's walk."]
         }
       ],
       "people": [
