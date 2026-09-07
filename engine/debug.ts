@@ -48,6 +48,18 @@ export interface DebugSnapshot {
   flags: Record<string, boolean>;
   /** The page of dialogue on screen, or null when no box is open. */
   dialogue: DebugDialogue | null;
+  /**
+   * The scene playing right now, or null (DESIGN.md §3). `holds` is true while
+   * it has the controls off the player — a line being read, or a walk it is
+   * staging.
+   */
+  scene: { id: string; holds: boolean } | null;
+  /** What the lights are doing, and how many discs are hanging (engine/lighting.ts). */
+  light: { mode: 'off' | 'dim' | 'party'; spots: number };
+  /** The ids of the map overlays currently patched onto this map. */
+  overlays: string[];
+  /** The toast banner on screen, or null. Drawn to the canvas, like the dialogue. */
+  toast: string | null;
 }
 
 /**
@@ -64,6 +76,17 @@ export function noteDialogue(page: DebugDialogue | null): void {
 
 export function currentDialogue(): DebugDialogue | null {
   return dialogue;
+}
+
+/** The toast banner, recorded the same way and for the same reason. */
+let toast: string | null = null;
+
+export function noteToast(message: string | null): void {
+  toast = message;
+}
+
+export function currentToast(): string | null {
+  return toast;
 }
 
 export interface DebugRect {

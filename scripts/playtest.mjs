@@ -24,7 +24,7 @@
  */
 import { chromium } from 'playwright';
 import { spawn, spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 // The codec is deliberately DOM- and Node-free (studio/codec.ts's own header),
@@ -77,11 +77,20 @@ for (const [mapId, map] of Object.entries(WORLD.maps)) {
   const file = resolve(PACK, 'maps', `${mapId}.json`);
   const tiled = readJson(file);
   const solidGid = new Set();
+  // Which local tile ids are solid, per tileset: an overlay names a tile that
+  // way rather than by gid (DESIGN.md §3), so both spellings are kept.
+  map.id = mapId;
+  map.tilesetSolid = new Map();
   for (const ref of tiled.tilesets) {
     const tileset = readJson(resolve(dirname(file), ref.source));
+    const ids = new Set();
     for (const tile of tileset.tiles ?? []) {
-      if (tile.properties?.some((p) => p.name === 'solid' && p.value === true)) solidGid.add(ref.firstgid + tile.id);
+      if (tile.properties?.some((p) => p.name === 'solid' && p.value === true)) {
+        solidGid.add(ref.firstgid + tile.id);
+        ids.add(tile.id);
+      }
     }
+    map.tilesetSolid.set(tileset.name, ids);
   }
   map.width = tiled.width;
   map.height = tiled.height;
@@ -94,10 +103,40 @@ for (const [mapId, map] of Object.entries(WORLD.maps)) {
   }
 }
 
-/** Mirrors engine/validate.ts isSolid(). */
+/**
+ * Tiles a flag-gated overlay has painted solid right now, as "map,x,y"
+ * (DESIGN.md §3). Empty unless a section has said which overlays are on: the
+ * harness's own second implementation of `withOverlays`, kept deliberately
+ * separate from the engine's like isSolid() below.
+ */
+const overlaySolid = new Set();
+
+function overlayTileSolid(map, ref) {
+  if (typeof ref === 'number') return [...map.tilesetSolid.values()].some((ids) => ids.has(ref));
+  const at = String(ref).lastIndexOf(':');
+  if (at <= 0) return false;
+  return Boolean(map.tilesetSolid.get(String(ref).slice(0, at))?.has(Number(String(ref).slice(at + 1))));
+}
+
+/** Recomputes `overlaySolid` for an episode against the flags that are set. */
+function noteOverlays(episode, flags) {
+  overlaySolid.clear();
+  for (const overlay of episode.overlays ?? []) {
+    if (!(overlay.requires ?? []).every((f) => flags[f])) continue;
+    if ((overlay.unless ?? []).some((f) => flags[f])) continue;
+    const map = WORLD.maps[overlay.map];
+    if (!map) continue;
+    for (const paint of overlay.tiles ?? []) {
+      if (overlayTileSolid(map, paint.tile)) overlaySolid.add(`${overlay.map},${paint.pos[0]},${paint.pos[1]}`);
+    }
+  }
+}
+
+/** Mirrors engine/validate.ts isSolid(), plus whatever an overlay has painted. */
 function isSolid(map, x, y) {
   if (x < 0 || y < 0 || x >= map.width || y >= map.height) return true;
   if (map.solid[y * map.width + x]) return true;
+  if (overlaySolid.has(`${map.id},${x},${y}`)) return true;
   return map.buildings.some(
     (b) => x >= b.pos[0] && x < b.pos[0] + b.size[0] && y >= b.pos[1] && y < b.pos[1] + b.size[1]
   );
@@ -330,12 +369,18 @@ const snap = async (page) => {
 /** The title screen's list, published the same dev-only way (engine/debug.ts). */
 const titleSnap = (page) => page.evaluate(() => window.__mainstreetTitle ?? null);
 
-async function waitUntil(page, predicate, label, timeout = 20000) {
+/**
+ * Polls until the snapshot satisfies `predicate`. `nudge` is for the few waits
+ * that need the player to keep doing something to get there — walking back out
+ * through a door, say — and runs between polls.
+ */
+async function waitUntil(page, predicate, label, timeout = 20000, nudge = null) {
   const t0 = Date.now();
   let last = null;
   while (Date.now() - t0 < timeout) {
     last = await snap(page);
     if (last && predicate(last)) return last;
+    if (nudge) await nudge();
     await sleep(25);
   }
   fail('wait', `timed out waiting for ${label}; state = ${JSON.stringify(last)}`);
@@ -478,6 +523,59 @@ async function expectDialogue(page, milestone, what) {
   const s = await snap(page);
   if (!s.dialogueOpen) fail(milestone, `expected a dialogue box for ${what}, none opened`);
   return s;
+}
+
+/**
+ * Plays out whatever scene an episode stages on the map the player is standing
+ * on right now — the evening coming on outside a lit room, say (DESIGN.md §3).
+ * Which scene that is comes from the episode's own data and the flags that are
+ * actually set, so the harness never has to be told one exists.
+ *
+ * A scene's `say` waits for the box to be read, and the box does not open on
+ * the frame the map appears: it opens once the threshold card is down and the
+ * scene has had a turn. So this waits for the line the step names, checks it
+ * is that line, reads it, and waits for the scene to finish — which is what
+ * keeps a walk started afterwards from being interrupted by it.
+ */
+async function playStagedScene(page, episode, mapId, except) {
+  const now = await snap(page);
+  const staged = (episode.scenes ?? []).find(
+    (sc) =>
+      sc.on?.enter === mapId &&
+      sc.id !== except &&
+      (sc.on.requires ?? []).every((f) => now.flags[f]) &&
+      now.flags[`scene:${sc.id}`] !== true
+  );
+  if (!staged) return null;
+
+  log(`    a scene staged out here too: "${staged.id}"`);
+  const say = staged.steps.find((st) => st.say)?.say;
+  if (say) {
+    const line = await waitUntil(page, (st) => st.dialogueOpen, `"${staged.id}" to say its line`, 25000);
+    const speaker = say.who ? episode.npcs.find((n) => n.id === say.who)?.name : COPY.ui.narrator;
+    if (line.dialogue?.speaker !== speaker) {
+      fail('scene-staged', `"${staged.id}" named "${line.dialogue?.speaker}", expected "${speaker}"`);
+    }
+    if (line.dialogue?.text !== say.lines[0]) {
+      fail('scene-staged', `"${staged.id}" reads "${line.dialogue?.text}", expected "${say.lines[0]}"`);
+    }
+    log(`    ${speaker} — "${line.dialogue.text}"`);
+    await advanceDialogue(page, 'scene-staged', say.lines.length);
+  }
+
+  // A `once` scene records itself; one that may run again simply ends.
+  const done = await waitUntil(
+    page,
+    (st) => st.scene === null && (staged.once === false || st.flags[`scene:${staged.id}`] === true),
+    `"${staged.id}" to finish`,
+    30000
+  );
+  const lit = staged.steps.find((st) => st.light)?.light;
+  if (lit && done.light?.mode !== lit.mode) {
+    fail('scene-staged', `"${staged.id}" left the lights "${done.light?.mode}", expected "${lit.mode}"`);
+  }
+  if (lit) log(`    and it left the lights "${done.light.mode}"${lit.keep ? ', which a map change keeps' : ''}`);
+  return staged;
 }
 
 function expectFlag(state, milestone, name, want = true) {
@@ -2795,6 +2893,212 @@ async function main() {
     }
     log(`    at ${zoomedTo} both edges of the drawing are still reachable`);
     await shot(pp, 'studio-phone-zoomed');
+
+    // --- a scene, its lights and its overlay ---------------------------------
+    // Issue #73: an episode can stage a moment — the lights go up, people walk
+    // in, somebody says hello — and can patch a village's one canonical map
+    // behind a flag (DESIGN.md §3). All of it is data, so the harness finds
+    // the episode that has a scene rather than being told which one, and
+    // checks the scene against its own steps.
+    const sceneEpisode = (() => {
+      for (const file of readdirSync(resolve(PACK, 'episodes')).sort()) {
+        if (!file.endsWith('.json') || file.startsWith('draft-')) continue;
+        const candidate = readJson(resolve(PACK, 'episodes', file));
+        const staged = (candidate.scenes ?? []).find((sc) => sc.on?.enter && (sc.on.requires ?? []).length === 0);
+        if (!staged) continue;
+        // Reached through a door, so there is somewhere to press A.
+        for (const [mapId, meta] of Object.entries(WORLD.maps)) {
+          const building = meta.buildings.find((b) => b.interior === staged.on.enter);
+          if (building) return { id: file.slice(0, -'.json'.length), episode: candidate, scene: staged, mapId, building };
+        }
+      }
+      return null;
+    })();
+
+    if (!sceneEpisode) {
+      log('  (no episode stages a scene behind a door — skipping the scene check)');
+    } else {
+      const { id: sceneId, episode: sceneEp, scene, mapId: outsideMap, building } = sceneEpisode;
+      log(`  a staged scene: "${scene.id}" of ${sceneId}, through ${building.id}'s door`);
+      const cctx = await browser.newContext({ viewport: { width: 620, height: 900 }, deviceScaleFactor: 1 });
+      const cp = await cctx.newPage();
+      attach(cp, 'scene');
+      await cp.goto(`${BASE}?episode=${encodeURIComponent(sceneId)}`, { waitUntil: 'load' });
+      await waitUntil(cp, (st) => st.map === WORLD.start.map, 'the scene episode to start');
+      for (let i = 0; i < 6 && (await snap(cp)).dialogueOpen; i++) await pressA(cp);
+
+      // In through the door. The scene is not allowed to start until whatever
+      // was on screen has closed, so nothing here races the opening card.
+      if (outsideMap !== WORLD.start.map) {
+        fail('scene', `"${scene.id}" is behind a door on "${outsideMap}", which is not the start map`);
+      }
+      // Anything this episode stages on the start map itself plays out before
+      // the walk to the door does. Nothing in the demo does — the scene out
+      // here waits on a flag the party sets — but a scene that fired on the
+      // opening spawn would otherwise take the controls mid-walk, and that is
+      // worth finding here rather than as a walk mysteriously interrupted.
+      await playStagedScene(cp, sceneEp, outsideMap, scene.id);
+      await walkTo(cp, 'scene', building.door, { episode: sceneEp });
+      await pressA(cp);
+      const inside = await waitUntil(cp, (st) => st.map === scene.on.enter, `the door into "${scene.on.enter}"`, 25000);
+      log(`    walked in: ${inside.map} at ${here(inside)}`);
+
+      // The lights, off the scene's own light step.
+      const lightStep = scene.steps.find((st) => st.light)?.light;
+      if (lightStep) {
+        const lit = await waitUntil(
+          cp,
+          (st) => st.light?.mode === lightStep.mode,
+          `the lights to come up "${lightStep.mode}"`,
+          20000
+        );
+        const wanted = (lightStep.at ?? []).length;
+        if (lit.light.spots !== wanted) {
+          fail('scene-light', `the lights hung ${lit.light.spots} discs, expected ${wanted}`);
+        }
+        log(`    lights: ${lit.light.mode}, ${lit.light.spots} disc${lit.light.spots === 1 ? '' : 's'}`);
+      }
+
+      // Everybody the scene moves ends up where it sent them. The last leg of
+      // a path is the tile that matters; the rest is how they got there.
+      const moves = scene.steps.filter((st) => st.move && st.move.who !== 'player').map((st) => st.move);
+      const startedAt = new Map(
+        moves.map((mv) => {
+          const npc = sceneEp.npcs.find((n) => n.id === mv.who);
+          return [mv.who, npc ? [npc.pos[0], npc.pos[1]] : null];
+        })
+      );
+      for (const move of moves) {
+        const goal = move.path ? move.path[move.path.length - 1] : move.to;
+        const arrived = await waitUntil(
+          cp,
+          (st) => {
+            const who = (st.people ?? []).find((p) => p.id === move.who);
+            return Boolean(who) && Math.hypot(who.x - goal[0], who.y - goal[1]) < 0.2;
+          },
+          `"${move.who}" to walk to ${goal}`,
+          40000
+        );
+        const from = startedAt.get(move.who);
+        const who = arrived.people.find((p) => p.id === move.who);
+        if (from && Math.hypot(who.x - from[0], who.y - from[1]) < 1) {
+          fail('scene-move', `"${move.who}" never left ${from}`);
+        }
+        log(`    "${move.who}" walked from ${from} to ${goal}`);
+      }
+      await shot(cp, 'scene-party');
+
+      // The line of welcome, said by whoever the step names.
+      const sayStep = scene.steps.find((st) => st.say)?.say;
+      if (sayStep) {
+        const talking = await waitUntil(cp, (st) => st.dialogueOpen, 'the scene to say its line', 40000);
+        const speaker = sayStep.who ? sceneEp.npcs.find((n) => n.id === sayStep.who)?.name : COPY.ui.narrator;
+        if (talking.dialogue?.speaker !== speaker) {
+          fail('scene-say', `the box named "${talking.dialogue?.speaker}", expected "${speaker}"`);
+        }
+        if (talking.dialogue?.text !== sayStep.lines[0]) {
+          fail('scene-say', `the box reads "${talking.dialogue?.text}", expected "${sayStep.lines[0]}"`);
+        }
+        log(`    ${speaker} — "${talking.dialogue.text}"`);
+        await advanceDialogue(cp, 'scene-say', sayStep.lines.length);
+      }
+
+      // The toast, and the flag the scene records itself with.
+      const toastStep = scene.steps.find((st) => st.toast !== undefined)?.toast;
+      if (toastStep) {
+        const toasted = await waitUntil(cp, (st) => st.toast === toastStep, `the toast "${toastStep}"`, 20000);
+        log(`    toast: "${toasted.toast}"`);
+      }
+      const ran = await waitUntil(
+        cp,
+        (st) => st.scene === null && st.flags[`scene:${scene.id}`] === true,
+        `the scene to finish and record "scene:${scene.id}"`,
+        30000
+      );
+      for (const set of scene.steps.filter((st) => st.set).map((st) => st.set)) {
+        expectFlag(ran, 'scene-flags', set);
+      }
+      log(`    scene over: scene:${scene.id} is set, and so is every flag it sets`);
+
+      // Back out the door: an overlay whose flag the scene set is on the map
+      // now, and its prop reads. Nothing about it was saved — it is derived
+      // from the flags, which is the whole point (DESIGN.md §3).
+      await waitUntil(
+        cp,
+        (st) => st.map === outsideMap,
+        `the way back out to "${outsideMap}"`,
+        30000,
+        async () => {
+          const st = await snap(cp);
+          if (st.map === scene.on.enter && !st.locked && !st.dialogueOpen) {
+            await walkTo(cp, 'scene-out', building.enter, { episode: sceneEp, allowInterrupt: true });
+            await cp.keyboard.down(KEY.down);
+            await sleep(400);
+            await cp.keyboard.up(KEY.down);
+          }
+        }
+      );
+      // The threshold card is still up on the frame the map changes, and it is
+      // the card, not the scene, that clears first: a scene staged out here
+      // only starts once the card is down, and its box opens a frame or two
+      // after that. Polling for "is a box open yet" right here would find
+      // nothing and walk straight into the line as it arrived, so what is
+      // waited for is the scene the episode actually stages, by name.
+      await waitUntil(cp, (st) => !st.locked, 'the threshold card to clear', 20000);
+      await playStagedScene(cp, sceneEp, outsideMap, scene.id);
+      const outside = await snap(cp);
+      const expectOverlays = (sceneEp.overlays ?? [])
+        .filter((o) => o.map === outsideMap && (o.requires ?? []).every((f) => outside.flags[f]))
+        .map((o) => o.id);
+      for (const id of expectOverlays) {
+        if (!outside.overlays.includes(id)) {
+          fail('overlay', `overlay "${id}" is not on "${outsideMap}": ${JSON.stringify(outside.overlays)}`);
+        }
+      }
+      log(`    outside again: overlays ${JSON.stringify(outside.overlays)}`);
+      await shot(cp, 'scene-overlay');
+
+      // The harness's own idea of the ground has to follow the overlay too,
+      // or it will happily route the player through a chalkboard.
+      noteOverlays(sceneEp, outside.flags);
+
+      const prop = (sceneEp.overlays ?? []).find(
+        (o) => expectOverlays.includes(o.id) && (o.props ?? []).length
+      )?.props?.[0];
+      if (prop) {
+        // Somewhere beside it to read it from: not a doorstep and not a
+        // plaque tile, both of which answer A themselves (DESIGN.md §2).
+        const meta = WORLD.maps[outsideMap];
+        const taken = new Set();
+        for (const b of meta.buildings) {
+          taken.add(`${b.door[0]},${b.door[1]}`);
+          const pl = plaqueOf(b);
+          if (pl) taken.add(`${pl[0]},${pl[1]}`);
+        }
+        const away = exitTiles(meta);
+        const beside = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+          .map(([dx, dy]) => [prop.pos[0] + dx, prop.pos[1] + dy])
+          .find(
+            (t) =>
+              !isSolid(meta, t[0], t[1]) &&
+              !taken.has(`${t[0]},${t[1]}`) &&
+              !away.has(`${t[0]},${t[1]}`) &&
+              !fixtureAt(outsideMap, t[0], t[1])
+          );
+        if (!beside) fail('overlay-prop', `nowhere to stand beside the prop at ${prop.pos}`);
+        await walkTo(cp, 'overlay-prop', beside, { episode: sceneEp });
+        await pressA(cp);
+        const read = await expectDialogue(cp, 'overlay-prop', "the overlay's prop");
+        if (read.dialogue?.text !== prop.lines[0]) {
+          fail('overlay-prop', `the prop reads "${read.dialogue?.text}", expected "${prop.lines[0]}"`);
+        }
+        log(`    and it reads: "${read.dialogue.text}"`);
+        await advanceDialogue(cp, 'overlay-prop', prop.lines.length);
+      }
+      // Back to the plain map for whatever runs after this.
+      overlaySolid.clear();
+      await cctx.close();
+    }
 
     // --- townspeople who walk -----------------------------------------------
     // A village has people in it who belong to no story: they stroll a route or

@@ -141,6 +141,7 @@ function boot(flags: Flags, overrides: { assets?: AssetIndex; credits?: Credits;
     introShown: false,
     taken: new Set(overrides.taken ?? []),
     place: { map: 'town', pos: [0, 0], facing: 'down' },
+    light: null,
     save: emptySave(),
     // The unit tests exercise lookups, not storage: nothing here writes a save.
     recording: false
@@ -395,6 +396,7 @@ describe('autosave, and picking an episode back up', () => {
       introShown: false,
       taken: new Set(taken),
       place: { map: 'town', pos: [4, 7], facing: 'left' },
+      light: null,
       save: emptySave(),
       recording: true
     });

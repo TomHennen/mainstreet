@@ -1,8 +1,31 @@
 // Runtime import, so it carries the extension scripts/validate-episodes.ts
 // needs under Node's type stripping (see that file's header).
 import { findPath } from './path.ts';
-import { BUILDS, FIXTURE_KINDS, HAIR_STYLES, plaqueTile } from './schema.ts';
-import type { Episode, GameMap, Look, Route, Submit, Vec2, Wander, World } from './schema';
+import { canCoOccur, combinations, overlapsIn, patchFor, withOverlays } from './overlay.ts';
+import {
+  BUILDS,
+  FIXTURE_KINDS,
+  HAIR_STYLES,
+  MAX_WAIT,
+  plaqueTile,
+  SCENE_PLAYER,
+  SCENE_VEHICLE,
+  sceneFlags
+} from './schema.ts';
+import type {
+  Episode,
+  EpisodeScene,
+  GameMap,
+  LightSpec,
+  Look,
+  MapOverlay,
+  Route,
+  SceneStep,
+  Submit,
+  Vec2,
+  Wander,
+  World
+} from './schema';
 
 /**
  * Load-time validation of a world pack (DESIGN.md §3), run both in the browser
@@ -174,7 +197,9 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
 
 export function validateEpisode(episode: Episode, world: World, maps: Record<string, GameMap>): string[] {
   const problems: string[] = [];
-  const declared = new Set(episode.flags);
+  // A `once` scene's `scene:<id>` flag is declared for the episode rather than
+  // by it (DESIGN.md §3), so it counts as declared here too.
+  const declared = new Set([...episode.flags, ...sceneFlags(episode)]);
   const where = `episode "${episode.id}"`;
 
   const checkFlags = (names: string[] | undefined, context: string) => {
@@ -272,7 +297,478 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
     }
   });
 
+  checkOverlays(episode, world, maps, declared, problems);
+  checkScenes(episode, world, maps, declared, problems);
+
   return problems;
+}
+
+// --- scenes (DESIGN.md §3) ---------------------------------------------------
+
+/** The action fields a step may carry. Exactly one of them, always. */
+const STEP_ACTIONS = ['move', 'say', 'toast', 'wait', 'camera', 'set', 'light', 'end'] as const;
+const LIGHT_MODES = ['off', 'dim', 'party'] as const;
+
+/**
+ * An episode's scenes: that the steps are steps the engine can play, that
+ * everybody they name is somebody on that map, and that every tile they send
+ * anyone to is a tile that person could stand on. A scene that cannot stage
+ * itself is a week of story the player watches nothing happen in, so it is
+ * caught here rather than at play.
+ */
+function checkScenes(
+  episode: Episode,
+  world: World,
+  maps: Record<string, GameMap>,
+  declared: Set<string>,
+  problems: string[]
+): void {
+  const where = `episode "${episode.id}"`;
+  const seen = new Set<string>();
+
+  for (const scene of episode.scenes ?? []) {
+    const at = `${where}: scene "${scene.id ?? '(unnamed)'}"`;
+    if (typeof scene.id !== 'string' || scene.id.trim() === '') {
+      problems.push(`${where}: every scene needs an id`);
+      continue;
+    }
+    if (seen.has(scene.id)) problems.push(`${at} is listed twice`);
+    seen.add(scene.id);
+    if (scene.once !== undefined && typeof scene.once !== 'boolean') {
+      problems.push(`${at} has a "once" that isn't a boolean`);
+    }
+
+    // The trigger, and the map the scene is staged on — which is what every
+    // tile in it is measured against.
+    const on = scene.on;
+    if (!on || typeof on !== 'object') {
+      problems.push(`${at} needs an "on" of { flag } or { enter }`);
+      continue;
+    }
+    if (Boolean(on.flag) === Boolean(on.enter)) {
+      problems.push(`${at} needs exactly one of "on.flag" or "on.enter"`);
+    }
+    if (on.flag && !declared.has(on.flag)) {
+      problems.push(`${at} is triggered by undeclared flag "${on.flag}"`);
+    }
+    if (on.requires && !on.enter) {
+      problems.push(`${at} has "on.requires", which only an "on.enter" scene has`);
+    }
+    for (const name of on.requires ?? []) {
+      if (!declared.has(name)) problems.push(`${at} requires undeclared flag "${name}"`);
+    }
+
+    const mapId = on.enter ?? sceneMap(episode, scene);
+    if (on.enter && !world.maps[on.enter]) {
+      problems.push(`${at} is entered on unknown map "${on.enter}"`);
+    }
+    const map = mapId ? maps[mapId] : undefined;
+
+    if (!Array.isArray(scene.steps) || scene.steps.length === 0) {
+      problems.push(`${at} has no steps`);
+      continue;
+    }
+    scene.steps.forEach((step, index) => {
+      checkStep(step, `${at} step ${index}`, { episode, world, map, mapId, declared, problems });
+    });
+  }
+}
+
+/**
+ * Where a scene is staged. `on.enter` says so outright; a scene triggered by a
+ * flag is staged wherever the people it moves are, which is the only place its
+ * tiles could mean anything.
+ */
+function sceneMap(episode: Episode, scene: EpisodeScene): string | undefined {
+  for (const step of scene.steps ?? []) {
+    const who = step.move?.who;
+    if (!who || who === SCENE_PLAYER) continue;
+    const npc = episode.npcs.find((one) => one.id === who);
+    if (npc) return npc.map;
+  }
+  return undefined;
+}
+
+interface StepContext {
+  episode: Episode;
+  world: World;
+  map: GameMap | undefined;
+  mapId: string | undefined;
+  declared: Set<string>;
+  problems: string[];
+}
+
+function checkStep(step: SceneStep, at: string, ctx: StepContext): void {
+  const { episode, world, map, mapId, declared, problems } = ctx;
+  if (!step || typeof step !== 'object' || Array.isArray(step)) {
+    problems.push(`${at} is not a step object`);
+    return;
+  }
+  const actions = STEP_ACTIONS.filter((name) => step[name] !== undefined);
+  if (actions.length !== 1) {
+    problems.push(
+      actions.length
+        ? `${at} does ${actions.length} things at once (${actions.join(', ')}) — a step does exactly one`
+        : `${at} does nothing — expected one of ${STEP_ACTIONS.join(', ')}`
+    );
+    return;
+  }
+
+  if (step.move) {
+    const move = step.move;
+    const who = move.who;
+    if (typeof who !== 'string' || !who) {
+      problems.push(`${at} moves nobody — "who" is a person's id, "player", or "vehicle:<id>"`);
+      return;
+    }
+    if (who !== SCENE_PLAYER) {
+      if (who.startsWith(SCENE_VEHICLE)) {
+        // Vehicles are a map's own, like its townspeople. A world with none
+        // simply has nothing for this to name (CLAUDE.md hard rule 3).
+        const id = who.slice(SCENE_VEHICLE.length);
+        const vehicles = mapId ? vehiclesOn(world, mapId) : [];
+        if (!vehicles.includes(id)) {
+          problems.push(`${at} moves "${who}", which is not a vehicle on map "${mapId ?? '?'}"`);
+        }
+      } else {
+        const npc = episode.npcs.find((one) => one.id === who);
+        if (!npc) problems.push(`${at} moves "${who}", who is not in this episode`);
+        else if (mapId && npc.map !== mapId) {
+          problems.push(`${at} moves "${who}", who is on map "${npc.map}" and not on "${mapId}"`);
+        }
+      }
+    }
+    if ((move.to === undefined) === (move.path === undefined)) {
+      problems.push(`${at} needs exactly one of "to" or "path"`);
+      return;
+    }
+    if (move.speed !== undefined && (typeof move.speed !== 'number' || !(move.speed > 0))) {
+      problems.push(`${at} has a "speed" that isn't tiles per second`);
+    }
+    const tiles = move.path ?? [move.to as Vec2];
+    if (move.path && (!Array.isArray(move.path) || move.path.length === 0)) {
+      problems.push(`${at} has an empty "path"`);
+      return;
+    }
+    if (!map) return;
+    // The player may stand on a doorstep or a plaque tile; nobody else may,
+    // because those are read by standing exactly there (moverWalkable).
+    const canStand = who === SCENE_PLAYER ? (x: number, y: number) => !isSolid(map, x, y) : moverWalkable(map);
+    tiles.forEach((tile, index) => {
+      const label = move.path ? `${at} path ${index}` : `${at} target`;
+      if (!Array.isArray(tile) || tile.length !== 2 || !tile.every((n) => Number.isInteger(n))) {
+        problems.push(`${label} is not a tile like [12, 4]`);
+        return;
+      }
+      if (tile[0] < 0 || tile[1] < 0 || tile[0] >= map.width || tile[1] >= map.height) {
+        problems.push(`${label} at ${tile.join(',')} is outside the map`);
+        return;
+      }
+      if (!canStand(tile[0], tile[1])) {
+        problems.push(`${label} at ${tile.join(',')} is somewhere "${who}" cannot stand`);
+      }
+    });
+    return;
+  }
+
+  if (step.say) {
+    const say = step.say;
+    if (say.who !== undefined && !episode.npcs.some((one) => one.id === say.who)) {
+      problems.push(`${at} has "${say.who}" speaking, who is not in this episode`);
+    }
+    if (!Array.isArray(say.lines) || say.lines.length === 0) {
+      problems.push(`${at} says nothing — "lines" is a non-empty array`);
+      return;
+    }
+    say.lines.forEach((line, index) => {
+      if (typeof line !== 'string' || line.trim() === '') problems.push(`${at} line ${index} is empty`);
+    });
+    return;
+  }
+
+  if (step.toast !== undefined) {
+    if (typeof step.toast !== 'string' || step.toast.trim() === '') problems.push(`${at} has an empty toast`);
+    return;
+  }
+
+  if (step.wait !== undefined) {
+    if (typeof step.wait !== 'number' || !(step.wait > 0)) {
+      problems.push(`${at} has a "wait" that isn't a number of seconds`);
+    } else if (step.wait > MAX_WAIT) {
+      problems.push(`${at} waits ${step.wait}s — ${MAX_WAIT}s is as long as a beat should ever hold`);
+    }
+    return;
+  }
+
+  if (step.camera) {
+    const to = step.camera.to;
+    if (to === SCENE_PLAYER) return;
+    if (!Array.isArray(to) || to.length !== 2 || !to.every((n) => Number.isInteger(n))) {
+      problems.push(`${at} looks at neither a tile like [12, 4] nor "player"`);
+      return;
+    }
+    if (step.camera.speed !== undefined && (typeof step.camera.speed !== 'number' || !(step.camera.speed > 0))) {
+      problems.push(`${at} has a camera "speed" that isn't tiles per second`);
+    }
+    if (map && (to[0] < 0 || to[1] < 0 || to[0] >= map.width || to[1] >= map.height)) {
+      problems.push(`${at} looks at ${to.join(',')}, which is outside the map`);
+    }
+    return;
+  }
+
+  if (step.set !== undefined) {
+    if (typeof step.set !== 'string' || !declared.has(step.set)) {
+      problems.push(`${at} sets undeclared flag "${String(step.set)}"`);
+    }
+    return;
+  }
+
+  if (step.light) checkLight(step.light, at, map, problems);
+}
+
+function checkLight(light: LightSpec, at: string, map: GameMap | undefined, problems: string[]): void {
+  if (typeof light !== 'object' || Array.isArray(light)) {
+    problems.push(`${at} has a "light" that isn't an object`);
+    return;
+  }
+  if (!(LIGHT_MODES as readonly string[]).includes(light.mode)) {
+    problems.push(`${at} has light mode "${String(light.mode)}" — expected one of ${LIGHT_MODES.join(', ')}`);
+  }
+  if (light.keep !== undefined && typeof light.keep !== 'boolean') {
+    problems.push(`${at} has a light "keep" that isn't a boolean`);
+  }
+  if (light.period !== undefined && (typeof light.period !== 'number' || !(light.period > 0))) {
+    problems.push(`${at} has a light "period" that isn't a number of seconds`);
+  }
+  for (const colour of light.colours ?? []) {
+    if (typeof colour !== 'string' || !HEX.test(colour)) {
+      problems.push(`${at} has a light colour "${String(colour)}" that isn't a hex colour like "#d9a441"`);
+    }
+  }
+  (light.at ?? []).forEach((tile, index) => {
+    if (!Array.isArray(tile) || tile.length !== 2 || !tile.every((n) => Number.isInteger(n))) {
+      problems.push(`${at} light ${index} is not a tile like [12, 4]`);
+      return;
+    }
+    if (map && (tile[0] < 0 || tile[1] < 0 || tile[0] >= map.width || tile[1] >= map.height)) {
+      problems.push(`${at} hangs a light at ${tile.join(',')}, outside the map`);
+    }
+  });
+  if (light.mode !== 'party' && (light.at?.length || light.colours?.length)) {
+    problems.push(`${at} names lights or colours on a "${light.mode}" step, which has neither`);
+  }
+}
+
+/**
+ * A map's own vehicles, read defensively: they arrive with their own issue and
+ * a world without them simply has none for a scene to name.
+ */
+function vehiclesOn(world: World, mapId: string): string[] {
+  const meta = world.maps[mapId] as { vehicles?: { id?: string }[] } | undefined;
+  return (meta?.vehicles ?? []).map((vehicle) => vehicle?.id ?? '').filter(Boolean);
+}
+
+// --- map overlays (DESIGN.md §3) ---------------------------------------------
+
+/**
+ * The overlays an episode paints onto a village's one canonical map. What
+ * matters here is that they cannot strand anybody: an episode is free to put a
+ * marquee on the green, and not free to put it across the only way to the post
+ * office door. Every combination of overlays that could be on together is
+ * checked, because "each one is fine on its own" is not the same thing.
+ */
+function checkOverlays(
+  episode: Episode,
+  world: World,
+  maps: Record<string, GameMap>,
+  declared: Set<string>,
+  problems: string[]
+): void {
+  const where = `episode "${episode.id}"`;
+  const overlays = episode.overlays ?? [];
+  if (!overlays.length) return;
+
+  const seen = new Set<string>();
+  for (const overlay of overlays) {
+    const at = `${where}: overlay "${overlay.id ?? '(unnamed)'}"`;
+    if (typeof overlay.id !== 'string' || overlay.id.trim() === '') {
+      problems.push(`${where}: every overlay needs an id`);
+      continue;
+    }
+    if (seen.has(overlay.id)) problems.push(`${at} is listed twice`);
+    seen.add(overlay.id);
+
+    for (const name of overlay.requires ?? []) {
+      if (!declared.has(name)) problems.push(`${at} requires undeclared flag "${name}"`);
+    }
+    for (const name of overlay.unless ?? []) {
+      if (!declared.has(name)) problems.push(`${at} has an "unless" on undeclared flag "${name}"`);
+    }
+    if (!canCoOccur([overlay])) {
+      problems.push(`${at} requires and rules out the same flag, so it can never be on`);
+    }
+
+    const map = maps[overlay.map];
+    if (!world.maps[overlay.map]) {
+      problems.push(`${at} patches unknown map "${overlay.map}"`);
+      continue;
+    }
+    if (!map) continue; // the missing grid is already reported by validateWorld
+
+    if (!Array.isArray(overlay.tiles) || (!overlay.tiles.length && !overlay.fixtures?.length && !overlay.props?.length)) {
+      problems.push(`${at} paints nothing`);
+      continue;
+    }
+    for (const paint of overlay.tiles) {
+      if (!Array.isArray(paint?.pos) || paint.pos.length !== 2 || !paint.pos.every((n) => Number.isInteger(n))) {
+        problems.push(`${at} has a tile that is not at a position like [12, 4]`);
+        continue;
+      }
+      const [x, y] = paint.pos;
+      if (x < 0 || y < 0 || x >= map.width || y >= map.height) {
+        problems.push(`${at} paints ${x},${y}, which is outside map "${overlay.map}"`);
+      }
+    }
+    for (const bad of patchFor(map, [overlay]).unknown) {
+      problems.push(`${at} paints tile ${JSON.stringify(bad.tile)} at ${bad.pos.join(',')}, which no tileset "${overlay.map}" uses has`);
+    }
+    for (const prop of overlay.props ?? []) {
+      if (!Array.isArray(prop?.pos) || prop.pos.length !== 2 || !prop.pos.every((n) => Number.isInteger(n))) {
+        problems.push(`${at} has a prop that is not at a position like [12, 4]`);
+        continue;
+      }
+      if (!Array.isArray(prop.lines) || !prop.lines.length || prop.lines.some((line) => typeof line !== 'string' || !line.trim())) {
+        problems.push(`${at} has a prop at ${prop.pos.join(',')} with nothing to read`);
+      }
+    }
+    for (const fixture of overlay.fixtures ?? []) {
+      if (!FIXTURE_KINDS.includes(fixture?.kind)) {
+        problems.push(`${at} brings an unknown fixture kind "${String(fixture?.kind)}"`);
+      }
+    }
+  }
+
+  // Every combination that could be on at once, the plain map included: a door
+  // reachable under each overlay on its own can still be walled in by two.
+  const byMap = new Map<string, MapOverlay[]>();
+  for (const overlay of overlays) {
+    if (!maps[overlay.map]) continue;
+    byMap.set(overlay.map, [...(byMap.get(overlay.map) ?? []), overlay]);
+  }
+  for (const [mapId, list] of byMap) {
+    for (const set of combinations(list)) {
+      if (!set.length) continue;
+      const named = set.map((overlay) => `"${overlay.id}"`).join(' + ');
+      for (const problem of unreachableWith(world, maps, mapId, set)) {
+        problems.push(`${where}: with ${named} on, ${problem}`);
+      }
+    }
+  }
+}
+
+/**
+ * Everything on a map that has to stay walkable up to: every door, every
+ * plaque, the tile beside every fixture, and every way off the map. Measured
+ * from where the player can arrive — the world's start, and every tile
+ * anything spawns them onto — because that is where they will be standing.
+ */
+function unreachableWith(
+  world: World,
+  maps: Record<string, GameMap>,
+  mapId: string,
+  overlays: MapOverlay[]
+): string[] {
+  const base = maps[mapId];
+  const map = withOverlays(base, overlays);
+  const out: string[] = [];
+
+  const arrivals: Vec2[] = [];
+  if (world.start.map === mapId) arrivals.push([world.start.pos[0], world.start.pos[1]]);
+  for (const meta of Object.values(world.maps)) {
+    for (const exit of meta.exits) {
+      if (exit.to === mapId) arrivals.push([exit.spawn[0], exit.spawn[1]]);
+    }
+    for (const placement of meta.buildings) {
+      if (placement.interior === mapId && placement.enter) arrivals.push([placement.enter[0], placement.enter[1]]);
+    }
+  }
+  if (!arrivals.length) return out;
+
+  // The player's own walkability: solid ground and the fixtures standing on it.
+  const blocked = new Set((map.fixtures ?? []).map((fixture) => `${fixture.pos[0]},${fixture.pos[1]}`));
+  const walkable = (x: number, y: number) => !isSolid(map, x, y) && !blocked.has(`${x},${y}`);
+
+  const reachable = new Set<string>();
+  for (const from of arrivals) {
+    if (!walkable(from[0], from[1])) {
+      out.push(`the player arrives at ${from.join(',')} on ground nobody can stand on`);
+      continue;
+    }
+    // One flood per arrival, collected by walking everywhere it can reach.
+    const queue: Vec2[] = [from];
+    reachable.add(`${from[0]},${from[1]}`);
+    while (queue.length) {
+      const [cx, cy] = queue.shift() as Vec2;
+      for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+        const key = `${nx},${ny}`;
+        if (reachable.has(key) || !walkable(nx, ny)) continue;
+        reachable.add(key);
+        queue.push([nx, ny]);
+      }
+    }
+  }
+  const canReach = (tile: Vec2) => reachable.has(`${tile[0]},${tile[1]}`);
+  const canReachBeside = (tile: Vec2) =>
+    [[0, -1], [1, 0], [0, 1], [-1, 0]].some(([dx, dy]) => canReach([tile[0] + dx, tile[1] + dy]));
+
+  const meta = world.maps[mapId];
+  for (const placement of meta.buildings) {
+    if (!canReach(placement.door)) out.push(`building "${placement.id}"'s door at ${placement.door.join(',')} cannot be reached`);
+    const plaque = plaqueTile(placement);
+    if (plaque && !canReach(plaque)) out.push(`building "${placement.id}"'s plaque at ${plaque.join(',')} cannot be reached`);
+  }
+  for (const fixture of map.fixtures ?? []) {
+    if (!canReachBeside(fixture.pos)) out.push(`the ${fixture.kind} at ${fixture.pos.join(',')} cannot be walked up to`);
+  }
+  for (const exit of meta.exits) {
+    let found = false;
+    for (let y = exit.at[1]; y < exit.at[1] + exit.at[3] && !found; y++) {
+      for (let x = exit.at[0]; x < exit.at[0] + exit.at[2] && !found; x++) {
+        if (canReach([x, y])) found = true;
+      }
+    }
+    if (!found) out.push(`the way out at "${exit.id}" cannot be reached`);
+  }
+  return out;
+}
+
+/**
+ * Tiles two overlays that could be on together both paint. Not a problem —
+ * layering is allowed, and the later one wins — but it has to be somebody's
+ * decision, so `validate-episodes` prints it (DESIGN.md §3).
+ */
+export function overlayNotes(episode: Episode, maps: Record<string, GameMap>): string[] {
+  const notes: string[] = [];
+  const byMap = new Map<string, MapOverlay[]>();
+  for (const overlay of episode.overlays ?? []) {
+    if (!maps[overlay.map]) continue;
+    byMap.set(overlay.map, [...(byMap.get(overlay.map) ?? []), overlay]);
+  }
+  for (const [mapId, list] of byMap) {
+    for (const set of combinations(list)) {
+      if (set.length < 2) continue;
+      for (const overlap of overlapsIn(set)) {
+        if (overlap.ids.length < 2) continue;
+        notes.push(
+          `episode "${episode.id}": on "${mapId}", ${overlap.ids.map((id) => `"${id}"`).join(' and ')} ` +
+            `both paint ${overlap.pos.join(',')} — the last one listed is what shows`
+        );
+      }
+    }
+  }
+  return [...new Set(notes)];
 }
 
 /** Two or three strollers make a street; a dozen makes a crowd scene. */

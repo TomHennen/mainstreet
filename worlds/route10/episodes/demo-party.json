@@ -1,0 +1,144 @@
+{
+  "id": "demo-party",
+  "title": "A Night at the Belvedere",
+  "flags": ["chalkedUp", "done"],
+  "npcs": [
+    {
+      "id": "bel-host",
+      "name": "Vera",
+      "map": "the-belvedere-interior",
+      "pos": [3, 6],
+      "facing": "right",
+      "accent": "#9a7bb5",
+      "look": { "hair": "bun", "hairColor": "#4a3524", "build": "regular" },
+      "dialogue": [
+        {
+          "requires": ["done"],
+          "lines": ["Stay as long as you like. Somebody in here always knows the words."]
+        },
+        {
+          "requires": ["chalkedUp"],
+          "lines": [
+            "I put the board out front so nobody walks past and misses it.",
+            "That's the whole trick, really. Leave the light on and say who's welcome."
+          ],
+          "effects": [{ "set": "done" }]
+        },
+        {
+          "requires": [],
+          "lines": ["Make yourself at home. There's a chair at every table and room at all of them."]
+        }
+      ]
+    },
+    {
+      "id": "bel-guest-fiddle",
+      "name": "Sal",
+      "map": "the-belvedere-interior",
+      "pos": [9, 12],
+      "facing": "up",
+      "accent": "#3f7a4c",
+      "look": { "hair": "curly", "hairColor": "#2b2320", "skin": "#c98d63", "build": "slim" },
+      "dialogue": [
+        {
+          "requires": [],
+          "lines": ["I've been looking forward to this all week. Wait till they get going."]
+        }
+      ]
+    },
+    {
+      "id": "bel-guest-cook",
+      "name": "Gus",
+      "map": "the-belvedere-interior",
+      "pos": [12, 12],
+      "facing": "up",
+      "accent": "#b5542a",
+      "look": { "hair": "cap", "hairColor": "#6b6257", "build": "broad" },
+      "dialogue": [
+        {
+          "requires": [],
+          "lines": ["Sit wherever you like — everybody shuffles up. That's how it works in here."]
+        }
+      ]
+    },
+    {
+      "id": "bel-guest-neighbour",
+      "name": "Priya",
+      "map": "the-belvedere-interior",
+      "pos": [13, 12],
+      "facing": "up",
+      "accent": "#d9a441",
+      "look": { "hair": "long", "hairColor": "#2b2320", "skin": "#a8703f", "build": "regular" },
+      "dialogue": [
+        {
+          "requires": [],
+          "lines": ["The lights are new. Somebody was up a ladder all afternoon, and worth every minute of it."]
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "lights-up",
+      "on": { "enter": "the-belvedere-interior" },
+      "steps": [
+        {
+          "light": {
+            "mode": "party",
+            "colours": ["#d9a441", "#b5542a", "#9a7bb5", "#4a7f96"],
+            "at": [[17, 3], [2, 6], [8, 7], [12, 10]],
+            "period": 10
+          }
+        },
+        { "camera": { "to": [17, 3], "speed": 12 } },
+        { "wait": 1 },
+        { "camera": { "to": "player", "speed": 12 } },
+        { "move": { "who": "bel-guest-cook", "to": [6, 10], "speed": 3.5 } },
+        { "move": { "who": "bel-guest-neighbour", "path": [[9, 8], [9, 4]], "speed": 3.5 } },
+        { "move": { "who": "bel-guest-fiddle", "path": [[14, 8], [14, 5]], "speed": 3.5 } },
+        {
+          "say": {
+            "who": "bel-host",
+            "lines": [
+              "Come in, come in — you've caught us on a good night.",
+              "There's a chair at every table, the lights are up, and the fiddle is very nearly in tune."
+            ]
+          }
+        },
+        { "set": "chalkedUp" },
+        { "toast": "The Belvedere, lit up for the evening." }
+      ]
+    },
+    {
+      "id": "evening-outside",
+      "on": { "enter": "stamford", "requires": ["chalkedUp"] },
+      "steps": [
+        { "light": { "mode": "dim", "keep": true } },
+        {
+          "say": {
+            "lines": [
+              "The light has gone off the hills while you were inside, and Main Street has the soft, settled look it keeps for the evening.",
+              "Behind you the Belvedere is the warmest window on the street, and the board out front says so."
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "overlays": [
+    {
+      "id": "chalkboard",
+      "map": "stamford",
+      "requires": ["chalkedUp"],
+      "tiles": [{ "pos": [79, 5], "tile": 45 }],
+      "props": [
+        {
+          "pos": [79, 5],
+          "lines": [
+            "A chalkboard out on the walk, in a careful hand: PARTY TONIGHT.",
+            "Underneath, smaller: everyone welcome, and bring a chair if you have a spare one."
+          ]
+        }
+      ]
+    }
+  ]
+}

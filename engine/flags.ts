@@ -25,7 +25,12 @@ export class Flags {
     if (!this.values.has(name)) {
       throw new Error(`flag "${name}" was set but never declared`);
     }
+    const before = this.values.get(name);
     this.values.set(name, value);
+    // Anything that follows from the state of the story rather than from where
+    // the player is standing listens here: map overlays and scenes triggered
+    // by a flag (DESIGN.md §3). Only an actual change is announced.
+    if (before !== value) bus.emit(EV.flags, name);
   }
 
   /** `requires` is an AND of flags, per DESIGN.md §3. */

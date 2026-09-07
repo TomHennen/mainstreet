@@ -543,4 +543,155 @@ export interface Episode {
   npcs: EpisodeNpc[];
   items?: EpisodeItem[];
   signs?: EpisodeSign[];
+  /** Staged moments: see `EpisodeScene` and DESIGN.md §3. */
+  scenes?: EpisodeScene[];
+  /** Flag-gated patches to a village's one canonical map. */
+  overlays?: MapOverlay[];
+}
+
+// --- scenes (DESIGN.md §3) ---------------------------------------------------
+
+/**
+ * What the lights are doing (DESIGN.md §3). Engine-drawn, so a world pack asks
+ * for a mood rather than shipping an asset: `dim` is a warm evening wash over
+ * the whole map, `party` adds a few soft coloured discs at the tiles listed in
+ * `at` that drift slowly through `colours`, plus a gentle wash of the same
+ * colours over the floor. `off` puts the lights back to plain daylight.
+ *
+ * Slowly is the whole of it: there is no strobe and no flash anywhere in here,
+ * and a device asking for reduced motion slows the drift to a crawl
+ * (engine/lighting.ts).
+ */
+export interface LightSpec {
+  mode: 'off' | 'dim' | 'party';
+  /** Hex colours the discs and the wash move through. Party only. */
+  colours?: string[];
+  /** Tiles a light disc hangs over. Party only. */
+  at?: Vec2[];
+  /** Seconds for one turn round the whole set of colours. Default 12. */
+  period?: number;
+  /** Stays lit through a map change. Default false: walking out clears it. */
+  keep?: boolean;
+}
+
+/** `move.who` for the player themselves, as opposed to an episode NPC. */
+export const SCENE_PLAYER = 'player';
+
+/**
+ * `move.who` prefix for something that moves but is nobody: a car on a map's
+ * `vehicles` list, addressed as `"vehicle:<id>"`. The scene runner treats
+ * every `who` as an opaque id and hands it to whatever is driving the scene,
+ * so a new kind of thing that can be given a path and says when it has
+ * arrived needs no change to the runner at all.
+ */
+export const SCENE_VEHICLE = 'vehicle:';
+
+/** Somebody walks somewhere: to one tile, or along a list of them. */
+export interface MoveStep {
+  /** An episode NPC's id, `"player"`, or `"vehicle:<id>"`. */
+  who: string;
+  /** Exactly one of `to` or `path`. */
+  to?: Vec2;
+  path?: Vec2[];
+  /** Tiles per second, for this move only. */
+  speed?: number;
+}
+
+/** A line or three in the dialogue box. The scene waits for it to be read. */
+export interface SayStep {
+  /** An episode NPC's id. Left out, the world's narrator says it. */
+  who?: string;
+  lines: string[];
+}
+
+export interface CameraStep {
+  /** A tile to look at, or `"player"` to hand the camera back. */
+  to: Vec2 | 'player';
+  /** Tiles per second. Default 8. */
+  speed?: number;
+}
+
+/**
+ * One beat of a scene. Exactly one of these fields is set; anything else is a
+ * malformed step and the validator says so. Every one of them is data — there
+ * is no step that runs code (CLAUDE.md hard rule 2).
+ */
+export interface SceneStep {
+  move?: MoveStep;
+  say?: SayStep;
+  toast?: string;
+  /** Seconds to hold, at most `MAX_WAIT`. A is enough to cut it short. */
+  wait?: number;
+  camera?: CameraStep;
+  /** Sets an episode flag — which is also how a scene turns an overlay on. */
+  set?: string;
+  light?: LightSpec;
+  /** Ends the scene here, whatever follows in the list. */
+  end?: boolean;
+}
+
+/** The longest a `wait` step may hold. A beat, never a pause with weight. */
+export const MAX_WAIT = 3;
+
+/** Exactly one of `flag` (when it is set) or `enter` (on arriving at a map). */
+export interface SceneTrigger {
+  flag?: string;
+  enter?: string;
+  /** `enter` only: further flags that all have to be true on arrival. */
+  requires?: string[];
+}
+
+export interface EpisodeScene {
+  id: string;
+  on: SceneTrigger;
+  /** Runs once ever, remembered as `scene:<id>`. Default true. */
+  once?: boolean;
+  steps: SceneStep[];
+}
+
+/** The flag a `once` scene records itself with. Declared for the episode automatically. */
+export const sceneFlag = (id: string): string => `scene:${id}`;
+
+/** Every flag an episode's scenes declare on its behalf. */
+export function sceneFlags(episode: { scenes?: EpisodeScene[] }): string[] {
+  return (episode.scenes ?? []).filter((scene) => scene.once !== false).map((scene) => sceneFlag(scene.id));
+}
+
+// --- map overlays (DESIGN.md §3) ---------------------------------------------
+
+/**
+ * One tile an overlay paints. `tile` is a tile in the world's tileset — its id
+ * on its own where a world has one tileset, or `"<tileset>:<id>"` where a map
+ * draws on more than one.
+ */
+export interface OverlayTile {
+  pos: Vec2;
+  tile: number | string;
+}
+
+/** A readable thing an overlay brings with it: the same as an episode prop sign. */
+export interface OverlayProp {
+  pos: Vec2;
+  lines: string[];
+}
+
+/**
+ * A flag-gated patch to a canonical map (DESIGN.md §3). There is one map per
+ * village, ever; a story changes what is standing on it by painting tiles over
+ * it while its flags hold, and nothing about that is saved — overlays derive
+ * from flags, so Start over undoes them.
+ *
+ * `requires` is an AND, as everywhere else; `unless` is its opposite, so the
+ * before and after of the same place can never both be on. Overlays apply in
+ * the order the episode lists them, and where two paint the same tile the
+ * later one shows.
+ */
+export interface MapOverlay {
+  id: string;
+  map: string;
+  requires: string[];
+  unless?: string[];
+  tiles: OverlayTile[];
+  props?: OverlayProp[];
+  fixtures?: Fixture[];
 }

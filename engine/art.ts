@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { drawFigure, figureKey } from './figure';
 import { FACINGS, plaqueTile } from './schema';
 import { TILE } from './tiled';
-import type { BuildingDef, BuildingPlacement, Facing, Fixture, FixtureKind, GameMap, Look } from './schema';
+import type { BuildingDef, BuildingPlacement, Facing, Fixture, FixtureKind, GameMap, Look, Vec2 } from './schema';
 import type { TileDef, TilesetDef } from './tiled';
 
 /**
@@ -375,6 +375,66 @@ export function tilesetTexture(scene: Phaser.Scene, tileset: TilesetDef, painted
   return key;
 }
 
+/** Every tileset a map draws from, as something a canvas can blit out of. */
+function mapSheets(scene: Phaser.Scene, map: GameMap, painted: Set<string>): Map<string, CanvasImageSource> {
+  const sheets = new Map<string, CanvasImageSource>();
+  for (const tileset of map.tilesets) {
+    const sheetKey = tilesetTexture(scene, tileset, painted.has(tileset.name));
+    sheets.set(tileset.name, scene.textures.get(sheetKey).getSourceImage() as CanvasImageSource);
+  }
+  return sheets;
+}
+
+/** One cell of the layer stack, bottom-up, as `mapTexture` paints the lot. */
+function drawCell(
+  ctx: CanvasRenderingContext2D,
+  map: GameMap,
+  sheets: Map<string, CanvasImageSource>,
+  x: number,
+  y: number
+): void {
+  for (const layer of map.layers) {
+    const def = layer.cells[y * map.width + x];
+    const sheet = def && sheets.get(def.tileset);
+    if (def && sheet) ctx.drawImage(sheet, def.sx, def.sy, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
+  }
+}
+
+/**
+ * Repaints a handful of cells on a map already baked (DESIGN.md §3). A flag
+ * has changed and an overlay has come on or gone off, and the ground under it
+ * has to follow: the whole stack for each of those cells is drawn again from
+ * the map handed in, which by then is the map *with* whatever overlays are on
+ * (engine/overlay.ts `withOverlays`). Painting a few tiles rather than the
+ * whole town is the point — a village is a big texture and a chalkboard is one
+ * square of it.
+ *
+ * A cell that no overlay covers any more is repainted the same way, off the
+ * plain map, which is what puts the ordinary ground back.
+ */
+export function patchMapTiles(
+  scene: Phaser.Scene,
+  mapId: string,
+  map: GameMap,
+  painted: Set<string>,
+  cells: Iterable<Vec2>
+): void {
+  const key = `map:${mapId}`;
+  if (!scene.textures.exists(key)) return;
+  const texture = scene.textures.get(key) as Phaser.Textures.CanvasTexture;
+  const ctx = texture.getContext();
+  if (!ctx) return;
+  ctx.imageSmoothingEnabled = false;
+  const sheets = mapSheets(scene, map, painted);
+
+  for (const [x, y] of cells) {
+    if (x < 0 || y < 0 || x >= map.width || y >= map.height) continue;
+    ctx.clearRect(x * TILE, y * TILE, TILE, TILE);
+    drawCell(ctx, map, sheets, x, y);
+  }
+  texture.refresh();
+}
+
 /** The whole map baked into one texture — it is small, and it scrolls for free. */
 export function mapTexture(scene: Phaser.Scene, mapId: string, map: GameMap, painted: Set<string>): string {
   const key = `map:${mapId}`;
@@ -382,21 +442,11 @@ export function mapTexture(scene: Phaser.Scene, mapId: string, map: GameMap, pai
 
   const { texture, ctx } = canvas(scene, key, map.width * TILE, map.height * TILE);
 
-  const sheets = new Map<string, CanvasImageSource>();
-  for (const tileset of map.tilesets) {
-    const sheetKey = tilesetTexture(scene, tileset, painted.has(tileset.name));
-    sheets.set(tileset.name, scene.textures.get(sheetKey).getSourceImage() as CanvasImageSource);
-  }
+  const sheets = mapSheets(scene, map, painted);
 
   // Tile layers paint bottom-up, in the order the Tiled file lists them.
-  for (const layer of map.layers) {
-    for (let y = 0; y < map.height; y++) {
-      for (let x = 0; x < map.width; x++) {
-        const def = layer.cells[y * map.width + x];
-        const sheet = def && sheets.get(def.tileset);
-        if (def && sheet) ctx.drawImage(sheet, def.sx, def.sy, TILE, TILE, x * TILE, y * TILE, TILE, TILE);
-      }
-    }
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) drawCell(ctx, map, sheets, x, y);
   }
 
   // Village names sit in the ground layer so they stay crisp at any zoom.

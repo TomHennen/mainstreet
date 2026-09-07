@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { bus, EV } from '../bus';
-import { noteDialogue } from '../debug';
+import { noteDialogue, noteToast } from '../debug';
 import type { SayRequest } from '../bus';
 import { isMailto } from '../feedback';
 import { onAction } from '../input';
@@ -143,11 +143,13 @@ export class UiScene extends Phaser.Scene {
   private toast(message: string): void {
     this.toastText.setText(message).setVisible(true);
     this.toastBg.setVisible(true);
+    if (import.meta.env.DEV) noteToast(message);
     this.layout();
     this.toastTimer?.remove();
     this.toastTimer = this.time.delayedCall(3800, () => {
       this.toastText.setVisible(false);
       this.toastBg.setVisible(false);
+      if (import.meta.env.DEV) noteToast(null);
     });
   }
 

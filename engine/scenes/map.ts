@@ -11,40 +11,48 @@ import {
   mapTexture,
   markerTexture,
   namePlateArt,
+  patchMapTiles,
   plateLift,
   plaqueArt,
   promptTexture,
   TILE
 } from '../art';
-import { currentDialogue, publishDebug } from '../debug';
+import { currentDialogue, currentToast, publishDebug } from '../debug';
 import { isHeld, onAction, onTap } from '../input';
 import { feedbackUrl } from '../feedback';
 import { improveUrl, paintUrl } from '../paint';
+import { Lighting } from '../lighting';
 import { hashId, Mover, STROLL_FACTOR } from '../mover';
+import { patchFor, withOverlays } from '../overlay';
 import { findPath, pathToTile } from '../path';
 import { autosave } from '../progress';
+import { SceneRunner, sceneTriggered } from '../scene';
+import type { SceneDriver } from '../scene';
 import {
   creditFor,
   dialogueFor,
   itemVisible,
   itemsOn,
   npcsOn,
+  overlaysOn,
   peopleOn,
   propSignsOn,
   session,
   signLinesFor
 } from '../session';
 import { isSolid, moverWalkable } from '../validate';
-import { lookOf, plaqueTile } from '../schema';
+import { lookOf, plaqueTile, SCENE_PLAYER } from '../schema';
 import type { PlateBox } from '../art';
 import type {
   BuildingPlacement,
   EpisodeItem,
   EpisodeNpc,
+  EpisodeScene,
   EpisodeSign,
   Facing,
   Fixture,
   GameMap,
+  LightSpec,
   MapExit,
   Person,
   Vec2
@@ -69,6 +77,18 @@ const WALK_FRAME_MS = 133;
 const CHASE_MS = 250;
 /** However lively the street, a walk gives up rather than following for ever. */
 const MAX_REPLANS = 32;
+/** A scene's camera pan, in tiles a second, when the step names no speed. */
+const PAN_SPEED = 8;
+
+/**
+ * Which tiles of each baked map texture an overlay is currently painted over.
+ * The texture cache outlives this scene — a village looks the same when the
+ * player walks back into it — so what was patched last time has to be
+ * remembered for long enough to be painted back out (engine/art.ts
+ * `patchMapTiles`). Keyed by map id; nothing here is saved, since overlays
+ * derive from flags (DESIGN.md §3).
+ */
+const patchedTiles = new Map<string, Set<string>>();
 
 export interface MapSceneData {
   mapId: string;
@@ -152,6 +172,8 @@ export class MapScene extends Phaser.Scene {
   private prompt!: Phaser.GameObjects.Image;
   private marker!: Phaser.GameObjects.Image;
   private itemSprites = new Map<string, Phaser.GameObjects.Image>();
+  /** Fixtures on screen, keyed by kind and tile — an overlay may add or take one. */
+  private fixtureSprites = new Map<string, Phaser.GameObjects.Image>();
   private exitArmed = false;
   private enterArmed = false;
   private spawnX = 0;
@@ -182,6 +204,14 @@ export class MapScene extends Phaser.Scene {
   private replans = 0;
   private lastReplan = 0;
 
+  /** The scene playing right now, if one is (DESIGN.md §3). */
+  private runner: SceneRunner | null = null;
+  /** Scenes waiting for the box on screen to close before they start. */
+  private queued: EpisodeScene[] = [];
+  private lighting!: Lighting;
+  /** True while the scene has walked the player somewhere they may not leave. */
+  private sceneWalk = false;
+
   constructor() {
     super('Map');
   }
@@ -197,6 +227,7 @@ export class MapScene extends Phaser.Scene {
     this.exitArmed = false;
     this.enterArmed = false;
     this.itemSprites = new Map();
+    this.fixtureSprites = new Map();
     this.facades = [];
     this.artBoxes = [];
     this.walkPath = null;
@@ -206,12 +237,21 @@ export class MapScene extends Phaser.Scene {
     this.walkers = [];
     this.replans = 0;
     this.lastReplan = 0;
+    this.runner = null;
+    this.queued = [];
+    this.sceneWalk = false;
+    // An overlay's tiles are part of the ground from here on: collision,
+    // routing and the baked texture all read them off the map (DESIGN.md §3).
+    this.map = withOverlays(this.map, overlaysOn(data.mapId));
   }
 
   create(data: MapSceneData): void {
     const { world, assets } = session();
 
     this.add.image(0, 0, mapTexture(this, this.mapId, this.map, assets.tilesets)).setOrigin(0, 0).setDepth(-100);
+    // The texture cache outlives this scene, so a village walked back into may
+    // still be carrying last week's patch. This puts it right (DESIGN.md §3).
+    this.refreshOverlays();
 
     // Name plates are stacked rather than allowed to overlap, so two
     // storefronts that touch never read as one sign. The list is per map and
@@ -303,10 +343,7 @@ export class MapScene extends Phaser.Scene {
     // The engine's own street furniture: drawn on the tile it stands on, at
     // that tile's depth, so the player passes behind it going up the street
     // and in front of it coming down (DESIGN.md §2).
-    for (const fixture of this.fixtures()) {
-      const art = fixtureArt(this, fixture);
-      this.add.image(art.x, art.y, art.key).setOrigin(0, 0).setDepth(art.depth);
-    }
+    this.refreshFixtures();
 
     const itemKey = itemTexture(this);
     for (const item of itemsOn(this.mapId)) {
@@ -344,17 +381,27 @@ export class MapScene extends Phaser.Scene {
     this.marker = this.add.image(0, 0, markerTexture(this)).setOrigin(0, 0).setDepth(8500).setVisible(false);
     dashTexture(this); // warm the travel interstitial's texture while we have a scene
 
+    // Over the town and under the HUD, so an evening or a party colours the
+    // place without ever getting between the player and what they are reading
+    // (engine/lighting.ts). Cleared by a map change unless the scene that lit
+    // it asked to keep it.
+    this.lighting = new Lighting(this, this.map.width, this.map.height);
+    this.lighting.apply(session().light);
+
     this.applyCamera();
     this.scale.on(Phaser.Scale.Events.RESIZE, this.applyCamera, this);
 
     this.unbindAction = onAction(() => this.interact());
     this.unbindTap = onTap((x, y) => this.tap(x, y));
+    bus.on(EV.flags, this.onFlag, this);
     if (import.meta.env.DEV) this.events.on(Phaser.Scenes.Events.RENDER, this.publishState, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unbindAction?.();
       this.unbindAction = null;
       this.unbindTap?.();
       this.unbindTap = null;
+      bus.off(EV.flags, this.onFlag, this);
+      this.lighting.clear();
       this.events.off(Phaser.Scenes.Events.RENDER, this.publishState, this);
       this.scale.off(Phaser.Scale.Events.RESIZE, this.applyCamera, this);
     });
@@ -368,6 +415,183 @@ export class MapScene extends Phaser.Scene {
     if (data.intro && !state.introShown && state.copy.intro) {
       state.introShown = true;
       bus.emit(EV.say, { speaker: state.copy.intro.speaker, lines: state.copy.intro.lines });
+    }
+
+    // Anything this episode stages on arriving here (DESIGN.md §3). It queues
+    // rather than starting outright, so a scene never talks over the opening
+    // card the player is still reading.
+    this.queue({ enter: this.mapId });
+  }
+
+  // --- scenes ----------------------------------------------------------------
+
+  /** Every scene this episode would start now, in the order it lists them. */
+  private queue(trigger: { enter?: string }): void {
+    const { episode, flags } = session();
+    for (const scene of episode.scenes ?? []) {
+      if (!sceneTriggered(scene, trigger, flags)) continue;
+      if (this.runner?.id === scene.id || this.queued.some((waiting) => waiting.id === scene.id)) continue;
+      this.queued.push(scene);
+    }
+  }
+
+  /**
+   * A flag has been set, from a line of dialogue, an item, or a scene's own
+   * `set` step. Two things follow from it and nothing else does: an overlay
+   * whose gate that flag was appears (or goes), and a scene waiting on it
+   * starts (DESIGN.md §3).
+   */
+  private onFlag(): void {
+    this.refreshOverlays();
+    this.queue({});
+  }
+
+  /**
+   * The scene driver (engine/scene.ts). Every method is either "start this" or
+   * "is it over yet" — the runner itself is Phaser-free, and this is the only
+   * place a step turns into something on screen.
+   */
+  private driver(): SceneDriver {
+    return {
+      beginMove: (who, to, speed) => {
+        if (who === SCENE_PLAYER) {
+          this.stopWalk();
+          this.sceneWalk = this.aimWalk(to, null, 0);
+          return this.sceneWalk;
+        }
+        const mover = this.moverFor(who);
+        if (!mover) return false;
+        return mover.sendTo(to, speed, (x, y) => !this.occupiedBySomeoneElse(mover, x, y));
+      },
+      moving: (who) => {
+        if (who === SCENE_PLAYER) return this.walkPath !== null;
+        const mover = this.moverFor(who);
+        return Boolean(mover && (mover.busy || mover.onErrand));
+      },
+      say: (who, lines) => {
+        const state = session();
+        const walker = who ? this.walkers.find((one) => one.id === who) : undefined;
+        if (walker) {
+          // Whoever is speaking turns to the player, exactly as they do when
+          // they are spoken to.
+          const me = this.centre();
+          walker.mover.faceToward(me.x, me.y);
+          walker.sprite.setFrame(frameIndex(walker.mover.facing, 0));
+        }
+        bus.emit(EV.say, {
+          speaker: walker?.name ?? (who ? '' : state.copy.ui.narrator),
+          lines,
+          portrait: who && state.assets.portraits.has(who) ? `art:portrait:${who}` : undefined
+        });
+      },
+      talking: () => session().dialogueOpen,
+      toast: (text) => bus.emit(EV.toast, text),
+      beginCamera: (to, speed) => this.panCamera(to, speed),
+      panning: () => this.cameras.main.panEffect.isRunning,
+      setFlag: (name) => {
+        const flags = session().flags;
+        if (!flags.declared(name)) return;
+        flags.set(name);
+        // A scene that has happened is progress worth remembering, which is
+        // what keeps a `once` scene from playing twice (DESIGN.md §2).
+        autosave();
+      },
+      light: (spec) => this.applyLight(spec)
+    };
+  }
+
+  /**
+   * Whatever `who` names that can be given a path and says when it has
+   * arrived: an episode NPC today, and a `vehicle:<id>` once a map has
+   * vehicles on it. The runner keeps `who` opaque on purpose, so a new kind of
+   * thing that moves needs no change to it (engine/scene.ts).
+   */
+  private moverFor(who: string): Mover | null {
+    return this.walkers.find((walker) => walker.id === who)?.mover ?? null;
+  }
+
+  /** As `occupied`, but taking the mover rather than the walker around it. */
+  private occupiedBySomeoneElse(mover: Mover, x: number, y: number): boolean {
+    const walker = this.walkers.find((one) => one.mover === mover) ?? null;
+    return this.occupied(walker, x, y);
+  }
+
+  /** A scene looking at something, or handing the camera back to the player. */
+  private panCamera(to: Vec2 | 'player', speed?: number): void {
+    const camera = this.cameras.main;
+    const target =
+      to === 'player'
+        ? { x: this.px + TILE / 2, y: this.py + TILE / 2 }
+        : { x: to[0] * TILE + TILE / 2, y: to[1] * TILE + TILE / 2 };
+    const from = camera.midPoint;
+    const tiles = Math.hypot(target.x - from.x, target.y - from.y) / TILE;
+    const ms = Math.max(120, (tiles / Math.max(1, speed ?? PAN_SPEED)) * 1000);
+    camera.stopFollow();
+    camera.pan(target.x, target.y, ms, 'Sine.easeInOut', true, (_c, progress) => {
+      // Back on the player's shoulder the moment the pan home lands, so the
+      // controls never feel as though they have been kept.
+      if (to === 'player' && progress >= 1) camera.startFollow(this.player, true, 1, 1);
+    });
+  }
+
+  /**
+   * A `light` step. The lights go up here and now; `keep` also parks the spec
+   * on the session, which is what carries an evening through a door
+   * (DESIGN.md §3). Anything else is cleared by the next map.
+   */
+  private applyLight(spec: LightSpec): void {
+    const state = session();
+    state.light = spec.keep && spec.mode !== 'off' ? spec : null;
+    this.lighting.apply(spec.mode === 'off' ? null : spec);
+  }
+
+  // --- overlays --------------------------------------------------------------
+
+  /**
+   * Re-reads which overlays are on and repaints only what changed
+   * (DESIGN.md §3). Collision and routing follow because the overlay is a tile
+   * layer on the map itself, so everything that reads the map reads it.
+   */
+  private refreshOverlays(): void {
+    const base = session().maps[this.mapId];
+    const next = withOverlays(base, overlaysOn(this.mapId));
+    const before = patchedTiles.get(this.mapId) ?? new Set<string>();
+    const patch = patchFor(base, overlaysOn(this.mapId));
+    const now = new Set<string>();
+    for (const index of patch.cells.keys()) {
+      now.add(`${index % base.width},${Math.floor(index / base.width)}`);
+    }
+    if (before.size === now.size && [...now].every((key) => before.has(key))) return;
+
+    this.map = next;
+    this.ground = moverWalkable(this.map);
+    // Whatever an overlay covers now, plus whatever it used to cover and no
+    // longer does — that second half is what puts the ordinary ground back.
+    const repaint: Vec2[] = [];
+    for (const key of new Set([...before, ...now])) {
+      const [x, y] = key.split(',').map(Number);
+      repaint.push([x, y]);
+    }
+    patchMapTiles(this, this.mapId, this.map, session().assets.tilesets, repaint);
+    patchedTiles.set(this.mapId, now);
+    this.refreshFixtures();
+  }
+
+  /** Draws any fixture an overlay brought that is not on screen yet. */
+  private refreshFixtures(): void {
+    for (const fixture of this.fixtures()) {
+      const key = `${fixture.kind}:${fixture.pos[0]},${fixture.pos[1]}`;
+      if (this.fixtureSprites.has(key)) continue;
+      const art = fixtureArt(this, fixture);
+      this.fixtureSprites.set(key, this.add.image(art.x, art.y, art.key).setOrigin(0, 0).setDepth(art.depth));
+    }
+    for (const [key, sprite] of this.fixtureSprites) {
+      const [, at] = key.split(':');
+      const [x, y] = at.split(',').map(Number);
+      if (!this.fixtures().some((fixture) => fixture.pos[0] === x && fixture.pos[1] === y)) {
+        sprite.destroy();
+        this.fixtureSprites.delete(key);
+      }
     }
   }
 
@@ -395,7 +619,9 @@ export class MapScene extends Phaser.Scene {
       // A stroll is slower than going somewhere. Tiles per second, so the
       // walk is the same on any screen and at any frame rate.
       speed: (source.route?.speed ?? (SPEED * STROLL_FACTOR) / TILE),
-      walkable: this.ground,
+      // Through a closure rather than by value: an overlay can change what the
+      // ground is under somebody's feet while they are standing on it.
+      walkable: (x, y) => this.ground(x, y),
       seed: hashId(who.id)
     });
     this.walkers.push({ id: who.id, name: who.name, npc: who.npc, mover, sprite });
@@ -424,6 +650,7 @@ export class MapScene extends Phaser.Scene {
         held: held || near,
         blocked: (x, y) => this.occupied(walker, x, y)
       });
+
 
       const { mover, sprite } = walker;
       sprite.setPosition(Math.round(mover.x * TILE) + TILE / 2, Math.round(mover.y * TILE) + TILE);
@@ -505,17 +732,24 @@ export class MapScene extends Phaser.Scene {
         tiles: walker.mover.tiles().map((tile) => [tile[0], tile[1]] as [number, number])
       })),
       flags: state.flags.snapshot(),
-      dialogue: currentDialogue()
+      dialogue: currentDialogue(),
+      scene: this.runner ? { id: this.runner.id, holds: this.runner.holds } : null,
+      light: this.lighting.describe(),
+      overlays: overlaysOn(this.mapId).map((overlay) => overlay.id),
+      toast: currentToast()
     });
   }
 
   update(_time: number, delta: number): void {
     const state = session();
+    const dt = delta / 1000;
     this.armEnters();
+    this.lighting.update(dt);
+    this.runScene(dt);
     // Everybody else moves first, and keeps moving on their own clock: the
     // town does not stop because the player is standing still.
     this.updateWalkers(delta);
-    if (state.locked || state.dialogueOpen) {
+    if (state.locked || (state.dialogueOpen && !this.sceneWalk)) {
       // A card or a box means the trip is over: the walk does not pick itself
       // back up behind the player's back once they have read the line.
       this.stopWalk();
@@ -527,10 +761,14 @@ export class MapScene extends Phaser.Scene {
 
     let dx = 0;
     let dy = 0;
-    if (isHeld('up')) dy = -1;
-    else if (isHeld('down')) dy = 1;
-    if (isHeld('left')) dx = -1;
-    else if (isHeld('right')) dx = 1;
+    // While a scene is walking the player somewhere, the controls are the
+    // scene's; a held direction is simply not read (DESIGN.md §3).
+    if (!this.sceneWalk) {
+      if (isHeld('up')) dy = -1;
+      else if (isHeld('down')) dy = 1;
+      if (isHeld('left')) dx = -1;
+      else if (isHeld('right')) dx = 1;
+    }
 
     // The d-pad and the movement keys always win: taking hold of a direction
     // calls off a tapped walk on the frame it is seen.
@@ -564,6 +802,27 @@ export class MapScene extends Phaser.Scene {
     this.updatePrompt();
     this.updateMarker();
     this.checkExits();
+  }
+
+  /**
+   * One frame of whatever scene is playing, and the next one off the queue
+   * when none is (DESIGN.md §3). A scene never starts over a box that is still
+   * open — the opening card, or a line the player is reading — so it waits its
+   * turn rather than talking over it.
+   */
+  private runScene(dt: number): void {
+    const state = session();
+    if (this.runner) {
+      this.runner.update(dt);
+      if (!this.runner.finished) return;
+      this.runner = null;
+      this.sceneWalk = false;
+    }
+    if (!this.queued.length || state.locked || state.dialogueOpen) return;
+    const next = this.queued.shift();
+    if (!next) return;
+    this.stopWalk();
+    this.runner = new SceneRunner(next, this.driver());
   }
 
   /**
@@ -704,6 +963,8 @@ export class MapScene extends Phaser.Scene {
   private tap(clientX: number, clientY: number): void {
     const state = session();
     if (state.locked || state.dialogueOpen) return;
+    // Where the scene is walking the player is where they are going.
+    if (this.runner?.holds) return;
 
     const point = this.pointAt(clientX, clientY);
     if (!point) return;
@@ -1022,6 +1283,7 @@ export class MapScene extends Phaser.Scene {
   }
 
   private stopWalk(): void {
+    this.sceneWalk = false;
     this.walkPath = null;
     this.walkGoal = null;
     this.walkTarget = null;
@@ -1072,6 +1334,10 @@ export class MapScene extends Phaser.Scene {
 
   /** The A button: whatever is in reach, if anything. */
   private interact(): void {
+    // A scene gets first refusal: A cuts a `wait` short, and is swallowed
+    // while the scene is speaking or walking the player somewhere, so a press
+    // meant to hurry a line along never starts a conversation (DESIGN.md §3).
+    if (this.runner?.skip()) return;
     // A tapped walk is a promise to arrive. A press part-way there would either
     // strand the player or strike up a conversation with somebody they were
     // only walking past, so A waits until the walk is done — and the walk
