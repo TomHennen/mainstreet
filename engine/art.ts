@@ -83,6 +83,15 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, px: number, py: n
       ctx.fillRect(px + 1, py + 6, 14, 2);
       break;
 
+    // A round top with something small set on it: a cafe table, a stool, a barrel.
+    case 'disc':
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px + 4, py + 3, 8, 10);
+      ctx.fillRect(px + 3, py + 4, 10, 8);
+      ctx.fillStyle = c[1] ?? c[0];
+      ctx.fillRect(px + 6, py + 6, 4, 4);
+      break;
+
     case 'block':
       ctx.fillStyle = c[0];
       ctx.fillRect(px, py, TILE, TILE);
