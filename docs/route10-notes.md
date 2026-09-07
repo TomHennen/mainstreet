@@ -479,3 +479,32 @@ opt-in, everything warm and affectionate) before it reaches the player.
   photo mechanism (a generic "story image" asset type, distinct from
   portraits) would be a real feature worth scoping on its own if it ever
   comes up again, not something to fold into this episode.
+- **The wave — real local custom, strong lore/texture, maybe a mystery
+  episode.** Out here everyone waves: a pedestrian waves at every car that
+  passes, drivers wave at other drivers and at pedestrians, and two
+  pedestrians who cross paths usually stop and chat rather than just
+  nodding. Nobody explains this to you — you're just supposed to already
+  know it. Newcomers don't, and it reads as standoffish until someone
+  points it out; real inspiration is Tom and his wife's own first months
+  here, when neighbors (now good friends) had privately nicknamed them the
+  "witness protection couple" because they never waved or smiled at
+  anyone. That's a lovely, funny, true bit of texture on its own — good for
+  a newcomer NPC who gets gently ribbed once they're let in on the joke,
+  or a "nobody told me!" beat the player can share if they play a
+  newcomer-coded character. The mystery hook is a separate, sharper idea
+  riding on the same custom: a woman who's often out walking the
+  neighborhood but never waves, never makes eye contact with passing cars,
+  and sometimes visibly looks away as one goes by — which, against a
+  custom this universal, reads as pointed rather than shy. **"Who is the
+  mysterious woman who won't wave?"** is a good slow-burn hook — town
+  gossip speculates (new to the area? grieving? feuding with someone?
+  just private?) and the fun is in the theories more than a tidy
+  resolution, similar in shape to the beaver saga's "everyone's got a
+  theory" structure above. Needs the same care as any hook drawn from a
+  real person: per hard rule 5, she must be built as a fully invented
+  character (not a stand-in for anyone real), and per hard rule 6 the
+  resolution — if there is one — needs to land warm, not as a punchline at
+  a private, guarded person's expense; something like "she's new and
+  hasn't been told the rule yet, same as us" or "she's shy and it's
+  costing her nothing to let her come round in her own time" fits the
+  town's spirit a lot better than anything that mocks her for it.
