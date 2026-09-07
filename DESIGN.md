@@ -17,7 +17,8 @@ _Engine for small, episodic, pixel-art town games. First world: **Route 10**._
   **real names + placeholder art**: buildings carry their real names from
   day one, art starts as engine placeholders and gets "filled in" by
   community contributions. Unpainted buildings are visible, claimable tasks
-  ("adopt this building"), and painted ones carry an art credit.
+  ("adopt this building"), and every painter is named — on the site's front
+  page, and later on an in-game credits screen.
 
 ## 2. Architecture
 
@@ -111,14 +112,19 @@ anything else.
 
 **Fallback art (engine-built, not per-world):** unpainted building =
 flat facade in a neutral wall color + roof band + door + the building's name
-on a sign, plus a subtle "needs an artist" shimmer and an inspect line that
-links to the contribution page (`world.json` `contribute` is that URL; the
-engine appends `&building=<id>` and offers it as a "Paint it" link beside the
-line). Missing NPC sheet = generic townsperson sprite in a per-NPC accent
-color. Missing portrait = no portrait pane. The floating name plate stays
-above a building once it's painted too, positioned the same way relative to
-the footprint (or above the art's top edge if the facade is taller than the
-footprint); a placement can set `"label": false` in `world.json` to hide it.
+on a sign, plus a subtle "needs an artist" shimmer and a "Paint it" link to
+the contribution page (`world.json` `contribute` is that URL; the engine
+appends `&building=<id>`). The link sits beside the dialogue box for the whole
+time an unpainted building's sign is open, on every page — it is never a line
+of copy, because the words in the box are the story and meta text in the
+middle of them gets in the way of reading. If the episode gives the building
+no sign copy at all, the box would open empty, so `copy.json` `ui.unpainted`
+supplies one short line instead. Missing NPC sheet = generic townsperson
+sprite in a per-NPC accent color. Missing portrait = no portrait pane. The
+floating name plate stays above a building once it's painted too, positioned
+the same way relative to the footprint (or above the art's
+top edge if the facade is taller than the footprint); a placement can set
+`"label": false` in `world.json` to hide it.
 
 ## 3. Episode schema (v1)
 
@@ -197,10 +203,13 @@ most continuity needs).
   constrained editor (locked canvas + palette + submit) — out of scope now,
   but nothing in the pipeline may preclude it.
 - Credits live in `worlds/<id>/credits.json` (optional, graceful fallback —
-  no file means no credit lines), validated by `validate-assets` and shown
-  in-game as an extra line when a painted building is examined.
+  no file means no credits), validated by `validate-assets` and shown on the
+  site's front page under each world ("Painted so far"), with an in-game
+  credits screen to follow in M2. A credit is never appended to a building's
+  sign dialogue: that box is for the episode's copy. `copy.json` `ui.credit`
+  supplies the wording ("Painted by ___").
 - Intake now: files land in the repo by PR/commit with credit in the commit
-  message → surfaced in-game as "painted by ___". Later: Cloudflare Worker
+  message → surfaced as "painted by ___" on the site. Later: Cloudflare Worker
   accepts uploads from Studio, validates, and opens a PR automatically.
   Moderation = PR review. No database anywhere.
 
@@ -305,7 +314,8 @@ Stewart's, Saturday crossword devotee. Hannah — Stewart's counter.
 
 - Story intake: low-friction (site page, email; later Studio). Contributor
   note: contributions are used/adapted with credit. Credit lines at episode
-  end ("this week's story from ___") and on painted buildings.
+  end ("this week's story from ___") and, for art, on the site's front page
+  and the in-game credits screen.
 - Real businesses: name + neutral/affectionate flavor only; opt-in for
   speaking roles/interiors beyond flavor. Real people appear only by opt-in
   ("get pixelated into Route 10").

@@ -15,7 +15,7 @@ import {
 import { publishDebug } from '../debug';
 import { isHeld, onAction } from '../input';
 import { paintUrl } from '../paint';
-import { creditFor, dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signFor } from '../session';
+import { dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signFor } from '../session';
 import { isSolid } from '../validate';
 import type { BuildingPlacement, EpisodeItem, EpisodeSign, Facing, GameMap, Vec2 } from '../schema';
 
@@ -387,19 +387,21 @@ export class MapScene extends Phaser.Scene {
       const lines = sign ? [...sign.lines] : [];
       let link: SayRequest['link'];
 
-      if (state.assets.buildings.has(building.id)) {
-        // Painted ones carry an art credit (DESIGN.md §2/§4): an extra line
-        // after whatever flavor text the episode has for the building's sign.
-        const credit = creditFor(building.id);
-        if (credit) lines.push(state.copy.ui.credit.replace('{credit}', credit));
-      } else {
-        // Unpainted ones carry the invitation to draw them instead, with a
-        // link to the world's contribution page (DESIGN.md §2).
+      // Nothing about the art joins the words: a sign says what is going on at
+      // a place, and meta text in the middle of it gets in the way of reading
+      // (DESIGN.md §2/§4). A painted building's credit belongs to the credits
+      // screen; an unpainted one carries its invitation as the link below,
+      // which rides alongside every page instead of taking a line of its own.
+      if (!state.assets.buildings.has(building.id)) {
         const url = paintUrl(state.world.contribute, building.id);
-        lines.push(
-          state.copy.ui.unpainted.replace('{building}', name).replace('{contribute}', state.world.contribute ?? '')
-        );
-        if (url && state.copy.ui.paint) link = { url, label: state.copy.ui.paint, line: lines.length - 1 };
+        if (url && state.copy.ui.paint) link = { url, label: state.copy.ui.paint };
+        // With no sign copy this episode the box would open empty, so one
+        // short, kind line stands in for it.
+        if (!lines.length) {
+          lines.push(
+            state.copy.ui.unpainted.replace('{building}', name).replace('{contribute}', state.world.contribute ?? '')
+          );
+        }
       }
 
       if (lines.length) bus.emit(EV.say, { speaker: name, lines, link });
