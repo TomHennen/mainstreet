@@ -12,7 +12,11 @@ someone who knows what it looks like to paint it in. See the list below for
 what's still open.
 
 Later we'll also want people — character sheets and portraits — but facades
-come first, since they're what makes each village recognizably itself.
+come first, since they're what makes each village recognizably itself. Until
+someone paints them, the folks you meet are placeholder townspeople, and the
+story data gives each of them a *look* — hair, build, and their own colours —
+so the cast tells itself apart in the meantime. A painted character sheet
+replaces that person's placeholder entirely.
 
 ## How to paint one
 

@@ -206,10 +206,10 @@ the world writes — brief labelled prompts the sender fills in or deletes. A
 `ui.suggest.link`, and the box simply reads with no link (hard rule 3). No
 address, subject or wording appears anywhere in engine code.
 
-Missing NPC sheet = generic townsperson
-sprite in a per-NPC accent color. Missing portrait = no portrait pane. The
-floating name plate stays above a building once it's painted too, positioned
-the same way relative to the footprint (or above the art's
+Missing NPC sheet = generic townsperson sprite, drawn from that person's
+`look` (§4) in their own accent color. Missing portrait = no portrait pane.
+The floating name plate stays above a building once it's painted too,
+positioned the same way relative to the footprint (or above the art's
 top edge if the facade is taller than the footprint); a placement can set
 `"label": false` in `world.json` to hide it.
 
@@ -314,6 +314,15 @@ most continuity needs).
   above it — that is where a roof, an overhang or a sign goes.
 - Character sheets: 16×32 per frame; 4 directions × 3 walk frames; fixed
   row order down, left, right, up.
+- Placeholder people accept a `look`, so a cast reads as a cast before anyone
+  has painted a frame. It goes on an episode NPC, and on `world.json`'s
+  `player`: `hair` (`flat`, `short`, `long`, `curly`, `ponytail`, `bun`,
+  `cap`, `bald`), `hairColor`, `skin`, `shirt` — for which `accent` is the
+  older spelling, still honoured — and `build` (`slim`, `regular`, `broad`).
+  Every field is optional and falls back to the original townsperson, the
+  vocabulary is fixed and validated (`engine/validate.ts`), and the engine
+  owns every shape in it, so a world pack ships no pixels for one. A painted
+  sheet replaces the placeholder outright and the `look` is then ignored.
 - Portraits: 96×96 bust on transparency.
 - Tools: Aseprite or Piskel (free, browser). Later: "Studio," a hosted
   constrained editor (locked canvas + palette + submit) — out of scope now,

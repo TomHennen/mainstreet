@@ -778,3 +778,68 @@ describe('plaqueTile', () => {
     expect(plaqueTile(place({ plaque: false }))).toBeNull();
   });
 });
+
+/**
+ * A `look` is the only part of a person the engine draws itself, so a value it
+ * cannot draw has to be caught here rather than quietly leaving somebody
+ * looking like everybody else (DESIGN.md §4).
+ */
+describe('look validation', () => {
+  const withLook = (look: unknown) =>
+    makeEpisode({
+      npcs: [
+        {
+          id: 'npc1',
+          name: 'NPC',
+          map: 'town',
+          pos: [1, 1],
+          look,
+          dialogue: [{ requires: [], lines: ['hi'] }]
+        } as unknown as Episode['npcs'][number]
+      ]
+    });
+
+  it('accepts a full look', () => {
+    const episode = withLook({ hair: 'long', hairColor: '#3a2c1e', skin: '#e8c39a', shirt: '#fff', build: 'slim' });
+    expect(runEpisode(episode, makeWorld())).toEqual([]);
+  });
+
+  it('accepts no look at all', () => {
+    expect(runEpisode(makeEpisode(), makeWorld())).toEqual([]);
+  });
+
+  it('rejects a hair style the engine cannot draw', () => {
+    const problems = runEpisode(withLook({ hair: 'mullet' }), makeWorld());
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('unknown hair "mullet"');
+  });
+
+  it('rejects a build the engine cannot draw', () => {
+    const problems = runEpisode(withLook({ build: 'huge' }), makeWorld());
+    expect(problems[0]).toContain('unknown build "huge"');
+  });
+
+  it('rejects a colour that is not a hex colour', () => {
+    const problems = runEpisode(withLook({ hairColor: 'chestnut' }), makeWorld());
+    expect(problems[0]).toContain('"hairColor" that isn\'t a hex colour');
+  });
+
+  it('catches a misspelt field rather than ignoring it', () => {
+    const problems = runEpisode(withLook({ haircolor: '#fff' }), makeWorld());
+    expect(problems[0]).toContain('unknown field "haircolor"');
+  });
+
+  it('rejects a look that is not an object', () => {
+    const problems = runEpisode(withLook('long'), makeWorld());
+    expect(problems[0]).toContain("has a \"look\" that isn't an object");
+  });
+
+  it('checks the player’s look too', () => {
+    const world = makeWorld({
+      player: { id: 'player', accent: '#fff', look: { hair: 'flattop' } } as unknown as World['player']
+    });
+    const problems = runWorld(world);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('player "player" look has unknown hair "flattop"');
+  });
+});

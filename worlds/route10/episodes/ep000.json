@@ -10,6 +10,7 @@
       "pos": [19, 13],
       "facing": "down",
       "accent": "#3f6d4e",
+      "look": { "hair": "cap", "hairColor": "#6b6257" },
       "dialogue": [
         {
           "requires": ["done"],
@@ -52,6 +53,7 @@
       "pos": [6, 12],
       "facing": "down",
       "accent": "#7a3e5f",
+      "look": { "hair": "bun", "hairColor": "#4a3524", "build": "slim" },
       "dialogue": [
         {
           "requires": ["done"],

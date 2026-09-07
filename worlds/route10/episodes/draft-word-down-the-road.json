@@ -10,6 +10,7 @@
       "pos": [19, 13],
       "facing": "down",
       "accent": "#3f6d4e",
+      "look": { "hair": "cap", "hairColor": "#6b6257" },
       "dialogue": [
         {
           "requires": ["done"],
@@ -57,6 +58,7 @@
       "pos": [48, 21],
       "facing": "down",
       "accent": "#8a6d4e",
+      "look": { "hair": "curly", "hairColor": "#8a8079", "build": "broad" },
       "dialogue": [
         {
           "requires": ["done"],
@@ -90,6 +92,7 @@
       "pos": [49, 22],
       "facing": "down",
       "accent": "#4a3c55",
+      "look": { "hair": "bald", "build": "broad" },
       "dialogue": [
         {
           "requires": ["done"],
@@ -118,6 +121,7 @@
       "pos": [19, 16],
       "facing": "down",
       "accent": "#5d4a3a",
+      "look": { "hair": "long", "hairColor": "#2b2320", "skin": "#c98d63" },
       "dialogue": [
         {
           "requires": ["helped"],
