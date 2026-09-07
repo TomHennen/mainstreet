@@ -76,6 +76,12 @@ const CANNOT_READ =
   'A PNG saved straight out of a pixel editor usually goes in first time — and if this one ' +
   'stays stubborn, emailing it to us works just as well.';
 
+const IMPROVE_SUCCESS =
+  "Here's the painting as it is in the game. Change whatever you like; the rest stays.";
+
+const IMPROVE_FAILURE =
+  "Couldn't fetch the current painting just now, so this starts from the guide instead.";
+
 type Tool = 'pencil' | 'fill' | 'eraser' | 'eyedropper' | 'line' | 'rect';
 type BrushSize = 1 | 2 | 3;
 type Marker = 'door' | 'plaque';
@@ -586,6 +592,7 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
                tabindex="-1" aria-hidden="true" />
         <button id="pastecode" aria-expanded="false" aria-controls="pastepanel">Paste a code</button>
         <button id="export">Export a PNG</button>
+        ${entry.painted ? '<button id="improveit">Improve it?</button>' : ''}
         <button id="fromguide">Start from the guide</button>
         <button id="clear">Start again</button>
       </div>
@@ -593,6 +600,7 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
         PNG at the width above, any of the heights it lists, and import it here
         to send it in.</p>
       <p class="quiet">Turns the guide into real pixels you can edit and send.</p>
+      ${entry.painted ? '<p class="quiet">"Improve it?" brings in the painting as it ships in the game today, as real pixels — a touch-up starts from there instead of the guide.</p>' : ''}
       <p class="quiet">Sent a drawing in already and want to carry on with it?
         The code is in your sent email — paste it back and it picks up right
         where it left off.</p>
@@ -1608,22 +1616,22 @@ function wireEditor(state: EditorState): void {
    * wrong colours. `premultiplyAlpha: 'none'` keeps a soft edge's colour exact
    * rather than rounding it through its own alpha.
    */
-  async function openPicture(file: File): Promise<Picture> {
+  async function openPicture(blob: Blob): Promise<Picture> {
     if (typeof createImageBitmap === 'function') {
       try {
-        const bitmap = await createImageBitmap(file, {
+        const bitmap = await createImageBitmap(blob, {
           colorSpaceConversion: 'none',
           premultiplyAlpha: 'none'
         });
         return { source: bitmap, width: bitmap.width, height: bitmap.height, release: () => bitmap.close() };
       } catch {
-        // An older browser may not take a File here, or may not know those
+        // An older browser may not take a Blob here, or may not know those
         // options. An <img> reads the same picture; it is only colour-managed,
         // and snapping to the palette takes care of that.
       }
     }
 
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(blob);
     try {
       const image = await new Promise<HTMLImageElement>((resolve, reject) => {
         const img = new Image();
@@ -1655,19 +1663,30 @@ function wireEditor(state: EditorState): void {
     return ctx.getImageData(0, 0, picture.width, picture.height).data;
   }
 
+  /**
+   * The one place a decoded picture becomes palette-indexed pixels sized for
+   * this building's canvas — used by both "Import a PNG" and "Improve it?",
+   * so there is exactly one importer rather than two that could drift apart.
+   * Throws (with a message worth reading) when the picture's size can't
+   * become this canvas; never touches `state`.
+   */
+  function snapPicture(picture: Picture): ReturnType<typeof snapToPalette> {
+    if (!picture.width || !picture.height) throw new Error(CANNOT_READ);
+    const outcome = fitImport(picture.width, picture.height, {
+      width: state.entry.placement.size[0] * TILE,
+      height: state.entry.placement.size[1] * TILE,
+      tile: TILE,
+      maxExtraRows: MAX_EXTRA_ROWS
+    });
+    if (!outcome.ok) throw new Error(outcome.message);
+    return snapToPalette(pixelsOf(picture), picture.width, outcome.fit, paletteRgbs);
+  }
+
   async function importPicture(file: File): Promise<void> {
     const picture = await openPicture(file);
     let report;
     try {
-      if (!picture.width || !picture.height) throw new Error(CANNOT_READ);
-      const outcome = fitImport(picture.width, picture.height, {
-        width: state.entry.placement.size[0] * TILE,
-        height: state.entry.placement.size[1] * TILE,
-        tile: TILE,
-        maxExtraRows: MAX_EXTRA_ROWS
-      });
-      if (!outcome.ok) throw new Error(outcome.message);
-      report = snapToPalette(pixelsOf(picture), picture.width, outcome.fit, paletteRgbs);
+      report = snapPicture(picture);
     } finally {
       picture.release();
     }
@@ -1680,6 +1699,40 @@ function wireEditor(state: EditorState): void {
     fixHeight();
     changed();
     say(describeImport(report, rowsBefore));
+  }
+
+  /**
+   * "Improve it?" — only offered when this building already has a shipped
+   * facade (see main()'s HEAD probe). Fetches that PNG and loads it as real,
+   * editable pixels through the same import machinery a hand-picked file
+   * goes through, so a touch-up starts from the painting as it ships today
+   * rather than from the placeholder guide. Any failure — the fetch, the
+   * decode, or a picture that somehow doesn't fit this canvas — leaves the
+   * drawing exactly as it was and says so kindly; it never falls back to
+   * partial pixels.
+   */
+  async function improvePicture(): Promise<void> {
+    const url = packUrl(state.world.id, `assets/buildings/${state.entry.placement.id}.png`);
+    let report;
+    try {
+      const response = await fetch(url, { cache: 'no-cache' });
+      if (!response.ok) throw new Error('missing');
+      const picture = await openPicture(await response.blob());
+      try {
+        report = snapPicture(picture);
+      } finally {
+        picture.release();
+      }
+    } catch {
+      say(IMPROVE_FAILURE);
+      return;
+    }
+
+    pushUndo();
+    state.pixels = report.pixels;
+    fixHeight();
+    changed();
+    say(IMPROVE_SUCCESS);
   }
 
   /** The faint reference facade, matched to the nearest palette colours. */
@@ -1706,6 +1759,15 @@ function wireEditor(state: EditorState): void {
     state.pixels = pixelsFromReference();
     changed();
     say('The guide is now real pixels of your own — paint over any of it you like.');
+  });
+
+  // Only rendered at all when this building already has a shipped facade
+  // (renderEditor, from main()'s HEAD probe), so a missing element here just
+  // means an unpainted building and there is nothing to wire up.
+  const improveButton = document.getElementById('improveit') as HTMLButtonElement | null;
+  improveButton?.addEventListener('click', () => {
+    say('Fetching the painting as it is in the game…');
+    void improvePicture();
   });
 
   // --- bringing a code back ----------------------------------------------
@@ -2189,6 +2251,11 @@ async function main(): Promise<void> {
     }
     return;
   }
+
+  // Same HEAD probe the building picker uses (`exists`, above), just for the
+  // one building this page is about — going straight to a building's editor
+  // by URL skips the picker entirely, so nothing else has checked yet.
+  entry.painted = await exists(packUrl(worldId, `assets/buildings/${entry.placement.id}.png`));
 
   let palette: (string | null)[];
   try {

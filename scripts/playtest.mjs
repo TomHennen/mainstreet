@@ -885,6 +885,65 @@ async function main() {
     log(`    dragged the door to the left-hand column (${dragged.split('|')[5]})`);
     await shot(sp, 'studio-markers-dragged');
 
+    // --- "Improve it?" -------------------------------------------------------
+    // A touch-up path: bring the shipped facade back onto the canvas as real,
+    // editable pixels (studio/studio.ts improvePicture()), rather than
+    // starting from the placeholder guide. Offered only on a building that
+    // already has a facade PNG (main()'s HEAD probe). Run at phone width,
+    // where the "Files" row has the least room.
+    log('  Studio: "Improve it?"');
+    const anyPainted = Object.values(WORLD.maps)
+      .flatMap((map) => map.buildings)
+      .find((b) => existsSync(resolve(PACK, 'assets', 'buildings', `${b.id}.png`)));
+    if (!anyPainted) fail('studio-improve', 'no painted building in this world to check "Improve it?" against');
+
+    const ip = await touchCtx.newPage();
+    attach(ip, 'studio-improve');
+
+    // Absent on an unpainted building — reusing `bare` from the "Paint it"
+    // check above, which is already known to have no facade PNG.
+    await ip.goto(`${BASE}studio/?world=${WORLD_ID}&building=${bare.id}`, { waitUntil: 'load' });
+    await ip.waitForSelector('#markers', { timeout: 20000 });
+    if (await ip.locator('#improveit').count()) {
+      fail('studio-improve', `"Improve it?" showed up on unpainted ${bare.id}`);
+    }
+    log(`    absent on unpainted ${bare.id}`);
+
+    // Present on a painted building, and clicking it fills the canvas.
+    await ip.goto(`${BASE}studio/?world=${WORLD_ID}&building=${anyPainted.id}`, { waitUntil: 'load' });
+    await ip.waitForSelector('#markers', { timeout: 20000 });
+    const improveButton = ip.locator('#improveit');
+    if (!(await improveButton.isVisible())) {
+      fail('studio-improve', `"Improve it?" is missing on painted ${anyPainted.id}`);
+    }
+
+    const IMPROVE_DRAFT = `mainstreet.studio.v1.${WORLD_ID}.${anyPainted.id}`;
+    async function improveCode(differentFrom) {
+      for (let i = 0; i < 80; i++) {
+        const code = await ip.evaluate((key) => {
+          try {
+            return JSON.parse(localStorage.getItem(key) ?? '{}').code ?? null;
+          } catch {
+            return null;
+          }
+        }, IMPROVE_DRAFT);
+        if (code && code !== differentFrom) return code;
+        await sleep(100);
+      }
+      fail('studio-improve', `the code never settled${differentFrom ? ' after clicking "Improve it?"' : ''}`);
+    }
+
+    const blank = await improveCode(null);
+    await improveButton.click();
+    const filled = await improveCode(blank);
+    if (filled === blank) fail('studio-improve', '"Improve it?" did not change the drawing');
+    log(`    "${anyPainted.id}": clicking "Improve it?" filled the canvas from the shipped PNG`);
+    // The click scrolled the "Files" row into view; scroll back up so the
+    // screenshot shows the canvas with the painting now on it.
+    await ip.locator('#stage').scrollIntoViewIfNeeded();
+    await sleep(150);
+    await shot(ip, 'improve-it');
+
     log('\n  ep000 completed end to end.');
   } finally {
     await browser.close();

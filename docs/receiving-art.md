@@ -83,6 +83,15 @@ the name given, spelled as given. First name only is fine.
 - A better version of an already painted building: same steps with
   `--force`; keep the earlier painter in the PR body so the history shows
   both, and ask Tom which credit line to show if the painters differ.
+- A touch-up made from the Studio's "Improve it?" button — which loads the
+  shipped painting back onto the canvas as real pixels to edit, rather than
+  starting from the placeholder guide — arrives exactly like any other
+  submission: a full facade code (or PNG), same steps with `--force`. There
+  is nothing in the code or the email that marks it as a touch-up rather
+  than a repaint from scratch. If it reads as the same painting with changes
+  rather than a new one, credit both the original painter and whoever
+  touched it up, in the order they painted, unless the original painter has
+  said otherwise; ask Tom if it's unclear which this is.
 - Someone asks to change or remove their credit or their art: do it in one
   PR, no questions asked, and say so in the PR body.
 
