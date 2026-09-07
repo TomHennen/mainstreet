@@ -27,37 +27,65 @@
     "mill-pond-inn": {
       "name": "Mill Pond Inn",
       "wall": "#8a6d4e",
-      "roof": "#5b4632"
+      "roof": "#5b4632",
+      "sign": [
+        "Pizza night Monday and Wednesday, chalked by the door in a hand that has written it a hundred times.",
+        "The mill pond sits right behind the place, and on a warm evening the door stays propped so the talk carries out over the water."
+      ]
     },
     "jefferson-town-hall": {
       "name": "Jefferson Town Hall",
       "wall": "#d9d2c0",
-      "roof": "#6d6a5c"
+      "roof": "#6d6a5c",
+      "sign": [
+        "The flag out front, a bulletin board by the door, and a light left on inside for whoever is coming to the meeting.",
+        "Meeting nights are posted, court sits about once a month, and metal recycling is the first Saturday. Small things, kept up carefully."
+      ]
     },
     "heartbreak-hotel": {
       "name": "Heartbreak Hotel",
       "wall": "#a34a4a",
-      "roof": "#6e2f2f"
+      "roof": "#6e2f2f",
+      "sign": [
+        "Two hearts painted up under the roofline, one either side, and a porch light left on whether or not anybody needs it.",
+        "The name is up in letters you can read from the far end of Main Street, and the windows are warm well before the evening gets going."
+      ]
     },
     "middle-brook-cafe": {
       "name": "Middle Brook Cafe",
       "wall": "#c2a15c",
-      "roof": "#7c6236"
+      "roof": "#7c6236",
+      "sign": [
+        "The stone patio out front is filling up, and there is a cup on nearly every table catching the morning sun.",
+        "Round the back the herb garden is doing well enough that you can smell it from the parking lot."
+      ]
     },
     "stewarts": {
       "name": "Stewart's",
       "wall": "#e4e0d4",
-      "roof": "#b5542a"
+      "roof": "#b5542a",
+      "sign": [
+        "Coffee in one hand and a cone in the other, and the whole junction of NY 10 and NY 23 going by the window.",
+        "Somebody at the counter is catching somebody else up on the week. This is where the news gets handed round first."
+      ]
     },
     "mac-a-doodles": {
       "name": "Mac-A-Doodles",
       "wall": "#7a8fb0",
-      "roof": "#4d5f7d"
+      "roof": "#4d5f7d",
+      "sign": [
+        "It holds down the south-east corner of the junction, with the lot filling up steadily and the door going all through lunch.",
+        "A window table taken, somebody heading in with the whole family, and whatever is on the griddle reaching you before the door does."
+      ]
     },
     "stamford-coffee": {
       "name": "Stamford Coffee",
       "wall": "#6f5b7d",
-      "roof": "#4a3c55"
+      "roof": "#4a3c55",
+      "sign": [
+        "The patio out front is half the building: tables full, a dog asleep under one of them, everybody half in the sun.",
+        "Cups going out steadily, the sandwich board up by the register, and 80 Main's shelves right there off the same deck."
+      ]
     },
     "the-belvedere": {
       "name": "The Belvedere",
@@ -71,7 +99,11 @@
     "cellar-door-wines": {
       "name": "Cellar Door Wines",
       "wall": "#5d4a3a",
-      "roof": "#3c2f24"
+      "roof": "#3c2f24",
+      "sign": [
+        "Bottles in the window with cards under them, hand-written, telling you exactly what each one wants to go with.",
+        "Out front there is a bench, and that is the whole patio. On a good afternoon it is the best seat on Main Street."
+      ]
     },
     "tops": {
       "name": "Tops",

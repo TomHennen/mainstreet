@@ -119,7 +119,9 @@ export interface BuildingDef {
    * and this follows it, the way a flyer taped to the window sits on top of
    * the place without erasing it. An episode that wants the door entirely to
    * itself sets `replace` on its sign (DESIGN.md §3). With neither kind of
-   * sign, the door falls back to `copy.ui.unpainted`.
+   * sign, the door falls back to `copy.ui.unpainted` — a stand-in the
+   * validator keeps for buildings no map places yet, since every building
+   * that is actually standing on a map has to carry one of its own.
    */
   sign?: string[];
 }

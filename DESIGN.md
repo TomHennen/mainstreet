@@ -279,10 +279,16 @@ the standing sign steps aside for as long as that sign is the one showing. A
 building with neither kind of sign falls back to `copy.ui.unpainted`, which is
 now only ever seen at a door nobody has written anything for yet.
 
+Every building a map actually places must carry a standing sign, and
+`validate-episodes` enforces it: a door the player can walk up to reads copy
+somebody wrote for that place, not the stand-in. A registry entry no map
+places yet may go without one until it is put on a map.
+
 Engine responsibilities: declare-before-use flag validation, first-match
 dialogue resolution, effect application, sign lookup, item visibility.
 `validate-episodes` enforces: unknown flags, unreachable dialogue entries,
-missing maps/buildings/positions, effects on undeclared flags.
+missing maps/buildings/positions, effects on undeclared flags, and a standing
+sign on every building a map places.
 
 A world plays `world.episodes[0]` by default — the first listed episode is
 what ships. A `?episode=<id>` URL parameter plays any episode file under
