@@ -113,7 +113,7 @@
       "roof": "#5c6b41",
       "sign": [
         "Up the hill and lit early, and it sounds like everybody in there knows everybody.",
-        "It was a hotel once, and the building still has the shoulders for it. These days the bar is the part that's open, and the bar is plenty.",
+        "It was a hotel once, and it is still that big. These days the bar is the part that's open, and the bar is plenty.",
         "Inside: one long bar you can walk all the way round, foosball, a little corner stage, and a board with tonight's plan chalked on it.",
         "A taped-up flyer teases a big-name comedian, headed this way one of these days. DATE TBA. Guess you'll just have to keep checking back."
       ]
@@ -989,12 +989,19 @@
         {
           "id": "stamford-coffee-barista",
           "name": "Ronnie",
-          "pos": [7, 1],
+          "pos": [
+            7,
+            1
+          ],
           "facing": "down",
-          "look": { "hair": "curly", "hairColor": "#3a2a1e", "shirt": "#5c7a8f" },
+          "look": {
+            "hair": "curly",
+            "hairColor": "#3a2a1e",
+            "shirt": "#5c7a8f"
+          },
           "lines": [
             "Morning. The board's up there, but the Maple Smoke latte's the one everybody ends up asking about.",
-            "Take your time picking a table — the patio's lovely if the sun's out."
+            "Take your time picking a table \u2014 the patio's lovely if the sun's out."
           ]
         }
       ]
@@ -1045,8 +1052,8 @@
             9
           ],
           "lines": [
-            "A whole wall of it, papered over floor to ceiling, and papered again where the seams went.",
-            "Behind it, they say, is the old hotel's swimming pool \u2014 dry for years, and quietly still there."
+            "They papered over this whole wall, and it looks like there are glass doors behind it.",
+            "Behind those, they say, is the old hotel's swimming pool \u2014 dry for years, and still there."
           ]
         },
         {
@@ -1055,8 +1062,8 @@
             19
           ],
           "lines": [
-            "Somebody drew something on this wall once, and everybody has been drawing on it ever since.",
-            "A whole wall of them, in every hand in town: a dog, a mountain, a pickup, a heart with two names in it, and one very good cow."
+            "Somebody drew on this wall once, and everybody has been adding to it ever since.",
+            "Every hand in town is on it: a dog, a mountain, a pickup, a heart with two names in it, one very good cow, and plenty of penises."
           ]
         },
         {
@@ -1066,7 +1073,7 @@
           ],
           "lines": [
             "A note taped to this one, in marker: OUT OF ORDER, SORRY \u2014 BACK SOON.",
-            "Underneath, in a different hand and a different pen: it's alright, the other one's nicer anyway."
+            "Underneath, in a different pen: it's alright, the other one's nicer anyway."
           ]
         },
         {
@@ -1075,7 +1082,7 @@
             19
           ],
           "lines": [
-            "The other one: a urinal, a stall, and no sign on the door about who it's for.",
+            "The other one: a urinal, a stall, and no sign on the door saying who it's for.",
             "There's a latch on the inside if you'd like the room to yourself."
           ]
         },
@@ -1085,8 +1092,8 @@
             18
           ],
           "lines": [
-            "A chalkboard propped by the door, wiped and rewritten so many times the paint has gone soft.",
-            "TONIGHT: whoever turns up, whatever they feel like. Underneath, smaller: the stage is right there, and nobody in here is a critic."
+            "A chalkboard propped by the door, wiped and rewritten so many times it has gone soft and grey.",
+            "TONIGHT: whoever turns up, whatever they feel like. Underneath, smaller: the stage is right there and nobody in here is a critic."
           ]
         }
       ],
@@ -1105,7 +1112,7 @@
             "build": "broad"
           },
           "lines": [
-            "Evening. Anywhere you like \u2014 it's all the good seats in here.",
+            "Evening. Grab any stool you like.",
             "Anything you need, I'm right here. I'm always right here."
           ]
         }

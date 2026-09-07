@@ -15,8 +15,8 @@
       "rect": [0, 6, 1, 7],
       "tiles": [50],
       "lines": [
-        "A whole wall of it, papered over floor to ceiling, and papered again where the seams went.",
-        "Behind it, they say, is the old hotel's swimming pool — dry for years, and quietly still there."
+        "They papered over this whole wall, and it looks like there are glass doors behind it.",
+        "Behind those, they say, is the old hotel's swimming pool — dry for years, and still there."
       ]
     },
     { "kind": "foosball", "rect": [16, 6, 2, 1] },
@@ -28,8 +28,8 @@
       "rect": [18, 19, 3, 1],
       "tiles": [51],
       "lines": [
-        "Somebody drew something on this wall once, and everybody has been drawing on it ever since.",
-        "A whole wall of them, in every hand in town: a dog, a mountain, a pickup, a heart with two names in it, and one very good cow."
+        "Somebody drew on this wall once, and everybody has been adding to it ever since.",
+        "Every hand in town is on it: a dog, a mountain, a pickup, a heart with two names in it, one very good cow, and plenty of penises."
       ]
     },
     {
@@ -37,14 +37,14 @@
       "at": [[22, 19]],
       "lines": [
         "A note taped to this one, in marker: OUT OF ORDER, SORRY — BACK SOON.",
-        "Underneath, in a different hand and a different pen: it's alright, the other one's nicer anyway."
+        "Underneath, in a different pen: it's alright, the other one's nicer anyway."
       ]
     },
     {
       "kind": "door",
       "at": [[24, 19]],
       "lines": [
-        "The other one: a urinal, a stall, and no sign on the door about who it's for.",
+        "The other one: a urinal, a stall, and no sign on the door saying who it's for.",
         "There's a latch on the inside if you'd like the room to yourself."
       ]
     },
@@ -61,8 +61,8 @@
       "kind": "sign",
       "at": [[10, 18]],
       "lines": [
-        "A chalkboard propped by the door, wiped and rewritten so many times the paint has gone soft.",
-        "TONIGHT: whoever turns up, whatever they feel like. Underneath, smaller: the stage is right there, and nobody in here is a critic."
+        "A chalkboard propped by the door, wiped and rewritten so many times it has gone soft and grey.",
+        "TONIGHT: whoever turns up, whatever they feel like. Underneath, smaller: the stage is right there and nobody in here is a critic."
       ]
     }
   ],
@@ -73,7 +73,7 @@
       "facing": "down",
       "look": { "hair": "bald", "skin": "#c98d63", "shirt": "#3f6d7d", "build": "broad" },
       "lines": [
-        "Evening. Anywhere you like — it's all the good seats in here.",
+        "Evening. Grab any stool you like.",
         "Anything you need, I'm right here. I'm always right here."
       ]
     }

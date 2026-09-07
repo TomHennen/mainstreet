@@ -106,11 +106,11 @@ the bar's right side to your left. Foosball tables are to your right, and
 there are a couple of tables. Down a hallway, again to the right, are two
 bathrooms: one is out of order, the other has a urinal and a stall, is not
 gendered, and anyone can latch the door if they want privacy. The same hallway
-has a wall everybody has drawn fun things on in sharpie — a whole wall of them,
-in every hand in town — and it carries on out to the outdoor area and the
-firepit. One wall of the bar room, on your left as you come in, is papered
-over floor to ceiling: behind it is the hotel's old swimming pool, dry for
-years.
+has a wall everybody has drawn on in sharpie, every hand in town on it, and it
+carries on out to the outdoor area and the firepit. One wall of the bar room,
+on your left as you come in, is papered over, and it looks like there are
+glass doors behind the paper: behind those is the hotel's old swimming pool,
+dry for years.
 
 **What plays at the Belvedere (Tom, Sep 2026).** DJ nights, and sometimes a
 scrappy punk band. It is not a fiddle place — don't write one in. Karaoke,
