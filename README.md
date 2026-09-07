@@ -26,8 +26,8 @@ npm run playtest
 `npm run playtest` plays the current episode end to end in headless Chromium —
 it walks the player between villages and interiors, talks to every character the
 story needs, checks the flags each step is supposed to set, screenshots every
-milestone, and exercises the touch d-pad and the A-button debounce on a phone
-sized viewport. Screenshots and a run log land in `playtest-out/`, and it exits
+milestone, and exercises tap-to-walk, the touch d-pad and the A-button debounce
+on a phone sized viewport. Screenshots and a run log land in `playtest-out/`, and it exits
 non-zero with the milestone, the state and the screenshot path on the first
 failure. It starts a dev server itself if one is not already on :5173.
 

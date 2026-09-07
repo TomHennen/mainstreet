@@ -92,6 +92,25 @@ per-map metadata; the grid is joined onto it at load.
 **Scenes:** Boot → Title → Village (one per map) → Interior → Travel
 interstitial (covers map swaps) → Dialogue UI overlaid on any scene.
 
+**Controls.** Tapping (or clicking) the town is the primary way to play:
+the player walks to the tapped tile along walkable ones — breadth-first over
+the map's collision, people included, and never across a road out of the
+village unless that road is what was tapped — and a small ring marks where
+they are headed until they get there. A tap on a blocked or unreachable tile
+walks to the nearest tile beside it, or, if there is no way through at all,
+blinks the ring once and stays put. Tapping a person, a door, a sign, a
+plaque or something lying about walks to where it is read from and reads it
+on arrival, exactly as pressing A there would — and somebody behind a counter,
+with no free tile beside them, is walked up to as close as that same reach
+allows. Any d-pad or movement key
+calls the walk off on the spot, and a new tap replaces the destination; A
+waits until the walk is over rather than stranding the player half way.
+The touch d-pad and A button stay exactly as they are, for anyone who
+prefers them, and the keyboard (arrows/WASD, space/enter) sits behind both.
+It is all one pointer path (`engine/input.ts`), and the routing is a pure
+function over a walkability callback (`engine/path.ts`) so it can be tested
+without a scene.
+
 **Travel:** villages are separate Tiled maps joined by a travel graph in
 `world.json` (edge = exit zone → destination map + spawn point). Crossing an
 edge plays the interstitial: fade, rolling-road animation, per-edge copy from

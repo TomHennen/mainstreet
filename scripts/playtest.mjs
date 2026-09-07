@@ -774,6 +774,182 @@ async function main() {
     expectFlag(closed, 'touch-debounce', 'metEarl');
     await shot(tp, 'touch-complete');
 
+    // --- tap to walk --------------------------------------------------------
+    // The primary control scheme (CLAUDE.md #4): tap where you want to go and
+    // the player walks there; tap somebody and they walk over and say hello.
+    // Checked on a phone-sized page, which is where it earns its keep.
+    log('  tap to walk (390x844, hasTouch)');
+    const walkCtx = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      isMobile: false,
+      deviceScaleFactor: 1
+    });
+    const wp = await walkCtx.newPage();
+    attach(wp, 'tap');
+    const wcdp = await walkCtx.newCDPSession(wp);
+    await wp.goto(BASE, { waitUntil: 'load' });
+    await waitUntil(wp, (s) => s.dialogueOpen, 'the intro on the tap page');
+    for (let i = 0; i < 5 && (await snap(wp)).dialogueOpen; i++) {
+      await tapEl(wcdp, wp, '#stage');
+      await sleep(320);
+    }
+    if ((await snap(wp)).dialogueOpen) fail('tap-walk', 'the intro never closed on the tap page');
+
+    /** Where a tile sits on the canvas right now, from the camera in the snapshot. */
+    async function pointOfTile(page, tile) {
+      const s = await snap(page);
+      const box = await page.locator('#stage canvas').boundingBox();
+      if (!s?.view || !box) fail('tap-walk', 'the snapshot carries no camera view to tap into');
+      const { x, y, width, height, tile: T } = s.view;
+      const p = {
+        x: box.x + ((tile[0] * T + T / 2 - x) / width) * box.width,
+        y: box.y + ((tile[1] * T + T / 2 - y) / height) * box.height
+      };
+      if (p.x < box.x || p.y < box.y || p.x > box.x + box.width || p.y > box.y + box.height) {
+        fail('tap-walk', `tile ${tile} is off screen (${JSON.stringify(p)} outside ${JSON.stringify(box)})`);
+      }
+      return p;
+    }
+    const tapTile = async (page, cdp, tile) => tapPoint(cdp, await pointOfTile(page, tile));
+
+    // Tiles that read as something when tapped, which a plain walk must avoid.
+    function readableTiles(mapId) {
+      const set = new Set();
+      const add = (x, y) => set.add(`${x},${y}`);
+      for (const n of EPISODE.npcs.filter((n) => n.map === mapId)) {
+        add(n.pos[0], n.pos[1]);
+        add(n.pos[0], n.pos[1] - 1);
+      }
+      for (const i of (EPISODE.items ?? []).filter((i) => i.map === mapId)) add(i.pos[0], i.pos[1]);
+      for (const s of (EPISODE.signs ?? []).filter((s) => s.map === mapId && s.pos)) add(s.pos[0], s.pos[1]);
+      for (const b of WORLD.maps[mapId].buildings) {
+        add(b.door[0], b.door[1]);
+        add(b.door[0], b.door[1] - 1);
+        const p = plaqueOf(b);
+        if (p) add(p[0], p[1]);
+      }
+      return set;
+    }
+
+    /**
+     * A plain tile to tap: on screen, nothing to read on it, and a real walk
+     * away. Picked from the map rather than written down, so a map edit moves
+     * it instead of breaking the run.
+     */
+    async function farTile(page, min, max, avoid = null) {
+      const s = await snap(page);
+      const box = await page.locator('#stage canvas').boundingBox();
+      const { x, y, width, height, tile: T } = s.view;
+      const skip = readableTiles(s.map);
+      const exits = exitTiles(WORLD.maps[s.map]);
+      const from = here(s);
+      // A margin so a tap never lands on the very edge pixel of the view.
+      const x0 = Math.ceil((x + T) / T);
+      const x1 = Math.floor((x + width - T) / T);
+      const y0 = Math.ceil((y + T) / T);
+      const y1 = Math.floor((y + height - T) / T);
+      let best = null;
+      let bestLen = 0;
+      for (let ty = y0; ty <= y1; ty++) {
+        for (let tx = x0; tx <= x1; tx++) {
+          const k = `${tx},${ty}`;
+          if (skip.has(k) || exits.has(k)) continue;
+          if (avoid && avoid[0] === tx && avoid[1] === ty) continue;
+          if (isSolid(WORLD.maps[s.map], tx, ty) || npcAt(s.map, tx, ty)) continue;
+          const path = findPath(s.map, from, [tx, ty]);
+          if (!path) continue;
+          const len = path.length - 1;
+          if (len < min || len > max || len <= bestLen) continue;
+          best = [tx, ty];
+          bestLen = len;
+        }
+      }
+      if (!best) fail('tap-walk', `no walkable tile ${min}-${max} steps away is on screen (box ${JSON.stringify(box)})`);
+      return { tile: best, steps: bestLen };
+    }
+
+    // A tap on somebody walks over and talks to them, once.
+    log('  tap Earl');
+    const earlBefore = await snap(wp);
+    await tapTile(wp, wcdp, earl.pos);
+    await waitUntil(wp, (s) => s.dialogueOpen, 'Earl to be talked to after a tap', 8000);
+    const earlAfter = await snap(wp);
+    if (Math.abs(earlAfter.y - earlBefore.y) < 0.5) {
+      fail('tap-earl', `tapping Earl opened his dialogue without walking there: y stayed at ${earlAfter.y.toFixed(2)}`);
+    }
+    log(`    walked ${earlBefore.y.toFixed(2)} -> ${earlAfter.y.toFixed(2)} and said hello`);
+    await shot(wp, 'tap-earl');
+    await advanceDialogue(wp, 'tap-earl', 3);
+
+    // A tap on a plain tile walks there, with the ring on the destination all
+    // the way — this is the shot Tom looks at.
+    log('  tap a far tile');
+    const far = await farTile(wp, 5, 12);
+    await tapTile(wp, wcdp, far.tile);
+    const walking = await waitUntil(wp, (s) => s.walkTo !== null, 'the walk to start', 4000);
+    if (walking.walkTo[0] !== far.tile[0] || walking.walkTo[1] !== far.tile[1]) {
+      fail('tap-far', `tapped ${far.tile} and the marker went to ${walking.walkTo}`);
+    }
+    await sleep(260);
+    const midway = await snap(wp);
+    if (!midway.walkTo) fail('tap-far', `the ${far.steps}-step walk was over before it could be photographed`);
+    await shot(wp, 'tap-walking');
+    log(`    ${far.steps} steps to ${far.tile}, ring on the destination`);
+    await waitUntil(wp, (s) => !s.walkTo, 'the walk to finish', 12000);
+    const arrived = await snap(wp);
+    if (Math.abs(arrived.x - far.tile[0]) > 0.1 || Math.abs(arrived.y - far.tile[1]) > 0.1) {
+      fail('tap-far', `walked to (${arrived.x.toFixed(2)}, ${arrived.y.toFixed(2)}) instead of ${far.tile}`);
+    }
+    if (arrived.dialogueOpen) fail('tap-far', 'walking to a plain tile opened a dialogue box');
+    log(`    arrived at ${here(arrived)}`);
+    await shot(wp, 'tap-arrived');
+
+    // A second tap part-way replaces the destination.
+    log('  tap again mid-walk to redirect');
+    const firstGoal = await farTile(wp, 7, 14);
+    await tapTile(wp, wcdp, firstGoal.tile);
+    await waitUntil(wp, (s) => s.walkTo !== null, 'the first walk to start', 4000);
+    await sleep(300);
+    const secondGoal = await farTile(wp, 3, 9, firstGoal.tile);
+    await tapTile(wp, wcdp, secondGoal.tile);
+    const redirected = await waitUntil(
+      wp,
+      (s) => s.walkTo !== null && (s.walkTo[0] !== firstGoal.tile[0] || s.walkTo[1] !== firstGoal.tile[1]),
+      'the destination to move to the second tap',
+      4000
+    );
+    if (redirected.walkTo[0] !== secondGoal.tile[0] || redirected.walkTo[1] !== secondGoal.tile[1]) {
+      fail('tap-redirect', `second tap on ${secondGoal.tile} left the marker at ${redirected.walkTo}`);
+    }
+    await waitUntil(wp, (s) => !s.walkTo, 'the redirected walk to finish', 12000);
+    const landed = await snap(wp);
+    if (Math.abs(landed.x - secondGoal.tile[0]) > 0.1 || Math.abs(landed.y - secondGoal.tile[1]) > 0.1) {
+      fail('tap-redirect', `ended at ${here(landed)} instead of ${secondGoal.tile}`);
+    }
+    log(`    ${firstGoal.tile} -> redirected to ${secondGoal.tile}`);
+
+    // And the d-pad always wins: one press calls the walk off where it stands.
+    log('  d-pad cancels a walk');
+    const cancelGoal = await farTile(wp, 6, 14);
+    await tapTile(wp, wcdp, cancelGoal.tile);
+    await waitUntil(wp, (s) => s.walkTo !== null, 'the walk to cancel to start', 4000);
+    await sleep(220);
+    const dpadDown = await centerOf(wp, '[data-dpad=down]');
+    await touchAt(wcdp, 'touchStart', dpadDown.x, dpadDown.y);
+    await sleep(120);
+    await touchAt(wcdp, 'touchEnd', dpadDown.x, dpadDown.y);
+    const cancelled = await snap(wp);
+    if (cancelled.walkTo) fail('tap-cancel', `the d-pad did not call the walk off: still heading for ${cancelled.walkTo}`);
+    await sleep(400);
+    const stopped = await snap(wp);
+    if (Math.abs(stopped.x - cancelGoal.tile[0]) < 0.1 && Math.abs(stopped.y - cancelGoal.tile[1]) < 0.1) {
+      fail('tap-cancel', `the walk carried on to ${cancelGoal.tile} after the d-pad press`);
+    }
+    if (stopped.walkTo) fail('tap-cancel', 'the walk picked itself back up after the d-pad press');
+    log(`    stopped at ${here(stopped)}, short of ${cancelGoal.tile}`);
+    await shot(wp, 'tap-cancelled');
+
     // --- Paint it -----------------------------------------------------------
     // The invitation to draw an unpainted building lives on the plaque beside
     // its door: one kind line, with the DOM link beside the box, deep-linked
