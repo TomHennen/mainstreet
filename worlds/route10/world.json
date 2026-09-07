@@ -9,7 +9,6 @@
   },
   "palette": "palette.png",
   "episodes": [
-    "ep000",
     "ep001"
   ],
   "player": {

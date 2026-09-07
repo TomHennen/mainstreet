@@ -18,6 +18,12 @@ That is the whole workflow. `.env` selects which world pack the dev server
 serves (`VITE_WORLD=route10`); the engine has no default and will refuse to boot
 without it.
 
+By default the game plays `world.episodes[0]` — the shipped episode. Add
+`?episode=<id>` to the URL to play any other episode file under
+`worlds/<id>/episodes/` for review, listed in `world.json` or not (a shelved
+draft, or a fixture like route10's `ep000`) — e.g.
+`http://localhost:5173/?episode=ep000`. See DESIGN.md §3.
+
 ```sh
 npx playwright install chromium   # once
 npm run playtest
@@ -45,7 +51,10 @@ lookups), `engine/flags.ts`/`engine/bus.ts` (declare-before-use, the
 decoder/encoder, round-tripped against tiny generated fixtures). `npm run
 validate-episodes` runs those same `engine/validate.ts` rules — nothing is
 duplicated — against every world pack on disk and exits non-zero on the first
-problem, with the world id, file and message. `npm run validate-assets` does
+problem, with the world id, file and message. By default it checks only each
+world's shipped episode list; `npm run validate-episodes -- --all` also
+validates every other `episodes/*.json` on disk (review fixtures loaded via
+`?episode=`), except files starting with `draft-`. `npm run validate-assets` does
 the same for every PNG under a world's `assets/` (building/char/portrait
 sizes, tileset PNGs matching their JSON, every opaque pixel on-palette) and
 for `credits.json` (every credited id must exist and be painted). Point
@@ -56,8 +65,10 @@ path/to/worlds`).
 ## CI
 
 Every pull request and push to `main` runs `.github/workflows/ci.yml`:
-typecheck, `npm test`, `npm run validate-episodes`, `npm run validate-assets`,
-a production build, then the headless playtest in a second job. When the playtest fails, its screenshots
+typecheck, `npm test`, `npm run validate-episodes -- --all` (so review
+fixtures like route10's `ep000` stay valid even though they're not shipped),
+`npm run validate-assets`, a production build, then the headless playtest in
+a second job. When the playtest fails, its screenshots
 and log are uploaded as the `playtest-out` artifact on the run. The
 `.devcontainer/` gives the same environment (Node 22 plus Chromium) locally or
 in Codespaces.

@@ -254,6 +254,16 @@ dialogue resolution, effect application, sign lookup, item visibility.
 `validate-episodes` enforces: unknown flags, unreachable dialogue entries,
 missing maps/buildings/positions, effects on undeclared flags.
 
+A world plays `world.episodes[0]` by default — the first listed episode is
+what ships. A `?episode=<id>` URL parameter plays any episode file under
+`worlds/<id>/episodes/`, listed in `world.json` or not, for review — e.g. a
+shelved draft, or a test fixture kept off the shipped list. The id must match
+`[A-Za-z0-9_-]+`; an id that fails that pattern, has no matching file, or
+fails validation falls back to the default episode with a console warning
+rather than a blank screen (hard rule 3). `npm run validate-episodes` only
+checks the shipped list by default; `--all` also validates every other
+`episodes/*.json` on disk except files starting with `draft-`.
+
 Future (not v1): `"date"` conditions for calendar-reactive content;
 `"choice"` nodes; cross-episode flag imports (global flags already cover
 most continuity needs).

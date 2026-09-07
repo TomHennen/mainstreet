@@ -98,6 +98,21 @@ export async function loadWorld(worldId: string): Promise<LoadedWorld> {
 }
 
 /**
+ * Fetches one episode file directly, independent of world.episodes — this is
+ * what `?episode=<id>` (DESIGN.md §3) plays for review, whether or not the id
+ * is listed there. Returns undefined if the file is missing (a 404), so the
+ * caller can fall back to the default episode rather than show a blank
+ * screen (CLAUDE.md hard rule 3); any other fetch failure still throws.
+ */
+export async function loadEpisode(worldId: string, episodeId: string): Promise<Episode | undefined> {
+  const url = `${worldRoot(worldId)}/episodes/${episodeId}.json`;
+  const response = await fetch(url, { cache: 'no-cache' });
+  if (response.status === 404) return undefined;
+  if (!response.ok) throw new Error(`${url} -> HTTP ${response.status}`);
+  return (await response.json()) as Episode;
+}
+
+/**
  * Assets load by convention with graceful fallback (CLAUDE.md hard rule 3): ask
  * whether each conventional path exists, and let the caller draw a placeholder
  * for every one that does not. A 404 here is the normal case for an unpainted

@@ -29,7 +29,7 @@ jobs:
       - name: Test
         run: npm test
       - name: Validate world packs
-        run: npm run validate-episodes
+        run: npm run validate-episodes -- --all
       - name: Validate assets
         run: npm run validate-assets
       - name: Build
