@@ -5,7 +5,8 @@
   "contribute": "https://tomhennen.github.io/mainstreet/studio/?world=route10",
   "palette": "palette.png",
   "episodes": [
-    "ep000"
+    "ep000",
+    "ep001"
   ],
   "player": {
     "id": "player",
