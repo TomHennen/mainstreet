@@ -38,6 +38,13 @@ export interface DebugSnapshot {
    * ground is plain ground (engine/scenes/map.ts tapTargetAt).
    */
   art: { x: number; y: number; w: number; h: number }[];
+  /**
+   * Everybody on this map who is not the player, where they are *now*: tile
+   * coordinates as floats, and every tile they are standing on (two while
+   * they are stepping between tiles). Townspeople walk (engine/mover.ts), so
+   * the harness cannot take their placed position for where they are.
+   */
+  people: { id: string; x: number; y: number; tiles: [number, number][] }[];
   flags: Record<string, boolean>;
   /** The page of dialogue on screen, or null when no box is open. */
   dialogue: DebugDialogue | null;

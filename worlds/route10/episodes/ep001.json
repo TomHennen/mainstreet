@@ -92,6 +92,7 @@
       "facing": "down",
       "accent": "#8a6d4e",
       "look": { "hair": "curly", "hairColor": "#8a8079", "build": "broad" },
+      "wander": { "radius": 2, "pause": 2 },
       "dialogue": [
         {
           "requires": ["done"],

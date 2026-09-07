@@ -20,6 +20,7 @@ import { currentDialogue, publishDebug } from '../debug';
 import { isHeld, onAction, onTap } from '../input';
 import { feedbackUrl } from '../feedback';
 import { improveUrl, paintUrl } from '../paint';
+import { hashId, Mover, STROLL_FACTOR } from '../mover';
 import { findPath, pathToTile } from '../path';
 import { autosave } from '../progress';
 import {
@@ -28,14 +29,26 @@ import {
   itemVisible,
   itemsOn,
   npcsOn,
+  peopleOn,
   propSignsOn,
   session,
   signLinesFor
 } from '../session';
-import { isSolid } from '../validate';
+import { isSolid, moverWalkable } from '../validate';
 import { lookOf, plaqueTile } from '../schema';
 import type { PlateBox } from '../art';
-import type { BuildingPlacement, EpisodeItem, EpisodeSign, Facing, Fixture, GameMap, MapExit, Vec2 } from '../schema';
+import type {
+  BuildingPlacement,
+  EpisodeItem,
+  EpisodeNpc,
+  EpisodeSign,
+  Facing,
+  Fixture,
+  GameMap,
+  MapExit,
+  Person,
+  Vec2
+} from '../schema';
 
 const SPEED = 102; // px/s — the prototype's 1.7px/frame at 60fps
 const HITBOX = TILE;
@@ -52,6 +65,10 @@ const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 2
 /** How long the travel card holds, by what we are walking through. */
 const HOLD = { road: 900, enter: 500, exit: 400 };
 const WALK_FRAME_MS = 133;
+/** How often a walk may be re-aimed at somebody who is moving, in ms. */
+const CHASE_MS = 250;
+/** However lively the street, a walk gives up rather than following for ever. */
+const MAX_REPLANS = 32;
 
 export interface MapSceneData {
   mapId: string;
@@ -63,11 +80,28 @@ export interface MapSceneData {
 interface Target {
   kind: 'npc' | 'item' | 'prop' | 'enter' | 'sign' | 'plaque' | 'fixture';
   at: Vec2;
-  npcIndex?: number;
+  /** Index into `walkers` when this is somebody rather than something. */
+  person?: number;
   item?: EpisodeItem;
   sign?: EpisodeSign;
   building?: BuildingPlacement;
   fixture?: Fixture;
+}
+
+/**
+ * Somebody standing on this map: an episode NPC, or one of the village's own
+ * townspeople from `world.json` (DESIGN.md §2/§3). Either way the scene deals
+ * with them the same — a sprite, a mover, and something to say — which is
+ * what keeps the engine free of any idea of who they are (hard rule 1).
+ */
+interface Walker {
+  id: string;
+  /** The name on the dialogue box; a passer-by may have none. */
+  name: string;
+  /** The episode entry, when this person is part of the story. */
+  npc?: EpisodeNpc;
+  mover: Mover;
+  sprite: Phaser.GameObjects.Sprite;
 }
 
 /** A rectangle of world pixels. */
@@ -130,11 +164,23 @@ export class MapScene extends Phaser.Scene {
   /** The same boxes, flat, for the dev-only snapshot. */
   private artBoxes: Box[] = [];
 
+  /** Everybody on this map who is not the player, in draw order-agnostic order. */
+  private walkers: Walker[] = [];
+  /** What a person may walk on here: worked out once, since the ground never moves. */
+  private ground: (x: number, y: number) => boolean = () => false;
+
   /** Tiles still to walk, nearest first, while a tapped walk is running. */
   private walkPath: Vec2[] | null = null;
   private walkGoal: Vec2 | null = null;
   /** What arriving should read, as if A had been pressed there; null reads nothing. */
   private walkTarget: Target | null = null;
+  /** Somebody the walk is following, so a tap lands on them wherever they got to. */
+  private walkFollow: Walker | null = null;
+  /** How close the walk has to get for what was tapped to read. */
+  private walkReach = 0;
+  /** How many times this walk has been re-aimed, so a chase always ends. */
+  private replans = 0;
+  private lastReplan = 0;
 
   constructor() {
     super('Map');
@@ -156,6 +202,10 @@ export class MapScene extends Phaser.Scene {
     this.walkPath = null;
     this.walkGoal = null;
     this.walkTarget = null;
+    this.walkFollow = null;
+    this.walkers = [];
+    this.replans = 0;
+    this.lastReplan = 0;
   }
 
   create(data: MapSceneData): void {
@@ -268,13 +318,18 @@ export class MapScene extends Phaser.Scene {
       this.itemSprites.set(item.id, sprite);
     }
 
+    // Where anybody but the player may walk. Stricter than the player's own
+    // collision on purpose: a doorstep and a plaque tile are read by standing
+    // exactly there, and the road out of the village is the player's to take
+    // (engine/validate.ts, which the validator checks routes against).
+    this.ground = moverWalkable(this.map);
+
+    // Everybody on the map, story or not, built the same way (DESIGN.md §2).
     for (const npc of npcsOn(this.mapId)) {
-      const key = assets.chars.has(npc.id) ? `art:char:${npc.id}` : characterTexture(this, lookOf(npc));
-      const dir = npc.facing ?? 'down';
-      this.add
-        .sprite(npc.pos[0] * TILE + TILE / 2, npc.pos[1] * TILE + TILE, key, frameIndex(dir, 0))
-        .setOrigin(0.5, 1)
-        .setDepth(npc.pos[1] * TILE + TILE);
+      this.addWalker({ id: npc.id, name: npc.name, npc });
+    }
+    for (const person of peopleOn(this.mapId)) {
+      this.addWalker({ id: person.id, name: person.name ?? '', person });
     }
 
     const playerKey = assets.chars.has(world.player.id)
@@ -317,6 +372,113 @@ export class MapScene extends Phaser.Scene {
   }
 
   /**
+   * One person on the map: the sprite, and the mover that walks them. An
+   * episode NPC and a village's own townsperson differ only in what they have
+   * to say, so everything about standing them up is shared.
+   */
+  private addWalker(who: { id: string; name: string; npc?: EpisodeNpc; person?: Person }): void {
+    const { assets } = session();
+    const source = who.npc ?? who.person;
+    if (!source) return;
+    const key = assets.chars.has(who.id) ? `art:char:${who.id}` : characterTexture(this, lookOf(source));
+    const facing = source.facing ?? 'down';
+    const sprite = this.add
+      .sprite(source.pos[0] * TILE + TILE / 2, source.pos[1] * TILE + TILE, key, frameIndex(facing, 0))
+      .setOrigin(0.5, 1)
+      .setDepth(source.pos[1] * TILE + TILE);
+
+    const mover = new Mover({
+      home: source.pos,
+      facing,
+      route: source.route,
+      wander: source.wander,
+      // A stroll is slower than going somewhere. Tiles per second, so the
+      // walk is the same on any screen and at any frame rate.
+      speed: (source.route?.speed ?? (SPEED * STROLL_FACTOR) / TILE),
+      walkable: this.ground,
+      seed: hashId(who.id)
+    });
+    this.walkers.push({ id: who.id, name: who.name, npc: who.npc, mover, sprite });
+  }
+
+  /**
+   * Everybody else's frame. People stand still while a box is open and while
+   * the player is close enough to talk to them, so somebody with something to
+   * say is never walked away from mid-sentence; they never step onto the
+   * player or onto each other; and they turn to face whoever is speaking to
+   * them (DESIGN.md §2). None of this touches the save — where a townsperson
+   * got to is not progress (engine/progress.ts).
+   */
+  private updateWalkers(delta: number): void {
+    if (!this.walkers.length) return;
+    const state = session();
+    const held = state.locked || state.dialogueOpen;
+    const me = this.centre();
+    const reach = this.map.kind === 'interior' ? REACH.npcInterior : REACH.npcVillage;
+    const dt = delta / 1000;
+
+    for (const walker of this.walkers) {
+      const near = Math.hypot(me.x - (walker.mover.x + 0.5), me.y - (walker.mover.y + 0.5)) <= reach;
+      if (near && walker.mover.walks && !walker.mover.busy) walker.mover.faceToward(me.x, me.y);
+      walker.mover.update(dt, {
+        held: held || near,
+        blocked: (x, y) => this.occupied(walker, x, y)
+      });
+
+      const { mover, sprite } = walker;
+      sprite.setPosition(Math.round(mover.x * TILE) + TILE / 2, Math.round(mover.y * TILE) + TILE);
+      sprite.setDepth(mover.y * TILE + TILE);
+      sprite.setFrame(
+        frameIndex(mover.facing, mover.moving ? 1 + (Math.floor((mover.walkTime * 1000) / WALK_FRAME_MS) % 2) : 0)
+      );
+    }
+  }
+
+  /**
+   * Whether pressing A on this person does anything. An episode NPC always has
+   * something to say; a village's own townsperson only where the world pack
+   * wrote a passing line for them to say (hard rule 3).
+   */
+  private canTalkTo(walker: Walker): boolean {
+    if (walker.npc) return true;
+    return (session().copy.ui.passerby ?? []).length > 0;
+  }
+
+  /** One kind line for somebody with no story to tell, the same one every time. */
+  private passerbyLine(id: string): string | undefined {
+    const lines = session().copy.ui.passerby ?? [];
+    if (!lines.length) return undefined;
+    return lines[hashId(id) % lines.length];
+  }
+
+  /** Somebody — the player, or one of the others — is standing on this tile. */
+  private occupied(self: Walker | null, x: number, y: number): boolean {
+    for (const tile of this.playerTiles()) {
+      if (tile[0] === x && tile[1] === y) return true;
+    }
+    for (const walker of this.walkers) {
+      if (walker === self) continue;
+      for (const tile of walker.mover.tiles()) {
+        if (tile[0] === x && tile[1] === y) return true;
+      }
+    }
+    return false;
+  }
+
+  /** The tiles the player's hitbox is over — one, two, or four at a corner. */
+  private playerTiles(): Vec2[] {
+    const tiles: Vec2[] = [];
+    for (const ox of [MARGIN, HITBOX - MARGIN]) {
+      for (const oy of [MARGIN, HITBOX - MARGIN]) {
+        const tx = Math.floor((this.px + ox) / TILE);
+        const ty = Math.floor((this.py + oy) / TILE);
+        if (!tiles.some((tile) => tile[0] === tx && tile[1] === ty)) tiles.push([tx, ty]);
+      }
+    }
+    return tiles;
+  }
+
+  /**
    * Dev-only snapshot for the playtest harness. It hangs off the render event
    * rather than off update() on purpose: the camera recalculates its scroll
    * and its worldView while the frame is being drawn, so this is the frame the
@@ -336,6 +498,12 @@ export class MapScene extends Phaser.Scene {
       walkTo: this.walkGoal ? [this.walkGoal[0], this.walkGoal[1]] : null,
       view: { x: view.x, y: view.y, width: view.width, height: view.height, tile: TILE },
       art: this.artBoxes,
+      people: this.walkers.map((walker) => ({
+        id: walker.id,
+        x: walker.mover.x,
+        y: walker.mover.y,
+        tiles: walker.mover.tiles().map((tile) => [tile[0], tile[1]] as [number, number])
+      })),
       flags: state.flags.snapshot(),
       dialogue: currentDialogue()
     });
@@ -344,6 +512,9 @@ export class MapScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     const state = session();
     this.armEnters();
+    // Everybody else moves first, and keeps moving on their own clock: the
+    // town does not stop because the player is standing still.
+    this.updateWalkers(delta);
     if (state.locked || state.dialogueOpen) {
       // A card or a box means the trip is over: the walk does not pick itself
       // back up behind the player's back once they have read the line.
@@ -378,6 +549,8 @@ export class MapScene extends Phaser.Scene {
       if (dx !== 0 && this.free(nx, this.py)) this.px = nx;
       if (dy !== 0 && this.free(this.px, ny)) this.py = ny;
     } else if (this.walkPath) {
+      // Somebody the walk is aimed at may have strolled on since it started.
+      this.chase();
       this.moving = this.followPath((SPEED * delta) / 1000);
     }
 
@@ -447,7 +620,9 @@ export class MapScene extends Phaser.Scene {
     // player is stopped by them here instead.
     if (isSolid(this.map, tx, ty)) return true;
     if (this.fixtures().some((fixture) => fixture.pos[0] === tx && fixture.pos[1] === ty)) return true;
-    return npcsOn(this.mapId).some((npc) => npc.pos[0] === tx && npc.pos[1] === ty);
+    // Where somebody is standing now, not where the data placed them: a person
+    // walking a route is solid all the way along it.
+    return this.walkers.some((walker) => walker.mover.tiles().some((tile) => tile[0] === tx && tile[1] === ty));
   }
 
   private refreshItems(): void {
@@ -488,9 +663,9 @@ export class MapScene extends Phaser.Scene {
     };
 
     const npcReach = this.map.kind === 'interior' ? REACH.npcInterior : REACH.npcVillage;
-    const npcs = npcsOn(this.mapId);
-    for (let i = 0; i < npcs.length; i++) {
-      consider({ kind: 'npc', at: npcs[i].pos, npcIndex: i }, npcReach, 0);
+    for (let i = 0; i < this.walkers.length; i++) {
+      if (!this.canTalkTo(this.walkers[i])) continue;
+      consider({ kind: 'npc', at: this.walkers[i].mover.tile(), person: i }, npcReach, 0);
     }
     for (const item of itemsOn(this.mapId)) {
       if (itemVisible(item)) consider({ kind: 'item', at: item.pos, item }, REACH.item, 1);
@@ -535,26 +710,92 @@ export class MapScene extends Phaser.Scene {
     const tile: Vec2 = [Math.floor(point.x / TILE), Math.floor(point.y / TILE)];
 
     const hit = this.tapTargetAt(tile, point.x, point.y);
-    const goal = hit?.goal ?? tile;
-    const start = this.startTile();
-    const walkable = this.walkableTo(goal);
-    let route = pathToTile(start, goal, walkable);
-    if (!route && hit) {
-      // Somebody behind a counter has no free tile beside them, and is still
-      // perfectly easy to talk to across it. Failing that, stand anywhere the
-      // A button would reach them from — the same reach findTarget() uses.
-      route = findPath(start, (x, y) => Math.hypot(x - goal[0], y - goal[1]) <= hit.reach, walkable);
-    }
-    if (!route?.length) {
+    this.walkFollow = null;
+    this.replans = 0;
+    if (!this.aimWalk(hit?.goal ?? tile, hit?.target ?? null, hit?.reach ?? 0)) {
       this.refuse(tile);
       return;
     }
+    // A tap on somebody is a tap on *them*, not on the paving they happened to
+    // be standing on: if they stroll on, the walk goes after them.
+    if (hit?.target.kind === 'npc' && hit.target.person !== undefined) {
+      this.walkFollow = this.walkers[hit.target.person];
+    }
+  }
+
+  /**
+   * Points a walk at a tile and puts the ring on it. `target` is what arriving
+   * should read, and `reach` how close that has to get — which is what lets a
+   * walk end across a counter rather than beside it. False when there is no
+   * way there at all.
+   */
+  private aimWalk(goal: Vec2, target: Target | null, reach: number): boolean {
+    const start = this.startTile();
+    const walkable = this.walkableTo(goal);
+    let route = pathToTile(start, goal, walkable);
+    if (!route && target) {
+      // Somebody behind a counter has no free tile beside them, and is still
+      // perfectly easy to talk to across it. Failing that, stand anywhere the
+      // A button would reach them from — the same reach findTarget() uses.
+      route = findPath(start, (x, y) => Math.hypot(x - goal[0], y - goal[1]) <= reach, walkable);
+    }
+    if (!route?.length) return false;
 
     this.walkPath = route;
     this.walkGoal = route[route.length - 1];
-    this.walkTarget = hit?.target ?? null;
+    this.walkTarget = target;
+    this.walkReach = reach;
     this.tweens.killTweensOf(this.marker);
     this.marker.setPosition(this.walkGoal[0] * TILE, this.walkGoal[1] * TILE).setAlpha(1).setVisible(true);
+    return true;
+  }
+
+  /** Aims the walk at where somebody has got to. False when they are cut off. */
+  private reaim(walker: Walker): boolean {
+    this.lastReplan = this.time.now;
+    if (this.replans++ > MAX_REPLANS) {
+      this.stopWalk();
+      return false;
+    }
+    const at = walker.mover.tile();
+    const reach = this.map.kind === 'interior' ? REACH.npcInterior : REACH.npcVillage;
+    const follow = walker;
+    if (!this.aimWalk(at, { kind: 'npc', at, person: this.walkers.indexOf(walker) }, reach)) {
+      this.stopWalk();
+      return false;
+    }
+    this.walkFollow = follow;
+    return true;
+  }
+
+  /** The tapped person has moved: follow them, at most a few times a second. */
+  private chase(): void {
+    const walker = this.walkFollow;
+    if (!walker || !this.walkGoal) return;
+    const at = walker.mover.tile();
+    if (at[0] === this.walkGoal[0] && at[1] === this.walkGoal[1]) return;
+    if (this.time.now - this.lastReplan < CHASE_MS) return;
+    this.reaim(walker);
+  }
+
+  /**
+   * Somebody stepped into the route after it was found. Go round them — the
+   * routing counts people as solid, so a fresh search does exactly that —
+   * rather than stopping dead in the street.
+   */
+  private reroute(): void {
+    if (this.time.now - this.lastReplan < CHASE_MS / 2) return;
+    if (this.walkFollow) {
+      this.reaim(this.walkFollow);
+      return;
+    }
+    this.lastReplan = this.time.now;
+    const goal = this.walkGoal;
+    if (!goal || this.replans++ > MAX_REPLANS) {
+      this.stopWalk();
+      return;
+    }
+    if (!this.aimWalk(goal, this.walkTarget, this.walkReach)) this.stopWalk();
   }
 
   /** Client pixels to a point in the world, through the canvas box and the camera. */
@@ -632,11 +873,12 @@ export class MapScene extends Phaser.Scene {
   private tapTargetAt(tile: Vec2, x: number, y: number): { target: Target; goal: Vec2; reach: number } | null {
     const [tx, ty] = tile;
     const npcReach = this.map.kind === 'interior' ? REACH.npcInterior : REACH.npcVillage;
-    const npcs = npcsOn(this.mapId);
-    for (let i = 0; i < npcs.length; i++) {
-      const npc = npcs[i];
-      if (npc.pos[0] === tx && (npc.pos[1] === ty || npc.pos[1] - 1 === ty)) {
-        return { target: { kind: 'npc', at: npc.pos, npcIndex: i }, goal: npc.pos, reach: npcReach };
+    for (let i = 0; i < this.walkers.length; i++) {
+      if (!this.canTalkTo(this.walkers[i])) continue;
+      // Where they are now, head included: people are drawn two tiles tall.
+      const at = this.walkers[i].mover.tile();
+      if (at[0] === tx && (at[1] === ty || at[1] - 1 === ty)) {
+        return { target: { kind: 'npc', at, person: i }, goal: at, reach: npcReach };
       }
     }
     for (const item of itemsOn(this.mapId)) {
@@ -741,9 +983,7 @@ export class MapScene extends Phaser.Scene {
       const nx = this.px + (dx / len) * use;
       const ny = this.py + (dy / len) * use;
       if (!this.free(nx, ny)) {
-        // Somebody stepped into the route after it was found. Stop rather than
-        // lean on them.
-        this.stopWalk();
+        this.reroute();
         return moved;
       }
       this.px = nx;
@@ -759,6 +999,19 @@ export class MapScene extends Phaser.Scene {
 
     if (!path.length) {
       const target = this.walkTarget;
+      const follow = this.walkFollow;
+      if (follow && target) {
+        // They may have strolled on while the walk was under way. Near enough
+        // to say hello is near enough; otherwise go after them again.
+        const at = follow.mover.tile();
+        const me = this.centre();
+        if (Math.hypot(me.x - (at[0] + 0.5), me.y - (at[1] + 0.5)) > this.walkReach) {
+          this.reaim(follow);
+          return moved;
+        }
+        target.at = at;
+        target.person = this.walkers.indexOf(follow);
+      }
       this.stopWalk();
       // The arrival press, once, on the very thing that was tapped rather than
       // on whatever happens to be in reach of where the walk ended — tapping a
@@ -772,6 +1025,7 @@ export class MapScene extends Phaser.Scene {
     this.walkPath = null;
     this.walkGoal = null;
     this.walkTarget = null;
+    this.walkFollow = null;
     this.marker.setVisible(false);
   }
 
@@ -835,7 +1089,27 @@ export class MapScene extends Phaser.Scene {
     if (state.locked || state.dialogueOpen || performance.now() - state.lastDialogueClose < 200) return;
 
     if (target.kind === 'npc') {
-      const npc = npcsOn(this.mapId)[target.npcIndex ?? 0];
+      const walker = this.walkers[target.person ?? 0];
+      if (!walker) return;
+      // Whoever is spoken to turns to look, and picks their walk back up when
+      // the box closes — the mover is held for as long as the player is there.
+      const me = this.centre();
+      walker.mover.faceToward(me.x, me.y);
+      walker.sprite.setFrame(frameIndex(walker.mover.facing, 0));
+
+      const npc = walker.npc;
+      if (!npc) {
+        // A townsperson with no story to tell: one kind line from the world's
+        // own copy, the same one every time (DESIGN.md §2).
+        const line = this.passerbyLine(walker.id);
+        if (!line) return;
+        bus.emit(EV.say, {
+          speaker: walker.name,
+          lines: [line],
+          portrait: state.assets.portraits.has(walker.id) ? `art:portrait:${walker.id}` : undefined
+        });
+        return;
+      }
       const entry = dialogueFor(npc);
       if (!entry) return;
       bus.emit(EV.say, {

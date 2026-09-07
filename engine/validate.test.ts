@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseTiledMap, parseTileset, tilesetSources } from './tiled';
 import type { TilesetDef } from './tiled';
-import { isSolid, validateEpisode, validateWorld } from './validate';
+import { isSolid, moverWalkable, validateEpisode, validateWorld } from './validate';
+import { hashId, Mover } from './mover';
 import { plaqueTile } from './schema';
 import type { BuildingDef, BuildingPlacement, Episode, Fixture, GameMap, MapMeta, World } from './schema';
 
@@ -771,6 +772,46 @@ describe('worlds/route10 validates cleanly', () => {
     }
   });
 
+  /**
+   * A route that validates is not yet a route that anybody walks: a first
+   * waypoint on the tile somebody already stands on, or a wander with only its
+   * own doorstep to go to, both pass the checks above and leave the village
+   * standing still. So everybody the pack says walks is actually walked here.
+   */
+  it('everybody the pack gives a route or a wander actually gets somewhere', () => {
+    const { world, maps } = loadPack(root);
+    const walkers: { where: string; who: { id: string; pos: [number, number]; route?: unknown; wander?: unknown } }[] =
+      [];
+    for (const [mapId, meta] of Object.entries(world.maps)) {
+      for (const person of meta.people ?? []) walkers.push({ where: mapId, who: person });
+    }
+    for (const episodeId of world.episodes) {
+      const episode = JSON.parse(readFileSync(resolve(root, 'episodes', `${episodeId}.json`), 'utf8')) as Episode;
+      for (const npc of episode.npcs) {
+        if (npc.route || npc.wander) walkers.push({ where: npc.map, who: npc });
+      }
+    }
+    expect(walkers.length).toBeGreaterThan(0);
+
+    for (const { where, who } of walkers) {
+      const mover = new Mover({
+        home: who.pos,
+        route: who.route as never,
+        wander: who.wander as never,
+        // The engine's default: the player's 102px/s, slowed to a stroll.
+        speed: (102 * 0.8) / 16,
+        walkable: moverWalkable(maps[where]),
+        seed: hashId(who.id)
+      });
+      const seen = new Set<string>();
+      for (let i = 0; i < 60 * 30; i++) {
+        mover.update(1 / 30, { held: false, blocked: () => false });
+        seen.add(mover.tile().join(','));
+      }
+      expect(seen.size, `"${who.id}" on "${where}" never left ${who.pos.join(',')}`).toBeGreaterThan(1);
+    }
+  });
+
   it('every map the pack declares has a Tiled grid with a ground layer', () => {
     const { world, maps } = loadPack(root);
     for (const mapId of Object.keys(world.maps)) {
@@ -869,5 +910,174 @@ describe('look validation', () => {
     const problems = runWorld(world);
     expect(problems).toHaveLength(1);
     expect(problems[0]).toContain('player "player" look has unknown hair "flattop"');
+  });
+});
+
+/**
+ * Townspeople who walk (DESIGN.md §2/§3). A route is data, so every way it
+ * could be wrong is caught here rather than by somebody noticing that nobody
+ * on the green ever moves.
+ */
+describe('people, routes and wanders', () => {
+  const ROWS = ['..........', '..........', '..#####...', '..........', '..........'];
+
+  const townWith = (people: unknown) =>
+    makeWorld({
+      maps: {
+        town: makeMap({ people: people as MapMeta['people'] }, ROWS)
+      }
+    });
+
+  it('accepts a person with a route', () => {
+    const problems = runWorld(
+      townWith([{ id: 'stroller', pos: [1, 1], route: { path: [[8, 1], [1, 1]] } }])
+    );
+    expect(problems).toEqual([]);
+  });
+
+  it('accepts a person with a wander', () => {
+    expect(runWorld(townWith([{ id: 'potterer', pos: [5, 4], wander: { radius: 2 } }]))).toEqual([]);
+  });
+
+  it('accepts a person who simply stands there', () => {
+    expect(runWorld(townWith([{ id: 'watcher', pos: [5, 4] }]))).toEqual([]);
+  });
+
+  it('rejects a person with no id', () => {
+    const problems = runWorld(townWith([{ id: '', pos: [1, 1] }]));
+    expect(problems[0]).toContain('every person needs an id');
+  });
+
+  it('rejects the same person listed twice', () => {
+    const problems = runWorld(
+      townWith([
+        { id: 'twin', pos: [1, 1] },
+        { id: 'twin', pos: [3, 1] }
+      ])
+    );
+    expect(problems[0]).toContain('is listed twice');
+  });
+
+  it('rejects a person standing in a wall', () => {
+    const problems = runWorld(townWith([{ id: 'inwall', pos: [3, 2] }]));
+    expect(problems[0]).toContain('is somewhere nobody can stand');
+  });
+
+  it('rejects a person standing on a doorstep', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap(
+          {
+            buildings: [{ id: 'shop', pos: [2, 0], size: [3, 1], door: [3, 1], plaque: [4, 1] }],
+            people: [{ id: 'blocker', pos: [3, 1] }]
+          },
+          ROWS
+        )
+      }
+    });
+    expect(runWorld(world).join('\n')).toContain('is somewhere nobody can stand');
+  });
+
+  it('rejects a person standing on a plaque tile', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap(
+          {
+            buildings: [{ id: 'shop', pos: [2, 0], size: [3, 1], door: [3, 1], plaque: [4, 1] }],
+            people: [{ id: 'blocker', pos: [4, 1] }]
+          },
+          ROWS
+        )
+      }
+    });
+    expect(runWorld(world).join('\n')).toContain('is somewhere nobody can stand');
+  });
+
+  it('rejects a route waypoint inside a wall', () => {
+    const problems = runWorld(townWith([{ id: 'stroller', pos: [1, 1], route: { path: [[3, 2], [1, 1]] } }]));
+    expect(problems.join('\n')).toContain('route waypoint 0');
+  });
+
+  it('rejects a route waypoint there is no way to walk to', () => {
+    // A pocket of floor sealed off by the wall row, with a walled edge below.
+    const rows = ['..........', '..........', '##########', '..........', '..........'];
+    const problems = runWorld(
+      makeWorld({
+        maps: { town: makeMap({ people: [{ id: 'stroller', pos: [1, 1], route: { path: [[1, 4], [1, 1]] } }] }, rows) }
+      })
+    );
+    expect(problems.join('\n')).toContain('no way through');
+  });
+
+  it('rejects a route with only one waypoint', () => {
+    const problems = runWorld(townWith([{ id: 'stroller', pos: [1, 1], route: { path: [[3, 1]] } }]));
+    expect(problems[0]).toContain('fewer than two waypoints');
+  });
+
+  it('rejects both a route and a wander on one person', () => {
+    const problems = runWorld(
+      townWith([{ id: 'busy', pos: [1, 1], route: { path: [[3, 1], [1, 1]] }, wander: { radius: 2 } }])
+    );
+    expect(problems[0]).toContain('walks one or the other');
+  });
+
+  it('rejects a wander radius below one', () => {
+    const problems = runWorld(townWith([{ id: 'potterer', pos: [1, 1], wander: { radius: 0 } }]));
+    expect(problems[0]).toContain('radius below 1');
+  });
+
+  it('rejects a wander with nowhere to go', () => {
+    const rows = ['###', '#.#', '###'];
+    const problems = runWorld(
+      makeWorld({
+        start: { map: 'town', pos: [1, 1], facing: 'down' },
+        maps: { town: makeMap({ people: [{ id: 'stuck', pos: [1, 1], wander: { radius: 1 } }] }, rows) }
+      })
+    );
+    expect(problems.join('\n')).toContain('no tile within 1');
+  });
+
+  it('refuses a crowd', () => {
+    const crowd = Array.from({ length: 9 }, (_, i) => ({ id: `p${i}`, pos: [i, 4] }));
+    const problems = runWorld(townWith(crowd));
+    expect(problems.join('\n')).toContain('as many as a village reads as');
+  });
+
+  it('checks a world person’s look like anybody else’s', () => {
+    const problems = runWorld(townWith([{ id: 'stroller', pos: [1, 1], look: { hair: 'mullet' } }]));
+    expect(problems[0]).toContain('unknown hair "mullet"');
+  });
+
+  it('checks an episode NPC’s route the same way', () => {
+    const episode = makeEpisode({
+      npcs: [
+        {
+          id: 'npc1',
+          name: 'NPC',
+          map: 'town',
+          pos: [1, 1],
+          route: { path: [[3, 2], [1, 1]] },
+          dialogue: [{ requires: [], lines: ['hi'] }]
+        }
+      ]
+    });
+    const world = makeWorld({ maps: { town: makeMap({}, ROWS) } });
+    expect(runEpisode(episode, world).join('\n')).toContain('route waypoint 0');
+  });
+
+  it('accepts an episode NPC with a small wander', () => {
+    const episode = makeEpisode({
+      npcs: [
+        {
+          id: 'npc1',
+          name: 'NPC',
+          map: 'town',
+          pos: [1, 1],
+          wander: { radius: 2 },
+          dialogue: [{ requires: [], lines: ['hi'] }]
+        }
+      ]
+    });
+    expect(runEpisode(episode, makeWorld({ maps: { town: makeMap({}, ROWS) } }))).toEqual([]);
   });
 });

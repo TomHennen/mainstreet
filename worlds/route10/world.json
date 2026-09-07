@@ -355,6 +355,60 @@
             12
           ]
         }
+      ],
+      "people": [
+        {
+          "id": "jefferson-green-walker",
+          "pos": [
+            28,
+            16
+          ],
+          "facing": "right",
+          "look": {
+            "hair": "ponytail",
+            "hairColor": "#8a5a3a",
+            "shirt": "#5c7f8f"
+          },
+          "route": {
+            "path": [
+              [
+                34,
+                16
+              ],
+              [
+                34,
+                20
+              ],
+              [
+                28,
+                20
+              ],
+              [
+                28,
+                16
+              ]
+            ],
+            "pause": 1.0
+          }
+        },
+        {
+          "id": "jefferson-creamery-walker",
+          "pos": [
+            52,
+            20
+          ],
+          "facing": "down",
+          "look": {
+            "hair": "bun",
+            "hairColor": "#2b2320",
+            "shirt": "#b08a4a",
+            "build": "slim"
+          },
+          "wander": {
+            "radius": 3,
+            "pause": 2
+          }
+        }
       ]
     },
     "stamford": {
@@ -680,6 +734,53 @@
           "facing": "down",
           "style": "road"
         }
+      ],
+      "people": [
+        {
+          "id": "stamford-main-walker",
+          "pos": [
+            42,
+            15
+          ],
+          "facing": "right",
+          "look": {
+            "hair": "long",
+            "hairColor": "#4a3524",
+            "shirt": "#7a8f5c",
+            "build": "slim"
+          },
+          "route": {
+            "path": [
+              [
+                75,
+                15
+              ],
+              [
+                42,
+                15
+              ]
+            ],
+            "pause": 1.2
+          }
+        },
+        {
+          "id": "stamford-park-walker",
+          "pos": [
+            72,
+            25
+          ],
+          "facing": "up",
+          "look": {
+            "hair": "cap",
+            "hairColor": "#3a3330",
+            "shirt": "#9c6b4a",
+            "build": "broad"
+          },
+          "wander": {
+            "radius": 3,
+            "pause": 2
+          }
+        }
       ]
     },
     "hobart": {
@@ -762,6 +863,52 @@
           ],
           "facing": "up",
           "style": "road"
+        }
+      ],
+      "people": [
+        {
+          "id": "hobart-main-walker",
+          "pos": [
+            7,
+            17
+          ],
+          "facing": "right",
+          "look": {
+            "hair": "short",
+            "hairColor": "#6b6257",
+            "shirt": "#8f5c5c"
+          },
+          "route": {
+            "path": [
+              [
+                30,
+                17
+              ],
+              [
+                7,
+                17
+              ]
+            ],
+            "pause": 1.2
+          }
+        },
+        {
+          "id": "hobart-bridge-walker",
+          "pos": [
+            21,
+            26
+          ],
+          "facing": "up",
+          "look": {
+            "hair": "curly",
+            "hairColor": "#3a3330",
+            "shirt": "#6b8f6b",
+            "build": "broad"
+          },
+          "wander": {
+            "radius": 3,
+            "pause": 2
+          }
         }
       ]
     },

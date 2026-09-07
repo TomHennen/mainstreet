@@ -128,12 +128,27 @@ function signLinesOf(buildingId) {
 }
 
 /**
+ * Where everybody actually is, as of the last snapshot read. Townspeople walk
+ * (engine/mover.ts), so their placed position in world.json or in the episode
+ * is where they *started*, not where they are: the engine publishes the live
+ * tiles alongside the player's, and this is the harness's copy of them.
+ */
+let live = { map: null, people: [] };
+
+function liveAt(mapId, x, y) {
+  if (live.map !== mapId) return false;
+  return live.people.some((p) => (p.tiles ?? []).some((t) => t[0] === x && t[1] === y));
+}
+
+/**
  * NPCs are episode data, so MapScene.solidTile() blocks on them separately.
  * Which episode is playing matters — the title-screen section plays the
- * shipped one rather than the harness's ep000 — so the caller may say.
+ * shipped one rather than the harness's ep000 — so the caller may say. Anybody
+ * walking is blocked where they are standing now, on top of that.
  */
 function npcAt(mapId, x, y, episode = EPISODE) {
-  return episode.npcs.some((n) => n.map === mapId && n.pos[0] === x && n.pos[1] === y);
+  if (episode.npcs.some((n) => n.map === mapId && n.pos[0] === x && n.pos[1] === y)) return true;
+  return liveAt(mapId, x, y);
 }
 
 /**
@@ -263,7 +278,13 @@ async function shot(page, slug) {
   return file;
 }
 
-const snap = (page) => page.evaluate(() => window.__mainstreet ?? null);
+const snap = async (page) => {
+  const state = await page.evaluate(() => window.__mainstreet ?? null);
+  // Every read of the engine's state refreshes where the townspeople are, so
+  // the path-finding below never routes the player through somebody.
+  if (state) live = { map: state.map, people: state.people ?? [] };
+  return state;
+};
 /** The title screen's list, published the same dev-only way (engine/debug.ts). */
 const titleSnap = (page) => page.evaluate(() => window.__mainstreetTitle ?? null);
 
@@ -1243,6 +1264,16 @@ async function main() {
       for (const n of EPISODE.npcs.filter((n) => n.map === mapId)) {
         add(n.pos[0], n.pos[1]);
         add(n.pos[0], n.pos[1] - 1);
+      }
+      // And whoever is walking past right now: people are drawn two tiles
+      // tall, so the tile above somebody reads as them too.
+      if (live.map === mapId) {
+        for (const p of live.people) {
+          for (const t of p.tiles ?? []) {
+            add(t[0], t[1]);
+            add(t[0], t[1] - 1);
+          }
+        }
       }
       for (const i of (EPISODE.items ?? []).filter((i) => i.map === mapId)) add(i.pos[0], i.pos[1]);
       for (const s of (EPISODE.signs ?? []).filter((s) => s.map === mapId && s.pos)) add(s.pos[0], s.pos[1]);
@@ -2238,6 +2269,136 @@ async function main() {
     const scrolled = await evalIn(pp, 'how far the phone page scrolled', () => window.scrollY);
     if (scrolled <= 0) fail('studio-phone', 'a finger could not scroll the page past a locked canvas');
     log(`    Lock keeps one finger from painting, and lets it scroll the page (${Math.round(scrolled)}px)`);
+
+    // --- townspeople who walk -----------------------------------------------
+    // A village has people in it who belong to no story: they stroll a route or
+    // potter about a corner, stop when somebody comes over, say one kind line,
+    // and carry on (DESIGN.md §2). All of it is world data, so who the harness
+    // follows is found in world.json rather than named here.
+    const strollMap = WORLD.start.map;
+    const stroller = (WORLD.maps[strollMap].people ?? []).find((p) => p.route?.path?.length >= 2);
+    if (!stroller) {
+      log('  (nobody walks a route on the start map — skipping the strollers)');
+    } else {
+      log(`  a townsperson who walks: "${stroller.id}" on ${strollMap}`);
+      const sctx = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+        isMobile: false,
+        deviceScaleFactor: 1
+      });
+      const sp = await sctx.newPage();
+      attach(sp, 'walk');
+      const scdp = await sctx.newCDPSession(sp);
+      await sp.goto(GAME_URL, { waitUntil: 'load' });
+      await waitUntil(sp, (s) => s.map === strollMap, 'the start map, with the townspeople on it');
+      for (let i = 0; i < 6 && (await snap(sp)).dialogueOpen; i++) {
+        await tapEl(scdp, sp, '#stage');
+        await sleep(320);
+      }
+      if ((await snap(sp)).dialogueOpen) fail('walkers', 'the intro never closed on the strollers page');
+      await watchTaps(sp);
+
+      const whereIs = async (id) => {
+        const state = await snap(sp);
+        const found = (state.people ?? []).find((p) => p.id === id);
+        if (!found) fail('walkers', `the engine published nobody called "${id}" on "${state.map}"`);
+        return found;
+      };
+
+      // They move on their own, with the player right across the village.
+      const before = await whereIs(stroller.id);
+      await shot(sp, 'stroller-before');
+      await sleep(3000);
+      const after = await whereIs(stroller.id);
+      const covered = Math.hypot(after.x - before.x, after.y - before.y);
+      if (covered < 1) {
+        fail(
+          'walkers',
+          `"${stroller.id}" covered ${covered.toFixed(2)} tiles in three seconds — ` +
+            `${[before.x, before.y]} to ${[after.x, after.y]}`
+        );
+      }
+      log(`    covered ${covered.toFixed(1)} tiles in 3s with nobody near`);
+      await shot(sp, 'stroller-walking');
+
+      // Somewhere to watch from: three tiles off the route, one further than
+      // the reach at which somebody stops to say hello.
+      const leg = stroller.route.path;
+      const mid = [Math.round((leg[0][0] + leg[1][0]) / 2), Math.round((leg[0][1] + leg[1][1]) / 2)];
+      const exits = exitTiles(WORLD.maps[strollMap]);
+      const standing = here(await snap(sp));
+      const readable = readableTiles(strollMap);
+      let spot = null;
+      for (const [dx, dy] of [[0, 3], [0, -3], [3, 0], [-3, 0], [0, 4], [0, -4], [4, 0], [-4, 0]]) {
+        const tile = [mid[0] + dx, mid[1] + dy];
+        if (isSolid(WORLD.maps[strollMap], tile[0], tile[1])) continue;
+        if (fixtureAt(strollMap, tile[0], tile[1])) continue;
+        if (exits.has(`${tile[0]},${tile[1]}`) || readable.has(`${tile[0]},${tile[1]}`)) continue;
+        if (!findPath(strollMap, standing, tile)) continue;
+        spot = tile;
+        break;
+      }
+      if (!spot) fail('walkers', `nowhere to stand and watch "${stroller.id}" go past, near ${mid}`);
+      await walkTo(sp, 'walkers', spot);
+      log(`    watching from ${spot}, three tiles off their route`);
+
+      // Wait for them to come past, then tap them where they are now: the walk
+      // follows them if they carry on, and talks to them on arrival.
+      const seen = await waitUntil(
+        sp,
+        (s) => {
+          const p = (s.people ?? []).find((q) => q.id === stroller.id);
+          return Boolean(p) && Math.hypot(p.x - s.x, p.y - s.y) <= 6;
+        },
+        `"${stroller.id}" to come past the watching spot`,
+        60000
+      );
+      const passing = (seen.people ?? []).find((p) => p.id === stroller.id);
+      const aim = [Math.round(passing.x), Math.round(passing.y)];
+      await tapTile(sp, scdp, aim);
+      const talking = await waitUntil(sp, (s) => s.dialogueOpen, `"${stroller.id}" to be talked to after a tap`, 25000);
+      const lines = COPY.ui.passerby ?? [];
+      if (!lines.length) fail('walkers', 'copy.json has no ui.passerby for a townsperson to say');
+      if (!lines.includes(talking.dialogue?.text)) {
+        fail('walkers', `"${stroller.id}" said "${talking.dialogue?.text}", which is not one of ui.passerby`);
+      }
+      log(`    tapped them at ${aim} and walked over: "${talking.dialogue?.text}"`);
+      await shot(sp, 'stroller-tapped');
+      await advanceDialogue(sp, 'walkers', 1);
+
+      // Standing beside somebody stops them: nobody walks off mid-sentence.
+      const held = await whereIs(stroller.id);
+      await sleep(1500);
+      const stillHeld = await whereIs(stroller.id);
+      const drift = Math.hypot(stillHeld.x - held.x, stillHeld.y - held.y);
+      if (drift > 0.05) {
+        fail('walkers', `"${stroller.id}" wandered off ${drift.toFixed(2)} tiles with the player standing beside them`);
+      }
+      log('    stood still while the player was beside them');
+      await shot(sp, 'stroller-stopped');
+
+      // And A says the same line again, without a tap.
+      await pressA(sp);
+      const pressed = await expectDialogue(sp, 'walkers', `"${stroller.id}" on A`);
+      if (!lines.includes(pressed.dialogue?.text)) {
+        fail('walkers', `A on "${stroller.id}" said "${pressed.dialogue?.text}", which is not one of ui.passerby`);
+      }
+      log(`    A says it again: "${pressed.dialogue?.text}"`);
+      await advanceDialogue(sp, 'walkers', 1);
+
+      // Step away and they pick their walk back up.
+      await walkTo(sp, 'walkers', spot);
+      const resumeFrom = await whereIs(stroller.id);
+      await sleep(3000);
+      const resumeTo = await whereIs(stroller.id);
+      const resumed = Math.hypot(resumeTo.x - resumeFrom.x, resumeTo.y - resumeFrom.y);
+      if (resumed < 1) {
+        fail('walkers', `"${stroller.id}" never picked their walk back up: ${resumed.toFixed(2)} tiles in three seconds`);
+      }
+      log(`    walked on again once the player stepped away (${resumed.toFixed(1)} tiles in 3s)`);
+      await shot(sp, 'stroller-resumed');
+    }
 
     log(`\n  ${PLAYTEST_EPISODE} completed end to end.`);
   } finally {

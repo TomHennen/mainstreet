@@ -81,7 +81,8 @@ tileset; painting the sheet is the fix, and it is on the M3 art list.)
 
 **What stays in `world.json`, and why.** Everything a content author positions:
 the building registry and its placements (footprint, door, interior + spawn),
-map labels, exits and the travel graph, street fixtures, the start position,
+map labels, exits and the travel graph, street fixtures, the villages' own
+townspeople, the start position,
 map names and whether a map is a village or an interior. Tiled *could* carry those as object
 layers, but then a door would live in two files and a footprint would have two
 sources of truth. One place to edit gameplay positions is worth more than
@@ -241,6 +242,68 @@ the world writes — brief labelled prompts the sender fills in or deletes. A
 `ui.suggest.link`, and the box simply reads with no link (hard rule 3). No
 address, subject or wording appears anywhere in engine code.
 
+**Townspeople who walk.** Nothing on a map moves but the player unless the
+data says otherwise, and two shapes of data say otherwise. Both belong to a
+person — an episode NPC (§3) or one of a village's own people, below — and
+both are walked by `engine/mover.ts`, which is pure and knows nothing but
+tiles:
+
+```jsonc
+"route":  { "path": [[75, 15], [42, 15]],   // waypoints, walked in order
+            "loop": true,                    // default: back to the first
+            "pause": 1.2,                    // seconds at each one, default 1.5
+            "speed": 5.1 },                  // tiles/s, default walking x 0.8
+"wander": { "radius": 3, "pause": 2 }        // or: potter about near home
+```
+
+A route places the corners of a stroll, not every step of it: the engine's own
+pathfinder (`engine/path.ts`) fills in the way from one waypoint to the next,
+and goes round anything in the way. A wander picks a tile within `radius` of
+the person's `pos`, walks there, stands a moment and picks another; it stays
+inside the radius the whole way round, and the choices are seeded from the
+person's id so a village looks the same on every visit rather than jittering.
+
+Where anybody but the player may put their feet is deliberately stricter than
+the player's own collision: never a solid tile, a fixture, a doorstep or a
+plaque tile — all of which are read by standing exactly there — and never a
+road out of the village, which is the player's to take. `validate-episodes`
+holds a route to the same rule, and to being walkable from waypoint to
+waypoint, so a route that could never be walked fails at build time rather
+than leaving somebody standing still for ever.
+
+Somebody walking stays solid, and stops the moment the player is close enough
+to talk to them, so nobody is ever chased down the street or walks off
+mid-sentence; they turn to face whoever comes over, and carry on once the
+player steps away. They never walk onto the player or onto each other, going
+round where there is a way round and waiting where there is not. A tap lands
+on where somebody *is*, not where the data placed them, and the walk follows
+them if they carry on. None of it touches the save: where a townsperson got to
+is not progress.
+
+**A village's own people.** A map may carry a `people` list — townspeople who
+belong to the village rather than to any one story, so a street is not empty
+between episodes:
+
+```jsonc
+"maps": {
+  "stamford": {
+    "people": [
+      { "id": "stamford-main-walker", "pos": [42, 15], "facing": "right",
+        "look": { "hair": "long", "hairColor": "#4a3524", "shirt": "#7a8f5c" },
+        "route": { "path": [[75, 15], [42, 15]], "pause": 1.2 } }
+    ]
+  }
+}
+```
+
+They have a `look` (§4) and somewhere to be, and **no dialogue at all**:
+pressing A on one gets a single kind line from `copy.json` `ui.passerby`,
+picked from that list by their id, so the same person always says the same
+thing and no line is written twice. A world with no `ui.passerby` simply has
+nothing for them to say, and they read as somebody minding their own business
+(hard rule 3). Anybody with something to say is an episode NPC. Two or three
+per map is what a street reads as; the validator refuses more than six.
+
 Missing NPC sheet = generic townsperson sprite, drawn from that person's
 `look` (§4) in their own accent color. Missing portrait = no portrait pane.
 The floating name plate stays above a building once it's painted too,
@@ -264,6 +327,7 @@ and `effects` (applied when the node is shown/consumed). No code in content.
       "name": "Earl",
       "map": "stamford",
       "pos": [34, 33],
+      "wander": { "radius": 2 },                     // optional: see §2, "route" too
       "dialogue": [                                  // first matching entry wins
         { "requires": ["done"],   "lines": ["Seventeen across: 'small kindness, nine letters.' I'm going to say it's you, kid."] },
         { "requires": ["hasPen"], "lines": ["Ha — my pen! Knew I left it up at the pond.",
@@ -325,11 +389,17 @@ Setting it is what puts the episode on the save's `completed` list and its done
 mark on the title screen (§2). An episode that never declares `done` simply
 never completes.
 
+An NPC may carry a `route` or a `wander` (§2, "Townspeople who walk") and move
+about while the story waits. `pos` stays the tile they start on and the one an
+author places them by; they are simply not always standing on it, and they
+stop as soon as the player is close enough to talk to them.
+
 Engine responsibilities: declare-before-use flag validation, first-match
 dialogue resolution, effect application, sign lookup, item visibility.
 `validate-episodes` enforces: unknown flags, unreachable dialogue entries,
-missing maps/buildings/positions, effects on undeclared flags, and a standing
-sign on every building a map places.
+missing maps/buildings/positions, effects on undeclared flags, a standing
+sign on every building a map places, and routes and wanders that can actually
+be walked.
 
 A world's shipped episodes are `world.episodes`, in order; the title screen
 lists exactly those, and puts the cursor on the first unfinished one. A `?episode=<id>` URL parameter plays any episode file under

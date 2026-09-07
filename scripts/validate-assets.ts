@@ -123,7 +123,11 @@ function validateWorldAssets(dir: string, worldId: string): void {
   const world = readJson<World>(join(dir, 'world.json'));
   const episodes = world.episodes.map((id) => readJson<Episode>(join(dir, 'episodes', `${id}.json`)));
   const buildingIds = new Set(Object.keys(world.buildings));
-  const charIds = new Set([world.player.id, ...episodes.flatMap((ep) => ep.npcs.map((npc) => npc.id))]);
+  const charIds = new Set([
+    world.player.id,
+    ...episodes.flatMap((ep) => ep.npcs.map((npc) => npc.id)),
+    ...Object.values(world.maps).flatMap((meta) => (meta.people ?? []).map((person) => person.id))
+  ]);
 
   // A building's facade width is checked against its footprint, which lives
   // in world.json's per-map placements, not in the building registry itself.

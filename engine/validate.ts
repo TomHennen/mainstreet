@@ -1,7 +1,8 @@
 // Runtime import, so it carries the extension scripts/validate-episodes.ts
 // needs under Node's type stripping (see that file's header).
+import { findPath } from './path.ts';
 import { BUILDS, FIXTURE_KINDS, HAIR_STYLES, plaqueTile } from './schema.ts';
-import type { Episode, GameMap, Look, World } from './schema';
+import type { Episode, GameMap, Look, Route, Vec2, Wander, World } from './schema';
 
 /**
  * Load-time validation of a world pack (DESIGN.md §3), run both in the browser
@@ -123,6 +124,30 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
       }
     }
 
+    // Townspeople who belong to the village rather than to a story
+    // (DESIGN.md §2). They walk, so where they walk is checked the same way a
+    // fixture's tile is: on the map, on ground somebody could stand on, and
+    // never on a doorstep or a plaque, which are read by standing there.
+    const people = map.people ?? [];
+    if (people.length > MAX_PEOPLE) {
+      problems.push(
+        `map "${mapId}" has ${people.length} people — ${MAX_PEOPLE} is as many as a village reads as, not a crowd`
+      );
+    }
+    const seen = new Set<string>();
+    for (const person of people) {
+      const who = `map "${mapId}" person "${person.id}"`;
+      if (typeof person.id !== 'string' || person.id.trim() === '') {
+        problems.push(`${who}: every person needs an id`);
+      } else if (seen.has(person.id)) {
+        problems.push(`${who} is listed twice`);
+      }
+      seen.add(person.id);
+      checkLook(person.look, who, problems);
+      checkStand(map, person.pos, `${who}'s "pos"`, problems);
+      checkMovement(person, map, who, problems);
+    }
+
     for (const exit of map.exits) {
       if (!world.maps[exit.to]) {
         problems.push(`exit "${exit.id}" leads to unknown map "${exit.to}"`);
@@ -179,6 +204,15 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
   for (const npc of episode.npcs) {
     checkPos(npc.map, npc.pos, `npc "${npc.id}"`);
     checkLook(npc.look, `${where}: npc "${npc.id}"`, problems);
+    // A route or a wander is walked over the same ground a world person's is
+    // (DESIGN.md §3), so it is checked by the same rules.
+    if (npc.route || npc.wander) {
+      const map = maps[npc.map];
+      if (map) {
+        checkStand(map, npc.pos, `${where}: npc "${npc.id}" walks, so its "pos"`, problems);
+        checkMovement(npc, map, `${where}: npc "${npc.id}"`, problems);
+      }
+    }
 
     let catchAllAt = -1;
     npc.dialogue.forEach((entry, index) => {
@@ -238,6 +272,134 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
   });
 
   return problems;
+}
+
+/** Two or three strollers make a street; a dozen makes a crowd scene. */
+const MAX_PEOPLE = 6;
+
+/**
+ * Every tile somebody walking may stand on. Deliberately stricter than the
+ * player's own walkability: a doorstep and a plaque tile are read by standing
+ * exactly there, so a townsperson parked on one would take a building's door
+ * away, and a road out of the village is the player's to take, not theirs.
+ */
+export function moverWalkable(map: GameMap): (x: number, y: number) => boolean {
+  const taken = new Set<string>();
+  for (const placement of map.buildings) {
+    taken.add(`${placement.door[0]},${placement.door[1]}`);
+    const plaque = plaqueTile(placement);
+    if (plaque) taken.add(`${plaque[0]},${plaque[1]}`);
+  }
+  for (const fixture of map.fixtures ?? []) taken.add(`${fixture.pos[0]},${fixture.pos[1]}`);
+  const exits = map.exits;
+  return (x, y) => {
+    if (isSolid(map, x, y)) return false;
+    if (taken.has(`${x},${y}`)) return false;
+    return !exits.some((exit) => x >= exit.at[0] && x < exit.at[0] + exit.at[2] && y >= exit.at[1] && y < exit.at[1] + exit.at[3]);
+  };
+}
+
+/** A tile somebody may be placed on, or walk to, with the reason if not. */
+function checkStand(map: GameMap, pos: Vec2 | undefined, context: string, problems: string[]): boolean {
+  if (!Array.isArray(pos) || pos.length !== 2 || !pos.every((n) => Number.isInteger(n))) {
+    problems.push(`${context} is not a tile like [12, 4]`);
+    return false;
+  }
+  const [x, y] = pos;
+  if (x < 0 || y < 0 || x >= map.width || y >= map.height) {
+    problems.push(`${context} is outside the map`);
+    return false;
+  }
+  if (!moverWalkable(map)(x, y)) {
+    problems.push(`${context} at ${x},${y} is somewhere nobody can stand — a wall, a doorstep, a plaque, a fixture or a way out of town`);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * A `route` or a `wander` (DESIGN.md §2/§3). Exactly one of the two, every
+ * waypoint somewhere a person could stand, every waypoint actually walkable to
+ * from the tile before it, and a wander with somewhere to wander to. A route
+ * that cannot be walked would leave somebody standing still for ever, which
+ * looks like a bug and reads like one.
+ */
+function checkMovement(
+  who: { pos: Vec2; route?: Route; wander?: Wander },
+  map: GameMap,
+  context: string,
+  problems: string[]
+): void {
+  const { route, wander } = who;
+  if (route && wander) {
+    problems.push(`${context} has both a "route" and a "wander" — a person walks one or the other`);
+    return;
+  }
+  const walkable = moverWalkable(map);
+
+  if (route) {
+    if (!Array.isArray(route.path) || route.path.length < 2) {
+      problems.push(`${context} has a "route" with fewer than two waypoints`);
+      return;
+    }
+    if (route.loop !== undefined && typeof route.loop !== 'boolean') {
+      problems.push(`${context} has a route "loop" that isn't a boolean`);
+    }
+    if (route.pause !== undefined && (typeof route.pause !== 'number' || !(route.pause >= 0))) {
+      problems.push(`${context} has a route "pause" that isn't a number of seconds`);
+    }
+    if (route.speed !== undefined && (typeof route.speed !== 'number' || !(route.speed > 0))) {
+      problems.push(`${context} has a route "speed" that isn't tiles per second`);
+    }
+    let ok = true;
+    route.path.forEach((point, index) => {
+      if (!checkStand(map, point, `${context} route waypoint ${index}`, problems)) ok = false;
+    });
+    if (!ok) return;
+    // Each leg in turn, starting where the person is placed and ending back at
+    // the first waypoint when the route loops.
+    const legs: Vec2[] = [who.pos, ...route.path];
+    if (route.loop !== false) legs.push(route.path[0]);
+    for (let i = 1; i < legs.length; i++) {
+      const from = legs[i - 1];
+      const to = legs[i];
+      if (from[0] === to[0] && from[1] === to[1]) continue;
+      const found = findPath(from, (x, y) => x === to[0] && y === to[1], walkable);
+      if (!found) {
+        problems.push(`${context} cannot walk from ${from.join(',')} to ${to.join(',')} — no way through`);
+      }
+    }
+    return;
+  }
+
+  if (wander) {
+    if (typeof wander.radius !== 'number' || !(wander.radius >= 1)) {
+      problems.push(`${context} has a "wander" radius below 1 — there would be nowhere to go`);
+      return;
+    }
+    if (wander.pause !== undefined && (typeof wander.pause !== 'number' || !(wander.pause >= 0))) {
+      problems.push(`${context} has a wander "pause" that isn't a number of seconds`);
+    }
+    // A wanderer stays inside the radius the whole way round, so that is what
+    // "reachable" means here too (engine/mover.ts `roam`).
+    const inside = (x: number, y: number) =>
+      walkable(x, y) && Math.hypot(x - who.pos[0], y - who.pos[1]) <= wander.radius;
+    const span = Math.ceil(wander.radius);
+    let spots = 0;
+    for (let dy = -span; dy <= span; dy++) {
+      for (let dx = -span; dx <= span; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        if (Math.hypot(dx, dy) > wander.radius) continue;
+        const x = who.pos[0] + dx;
+        const y = who.pos[1] + dy;
+        if (!inside(x, y)) continue;
+        if (findPath(who.pos, (gx, gy) => gx === x && gy === y, inside)) spots++;
+      }
+    }
+    if (!spots) {
+      problems.push(`${context} has a "wander" with no tile within ${wander.radius} of ${who.pos.join(',')} to walk to`);
+    }
+  }
 }
 
 /** Colour fields accept the two hex spellings a world pack ever writes. */

@@ -123,6 +123,54 @@ export function lookOf(who: { accent?: string; look?: Look }): Look {
   return { ...look, shirt: who.accent };
 }
 
+/**
+ * A person who walks (DESIGN.md §2/§3). Both shapes are pure data: the engine
+ * walks them with `engine/mover.ts` and the world pack never says how.
+ *
+ * A `route` is a list of tiles walked in order, the engine's own pathfinder
+ * filling in the way between one waypoint and the next, so an author places
+ * the corners of a stroll rather than every step of it. A `wander` is the
+ * cheap variant: a tile to live near and how far from it is reasonable.
+ */
+export interface Route {
+  /** Waypoints, in order. Each one has to be somewhere a person can stand. */
+  path: Vec2[];
+  /** Back to the first waypoint after the last. Default true. */
+  loop?: boolean;
+  /** Seconds spent standing at each waypoint. Default 1.5. */
+  pause?: number;
+  /** Tiles per second. Default: the player's walking speed x 0.8. */
+  speed?: number;
+}
+
+export interface Wander {
+  /** How far from the home tile, in tiles. At least 1. */
+  radius: number;
+  /** Seconds spent standing between wanders. Default 1.5. */
+  pause?: number;
+}
+
+/**
+ * A townsperson who belongs to the village rather than to any one story
+ * (DESIGN.md §2): somebody on the street when no episode is running, so a map
+ * is not empty between weeks. They have a look and somewhere to be, and no
+ * dialogue at all — pressing A gets one kind passing line from `copy.json`
+ * `ui.passerby`, picked from the list by their id so the same person always
+ * says the same thing. Anybody with something to say is an episode NPC.
+ */
+export interface Person {
+  id: string;
+  /** Optional: without one the dialogue box simply shows no name. */
+  name?: string;
+  pos: Vec2;
+  facing?: Facing;
+  /** Shirt colour of the fallback townsperson. Shorthand for `look.shirt`. */
+  accent?: string;
+  look?: Look;
+  route?: Route;
+  wander?: Wander;
+}
+
 export interface MapExit {
   id: string;
   /** Trigger area in tiles: [x, y, w, h]. */
@@ -147,6 +195,11 @@ export interface MapMeta {
   exits: MapExit[];
   /** Engine-drawn street fixtures on this map. Optional; usually absent. */
   fixtures?: Fixture[];
+  /**
+   * Townspeople who belong to the village rather than to an episode: two or
+   * three per map is plenty, and the validator says so (DESIGN.md §2).
+   */
+  people?: Person[];
 }
 
 /** A map as the engine plays it: world.json's metadata plus its Tiled grid. */
@@ -281,6 +334,14 @@ export interface WorldCopy {
       body?: string[];
     };
     /**
+     * What a townsperson with no story to tell says (DESIGN.md §2). A world
+     * person carries no dialogue of their own, so the engine picks one of
+     * these by their id — the same person always says the same thing — and
+     * a world with none simply has nothing for them to say (hard rule 3).
+     * Keep them short, warm and about nobody in particular.
+     */
+    passerby?: string[];
+    /**
      * The title screen (DESIGN.md §2). The engine draws the world's name and
      * its list of episodes; every word on it comes from here. `play` is the
      * action on an episode not started yet, `continue` on one with a save to
@@ -340,6 +401,15 @@ export interface EpisodeNpc {
   accent?: string;
   /** How the fallback townsperson is drawn — ignored once a sheet is painted. */
   look?: Look;
+  /**
+   * Somewhere to walk while the story waits (DESIGN.md §3). `pos` stays the
+   * tile they start on and the one an author places them by; a person with a
+   * route or a wander is simply not always standing on it. At most one of the
+   * two. Both stop while the player is close by, so somebody with something
+   * to say is never chased around the village.
+   */
+  route?: Route;
+  wander?: Wander;
   dialogue: DialogueEntry[];
 }
 
