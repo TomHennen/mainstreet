@@ -319,9 +319,12 @@ to talk to them, so nobody is ever chased down the street or walks off
 mid-sentence; they turn to face whoever comes over, and carry on once the
 player steps away. They never walk onto the player or onto each other, going
 round where there is a way round and waiting where there is not. A tap lands
-on where somebody *is*, not where the data placed them, and the walk follows
-them if they carry on. None of it touches the save: where a townsperson got to
-is not progress.
+on where somebody *is*, not where the data placed them — on any tile their
+picture covers, which for somebody mid-step is two — and the moment it does,
+they wait where they are until the player gets there. Walking over to somebody
+is never walking over to where they were, however slow the frame rate; call
+the walk off, or aim it somewhere else, and they carry on. None of it touches
+the save: where a townsperson got to is not progress.
 
 **A village's own people.** A map may carry a `people` list — townspeople who
 belong to the village rather than to any one story, so a street is not empty
