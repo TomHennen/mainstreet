@@ -249,6 +249,21 @@ A sign carries exactly one of `building` (read at that building's door, with
 the A prompt) or `map` + `pos` (a prop such as a shelf or a counter, examined by
 standing next to it, deliberately with no prompt).
 
+A building may also carry a **standing sign** in `world.json`, on its entry in
+the `buildings` registry — what is chalked up at its door on an ordinary day,
+one array entry per page:
+
+```jsonc
+"solinskys": { "name": "Solinsky's", "wall": "#d8c3b0", "roof": "#8a5a4a",
+               "sign": ["Brisket sandwiches Saturday, and they do sell out."] }
+```
+
+Episodes override it: an episode sign for that building whose `requires` are
+met always wins, so a story can take over a door for a week and the ordinary
+day comes back afterwards. A building with neither falls back to
+`copy.ui.unpainted`, which is now only ever seen at a door nobody has written
+anything for yet.
+
 Engine responsibilities: declare-before-use flag validation, first-match
 dialogue resolution, effect application, sign lookup, item visibility.
 `validate-episodes` enforces: unknown flags, unreachable dialogue entries,

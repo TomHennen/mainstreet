@@ -72,42 +72,74 @@
     "tops": {
       "name": "Tops",
       "wall": "#cdd3c4",
-      "roof": "#6f7a66"
+      "roof": "#6f7a66",
+      "sign": [
+        "Carts nosed into the corral, the bulletin board by the door three layers deep, and half the lot waving at the other half.",
+        "Someone loading a trunk, to nobody in particular: \"Produce selection isn't great, but it beats a thirty-minute trip when you forgot the milk.\""
+      ]
     },
     "stamford-library": {
       "name": "Stamford Library",
       "wall": "#c9b791",
-      "roof": "#7a6647"
+      "roof": "#7a6647",
+      "sign": [
+        "A jigsaw half-done on the table inside the window, one whole corner still sky. A card beside it: TAKE A PIECE, LEAVE A PIECE.",
+        "Story hour Thursday mornings, says the sign on the door, in careful marker with a cat drawn in the corner."
+      ]
     },
     "stamford-fire-department": {
       "name": "Stamford Fire Department",
       "wall": "#b0523a",
-      "roof": "#6b3324"
+      "roof": "#6b3324",
+      "sign": [
+        "Chalked on a board by the bay doors: PANCAKE BREAKFAST SUNDAY, 8 TO NOON. Underneath, smaller: chicken barbecue in July.",
+        "The engine is out front with the hoses drying beside it, and the whole thing shines. Everyone who keeps it that way does it on their own time."
+      ]
     },
     "solinskys": {
       "name": "Solinsky's",
       "wall": "#d8c3b0",
-      "roof": "#8a5a4a"
+      "roof": "#8a5a4a",
+      "sign": [
+        "The smoke reaches the sidewalk a few doors early, and there is already a friendly little line of regulars working its way to the case.",
+        "Sign by the register: BRISKET SANDWICHES SATURDAY. Underneath, in a different hand: come early, they go."
+      ]
     },
     "johns-tavern": {
       "name": "John's Tavern",
       "wall": "#7d6a52",
-      "roof": "#4a3d2d"
+      "roof": "#4a3d2d",
+      "sign": [
+        "Door propped open, a game on somewhere in the back, and a laugh going up at something that happened three innings ago.",
+        "Up Academy Street there is the Belvedere; down here there is John's. Most folks have a favorite, and plenty of folks keep both."
+      ]
     },
     "eighty-main": {
       "name": "80 Main",
       "wall": "#c9b8a0",
-      "roof": "#6d5a44"
+      "roof": "#6d5a44",
+      "sign": [
+        "Shelves of things made close to home: candles, mugs, dish towels with the mountain on them, cards drawn by somebody up the road.",
+        "Its door and Stamford Coffee's open onto the same patio, so a browse and a cup of coffee turn into one errand."
+      ]
     },
     "tps-cafe": {
       "name": "T.P.'s Cafe",
       "wall": "#c98f6a",
-      "roof": "#7d5236"
+      "roof": "#7d5236",
+      "sign": [
+        "Breakfast comes right out onto Railroad Avenue: eggs, toast, coffee going round. Half the stools at the counter know each other's orders.",
+        "Ace Hardware is right next door, so breakfast here tends to come with a plan for the afternoon."
+      ]
     },
     "ace-hardware": {
       "name": "Ace Hardware",
       "wall": "#8fa8a0",
-      "roof": "#4f6660"
+      "roof": "#4f6660",
+      "sign": [
+        "Saturday morning, and the lot is full: a good share of it people who moved up here, bought a place that needed work, and are happily still at it.",
+        "Someone comes in holding one mystery part; someone behind the counter says \"aisle four, halfway down\" without looking up."
+      ]
     },
     "jh-gas-station": {
       "name": "J&H",

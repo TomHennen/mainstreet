@@ -62,6 +62,19 @@ export function signFor(buildingId: string): EpisodeSign | undefined {
 }
 
 /**
+ * What a building's door actually says: the episode's sign when it has one for
+ * this building and its `requires` are met, otherwise the standing sign the
+ * world pack gives the building (DESIGN.md §3). A story always wins over the
+ * ordinary day, and a building with neither returns nothing at all — the scene
+ * decides what to do with a door that has nothing to say.
+ */
+export function signLinesFor(buildingId: string): string[] {
+  const sign = signFor(buildingId);
+  if (sign) return [...sign.lines];
+  return [...(session().world.buildings[buildingId]?.sign ?? [])];
+}
+
+/**
  * A building's art credit, if it has one and is actually painted (DESIGN.md
  * §2/§4: "painted ones carry an art credit" — an unpainted building has
  * nothing to credit yet, even if credits.json names it ahead of time). Read

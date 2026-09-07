@@ -6,7 +6,7 @@ import { parseTiledMap, parseTileset, tilesetSources } from './tiled';
 import type { TilesetDef } from './tiled';
 import { isSolid, validateEpisode, validateWorld } from './validate';
 import { plaqueTile } from './schema';
-import type { BuildingPlacement, Episode, Fixture, GameMap, MapMeta, World } from './schema';
+import type { BuildingDef, BuildingPlacement, Episode, Fixture, GameMap, MapMeta, World } from './schema';
 
 // --- small fixture builders --------------------------------------------------
 // Kept deliberately minimal — just enough to satisfy the schema — so each test
@@ -168,6 +168,40 @@ describe('validateWorld', () => {
     });
     const problems = runWorld(world);
     expect(problems.join('\n')).toContain('building "shop" has its door on a solid tile');
+  });
+
+  it('accepts a building with a standing sign', () => {
+    const world = makeWorld({
+      buildings: { shop: { name: 'Shop', wall: '#fff', roof: '#000', sign: ['Open till six.'] } }
+    });
+    expect(runWorld(world)).toEqual([]);
+  });
+
+  it('flags a standing sign with no lines in it', () => {
+    const world = makeWorld({ buildings: { shop: { name: 'Shop', wall: '#fff', roof: '#000', sign: [] } } });
+    expect(runWorld(world).join('\n')).toContain(
+      'building "shop" has a "sign" that isn\'t a non-empty array of lines'
+    );
+  });
+
+  it('flags a standing sign that isn\'t an array at all', () => {
+    const world = makeWorld({
+      // world.json is untyped JSON at load time, so a bare string here is a
+      // realistic author mistake.
+      buildings: {
+        shop: { name: 'Shop', wall: '#fff', roof: '#000', sign: 'Open till six.' } as unknown as BuildingDef
+      }
+    });
+    expect(runWorld(world).join('\n')).toContain(
+      'building "shop" has a "sign" that isn\'t a non-empty array of lines'
+    );
+  });
+
+  it('flags an empty page in the middle of a standing sign', () => {
+    const world = makeWorld({
+      buildings: { shop: { name: 'Shop', wall: '#fff', roof: '#000', sign: ['Open till six.', '  '] } }
+    });
+    expect(runWorld(world).join('\n')).toContain('building "shop" sign line 1 is empty');
   });
 
   it('accepts a building placement with a boolean "label"', () => {

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { bus, EV } from '../bus';
+import { noteDialogue } from '../debug';
 import type { SayRequest } from '../bus';
 import { onAction } from '../input';
 import { session } from '../session';
@@ -124,6 +125,7 @@ export class UiScene extends Phaser.Scene {
       this.portrait.setVisible(false);
       this.link = undefined;
       this.hideLink();
+      if (import.meta.env.DEV) noteDialogue(null);
     }
   }
 
@@ -183,6 +185,14 @@ export class UiScene extends Phaser.Scene {
       // four, and the box has to grow under it rather than let it spill.
       this.body.setWordWrapWidth(left + boxW - textLeft - 14, true);
       this.body.setText(this.lines[this.index] ?? '');
+      if (import.meta.env.DEV) {
+        noteDialogue({
+          speaker: this.speaker.text,
+          page: this.index,
+          pages: this.lines.length,
+          text: this.lines[this.index] ?? ''
+        });
+      }
       const boxH = Math.max(104, 28 + this.body.height + 26);
       const top = height - boxH - margin;
 

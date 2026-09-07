@@ -16,12 +16,12 @@ import {
   promptTexture,
   TILE
 } from '../art';
-import { publishDebug } from '../debug';
+import { currentDialogue, publishDebug } from '../debug';
 import { isHeld, onAction, onTap } from '../input';
 import { feedbackUrl } from '../feedback';
 import { paintUrl } from '../paint';
 import { findPath, pathToTile } from '../path';
-import { creditFor, dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signFor } from '../session';
+import { creditFor, dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signLinesFor } from '../session';
 import { isSolid } from '../validate';
 import { plaqueTile } from '../schema';
 import type { PlateBox } from '../art';
@@ -249,7 +249,8 @@ export class MapScene extends Phaser.Scene {
       locked: state.locked,
       walkTo: this.walkGoal ? [this.walkGoal[0], this.walkGoal[1]] : null,
       view: { x: view.x, y: view.y, width: view.width, height: view.height, tile: TILE },
-      flags: state.flags.snapshot()
+      flags: state.flags.snapshot(),
+      dialogue: currentDialogue()
     });
   }
 
@@ -721,16 +722,17 @@ export class MapScene extends Phaser.Scene {
 
     if (target.kind === 'sign' && target.building) {
       const building = target.building;
-      const sign = signFor(building.id);
       const name = state.world.buildings[building.id].name;
-      const lines = sign ? [...sign.lines] : [];
+      // The episode's sign if it has one, otherwise the building's standing
+      // sign from world.json (DESIGN.md §3).
+      const lines = signLinesFor(building.id);
 
       // Nothing about the art joins the words: a sign says what is going on at
       // a place, and meta text in the middle of it gets in the way of reading
       // (DESIGN.md §2/§4). Thanks and invitation both live on the plaque
       // beside the door, so the sign carries no link at all.
       if (!lines.length && !state.assets.buildings.has(building.id)) {
-        // With no sign copy this episode the box would open empty, so one
+        // With no sign copy of either kind the box would open empty, so one
         // short, kind line stands in for it.
         lines.push(
           state.copy.ui.unpainted.replace('{building}', name).replace('{contribute}', state.world.contribute ?? '')

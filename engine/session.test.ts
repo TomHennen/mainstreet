@@ -8,6 +8,7 @@ import {
   npcsOn,
   propSignsOn,
   signFor,
+  signLinesFor,
   startSession
 } from './session';
 import type { AssetIndex } from './session';
@@ -35,7 +36,13 @@ const world: World = {
   episodes: ['ep'],
   player: { id: 'player', accent: '#fff' },
   start: { map: 'town', pos: [0, 0], facing: 'down' },
-  buildings: { shop: { name: 'Shop', wall: '#fff', roof: '#000' } },
+  buildings: {
+    shop: { name: 'Shop', wall: '#fff', roof: '#000' },
+    // A standing sign of its own, and no episode sign anywhere for it.
+    bakery: { name: 'Bakery', wall: '#fff', roof: '#000', sign: ['standing bakery line'] },
+    // Neither: nothing to read at this door at all.
+    barn: { name: 'Barn', wall: '#fff', roof: '#000' }
+  },
   maps: {}
 };
 
@@ -88,6 +95,8 @@ const episode: Episode = {
     // Deliberately ordered most-specific-first, like ep000: first match wins.
     { building: 'shop', requires: ['vip'], lines: ['sign vip'] },
     { building: 'shop', requires: [], lines: ['sign fallback'] },
+    // Only shows for a VIP, so the bakery's standing sign covers everyone else.
+    { building: 'bakery', requires: ['vip'], lines: ['bakery this week'] },
     { map: 'town', pos: [5, 5], requires: [], lines: ['prop a — first, wins'] },
     { map: 'town', pos: [5, 5], requires: [], lines: ['prop b — same tile, should be deduped'] },
     { map: 'other', pos: [5, 5], requires: [], lines: ['prop on a different map'] }
@@ -197,6 +206,41 @@ describe('session helpers', () => {
 
     it('returns undefined for a building with no signs at all', () => {
       expect(signFor('no-such-building')).toBeUndefined();
+    });
+  });
+
+  describe('signLinesFor — the episode overrides the standing sign', () => {
+    it('reads the episode sign when there is one for this building', () => {
+      expect(signLinesFor('shop')).toEqual(['sign fallback']);
+    });
+
+    it('still prefers the episode over world.json once a flag-gated sign matches', () => {
+      boot(fakeFlags(['vip']));
+      expect(signLinesFor('bakery')).toEqual(['bakery this week']);
+    });
+
+    it('reads the standing sign when the episode has none for this building', () => {
+      expect(signLinesFor('bakery')).toEqual(['standing bakery line']);
+    });
+
+    it('reads the standing sign when the episode sign that exists is not unlocked', () => {
+      // The only bakery sign in the episode requires "vip", which is not set.
+      expect(signFor('bakery')).toBeUndefined();
+      expect(signLinesFor('bakery')).toEqual(['standing bakery line']);
+    });
+
+    it('returns nothing for a building with neither kind of sign', () => {
+      expect(signLinesFor('barn')).toEqual([]);
+    });
+
+    it('returns nothing for a building the world does not have at all', () => {
+      expect(signLinesFor('no-such-building')).toEqual([]);
+    });
+
+    it('hands back a copy, so a caller adding a stand-in line cannot edit the pack', () => {
+      const lines = signLinesFor('bakery');
+      lines.push('scribbled on by the scene');
+      expect(signLinesFor('bakery')).toEqual(['standing bakery line']);
     });
   });
 
