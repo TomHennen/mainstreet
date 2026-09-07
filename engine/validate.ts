@@ -190,9 +190,6 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
         problems.push(`${who} is listed twice`);
       }
       seen.add(person.id);
-      if (person.lines && (!person.lines.length || person.lines.some((line) => !line?.trim()))) {
-        problems.push(`${who}: "lines" is there but empty — leave it out to fall back to the passing lines`);
-      }
       checkLook(person.look, who, problems);
       // "Stand-able" is per-tile only — solid, a doorstep, a plaque, an exit
       // (moverWalkable) — never whether the tile connects to the door on

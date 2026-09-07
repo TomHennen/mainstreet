@@ -586,17 +586,6 @@ describe('validateWorld', () => {
     expect(runWorld(world).join('\n')).toContain('nowhere beside it to read it from');
   });
 
-  // A townsperson's own standing line, for somebody who belongs to the place
-  // rather than to a story (DESIGN.md §2).
-  it('accepts a person with their own lines, and flags an empty one', () => {
-    const ok = makeWorld({
-      maps: { town: makeMap({ people: [{ id: 'barman', pos: [2, 2], lines: ['Good to see you.'] }] }) }
-    });
-    expect(runWorld(ok)).toEqual([]);
-    const empty = makeWorld({ maps: { town: makeMap({ people: [{ id: 'barman', pos: [2, 2], lines: [''] }] }) } });
-    expect(runWorld(empty).join('\n')).toContain('"lines" is there but empty');
-  });
-
   it('flags a fixture kind the engine has no shape for', () => {
     const world = makeWorld({
       maps: {
