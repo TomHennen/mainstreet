@@ -651,7 +651,6 @@ export class MapScene extends Phaser.Scene {
         blocked: (x, y) => this.occupied(walker, x, y)
       });
 
-
       const { mover, sprite } = walker;
       sprite.setPosition(Math.round(mover.x * TILE) + TILE / 2, Math.round(mover.y * TILE) + TILE);
       sprite.setDepth(mover.y * TILE + TILE);

@@ -311,6 +311,41 @@ describe('sendTo', () => {
     expect(slow.x).toBeLessThan(2.5);
   });
 
+  /**
+   * A scene's instruction outranks a hail: the player tapping somebody who is
+   * crossing the room on cue must not stop the scene half way through it. The
+   * hail is not lost, though — it is waiting for them at the far end.
+   */
+  it('carries on with an errand even when somebody has hailed it', () => {
+    const mover = new Mover({ home: [1, 1], speed: 4, walkable: OPEN });
+    mover.sendTo([5, 1]);
+    mover.hail();
+    run(mover, 2);
+    expect(at(mover)).toEqual([5, 1]);
+    expect(mover.onErrand).toBe(false);
+    // And now they stand there, because somebody is still on their way over.
+    expect(mover.hailed).toBe(true);
+    run(mover, 3);
+    expect(at(mover)).toEqual([5, 1]);
+  });
+
+  it('takes an errand over a hail that came first', () => {
+    const mover = new Mover({
+      home: [1, 1],
+      speed: 4,
+      walkable: OPEN,
+      route: { path: [[1, 4], [1, 1]], pause: 0.2 }
+    });
+    mover.hail();
+    run(mover, 1);
+    expect(at(mover)).toEqual([1, 1]);
+    // The scene takes charge, and the hail goes with the walk it belonged to.
+    expect(mover.sendTo([5, 1])).toBe(true);
+    expect(mover.hailed).toBe(false);
+    run(mover, 1.2);
+    expect(at(mover)).toEqual([5, 1]);
+  });
+
   it('picks its own route back up once the errand is over', () => {
     const mover = new Mover({
       home: [0, 0],
