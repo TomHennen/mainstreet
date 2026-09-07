@@ -1,8 +1,11 @@
 import Phaser from 'phaser';
-import { indexAssets, loadWorld, queueAssets } from '../loader';
+import { indexAssets, loadEpisode, loadWorld, queueAssets } from '../loader';
 import { Flags } from '../flags';
 import { startSession } from '../session';
 import { validateEpisode, validateWorld } from '../validate';
+
+/** Letters, digits, "-" and "_" only — keeps `?episode=` off the filesystem path. */
+const SAFE_EPISODE_ID = /^[A-Za-z0-9_-]+$/;
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -33,14 +36,51 @@ export class BootScene extends Phaser.Scene {
         return;
       }
 
-      // M0 runs one episode at a time; the episode list is already ordered.
-      const episode = episodes[0];
+      // M0 runs one episode at a time; the episode list is already ordered,
+      // so the first entry is the default (DESIGN.md §3).
+      let episode = episodes[0];
       if (!episode) {
         fatal(`World pack "${worldId}" has no episodes`, 'Add one to world.json → episodes.');
         return;
       }
 
-      const assets = await indexAssets(loaded);
+      // `?episode=<id>` plays any episode file for review, listed in
+      // world.json or not (DESIGN.md §3) — e.g. a shelved draft. A missing or
+      // invalid id warns and keeps the default rather than showing a blank
+      // screen (CLAUDE.md hard rule 3).
+      const requestedId = new URLSearchParams(location.search).get('episode');
+      if (requestedId) {
+        if (!SAFE_EPISODE_ID.test(requestedId)) {
+          console.warn(
+            `?episode="${requestedId}" is not a valid episode id (letters, digits, "-", "_" only); playing "${episode.id}" instead.`
+          );
+        } else {
+          try {
+            const requested = await loadEpisode(world.id, requestedId);
+            if (!requested) {
+              console.warn(
+                `?episode="${requestedId}" has no file at worlds/${world.id}/episodes/${requestedId}.json; playing "${episode.id}" instead.`
+              );
+            } else {
+              const requestedProblems = validateEpisode(requested, world, maps);
+              if (requestedProblems.length) {
+                console.warn(
+                  `?episode="${requestedId}" failed validation (${requestedProblems.join('; ')}); playing "${episode.id}" instead.`
+                );
+              } else {
+                episode = requested;
+              }
+            }
+          } catch (error) {
+            console.warn(`?episode="${requestedId}" could not be loaded (${String(error)}); playing "${episode.id}" instead.`);
+          }
+        }
+      }
+
+      // Assets are indexed against whichever episode is actually being
+      // played, so a review episode's own NPCs get their sprites probed too.
+      const assetEpisodes = episodes.some((e) => e.id === episode.id) ? episodes : [...episodes, episode];
+      const assets = await indexAssets({ ...loaded, episodes: assetEpisodes });
       queueAssets(this.load, loaded, assets);
       await new Promise<void>((resolve) => {
         this.load.once(Phaser.Loader.Events.COMPLETE, () => resolve());

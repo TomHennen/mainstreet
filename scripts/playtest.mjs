@@ -3,10 +3,17 @@
  * Headless end-to-end playtest.
  *
  * Boots the dev server's build in Chromium, walks the player through the whole
- * of the first episode, screenshots every milestone, and exits non-zero with a
+ * of an episode, screenshots every milestone, and exits non-zero with a
  * readable message on the first thing that goes wrong. It reads the world pack
  * from disk to path-find, and reads engine state from `window.__mainstreet`
  * (published only when `import.meta.env.DEV`, see engine/debug.ts).
+ *
+ * The harness is written against `ep000` (route10's test fixture, kept off
+ * the shipped `world.episodes` list but still on disk) — Earl, Hannah, the
+ * pen, the shelf sign, the painted sign check. It plays that episode via
+ * `?episode=` (DESIGN.md §3, engine/scenes/boot.ts) regardless of what
+ * world.json actually ships, so it keeps exercising ep000 even as new
+ * episodes are added. Override with PLAYTEST_EPISODE if ever needed.
  *
  * Usage:  npx playwright install chromium   # once
  *         npm run playtest
@@ -40,7 +47,14 @@ const PACK = resolve(ROOT, 'worlds', WORLD_ID);
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
 const WORLD = readJson(resolve(PACK, 'world.json'));
 const COPY = readJson(resolve(PACK, 'copy.json'));
-const EPISODE = readJson(resolve(PACK, 'episodes', `${WORLD.episodes[0]}.json`));
+
+// The harness plays a fixed episode by id, via `?episode=` (DESIGN.md §3), so
+// it keeps exercising the episode it is written against — ep000, by default
+// — whether or not world.json ships it. See the file header.
+const PLAYTEST_EPISODE = process.env.PLAYTEST_EPISODE ?? 'ep000';
+const EPISODE = readJson(resolve(PACK, 'episodes', `${PLAYTEST_EPISODE}.json`));
+/** Every page load of the game itself (never the Studio) plays PLAYTEST_EPISODE. */
+const GAME_URL = `${BASE}?episode=${encodeURIComponent(PLAYTEST_EPISODE)}`;
 
 /**
  * The tile grids are Tiled files (DESIGN.md §2). This reads them the way the
@@ -419,7 +433,7 @@ async function ensureServer() {
 
 async function main() {
   mkdirSync(OUT, { recursive: true });
-  writeFileSync(LOG, `mainstreet playtest — ${new Date().toISOString()}\n  world: ${WORLD_ID}  episode: ${EPISODE.id} \u201c${EPISODE.title}\u201d\n  url: ${BASE}\n\n`);
+  writeFileSync(LOG, `mainstreet playtest — ${new Date().toISOString()}\n  world: ${WORLD_ID}  episode: ${EPISODE.id} \u201c${EPISODE.title}\u201d\n  url: ${GAME_URL}\n\n`);
   const server = await ensureServer();
 
   const browser = await chromium.launch({
@@ -434,9 +448,44 @@ async function main() {
     const page = await context.newPage();
     attach(page, 'desktop');
 
+    // --- no ?episode= plays the shipped episode -----------------------------
+    // A quick, separate check that the default (no parameter at all) is what
+    // world.json actually ships — WORLD.episodes[0], route10's ep001 — before
+    // the rest of this run switches to ep000 via GAME_URL (DESIGN.md §3).
+    {
+      log('  boot with no ?episode= (should play the shipped episode)');
+      const shippedId = WORLD.episodes[0];
+      const shipped = readJson(resolve(PACK, 'episodes', `${shippedId}.json`));
+      const defaultCtx = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 1 });
+      const dp = await defaultCtx.newPage();
+      attach(dp, 'default-episode');
+      try {
+        await dp.goto(BASE, { waitUntil: 'load' });
+        try {
+          await dp.waitForFunction(
+            () => (document.querySelector('[data-hud="episode"]')?.textContent ?? '').trim().length > 0,
+            null,
+            { timeout: 20000 }
+          );
+        } catch {
+          fail('default-episode', 'HUD episode title was never filled in with no ?episode= parameter');
+        }
+        const hudEpisode = (await dp.locator('[data-hud="episode"]').innerText()).trim();
+        if (!hudEpisode.includes(shipped.title)) {
+          fail(
+            'default-episode',
+            `HUD showed "${hudEpisode}" with no ?episode=; expected the shipped "${shippedId}" ("${shipped.title}")`
+          );
+        }
+        log(`    HUD: "${hudEpisode}" (no ?episode= -> shipped ${shippedId})`);
+      } finally {
+        await defaultCtx.close();
+      }
+    }
+
     // --- boot ---------------------------------------------------------------
-    log('  boot');
-    await page.goto(BASE, { waitUntil: 'load' });
+    log(`  boot (?episode=${PLAYTEST_EPISODE})`);
+    await page.goto(GAME_URL, { waitUntil: 'load' });
     if (await page.locator('#fatal').count()) {
       const text = await page.locator('#fatal').innerText();
       await shot(page, 'fatal');
@@ -690,7 +739,7 @@ async function main() {
     const tp = await touchCtx.newPage();
     attach(tp, 'touch');
     const cdp = await touchCtx.newCDPSession(tp);
-    await tp.goto(BASE, { waitUntil: 'load' });
+    await tp.goto(GAME_URL, { waitUntil: 'load' });
     await waitUntil(tp, (s) => s.dialogueOpen, 'the intro on the touch page');
     await shot(tp, 'touch-boot');
 
@@ -788,7 +837,7 @@ async function main() {
     const wp = await walkCtx.newPage();
     attach(wp, 'tap');
     const wcdp = await walkCtx.newCDPSession(wp);
-    await wp.goto(BASE, { waitUntil: 'load' });
+    await wp.goto(GAME_URL, { waitUntil: 'load' });
     await waitUntil(wp, (s) => s.dialogueOpen, 'the intro on the tap page');
     for (let i = 0; i < 5 && (await snap(wp)).dialogueOpen; i++) {
       await tapEl(wcdp, wp, '#stage');
@@ -1289,7 +1338,7 @@ async function main() {
     await sleep(150);
     await shot(ip, 'improve-it');
 
-    log('\n  ep000 completed end to end.');
+    log(`\n  ${PLAYTEST_EPISODE} completed end to end.`);
   } finally {
     await browser.close();
     if (server) server.kill();

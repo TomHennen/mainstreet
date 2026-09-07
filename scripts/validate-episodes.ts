@@ -4,10 +4,18 @@
  * The rules themselves live only in engine/validate.ts; this script does not
  * duplicate them.
  *
- * Run with `npm run validate-episodes`. Point it at a different worlds
- * directory (e.g. a scratch fixture) with either an argument or the
- * MAINSTREET_WORLDS_DIR env var — useful for testing this script itself
- * without touching the real worlds/ directory:
+ * Run with `npm run validate-episodes`. By default it validates only the
+ * episodes each world.json actually lists — a shipping check. Add `--all` to
+ * also validate every other `episodes/*.json` file on disk (the engine's
+ * `?episode=` review path, DESIGN.md §3 — e.g. ep000, kept as the playtest
+ * fixture but not shipped), except files starting with `draft-`, which are
+ * shelved drafts not meant to validate cleanly yet:
+ *
+ *   npm run validate-episodes -- --all
+ *
+ * Point it at a different worlds directory (e.g. a scratch fixture) with
+ * either an argument or the MAINSTREET_WORLDS_DIR env var — useful for
+ * testing this script itself without touching the real worlds/ directory:
  *
  *   node scripts/validate-episodes.ts path/to/worlds
  *   MAINSTREET_WORLDS_DIR=path/to/worlds node scripts/validate-episodes.ts
@@ -25,7 +33,9 @@ import type { TilesetDef } from '../engine/tiled.ts';
 import { validateEpisode, validateWorld } from '../engine/validate.ts';
 import type { Episode, GameMap, World, WorldCopy } from '../engine/schema.ts';
 
-const worldsRoot = process.argv[2] ?? process.env.MAINSTREET_WORLDS_DIR ?? 'worlds';
+const args = process.argv.slice(2);
+const all = args.includes('--all');
+const worldsRoot = args.find((a) => a !== '--all') ?? process.env.MAINSTREET_WORLDS_DIR ?? 'worlds';
 
 function describeError(error: unknown): string {
   if (error && typeof error === 'object' && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -95,7 +105,19 @@ function validateWorldPack(dir: string, worldId: string): void {
     fail(worldId, worldFile, problem);
   }
 
-  for (const episodeId of world.episodes) {
+  // By default only the shipped episodes (world.json's list) are validated.
+  // --all also picks up every other episodes/*.json on disk — the review
+  // fixtures `?episode=` can load — skipping `draft-*` files, which are
+  // shelved on purpose and not expected to validate yet.
+  const episodeIds = new Set(world.episodes);
+  if (all) {
+    for (const file of readdirSync(join(dir, 'episodes'))) {
+      if (!file.endsWith('.json') || file.startsWith('draft-')) continue;
+      episodeIds.add(file.slice(0, -'.json'.length));
+    }
+  }
+
+  for (const episodeId of episodeIds) {
     const episodeFile = join(dir, 'episodes', `${episodeId}.json`);
     const episode = readJson<Episode>(worldId, episodeFile);
     for (const problem of validateEpisode(episode, world, maps)) {
@@ -103,7 +125,7 @@ function validateWorldPack(dir: string, worldId: string): void {
     }
   }
 
-  const count = world.episodes.length;
+  const count = episodeIds.size;
   const mapCount = Object.keys(maps).length;
   console.log(`✓ ${worldId} (${mapCount} map${mapCount === 1 ? '' : 's'}, ${count} episode${count === 1 ? '' : 's'})`);
 }
