@@ -74,8 +74,9 @@ and the **Catskill Scenic Trail** follows the old rail bed just south of them.
 
 **Jefferson.** Main Street is the spine and reads as a main street (paved).
 Mill Pond Inn and Middle Brook Cafe are on the south side of Main Street.
-There is a gas station on the north side across from Middle Brook Cafe; a lot
-is reserved for it. Middle Brook Cafe has a big outdoor patio in front, next
+There is a gas station, **J&H** (`jh-gas-station` on the map, north of the
+village green, roughly across Main Street from Middle Brook Cafe — placed Sep
+2026), on the north side of Main Street. Middle Brook Cafe has a big outdoor patio in front, next
 to its parking lot, and an herb garden round the back. The village green with its gazebo is on the south side.
 Route 10 leaves the junction north and east; the east arm is the road to
 Stamford.
@@ -259,11 +260,18 @@ opt-in, everything warm and affectionate) before it reaches the player.
 - **The unreachable contractor.** A very true, very relatable rural
   frustration: everyone's always looking for a contractor to fix up the
   house, and half of them just don't return calls — often because the
-  good ones are simply swamped with work, not because they're flaky. No
-  real business involved, so this one's easy: a classic "help someone
-  chase down a contractor" or "the contractor everyone swears by is
-  booked till spring" episode premise, played as a shared, good-natured
-  town frustration rather than a knock on anyone in particular.
+  good ones are simply swamped with work, not because they're flaky. A
+  classic "help someone chase down a contractor" or "the contractor
+  everyone swears by is booked till spring" episode premise, played as a
+  shared, good-natured town frustration rather than a knock on anyone in
+  particular. Real inspiration for *where* to find them: the deli counter
+  inside the Jefferson gas station, across the road from Middle Brook
+  Cafe — officially "J&H," but locally known by a nickname that's really
+  the real owner's name, so per hard rule 5 don't use it. Give the
+  in-world spot its own invented nickname instead (e.g. "Duffy's") rather
+  than the real one. That's exactly where the contractors everyone's
+  chasing actually have breakfast — a good "ask around town, get pointed
+  to the gas station deli, and there they all are" beat for the episode.
 - **The old-timer who fixes septic problems.** Real-world inspiration for
   a great character archetype: an old-timer, well past the age you'd
   expect to still be doing the work, who's the person everyone calls for
