@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { parseTiledMap, parseTileset, tilesetSources } from './tiled';
 import type { TilesetDef } from './tiled';
 import { isSolid, validateEpisode, validateWorld } from './validate';
-import type { Episode, GameMap, MapMeta, World } from './schema';
+import type { BuildingPlacement, Episode, GameMap, MapMeta, World } from './schema';
 
 // --- small fixture builders --------------------------------------------------
 // Kept deliberately minimal — just enough to satisfy the schema — so each test
@@ -167,6 +167,33 @@ describe('validateWorld', () => {
     });
     const problems = runWorld(world);
     expect(problems.join('\n')).toContain('building "shop" has its door on a solid tile');
+  });
+
+  it('accepts a building placement with a boolean "label"', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          buildings: [{ id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1], label: false }]
+        })
+      }
+    });
+    expect(runWorld(world)).toEqual([]);
+  });
+
+  it('flags a building placement whose "label" isn\'t a boolean', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          // world.json is untyped JSON at load time, so a bad value here is a
+          // realistic author mistake, not just a TypeScript escape hatch.
+          buildings: [
+            { id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1], label: 'yes' } as unknown as BuildingPlacement
+          ]
+        })
+      }
+    });
+    const problems = runWorld(world);
+    expect(problems.join('\n')).toContain('building "shop" has a "label" that isn\'t a boolean');
   });
 
   it('flags a building interior pointing at an unknown map', () => {

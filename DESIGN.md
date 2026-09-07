@@ -115,7 +115,10 @@ on a sign, plus a subtle "needs an artist" shimmer and an inspect line that
 links to the contribution page (`world.json` `contribute` is that URL; the
 engine appends `&building=<id>` and offers it as a "Paint it" link beside the
 line). Missing NPC sheet = generic townsperson sprite in a per-NPC accent
-color. Missing portrait = no portrait pane.
+color. Missing portrait = no portrait pane. The floating name plate stays
+above a building once it's painted too, positioned the same way relative to
+the footprint (or above the art's top edge if the facade is taller than the
+footprint); a placement can set `"label": false` in `world.json` to hide it.
 
 ## 3. Episode schema (v1)
 

@@ -24,6 +24,8 @@ export interface BuildingPlacement {
   interior?: string;
   /** Spawn tile inside that interior. */
   enter?: Vec2;
+  /** Floating name plate above the building, painted or not. Default true. */
+  label?: boolean;
 }
 
 export interface MapLabel {
