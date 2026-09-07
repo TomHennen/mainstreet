@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { parseTiledMap, parseTileset, tilesetSources } from './tiled';
 import type { TilesetDef } from './tiled';
 import { isSolid, validateEpisode, validateWorld } from './validate';
+import { plaqueTile } from './schema';
 import type { BuildingPlacement, Episode, GameMap, MapMeta, World } from './schema';
 
 // --- small fixture builders --------------------------------------------------
@@ -194,6 +195,69 @@ describe('validateWorld', () => {
     });
     const problems = runWorld(world);
     expect(problems.join('\n')).toContain('building "shop" has a "label" that isn\'t a boolean');
+  });
+
+  it('accepts the plaque tile the engine puts beside a door by default', () => {
+    // Right of the door, which on this footprint is still a walkable tile.
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          buildings: [{ id: 'shop', pos: [1, 0], size: [2, 1], door: [1, 1] }]
+        })
+      }
+    });
+    expect(runWorld(world)).toEqual([]);
+  });
+
+  it('flags a building whose plaque tile is solid', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap(
+          { buildings: [{ id: 'shop', pos: [1, 0], size: [2, 1], door: [1, 1] }] },
+          ['....', '..#.', '....', '....']
+        )
+      }
+    });
+    const problems = runWorld(world);
+    expect(problems.join('\n')).toContain('building "shop" has its plaque on a solid tile');
+  });
+
+  it('flags a plaque placed outside the map', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          buildings: [{ id: 'shop', pos: [1, 0], size: [2, 1], door: [1, 1], plaque: [9, 9] }]
+        })
+      }
+    });
+    const problems = runWorld(world);
+    expect(problems.join('\n')).toContain('building "shop" has its plaque outside the map');
+  });
+
+  it('flags a plaque sitting on the door tile itself', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          buildings: [{ id: 'shop', pos: [1, 0], size: [2, 1], door: [1, 1], plaque: [1, 1] }]
+        })
+      }
+    });
+    const problems = runWorld(world);
+    expect(problems.join('\n')).toContain('building "shop" has its plaque on its own door tile');
+  });
+
+  it('accepts a building that opts out of a plaque altogether', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap(
+          { buildings: [{ id: 'shop', pos: [1, 0], size: [2, 1], door: [1, 1], plaque: false }] },
+          // The tile the default plaque would have taken is solid, so this
+          // only passes because opting out skips the check entirely.
+          ['....', '..#.', '....', '....']
+        )
+      }
+    });
+    expect(runWorld(world)).toEqual([]);
   });
 
   it('flags a building interior pointing at an unknown map', () => {
@@ -546,5 +610,31 @@ describe('worlds/route10 validates cleanly', () => {
       expect(maps[mapId].width).toBeGreaterThan(0);
       expect(maps[mapId].height).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('plaqueTile', () => {
+  const place = (over: Partial<BuildingPlacement>): BuildingPlacement => ({
+    id: 'shop',
+    pos: [2, 2],
+    size: [3, 2],
+    door: [3, 4],
+    ...over
+  });
+
+  it('defaults to the tile right of the door', () => {
+    expect(plaqueTile(place({}))).toEqual([4, 4]);
+  });
+
+  it('defaults to the left of the door when the door is in the right-most column', () => {
+    expect(plaqueTile(place({ door: [4, 4] }))).toEqual([3, 4]);
+  });
+
+  it('uses an explicit plaque tile when the placement gives one', () => {
+    expect(plaqueTile(place({ plaque: [7, 4] }))).toEqual([7, 4]);
+  });
+
+  it('returns null when the placement opts out', () => {
+    expect(plaqueTile(place({ plaque: false }))).toBeNull();
   });
 });

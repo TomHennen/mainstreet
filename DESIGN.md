@@ -17,8 +17,8 @@ _Engine for small, episodic, pixel-art town games. First world: **Route 10**._
   **real names + placeholder art**: buildings carry their real names from
   day one, art starts as engine placeholders and gets "filled in" by
   community contributions. Unpainted buildings are visible, claimable tasks
-  ("adopt this building"), and every painter is named — on the site's front
-  page, and later on an in-game credits screen.
+  ("adopt this building"), and every painter is named — on a small plaque
+  beside that building's door in the game, and on the site's front page.
 
 ## 2. Architecture
 
@@ -112,14 +112,27 @@ anything else.
 
 **Fallback art (engine-built, not per-world):** unpainted building =
 flat facade in a neutral wall color + roof band + door + the building's name
-on a sign, plus a subtle "needs an artist" shimmer and a "Paint it" link to
-the contribution page (`world.json` `contribute` is that URL; the engine
-appends `&building=<id>`). The link sits beside the dialogue box for the whole
-time an unpainted building's sign is open, on every page — it is never a line
-of copy, because the words in the box are the story and meta text in the
-middle of them gets in the way of reading. If the episode gives the building
-no sign copy at all, the box would open empty, so `copy.json` `ui.unpainted`
-supplies one short line instead. Missing NPC sheet = generic townsperson
+on a sign, plus a subtle "needs an artist" shimmer.
+
+**The plaque beside the door.** Every building, painted or not, gets a small
+brass plaque the engine draws at the foot of its facade — artists never paint
+one, it simply sits on top of their art. It is read from a walkable front-row
+tile, given by a placement's `plaque` in `world.json`: by default the tile
+immediately right of the door, or immediately left when the door is already in
+the building's right-most column; `"plaque": false` opts a building out. The
+plaque is the one place in the game that talks about the art. Painted, it
+thanks whoever painted it, by name from `credits.json` (`copy.json`
+`ui.plaque.painted`, or `ui.plaque.anonymous` when no name is on file).
+Unpainted, it carries the invitation (`ui.plaque.unpainted`) alongside a
+"Paint it" link to the contribution page (`world.json` `contribute` is that
+URL; the engine appends `&building=<id>`), which sits beside the dialogue box
+for every page of it rather than taking a line of copy. That leaves the
+building's *sign* entirely to the story: no link, no credit, because meta text
+in the middle of the words gets in the way of reading. If the episode gives an
+unpainted building no sign copy at all, the box would open empty, so
+`copy.json` `ui.unpainted` supplies one short line instead.
+
+Missing NPC sheet = generic townsperson
 sprite in a per-NPC accent color. Missing portrait = no portrait pane. The
 floating name plate stays above a building once it's painted too, positioned
 the same way relative to the footprint (or above the art's
@@ -203,11 +216,11 @@ most continuity needs).
   constrained editor (locked canvas + palette + submit) — out of scope now,
   but nothing in the pipeline may preclude it.
 - Credits live in `worlds/<id>/credits.json` (optional, graceful fallback —
-  no file means no credits), validated by `validate-assets` and shown on the
-  site's front page under each world ("Painted so far"), with an in-game
-  credits screen to follow in M2. A credit is never appended to a building's
-  sign dialogue: that box is for the episode's copy. `copy.json` `ui.credit`
-  supplies the wording ("Painted by ___").
+  no file means no credits), validated by `validate-assets`. A painter is
+  thanked in-game on the little plaque beside that building's door (§2), and
+  listed on the site's front page under each world ("Painted so far"). A
+  credit is never appended to a building's sign dialogue: that box is for the
+  episode's copy.
 - Intake now: files land in the repo by PR/commit with credit in the commit
   message → surfaced as "painted by ___" on the site. Later: Cloudflare Worker
   accepts uploads from Studio, validates, and opens a PR automatically.
@@ -314,8 +327,8 @@ Stewart's, Saturday crossword devotee. Hannah — Stewart's counter.
 
 - Story intake: low-friction (site page, email; later Studio). Contributor
   note: contributions are used/adapted with credit. Credit lines at episode
-  end ("this week's story from ___") and, for art, on the site's front page
-  and the in-game credits screen.
+  end ("this week's story from ___") and, for art, on the plaque beside that
+  building's door and on the site's front page.
 - Real businesses: name + neutral/affectionate flavor only; opt-in for
   speaking roles/interiors beyond flavor. Real people appear only by opt-in
   ("get pixelated into Route 10").

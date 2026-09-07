@@ -125,6 +125,12 @@ next reload. Nothing else to register.
 The floating name plate keeps showing once a building is painted; set a
 placement's `"label": false` in `world.json` if you want to hide it.
 
+The engine also draws a small plaque at the foot of every facade, beside the
+door — nobody paints it, and it is where the painter is thanked in the game
+(and where an unpainted building asks for one). A placement's `"plaque"` moves
+the walkable tile it is read from; the default is the tile right of the door,
+and `"plaque": false` opts the building out.
+
 A missing building PNG renders the labelled "unpainted" facade with its shimmer;
 a missing portrait means text-only dialogue. Content always ships ahead of art.
 Every PNG must draw only from the world's fixed palette at `palette.png`
@@ -137,15 +143,16 @@ To credit a painted building, add it to `worlds/<id>/credits.json`:
 { "buildings": { "stewarts": "Jordan R." } }
 ```
 
-The value is who to credit, not a full sentence — copy.json's `ui.credit`
-string ("Painted by {credit}.") supplies the wording. The file is optional
+The value is who to credit, not a full sentence — copy.json's
+`ui.plaque.painted` string supplies the wording. The file is optional
 (no file = no credits) and can also carry `chars`, `portraits` and `tiles`
 credits by id, keyed the same way. Once a building has both its PNG and a
-credits.json entry, the painter is named on the site's front page, under
-that world ("Painted so far") — and later on an in-game credits screen. It
-is deliberately not shown in the building's sign dialogue: that box is for
-what the episode has to say about the place. `validate-assets` rejects a
-credit for an id that doesn't exist, or one that isn't painted yet.
+credits.json entry, the painter is thanked on the small plaque beside that
+building's door in the game, and named on the site's front page under that
+world ("Painted so far"). It is deliberately not shown in the building's sign
+dialogue: that box is for what the episode has to say about the place.
+`validate-assets` rejects a credit for an id that doesn't exist, or one that
+isn't painted yet.
 
 ## Receiving art
 

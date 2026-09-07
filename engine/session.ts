@@ -64,7 +64,8 @@ export function signFor(buildingId: string): EpisodeSign | undefined {
 /**
  * A building's art credit, if it has one and is actually painted (DESIGN.md
  * §2/§4: "painted ones carry an art credit" — an unpainted building has
- * nothing to credit yet, even if credits.json names it ahead of time).
+ * nothing to credit yet, even if credits.json names it ahead of time). Read
+ * by the plaque beside the door, which is where the painter is thanked.
  */
 export function creditFor(buildingId: string): string | undefined {
   const { assets, credits } = session();

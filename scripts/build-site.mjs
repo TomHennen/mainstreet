@@ -133,9 +133,9 @@ function worldTitle(id) {
 }
 
 /**
- * Who painted what, for the landing page. The painter is named here (and,
- * later, on an in-game credits screen) rather than in the building's sign
- * dialogue, which belongs to the story copy (DESIGN.md §2/§4).
+ * Who painted what, for the landing page. The painter is named here, and
+ * thanked in-game on the plaque beside that building's door — never in the
+ * building's sign dialogue, which belongs to the story copy (DESIGN.md §2/§4).
  *
  * Read the way the engine reads it: credits.json is optional, and a credit
  * only counts once the building actually has its PNG.
@@ -405,7 +405,7 @@ function renderLanding(ids, studioHref, contributeHref) {
           <ul>
 ${painted.map((p) => `            <li>${escapeHtml(p.name)} &mdash; ${escapeHtml(p.painter)}</li>`).join('\n')}
           </ul>
-          <p>Press &ldquo;Paint it&rdquo; on an unpainted building in the game and the Studio opens, ready for your take on it.</p>
+          <p>Every one of them is thanked on a little plaque beside that building&rsquo;s door in the game. Press &ldquo;Paint it&rdquo; at an unpainted building&rsquo;s plaque and the Studio opens, ready for your take on it.</p>
         </div>`
         : '';
       return `

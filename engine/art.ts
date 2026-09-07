@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { FACINGS } from './schema';
+import { FACINGS, plaqueTile } from './schema';
 import { TILE } from './tiled';
 import type { BuildingDef, BuildingPlacement, Facing, GameMap } from './schema';
 import type { TileDef, TilesetDef } from './tiled';
@@ -324,6 +324,51 @@ export function namePlateArt(scene: Phaser.Scene, placement: BuildingPlacement, 
   const top = artTop < footprintTop ? artTop - SIGN_H - SIGN_GAP : defaultTop;
 
   return { key, x: footprintLeft + (bodyW - width) / 2, y: top };
+}
+
+// --- the plaque beside the door ----------------------------------------------
+
+/** The little plaque, in pixels. Small on purpose: it is a detail, not a sign. */
+const PLAQUE_W = 6;
+const PLAQUE_H = 5;
+/** How far its bottom edge sits above the ground line at the facade's foot. */
+const PLAQUE_LIFT = 4;
+
+export interface PlaqueArt {
+  key: string;
+  x: number;
+  y: number;
+}
+
+/**
+ * A small brass plaque on the wall beside the door, over whatever is behind
+ * it — the engine draws this on every building, painted or not, so no artist
+ * ever has to paint one and every building has somewhere to thank its painter
+ * (DESIGN.md §2/§4). Returns null when the placement has opted out.
+ *
+ * It hangs at the foot of the facade, centred on the tile the player reads it
+ * from, so wall art and plaque never fight over the same pixels for long.
+ */
+export function plaqueArt(scene: Phaser.Scene, placement: BuildingPlacement): PlaqueArt | null {
+  const tile = plaqueTile(placement);
+  if (!tile) return null;
+
+  const key = 'prop:plaque';
+  if (!scene.textures.exists(key)) {
+    const { texture, ctx } = canvas(scene, key, PLAQUE_W, PLAQUE_H);
+    ctx.fillStyle = '#8a6a35';
+    ctx.fillRect(0, 0, PLAQUE_W, PLAQUE_H);
+    ctx.fillStyle = '#d8b268';
+    ctx.fillRect(0, 0, PLAQUE_W, 1);
+    texture.refresh();
+  }
+
+  const groundY = (placement.pos[1] + placement.size[1]) * TILE;
+  return {
+    key,
+    x: tile[0] * TILE + (TILE - PLAQUE_W) / 2,
+    y: groundY - PLAQUE_LIFT - PLAQUE_H
+  };
 }
 
 // --- characters --------------------------------------------------------------

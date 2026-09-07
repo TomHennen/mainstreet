@@ -42,8 +42,10 @@ the name given, spelled as given. First name only is fine.
    and ask Tom; never merge doubtful art.
 4. Run `npm run playtest` and read the screenshot of that building if the
    harness passes it (or take one): the facade should sit on its footprint
-   with the extra rows above, and examining it should show "Painted by
-   <name>." rather than the unpainted invitation.
+   with the extra rows above, and the plaque beside its door should thank the
+   painter by name rather than carry the unpainted invitation. (The plaque is
+   read from the tile beside the door; the sign at the door itself stays the
+   episode's copy either way.)
 5. Commit the PNG and `credits.json` only, message "Paint <Building Name>
    (art by <Their Name>)" with the usual trailer. Push, open the PR with a
    one-line heads-up naming the building and the contributor, wait for CI
