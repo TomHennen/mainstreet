@@ -42,6 +42,18 @@ export class Flags {
     }
   }
 
+  /**
+   * Sets every named flag this episode still declares, and quietly ignores the
+   * rest. Used when a save is loaded: an episode edited since the save was
+   * written may have dropped a flag, and that is not worth losing the save
+   * (or throwing) over.
+   */
+  restore(names: string[]): void {
+    for (const name of names) {
+      if (this.values.has(name)) this.values.set(name, true);
+    }
+  }
+
   snapshot(): Record<string, boolean> {
     return Object.fromEntries(this.values);
   }

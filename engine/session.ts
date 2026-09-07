@@ -1,5 +1,14 @@
+/**
+ * The running session and the lookups over it (DESIGN.md §2/§3).
+ *
+ * Everything here is a lookup over already-loaded data, and every import is a
+ * type: `scripts/build-site.mjs` imports `joinCredits` from this file under
+ * plain Node, which can only strip types away. The save side, which does need
+ * code at runtime, lives in `engine/progress.ts`.
+ */
+import type { SaveFile } from './save';
 import type { Flags } from './flags';
-import type { Credits, Episode, EpisodeItem, EpisodeNpc, EpisodeSign, GameMap, World, WorldCopy } from './schema';
+import type { Credits, Episode, EpisodeItem, EpisodeNpc, EpisodeSign, Facing, GameMap, Vec2, World, WorldCopy } from './schema';
 
 /** Which convention-named assets actually exist in the world pack. */
 export interface AssetIndex {
@@ -26,6 +35,21 @@ export interface Session {
   locked: boolean;
   /** Shown once, on the first village the player lands in. */
   introShown: boolean;
+  /**
+   * Items already picked up. Derivable from the flags an item sets, but kept
+   * in its own right so a save can say plainly what is gone (DESIGN.md §2).
+   */
+  taken: Set<string>;
+  /** Where the player is standing, kept current by the map scene for the save. */
+  place: { map: string; pos: Vec2; facing: Facing };
+  /** The world's save file, in memory: mutated, then written in one go. */
+  save: SaveFile;
+  /**
+   * Whether this session writes to the save at all. A `?episode=` review run
+   * plays from the start and leaves the player's own progress alone
+   * (DESIGN.md §3).
+   */
+  recording: boolean;
 }
 
 let current: Session | null = null;
@@ -39,16 +63,22 @@ export function session(): Session {
   return current;
 }
 
+/** The session if there is one, for callers that would rather not throw. */
+export function sessionOrNull(): Session | null {
+  return current;
+}
+
 export const npcsOn = (mapId: string): EpisodeNpc[] =>
   session().episode.npcs.filter((npc) => npc.map === mapId);
 
 export const itemsOn = (mapId: string): EpisodeItem[] =>
   (session().episode.items ?? []).filter((item) => item.map === mapId);
 
-/** An item is gone once every flag it sets is true. */
+/** An item is gone once it has been picked up, or once every flag it sets is true. */
 export function itemTaken(item: EpisodeItem): boolean {
-  const flags = session().flags;
-  return item.effects.every((effect) => !effect.set || flags.get(effect.set));
+  const state = session();
+  if (state.taken.has(item.id)) return true;
+  return item.effects.every((effect) => !effect.set || state.flags.get(effect.set));
 }
 
 export function itemVisible(item: EpisodeItem): boolean {

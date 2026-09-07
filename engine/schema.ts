@@ -280,6 +280,24 @@ export interface WorldCopy {
       link?: string;
       body?: string[];
     };
+    /**
+     * The title screen (DESIGN.md §2). The engine draws the world's name and
+     * its list of episodes; every word on it comes from here. `play` is the
+     * action on an episode not started yet, `continue` on one with a save to
+     * carry on from, `again` on one already finished, `done` is the little
+     * mark beside a finished episode's title, and `write` labels the "write
+     * to us" link that sits at the foot of the list when `world.json` has a
+     * `feedback` block (the same link the suggestion box offers). Anything
+     * missing simply isn't drawn — no wording of any of it is in the engine
+     * (CLAUDE.md hard rules 1 and 3).
+     */
+    title?: {
+      play?: string;
+      continue?: string;
+      again?: string;
+      done?: string;
+      write?: string;
+    };
   };
   intro?: { speaker: string; lines: string[] };
   /**
@@ -290,6 +308,16 @@ export interface WorldCopy {
 }
 
 // --- episodes (DESIGN.md §3) -------------------------------------------------
+
+/**
+ * The flag an episode sets when its story is over. It is a convention of the
+ * schema, not of any world: every episode that can be finished declares a
+ * flag by this name and sets it on the line that ends the story, and the
+ * engine treats that as "complete" — which is what puts the episode's id in
+ * the save's `completed` list and its done mark on the title screen. An
+ * episode that never declares it simply never completes.
+ */
+export const DONE_FLAG = 'done';
 
 export interface Effect {
   set?: string;

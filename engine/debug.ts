@@ -59,12 +59,42 @@ export function currentDialogue(): DebugDialogue | null {
   return dialogue;
 }
 
+/**
+ * The title screen's list, for the same harness and for the same reason: the
+ * words are drawn to the canvas, where nothing outside the game can read them.
+ * Each item carries where it sits on the page, in client (CSS) pixels, so a
+ * tap can be aimed at it.
+ */
+export interface DebugTitleItem {
+  kind: 'episode' | 'write';
+  /** Episode id, or "" for the write-to-us row. */
+  id: string;
+  label: string;
+  /** "Play" / "Continue" / "Play again" — empty unless this item is selected. */
+  action: string;
+  done: boolean;
+  /** The world's word for a finished episode, as drawn — empty on the rest. */
+  doneMark: string;
+  selected: boolean;
+  rect: { x: number; y: number; w: number; h: number };
+}
+
+export interface DebugTitle {
+  world: string;
+  items: DebugTitleItem[];
+}
+
 declare global {
   interface Window {
     __mainstreet?: DebugSnapshot;
+    __mainstreetTitle?: DebugTitle | null;
   }
 }
 
 export function publishDebug(snapshot: DebugSnapshot): void {
   window.__mainstreet = snapshot;
+}
+
+export function publishTitle(title: DebugTitle | null): void {
+  window.__mainstreetTitle = title;
 }

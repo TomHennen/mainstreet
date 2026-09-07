@@ -135,9 +135,44 @@ fit the screen simply sits centred. Zoom is the same whole number inside and
 out so the player stays the same size; the engine only steps zoom up when a
 whole map fits at the larger step.
 
-**Saves:** localStorage, key `mainstreet.<worldId>`. Contents: global flags,
-per-episode flags, completed-episode list, last position. Never store
-anything else.
+**Saves:** localStorage, one key per world — `mainstreet.<worldId>` — holding a
+versioned file:
+
+```jsonc
+{ "v": 1,
+  "completed": ["ep000"],                      // episodes played to the end
+  "episodes": {
+    "ep001": { "flags": ["metEarl"], "taken": ["scout"],
+               "map": "stamford", "pos": [19, 14], "facing": "up" } } }
+```
+
+Per episode: the flags that are true, the things picked up, and the tile the
+player was standing on. Nothing else is ever stored — no names, no times, no
+counts — and none of it leaves the browser (hard rule 7). The game writes on
+every flag set, every item taken and every arrival on a new map, folding the
+change into the file it already holds in memory and stringifying once
+(`engine/save.ts`, `engine/progress.ts` `autosave`). Every read is defensive: a
+save from another version, hand-edited JSON, or a browser that refuses storage
+at all (private mode) reads as "no save yet" and the episode starts from the
+beginning — losing a save is a small sadness, a blank screen is worse (hard
+rule 3). An episode is complete when its `done` flag is set (§3); completing it
+adds its id to `completed`, where it stays, so "play again" can clear that
+episode's progress without forgetting it was played.
+
+**The title screen** (`engine/scenes/title.ts`) is what a URL with no
+parameters opens on: the world's name and subtitle, the episodes `world.json`
+ships — number, title, and a done mark on the finished ones — and the world's
+"write to us" link as the last item, wherever `world.json` has a `feedback`
+block. The cursor waits on the first unfinished episode, and the highlighted
+entry says what taking it would do: play it, carry on with it where there is a
+save, or play it again where it is finished. All five words are `copy.json`'s
+(`ui.title.play`, `.continue`, `.again`, `.done`, `.write`) — the engine draws
+the list and knows none of the wording (hard rule 1), and a world that leaves
+one out simply doesn't get that bit drawn (hard rule 3). Tapping an entry takes
+it, the d-pad and the arrow keys move the cursor, A (space, enter) takes the
+highlighted one, and the write link is a real DOM anchor, so touch, Tab and
+Enter stay the browser's job. `?episode=<id>` skips the title and plays that
+episode for review (§3).
 
 **Fallback art (engine-built, not per-world):** unpainted building =
 flat facade in a neutral wall color + roof band + door + the building's name
@@ -284,19 +319,27 @@ Every building a map actually places must carry a standing sign, and
 somebody wrote for that place, not the stand-in. A registry entry no map
 places yet may go without one until it is put on a map.
 
+An episode is **complete** when a flag called `done` is set — the one flag name
+the engine knows, and a convention of the schema rather than of any world.
+Setting it is what puts the episode on the save's `completed` list and its done
+mark on the title screen (§2). An episode that never declares `done` simply
+never completes.
+
 Engine responsibilities: declare-before-use flag validation, first-match
 dialogue resolution, effect application, sign lookup, item visibility.
 `validate-episodes` enforces: unknown flags, unreachable dialogue entries,
 missing maps/buildings/positions, effects on undeclared flags, and a standing
 sign on every building a map places.
 
-A world plays `world.episodes[0]` by default — the first listed episode is
-what ships. A `?episode=<id>` URL parameter plays any episode file under
+A world's shipped episodes are `world.episodes`, in order; the title screen
+lists exactly those, and puts the cursor on the first unfinished one. A `?episode=<id>` URL parameter plays any episode file under
 `worlds/<id>/episodes/`, listed in `world.json` or not, for review — e.g. a
 shelved draft, or a test fixture kept off the shipped list. The id must match
 `[A-Za-z0-9_-]+`; an id that fails that pattern, has no matching file, or
-fails validation falls back to the default episode with a console warning
-rather than a blank screen (hard rule 3). `npm run validate-episodes` only
+fails validation falls back to the title screen with a console warning rather
+than a blank screen (hard rule 3). A `?episode=` run is a review run: it starts
+that episode from the beginning and writes no save at all, so looking over next
+week's story never disturbs anybody's own progress through it. `npm run validate-episodes` only
 checks the shipped list by default; `--all` also validates every other
 `episodes/*.json` on disk except files starting with `draft-`.
 
@@ -470,11 +513,14 @@ Stewart's, Saturday crossword devotee. Hannah — Stewart's counter.
   Actions (typecheck, tests, validation), devcontainer. (The public URL
   already exists: GitHub Pages deploys `main` on every push, see
   `.github/workflows/pages.yml`. Cloudflare Pages is deferred.)
-- **M2 — Pipeline.** Asset conventions live (drop a PNG → building painted),
-  validate-assets + validate-episodes in CI, art credits in-game, save/load
-  with episode completion, title screen.
+- **M2 — Pipeline. Done.** Asset conventions live (drop a PNG → building
+  painted), validate-assets + validate-episodes in CI, art credits in-game,
+  save/load with episode completion, title screen.
 - **M3 — Launch.** Custom palette + commissioned facades for all nine
   landmarks + core cast; 2–3 episodes banked; contribute page; domain.
 - **M4 — Second world.** `worlds/hs` skeleton behind Cloudflare Access;
   fix whatever engine leaks it exposes.
-- **M5 — Studio.** Browser pixel editor + Worker→PR submission + Turnstile.
+- **M5 — Studio. Done, in its simplest form:** browser pixel editor, submission
+  by mailto (the drawing travels as a text code in the mail body) and
+  `npm run decode-art` to land it in the repo. No Worker and no Turnstile —
+  there is nothing hosted to protect, and no account anywhere (hard rule 7).

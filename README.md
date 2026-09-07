@@ -18,11 +18,15 @@ That is the whole workflow. `.env` selects which world pack the dev server
 serves (`VITE_WORLD=route10`); the engine has no default and will refuse to boot
 without it.
 
-By default the game plays `world.episodes[0]` — the shipped episode. Add
-`?episode=<id>` to the URL to play any other episode file under
+The game opens on the title screen: the world's name, the episodes it ships
+(with a done mark on the finished ones), and a "write to us" link. Picking one
+plays it, or carries on where you left off — progress lives in `localStorage`
+under `mainstreet.<worldId>` and nothing leaves the browser. Add
+`?episode=<id>` to the URL to skip the title and play any episode file under
 `worlds/<id>/episodes/` for review, listed in `world.json` or not (a shelved
 draft, or a fixture like route10's `ep000`) — e.g.
-`http://localhost:5173/?episode=ep000`. See DESIGN.md §3.
+`http://localhost:5173/?episode=ep000`. A review run starts from the beginning
+and writes no save. See DESIGN.md §2 and §3.
 
 ```sh
 npx playwright install chromium   # once
@@ -44,7 +48,8 @@ npm run validate-assets     # every worlds/*/ pack's PNGs and credits.json
 ```
 
 `npm test` covers `engine/validate.ts` (every rule it enforces, plus the real
-`worlds/route10/` pack), `engine/tiled.ts` (gid → tile, layer selection and
+`worlds/route10/` pack), `engine/save.ts` (the save shape, and every way a
+stored save can be unreadable), `engine/tiled.ts` (gid → tile, layer selection and
 every way a map file can be malformed), `engine/session.ts` (flag-gated dialogue/sign/item
 lookups), `engine/flags.ts`/`engine/bus.ts` (declare-before-use, the
 `requires` AND, and effect application), and `scripts/png.ts` (the PNG
@@ -113,7 +118,9 @@ engine/          Phaser 4 + TS. World-agnostic. The only code.
   loader.ts        fetches world data; probes assets by convention
   tiled.ts         Tiled JSON + tileset parsing (DESIGN.md §2 conventions)
   art.ts           engine-built placeholder tiles, buildings, characters
-  scenes/          boot, map (villages and interiors), ui, travel
+  save.ts          per-world localStorage saves (DESIGN.md §2)
+  progress.ts      autosave, and putting a saved episode back
+  scenes/          boot, title, map (villages and interiors), ui, travel
 worlds/route10/  world.json, copy.json, maps/ (Tiled JSON), episodes/, assets/,
                  palette.png, credits.json — data and PNGs only, no code
 prototype/       route10-v3.html — behavioural reference, not code to reuse
@@ -177,6 +184,8 @@ the code, checks it against the building's size, writes the PNG under
 
 ## Status
 
-Milestone M2 in progress (see `DESIGN.md` §7). Vitest, `validate-episodes`,
-`validate-assets`, CI with the devcontainer and Tiled maps are in; art credits
-are wired up but there is no painted art yet.
+Milestone M2 is done (see `DESIGN.md` §7): Vitest, `validate-episodes`,
+`validate-assets`, CI with the devcontainer, Tiled maps, the asset conventions
+and in-game art credits, save/load with episode completion, and the title
+screen. M3 — the custom palette, commissioned facades and a couple more
+episodes — is next.

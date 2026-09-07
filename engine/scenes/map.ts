@@ -21,7 +21,17 @@ import { isHeld, onAction, onTap } from '../input';
 import { feedbackUrl } from '../feedback';
 import { improveUrl, paintUrl } from '../paint';
 import { findPath, pathToTile } from '../path';
-import { creditFor, dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signLinesFor } from '../session';
+import { autosave } from '../progress';
+import {
+  creditFor,
+  dialogueFor,
+  itemVisible,
+  itemsOn,
+  npcsOn,
+  propSignsOn,
+  session,
+  signLinesFor
+} from '../session';
 import { isSolid } from '../validate';
 import { lookOf, plaqueTile } from '../schema';
 import type { PlateBox } from '../art';
@@ -294,6 +304,11 @@ export class MapScene extends Phaser.Scene {
       this.scale.off(Phaser.Scale.Events.RESIZE, this.applyCamera, this);
     });
 
+    // Arriving somewhere is worth remembering on its own: a save made here
+    // brings the player back to this map on this tile (DESIGN.md §2).
+    this.notePlace();
+    autosave();
+
     const state = session();
     if (data.intro && !state.introShown && state.copy.intro) {
       state.introShown = true;
@@ -371,6 +386,7 @@ export class MapScene extends Phaser.Scene {
 
     this.player.setFrame(frameIndex(this.facing, this.moving ? 1 + (Math.floor(this.walkTime / WALK_FRAME_MS) % 2) : 0));
     this.syncPlayerSprite();
+    this.notePlace();
     this.refreshItems();
     this.updatePrompt();
     this.updateMarker();
@@ -385,6 +401,20 @@ export class MapScene extends Phaser.Scene {
   private armEnters(): void {
     if (this.enterArmed) return;
     if (Math.hypot(this.px - this.spawnX, this.py - this.spawnY) >= TILE / 2) this.enterArmed = true;
+  }
+
+  /**
+   * Keeps the session's idea of where the player is standing current, so an
+   * autosave fired from anywhere else — the dialogue box closing on a flag,
+   * say — writes the right tile without having to ask this scene for it.
+   */
+  private notePlace(): void {
+    const place = session().place;
+    const tile = this.startTile();
+    place.map = this.mapId;
+    place.pos[0] = tile[0];
+    place.pos[1] = tile[1];
+    place.facing = this.facing;
   }
 
   private syncPlayerSprite(): void {
@@ -821,7 +851,8 @@ export class MapScene extends Phaser.Scene {
       bus.emit(EV.say, {
         speaker: state.copy.ui.narrator,
         lines: target.item.lines,
-        effects: target.item.effects
+        effects: target.item.effects,
+        item: target.item.id
       });
       return;
     }

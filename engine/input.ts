@@ -16,6 +16,7 @@ const TAP_SLOP_PX = 12;
 const held: Record<Facing, boolean> = { up: false, down: false, left: false, right: false };
 const listeners = new Set<() => void>();
 const tapListeners = new Set<(x: number, y: number) => void>();
+const dirListeners = new Set<(dir: Facing) => void>();
 let lastAction = 0;
 let lastTap = 0;
 let pressed: { id: number; x: number; y: number } | null = null;
@@ -53,6 +54,18 @@ export function onAction(fn: () => void): () => void {
 }
 
 /**
+ * A direction *pressed*, rather than held: the frame a d-pad button goes down
+ * or an arrow key is first struck, key repeat ignored like the action key.
+ * The map scene wants `isHeld` (walking is a hold); a list wants this, because
+ * a quick press can begin and end inside one frame and a poll would miss it.
+ * Returns an unsubscribe function.
+ */
+export function onDirection(fn: (dir: Facing) => void): () => void {
+  dirListeners.add(fn);
+  return () => dirListeners.delete(fn);
+}
+
+/**
  * A tap or click on the game surface, in client (CSS pixel) coordinates —
  * whoever is drawing knows how to turn those into a place in the world.
  * Returns an unsubscribe function.
@@ -66,6 +79,10 @@ export function releaseAll(): void {
   pressed = null;
   for (const dir of Object.keys(held) as Facing[]) held[dir] = false;
   for (const el of document.querySelectorAll('.held')) el.classList.remove('held');
+}
+
+function fireDirection(dir: Facing): void {
+  for (const fn of [...dirListeners]) fn(dir);
 }
 
 function fireAction(): void {
@@ -84,7 +101,10 @@ export function bindControls(root: Document = document): void {
       const dir = KEY_DIRS[key];
       if (dir || ACTION_KEYS.has(key)) event.preventDefault();
       if (event.repeat) return;
-      if (dir) held[dir] = true;
+      if (dir) {
+        held[dir] = true;
+        fireDirection(dir);
+      }
       if (ACTION_KEYS.has(key)) fireAction();
     },
     { capture: true }
@@ -111,6 +131,7 @@ export function bindControls(root: Document = document): void {
       button.setPointerCapture(event.pointerId);
       held[dir] = true;
       button.classList.add('held');
+      fireDirection(dir);
     });
     const release = () => {
       held[dir] = false;

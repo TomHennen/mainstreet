@@ -114,4 +114,20 @@ describe('Flags', () => {
     flags.set('a');
     expect(flags.snapshot()).toEqual({ a: true, b: false });
   });
+
+  describe('restore()', () => {
+    it('sets the flags a save names, and leaves the rest false', () => {
+      const flags = new Flags(['a', 'b']);
+      flags.restore(['a']);
+      expect(flags.snapshot()).toEqual({ a: true, b: false });
+    });
+
+    it('ignores a flag the episode no longer declares rather than throwing', () => {
+      // An episode edited since the save was written is not worth losing the
+      // save over, and certainly not worth an error (engine/save.ts).
+      const flags = new Flags(['a']);
+      expect(() => flags.restore(['a', 'goneFromTheScript'])).not.toThrow();
+      expect(flags.snapshot()).toEqual({ a: true });
+    });
+  });
 });

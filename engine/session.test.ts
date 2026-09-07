@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   creditFor,
   dialogueFor,
@@ -8,11 +8,16 @@ import {
   joinCredits,
   npcsOn,
   propSignsOn,
+  session,
   signFor,
   signLinesFor,
   startSession
 } from './session';
 import type { AssetIndex } from './session';
+import { autosave, episodeComplete, restoreEpisode, resumePoint } from './progress';
+import { emptySave, loadSave, saveKey } from './save';
+import type { StorageLike } from './save';
+import { Flags as RealFlags } from './flags';
 import type { Flags } from './flags';
 import type { Credits, Episode, EpisodeItem, EpisodeNpc, World, WorldCopy } from './schema';
 
@@ -120,7 +125,7 @@ const assets: AssetIndex = {
   tilesets: new Set()
 };
 
-function boot(flags: Flags, overrides: { assets?: AssetIndex; credits?: Credits } = {}): void {
+function boot(flags: Flags, overrides: { assets?: AssetIndex; credits?: Credits; taken?: string[] } = {}): void {
   startSession({
     world,
     // session.ts never touches the tile grids, only the episode lookups.
@@ -133,7 +138,12 @@ function boot(flags: Flags, overrides: { assets?: AssetIndex; credits?: Credits 
     dialogueOpen: false,
     lastDialogueClose: 0,
     locked: false,
-    introShown: false
+    introShown: false,
+    taken: new Set(overrides.taken ?? []),
+    place: { map: 'town', pos: [0, 0], facing: 'down' },
+    save: emptySave(),
+    // The unit tests exercise lookups, not storage: nothing here writes a save.
+    recording: false
   });
 }
 
@@ -341,5 +351,115 @@ describe('session helpers', () => {
     it('returns nothing for a map with no prop signs', () => {
       expect(propSignsOn('nowhere')).toEqual([]);
     });
+  });
+});
+
+
+/**
+ * The save side of the session (DESIGN.md §2). These use the real `Flags`
+ * class rather than the stand-in above, because what is being checked is what
+ * ends up written, and they hand `session.ts` a fake `localStorage` — the
+ * tests run under plain Node, with no DOM (vitest.config.ts).
+ */
+describe('autosave, and picking an episode back up', () => {
+  function withStorage(): Map<string, string> {
+    const data = new Map<string, string>();
+    const storage: StorageLike = {
+      getItem: (key) => data.get(key) ?? null,
+      setItem: (key, value) => void data.set(key, value),
+      removeItem: (key) => void data.delete(key)
+    };
+    (globalThis as { localStorage?: StorageLike }).localStorage = storage;
+    return data;
+  }
+
+  function record(flags: RealFlags, taken: string[] = []): Map<string, string> {
+    const data = withStorage();
+    startSession({
+      world,
+      maps: {},
+      copy,
+      episode,
+      flags,
+      assets,
+      credits: {},
+      dialogueOpen: false,
+      lastDialogueClose: 0,
+      locked: false,
+      introShown: false,
+      taken: new Set(taken),
+      place: { map: 'town', pos: [4, 7], facing: 'left' },
+      save: emptySave(),
+      recording: true
+    });
+    return data;
+  }
+
+  afterEach(() => {
+    delete (globalThis as { localStorage?: StorageLike }).localStorage;
+  });
+
+  it('writes the flags that are true, the items taken, and where the player is standing', () => {
+    const flags = new RealFlags(episode.flags);
+    flags.set('metEarl');
+    const data = record(flags, ['pen']);
+    autosave();
+    const save = loadSave(world.id, {
+      getItem: (key) => data.get(key) ?? null,
+      setItem: () => {},
+      removeItem: () => {}
+    });
+    expect(save.episodes.ep).toEqual({
+      flags: ['metEarl'],
+      taken: ['pen'],
+      map: 'town',
+      pos: [4, 7],
+      facing: 'left'
+    });
+    expect(save.completed).toEqual([]);
+  });
+
+  it('adds the episode to the completed list once its done flag is set, and only once', () => {
+    const flags = new RealFlags(episode.flags);
+    record(flags);
+    autosave();
+    expect(episodeComplete()).toBe(false);
+    flags.set('done');
+    expect(episodeComplete()).toBe(true);
+    autosave();
+    autosave();
+    expect(session().save.completed).toEqual(['ep']);
+  });
+
+  it('writes nothing at all when the session is not recording (a ?episode= review)', () => {
+    const flags = new RealFlags(episode.flags);
+    const data = record(flags);
+    session().recording = false;
+    flags.set('metEarl');
+    autosave();
+    expect(data.get(saveKey(world.id))).toBeUndefined();
+  });
+
+  it('restores the flags, the items taken and the place, ignoring flags the episode has dropped', () => {
+    const flags = new RealFlags(episode.flags);
+    record(flags);
+    restoreEpisode(session(), {
+      flags: ['metEarl', 'aFlagFromAnOlderCut'],
+      taken: ['pen'],
+      map: 'other',
+      pos: [9, 2],
+      facing: 'up'
+    });
+    expect(flags.get('metEarl')).toBe(true);
+    expect(flags.declared('aFlagFromAnOlderCut')).toBe(false);
+    expect(session().taken.has('pen')).toBe(true);
+    expect(session().place).toEqual({ map: 'other', pos: [9, 2], facing: 'up' });
+  });
+
+  it('starts an episode with no save at the world start, and a saved one where it was left', () => {
+    const save = emptySave();
+    expect(resumePoint(save, 'ep', world)).toEqual({ map: 'town', pos: [0, 0], facing: 'down' });
+    save.episodes.ep = { flags: [], taken: [], map: 'other', pos: [3, 4], facing: 'right' };
+    expect(resumePoint(save, 'ep', world)).toEqual({ map: 'other', pos: [3, 4], facing: 'right' });
   });
 });
