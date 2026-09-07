@@ -2,7 +2,7 @@
   "ui": {
     "narrator": "You",
     "advance": "▼ tap / A",
-    "unpainted": "{building} is here, unpainted: just a color and a name on a sign, waiting for somebody to draw it. If you would like to be that somebody, the studio is one tap away.",
+    "unpainted": "Unpainted, for now. Somebody's going to draw this one.",
     "paint": "Paint it",
     "credit": "Painted by {credit}."
   },

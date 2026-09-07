@@ -294,6 +294,21 @@ async function advanceDialogue(page, milestone, lines) {
   fail(milestone, `dialogue did not close after ${lines + 3} advances`);
 }
 
+/**
+ * Reads an entry to the end, one A press per page, and returns how many pages
+ * it had — which is how the harness tells whether the engine appended a page
+ * of its own to the world's copy. `onPage(i)` runs while page i is on screen,
+ * before the press that leaves it.
+ */
+async function readDialogue(page, milestone, expected, onPage) {
+  for (let i = 0; i < expected + 4; i++) {
+    if (!(await snap(page)).dialogueOpen) return i;
+    if (onPage) await onPage(i);
+    await pressA(page);
+  }
+  fail(milestone, `dialogue did not close after ${expected + 4} advances`);
+}
+
 async function expectDialogue(page, milestone, what) {
   const s = await snap(page);
   if (!s.dialogueOpen) fail(milestone, `expected a dialogue box for ${what}, none opened`);
@@ -491,6 +506,37 @@ async function main() {
     expectFlag(await snap(page), 'pen', 'hasPen');
     await shot(page, 'pen-toast');
 
+    // --- a painted building reads clean --------------------------------------
+    // The painter's name belongs on the site's front page and, later, a
+    // credits screen — never in the sign, where it would interrupt the copy
+    // the player is reading (DESIGN.md §2/§4). So a painted building shows its
+    // sign lines and nothing else: no extra page, and no studio link.
+    const painted = WORLD.maps.jefferson.buildings.find(
+      (b) => !b.interior && existsSync(resolve(PACK, 'assets', 'buildings', `${b.id}.png`))
+    );
+    if (painted) {
+      log('  read a painted building');
+      const paintedSign = (EPISODE.signs ?? []).find((s) => s.building === painted.id);
+      const paintedLines = paintedSign?.lines.length ?? 0;
+      if (paintedLines === 0) fail('painted-sign', `ep000 gives painted ${painted.id} no sign copy to read`);
+      await walkTo(page, 'painted-sign', painted.door);
+      await pressA(page);
+      await expectDialogue(page, 'painted-sign', painted.id);
+      const deskLink = page.locator('a[data-overlay="link"]');
+      if (await deskLink.isVisible()) fail('painted-sign', `a "Paint it" link showed on painted ${painted.id}`);
+      await shot(page, 'painted-sign');
+      const read = await readDialogue(page, 'painted-sign', paintedLines);
+      if (read !== paintedLines) {
+        fail(
+          'painted-sign',
+          `${painted.id} read ${read} page(s) for ${paintedLines} sign line(s) — a credit line is still being appended`
+        );
+      }
+      log(`    ${painted.id}: ${paintedLines} page(s), sign copy only`);
+    } else {
+      log('  (no painted building in Jefferson yet — skipping the painted-sign check)');
+    }
+
     // --- back to Earl -------------------------------------------------------
     log('  return to Stamford');
     const toStamford = WORLD.maps.jefferson.exits.find((e) => e.to === 'stamford');
@@ -620,23 +666,25 @@ async function main() {
     await shot(tp, 'touch-complete');
 
     // --- Paint it -----------------------------------------------------------
-    // An unpainted building's sign ends with the invitation to draw it, and
-    // that line — and only that line — carries the DOM link to the studio,
-    // deep-linked to the building (DESIGN.md §2). Checked on the touch page so
-    // the link is exercised at phone width, where it has the least room.
+    // An unpainted building reads as its own sign copy and nothing more; the
+    // invitation to draw it is the DOM link beside the box, deep-linked to the
+    // building and up for the whole entry rather than for one line of it
+    // (DESIGN.md §2). Checked on the touch page so the link is exercised at
+    // phone width, where it has the least room.
     log('  "Paint it" on an unpainted building');
     const bare = WORLD.maps.stamford.buildings.find(
       (b) => !b.interior && !existsSync(resolve(PACK, 'assets', 'buildings', `${b.id}.png`))
     );
     if (!bare) fail('paint-it', 'no unpainted building without an interior in Stamford to read');
     const bareSign = (EPISODE.signs ?? []).find((s) => s.building === bare.id);
+    // No sign copy this episode and the engine shows one stand-in line instead
+    // of an empty box, so there is always at least one page.
+    const bareLines = bareSign?.lines.length ?? 1;
     await walkTo(tp, 'paint-it', bare.door);
     await pressA(tp);
     await expectDialogue(tp, 'paint-it', bare.id);
     const paint = tp.locator('a[data-overlay="link"]');
-    if (await paint.isVisible()) fail('paint-it', 'the "Paint it" link showed on the sign line, not the unpainted one');
-    for (let i = 0; i < (bareSign?.lines.length ?? 0); i++) await pressA(tp);
-    if (!(await paint.isVisible())) fail('paint-it', `no "Paint it" link on ${bare.id}'s unpainted line`);
+    if (!(await paint.isVisible())) fail('paint-it', `no "Paint it" link on ${bare.id}'s first page`);
     const href = (await paint.getAttribute('href')) ?? '';
     if (!href.endsWith(`&building=${bare.id}`)) fail('paint-it', `link href is "${href}"`);
     const paintBox = await paint.boundingBox();
@@ -656,8 +704,33 @@ async function main() {
     await tp.evaluate(() => document.activeElement?.blur());
     log(`    "${(await paint.innerText()).trim()}" -> ${href}`);
     await shot(tp, 'paint-it');
-    await advanceDialogue(tp, 'paint-it', 1);
+
+    // Every page, not just one: the box is read for what the place is up to,
+    // and the way in is standing by the whole time.
+    const bareRead = await readDialogue(tp, 'paint-it', bareLines, async (i) => {
+      if (!(await paint.isVisible())) fail('paint-it', `the "Paint it" link went missing on page ${i + 1}`);
+      const box = await paint.boundingBox();
+      const body = await tp.locator('#stage').boundingBox();
+      if (box && body && box.y + box.height > body.y + body.height) {
+        fail('paint-it', `the "Paint it" link fell off the stage on page ${i + 1}: ${JSON.stringify(box)}`);
+      }
+    });
+    if (bareRead !== bareLines) {
+      fail(
+        'paint-it',
+        `${bare.id} read ${bareRead} page(s) for ${bareLines} line(s) of copy — the invitation is still taking a line of its own`
+      );
+    }
+    log(`    link held for all ${bareRead} page(s)`);
     if (await paint.isVisible()) fail('paint-it', 'the "Paint it" link outlived the dialogue');
+
+    // A person is not a building waiting for paint: no link on their dialogue.
+    log('  no "Paint it" on a person');
+    await walkTo(tp, 'paint-it-npc', [earl.pos[0], earl.pos[1] + 1]);
+    await pressA(tp);
+    await expectDialogue(tp, 'paint-it-npc', 'Earl');
+    if (await paint.isVisible()) fail('paint-it-npc', 'the "Paint it" link showed on Earl\'s dialogue');
+    await advanceDialogue(tp, 'paint-it-npc', 3);
 
     log('\n  ep000 completed end to end.');
   } finally {

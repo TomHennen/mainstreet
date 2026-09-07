@@ -68,7 +68,10 @@ Painted outside the Studio? Email that same address and attach the PNG.
 
 Either way, include **the name you'd like credited.** We may nudge colors
 or proportions slightly to fit, asking first for anything big — and your
-name goes up as the painter regardless.
+name goes up as the painter regardless: on the site's front page, under the
+town you painted for, and later on a credits screen inside the game. It
+doesn't appear in the building's sign, so the story the game has to tell
+about the place stays uninterrupted.
 
 ## The kindness rule
 
@@ -97,20 +100,19 @@ quickly; it's the invitation this whole project runs on.
 - Art and world content, including everything you contribute, is Creative
   Commons Attribution 4.0 — see [`LICENSE-CONTENT.md`](LICENSE-CONTENT.md).
   In short: anyone may copy, share, adapt and use it, commercially too, as
-  long as they credit the creator — exactly what the in-game "painted by
-  ___" credit and `credits.json` are for.
+  long as they credit the creator — exactly what `credits.json` and the
+  "painted by ___" credit it feeds are for.
 
 ## Buildings waiting for an artist
 
-None of Route 10's buildings are painted yet — every one below is still a
-placeholder box, and any of them is up for grabs:
+Middle Brook Cafe has its first coat (thank you, Tom and Lana). Every
+building below is still a placeholder box, and any of them is up for grabs:
 
 | Building | Village | Size (pixels) |
 | --- | --- | --- |
 | Jefferson Town Hall (`jefferson-town-hall`) | Jefferson | 80 × 48 |
 | Mill Pond Inn (`mill-pond-inn`) | Jefferson | 80 × 48 |
 | Heartbreak Hotel (`heartbreak-hotel`) | Jefferson | 80 × 48 |
-| Middle Brook Cafe (`middle-brook-cafe`) | Jefferson | 80 × 48 |
 | Stewart's (`stewarts`) | Stamford | 96 × 64 |
 | Mac-A-Doodles (`mac-a-doodles`) | Stamford | 64 × 48 |
 | Stamford Coffee (`stamford-coffee`) | Stamford | 80 × 48 |

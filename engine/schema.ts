@@ -98,14 +98,25 @@ export interface WorldCopy {
   ui: {
     narrator: string;
     advance: string;
-    /** `{building}` and `{contribute}` are substituted. */
+    /**
+     * The stand-in for an unpainted building that has no sign copy at all this
+     * episode — without it the box would open empty. Keep it short and kind:
+     * the "Paint it" link says the rest, and a building with sign copy never
+     * shows this. `{building}` and `{contribute}` are substituted.
+     */
     unpainted: string;
     /**
-     * Label on the link shown beside an unpainted building's line (DESIGN.md
-     * §2). No label means no link — the line still reads fine on its own.
+     * Label on the link to the world's contribution page, shown for the whole
+     * of an unpainted building's dialogue (DESIGN.md §2). No label means no
+     * link — the sign still reads fine on its own.
      */
     paint?: string;
-    /** `{credit}` is substituted. Shown after a painted building's sign lines. */
+    /**
+     * `{credit}` is substituted. Names the painter of a piece of art. Sign
+     * dialogue no longer carries it — the story copy reads on its own — so
+     * this is for the site's front page and, later, an in-game credits screen
+     * (DESIGN.md §2/§4).
+     */
     credit: string;
   };
   intro?: { speaker: string; lines: string[] };
