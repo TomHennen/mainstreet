@@ -8,6 +8,18 @@
     "email": "tom.hennen+mainstreet@gmail.com",
     "subject": "A story idea for Route 10"
   },
+  "submit": {
+    "art": {
+      "form": "https://docs.google.com/forms/d/e/1FAIpQLSerSTOTTi76U5_86mgmQt6vRkR_XEdoTI7nYitDML1K-VYihg/formResponse",
+      "fields": {
+        "building": "entry.1288901911",
+        "world": "entry.1328382994",
+        "credit": "entry.1737339827",
+        "code": "entry.14379571",
+        "notes": "entry.841199391"
+      }
+    }
+  },
   "palette": "palette.png",
   "paletteName": "Resurrect 64",
   "paletteLink": "https://lospec.com/palette-list/resurrect-64",

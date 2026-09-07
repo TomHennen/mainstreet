@@ -187,9 +187,12 @@ isn't painted yet.
 ## Receiving art
 
 Contributors don't touch a repo — they paint in the in-browser Studio and press
-"Open an email with my drawing", which opens an email with a text code of their
-drawing already in the body (see `CONTRIBUTING.md`). When that email arrives, save it and run
-`npm run decode-art -- path/to/email.txt --credit "Their Name"`: it decodes
+"Send it to the town", which posts a text code of their drawing to the world
+pack's own form (`submit.art` in `world.json`); the answers land in that form's
+sheet, and a world pack without one falls back to an email with the code in the
+body (see `CONTRIBUTING.md`). Save the code — from the sheet or from the email
+— to a text file and run
+`npm run decode-art -- path/to/submission.txt --credit "Their Name"`: it decodes
 the code, checks it against the building's size, writes the PNG under
 `worlds/<id>/assets/buildings/`, adds the credit to `credits.json`, and runs
 `validate-assets` on the result. Then open a PR with the two changed files.

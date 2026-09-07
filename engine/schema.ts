@@ -239,6 +239,35 @@ export interface Feedback {
   subject?: string;
 }
 
+/**
+ * Where a world's finished art goes when someone presses Send in the Studio
+ * (CLAUDE.md hard rule 1: the form and every field id are world data, so no
+ * address and no form ever appears in the Studio's code).
+ *
+ * `art.form` is the URL a plain HTML form post goes to — a Google Form's
+ * `formResponse` address, say — and `art.fields` names the field the form
+ * expects each part of a submission in. The Studio posts across origins and so
+ * can never read the answer back; a world with no `submit.art` keeps the older
+ * behaviour, where Send hands the drawing to the painter's own email app
+ * instead. Nothing here is an account, and nothing is a third-party service
+ * the world's owner does not already own (hard rule 7).
+ */
+export interface Submit {
+  art?: {
+    /** Where the post goes. https, always. */
+    form: string;
+    /** The form's own field ids, by what the Studio writes into each. */
+    fields: {
+      building: string;
+      world: string;
+      credit: string;
+      code: string;
+      /** Optional free text from the painter. No field, no textarea. */
+      notes?: string;
+    };
+  };
+}
+
 export interface World {
   id: string;
   title: string;
@@ -247,6 +276,8 @@ export interface World {
   contribute?: string;
   /** Where a suggestion-box fixture writes to (DESIGN.md §2). */
   feedback?: Feedback;
+  /** Where the Studio sends a finished drawing (DESIGN.md §4). */
+  submit?: Submit;
   palette?: string;
   /** What the palette is called, and where it can be fetched — for anyone
    *  painting outside the Studio. Both optional; the engine never reads them. */

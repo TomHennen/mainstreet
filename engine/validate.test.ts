@@ -138,6 +138,66 @@ describe('validateWorld', () => {
     expect(problems).toContainEqual(expect.stringContaining('world has no maps'));
   });
 
+  // `submit.art` is where the Studio posts a finished drawing. The post is
+  // opaque across origins, so a wrong field id looks exactly like a submission
+  // that arrived — which is why the shape is checked here rather than found
+  // out later by a painting that never turned up.
+  describe('submit.art', () => {
+    const art = (over: Record<string, unknown> = {}) => ({
+      art: {
+        form: 'https://example.test/forms/d/e/abc/formResponse',
+        fields: { building: 'entry.1', world: 'entry.2', credit: 'entry.3', code: 'entry.4' },
+        ...over
+      }
+    });
+
+    it('accepts a world with no submit block at all', () => {
+      expect(runWorld(makeWorld())).toEqual([]);
+    });
+
+    it('accepts a well-formed form, with and without a notes field', () => {
+      expect(runWorld(makeWorld({ submit: art() as never }))).toEqual([]);
+      const withNotes = art({
+        fields: { building: 'entry.1', world: 'entry.2', credit: 'entry.3', code: 'entry.4', notes: 'entry.5' }
+      });
+      expect(runWorld(makeWorld({ submit: withNotes as never }))).toEqual([]);
+    });
+
+    it('flags a form URL that is not https', () => {
+      const submit = art({ form: 'http://example.test/formResponse' });
+      expect(runWorld(makeWorld({ submit: submit as never })).join('\n')).toContain(
+        'world "submit.art" needs a "form" URL beginning https://'
+      );
+    });
+
+    it('flags a missing or empty field id', () => {
+      const blank = art({ fields: { building: 'entry.1', world: '  ', credit: 'entry.3', code: 'entry.4' } });
+      expect(runWorld(makeWorld({ submit: blank as never })).join('\n')).toContain(
+        'world "submit.art" has no field id for "world"'
+      );
+      const missing = art({ fields: { building: 'entry.1', world: 'entry.2', credit: 'entry.3' } });
+      expect(runWorld(makeWorld({ submit: missing as never })).join('\n')).toContain(
+        'world "submit.art" has no field id for "code"'
+      );
+    });
+
+    it('flags a fields block that is not an object', () => {
+      const submit = art({ fields: 'entry.1' });
+      expect(runWorld(makeWorld({ submit: submit as never })).join('\n')).toContain(
+        'world "submit.art" needs a "fields" object'
+      );
+    });
+
+    it('flags an empty notes field id, since a blank one would post nowhere', () => {
+      const submit = art({
+        fields: { building: 'entry.1', world: 'entry.2', credit: 'entry.3', code: 'entry.4', notes: '' }
+      });
+      expect(runWorld(makeWorld({ submit: submit as never })).join('\n')).toContain(
+        'world "submit.art" has a "notes" field id that is empty'
+      );
+    });
+  });
+
   it('flags a map with no tile grid loaded (a missing maps/<id>.json)', () => {
     const world = makeWorld();
     const problems = validateWorld(world, {});
