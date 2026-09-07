@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { TILE } from './tiled';
-import type { LightSpec } from './schema';
+import type { LightSpec, Vec2 } from './schema';
 
 /**
  * The lights (DESIGN.md §3). Engine-drawn from a mood and a few colours, so a
@@ -17,6 +17,11 @@ import type { LightSpec } from './schema';
  * fade from one to the next over a whole `period`, and the only other movement
  * is a slow breath in the discs' brightness. A device asking for reduced
  * motion slows the lot to a crawl (`SLOW_FACTOR`), and it is still a party.
+ *
+ * `glow` is the third, smaller thing in here and belongs to neither mood: one
+ * warm light over one tile, for a while, with no wash under it — a fire
+ * somebody has just put a log on (DESIGN.md §2). It can burn during a party,
+ * during an evening or in plain daylight, and it goes out on its own.
  */
 
 /** Depth: over the town and the people in it, under the A prompt and the HUD. */
@@ -44,6 +49,15 @@ const DISC_ALPHA = 0.8;
 const BREATH = 0.08;
 /** The floor wash under a party: broad, low, and the same colours. */
 const FLOOR_ALPHA = 0.1;
+
+/** A `glow`: how wide it spreads, how bright it sits, and how long it fades. */
+const GLOW_TILES = 5;
+const GLOW_ALPHA = 0.5;
+const GLOW_FADE = 6;
+/** The colour of one. Firelight, and the only colour a glow is. */
+const GLOW_COLOUR = '#f0a83a';
+/** Seconds for one breath in and out of a glow. Slow, and never a flicker. */
+const GLOW_BREATH = 5;
 
 /** Colours to cycle when an episode names none — warm first, and kind. */
 const DEFAULT_COLOURS = ['#d9a441', '#b5542a', '#9a7bb5', '#4a7f96'];
@@ -93,6 +107,9 @@ export class Lighting {
   private floor: Phaser.GameObjects.Rectangle | null = null;
   private discs: Phaser.GameObjects.Image[] = [];
 
+  /** The warm one-tile lights burning right now, each with its time left. */
+  private glows: { image: Phaser.GameObjects.Image; left: number; span: number; clock: number }[] = [];
+
   private colours: number[] = [];
   private period = DEFAULT_PERIOD;
   private clock = 0;
@@ -110,8 +127,34 @@ export class Lighting {
   }
 
   /** For the playtest harness: what is lit, and how much of it there is. */
-  describe(): { mode: LightSpec['mode']; spots: number } {
-    return { mode: this.mode, spots: this.discs.length };
+  describe(): { mode: LightSpec['mode']; spots: number; glows: number } {
+    return { mode: this.mode, spots: this.discs.length, glows: this.glows.length };
+  }
+
+  /**
+   * One warm light over one tile for `seconds`, on top of whatever mood is
+   * running and outliving nothing but itself. A second glow on a tile that
+   * already has one simply tops it back up rather than stacking, so feeding
+   * the fire twice does not make it twice as bright.
+   */
+  glow(at: Vec2, seconds: number): void {
+    if (!(seconds > 0)) return;
+    const size = GLOW_TILES * TILE;
+    const x = (at[0] + 0.5) * TILE - size / 2;
+    const y = (at[1] + 0.5) * TILE - size / 2;
+    const already = this.glows.find((one) => one.image.x === x && one.image.y === y);
+    if (already) {
+      already.left = Math.max(already.left, seconds);
+      already.span = already.left;
+      return;
+    }
+    const image = this.scene.add
+      .image(x, y, discTexture(this.scene))
+      .setOrigin(0, 0)
+      .setDepth(DEPTH + 3)
+      .setAlpha(GLOW_ALPHA)
+      .setTint(hex(GLOW_COLOUR));
+    this.glows.push({ image, left: seconds, span: seconds, clock: 0 });
   }
 
   apply(spec: LightSpec | null): void {
@@ -167,6 +210,7 @@ export class Lighting {
    * there is no frame on which anything jumps.
    */
   update(dt: number): void {
+    this.burn(dt);
     if (this.mode !== 'party' || !this.colours.length) return;
     this.clock = (this.clock + dt / this.period) % 1;
 
@@ -188,14 +232,35 @@ export class Lighting {
     });
   }
 
+  /**
+   * The glows, counting down. Each one breathes as gently as a disc does and
+   * fades out over its last few seconds rather than switching off, so a fire
+   * dying back never reads as a light being turned off.
+   */
+  private burn(dt: number): void {
+    if (!this.glows.length) return;
+    const slow = reduceMotion() ? SLOW_FACTOR : 1;
+    for (const one of this.glows) {
+      one.left -= dt;
+      one.clock += dt / (GLOW_BREATH * slow);
+      const fade = Math.min(1, Math.max(0, one.left) / Math.min(GLOW_FADE, one.span));
+      const breath = Math.sin(one.clock * Math.PI * 2) * BREATH;
+      one.image.setAlpha(Math.max(0, (GLOW_ALPHA + breath) * fade));
+    }
+    for (const one of this.glows) if (one.left <= 0) one.image.destroy();
+    this.glows = this.glows.filter((one) => one.left > 0);
+  }
+
   /** Back to plain daylight. Called on a map change unless the scene kept it. */
   clear(): void {
     this.wash?.destroy();
     this.floor?.destroy();
     for (const disc of this.discs) disc.destroy();
+    for (const one of this.glows) one.image.destroy();
     this.wash = null;
     this.floor = null;
     this.discs = [];
+    this.glows = [];
     this.mode = 'off';
   }
 }

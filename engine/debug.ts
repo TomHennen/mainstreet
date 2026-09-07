@@ -61,8 +61,18 @@ export interface DebugSnapshot {
    * staging.
    */
   scene: { id: string; holds: boolean } | null;
-  /** What the lights are doing, and how many discs are hanging (engine/lighting.ts). */
-  light: { mode: 'off' | 'dim' | 'party'; spots: number };
+  /**
+   * What the lights are doing: the mood, how many discs are hanging, and how
+   * many one-tile glows are burning — a fire somebody has just fed
+   * (engine/lighting.ts).
+   */
+  light: { mode: 'off' | 'dim' | 'party'; spots: number; glows: number };
+  /**
+   * What the player is carrying on this map, or null: the token a `give`
+   * fixture handed over (DESIGN.md §2). Never saved, and dropped by the next
+   * map.
+   */
+  held: string | null;
   /** The ids of the map overlays currently patched onto this map. */
   overlays: string[];
   /** The toast banner on screen, or null. Drawn to the canvas, like the dialogue. */

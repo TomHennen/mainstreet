@@ -197,6 +197,16 @@ export class MapScene extends Phaser.Scene {
   private itemSprites = new Map<string, Phaser.GameObjects.Image>();
   /** Fixtures on screen, keyed by kind and tile — an overlay may add or take one. */
   private fixtureSprites = new Map<string, Phaser.GameObjects.Image>();
+  /**
+   * What the player is carrying, if anything: the token a `give` fixture
+   * handed over (DESIGN.md §2). One thing at a time, this map only, never
+   * saved — `init` clears it, so walking out of the yard drops the log.
+   */
+  private held: string | null = null;
+  /** Fixtures burning right now, by their sprite key, and until when (seconds). */
+  private litFixtures = new Map<string, number>();
+  /** Seconds this scene has been running, for the fixture glows above. */
+  private clock = 0;
   private exitArmed = false;
   private enterArmed = false;
   /** id of the `edges` entry (or a `road-end:<x>,<y>` key) currently shown, so it says its line once per visit rather than every frame. */
@@ -256,6 +266,9 @@ export class MapScene extends Phaser.Scene {
     this.edgeShown = null;
     this.itemSprites = new Map();
     this.fixtureSprites = new Map();
+    this.held = null;
+    this.litFixtures = new Map();
+    this.clock = 0;
     this.facades = [];
     this.artBoxes = [];
     this.walkPath = null;
@@ -623,7 +636,7 @@ export class MapScene extends Phaser.Scene {
     for (const fixture of this.fixtures()) {
       const key = `${fixture.kind}:${fixture.pos[0]},${fixture.pos[1]}`;
       if (this.fixtureSprites.has(key)) continue;
-      const art = fixtureArt(this, fixture);
+      const art = fixtureArt(this, fixture, this.litFixtures.has(key));
       this.fixtureSprites.set(key, this.add.image(art.x, art.y, art.key).setOrigin(0, 0).setDepth(art.depth));
     }
     for (const [key, sprite] of this.fixtureSprites) {
@@ -633,6 +646,34 @@ export class MapScene extends Phaser.Scene {
         sprite.destroy();
         this.fixtureSprites.delete(key);
       }
+    }
+  }
+
+  /**
+   * A fixture that has just been fed burns brighter for a while: one warm
+   * light over its tile (engine/lighting.ts) and, where its kind has one, the
+   * lit variant of its art. Nothing here is a timer of its own — `update`
+   * counts it down with everything else, and it goes out on its own.
+   */
+  private lightFixture(fixture: Fixture): void {
+    if (!(fixture.glow && fixture.glow > 0)) return;
+    const key = `${fixture.kind}:${fixture.pos[0]},${fixture.pos[1]}`;
+    this.litFixtures.set(key, this.clock + fixture.glow);
+    this.lighting.glow(fixture.pos, fixture.glow);
+    const sprite = this.fixtureSprites.get(key);
+    if (sprite) sprite.setTexture(fixtureArt(this, fixture, true).key);
+  }
+
+  /** Puts a fed fixture back to its unlit self once its glow has burned out. */
+  private dimFixtures(): void {
+    if (!this.litFixtures.size) return;
+    for (const [key, until] of [...this.litFixtures]) {
+      if (this.clock < until) continue;
+      this.litFixtures.delete(key);
+      const [x, y] = key.slice(key.indexOf(':') + 1).split(',').map(Number);
+      const fixture = this.fixtures().find((one) => one.pos[0] === x && one.pos[1] === y);
+      const sprite = this.fixtureSprites.get(key);
+      if (fixture && sprite) sprite.setTexture(fixtureArt(this, fixture, false).key);
     }
   }
 
@@ -872,6 +913,7 @@ export class MapScene extends Phaser.Scene {
       dialogue: currentDialogue(),
       scene: this.runner ? { id: this.runner.id, holds: this.runner.holds } : null,
       light: this.lighting.describe(),
+      held: this.held,
       overlays: overlaysOn(this.mapId).map((overlay) => overlay.id),
       toast: currentToast()
     });
@@ -880,8 +922,10 @@ export class MapScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     const state = session();
     const dt = delta / 1000;
+    this.clock += dt;
     this.armEnters();
     this.lighting.update(dt);
+    this.dimFixtures();
     this.runScene(dt);
     // Everybody else moves first, and keeps moving on their own clock: the
     // town does not stop because the player is standing still. The traffic
@@ -1592,6 +1636,29 @@ export class MapScene extends Phaser.Scene {
     }
 
     if (target.kind === 'fixture' && target.fixture) {
+      const fixture = target.fixture;
+
+      // The carry verbs (DESIGN.md §2). One fixture hands a token over and
+      // another spends it: a split log off the pile, a split log on the fire.
+      // The engine never learns what the token is — the world names it, and
+      // the world writes both halves of what gets said.
+      if (fixture.give || fixture.take) {
+        const done = fixture.give ? this.held !== fixture.give : this.held === fixture.take;
+        if (done) {
+          this.held = fixture.give ? (fixture.give ?? null) : null;
+          if (fixture.take) this.lightFixture(fixture);
+        }
+        const lines = done ? fixture.lines : fixture.otherwise;
+        if (lines?.length) bus.emit(EV.say, { speaker: state.copy.ui.narrator, lines });
+        return;
+      }
+
+      // A fixture with words of its own reads like any other sign.
+      if (fixture.lines?.length) {
+        bus.emit(EV.say, { speaker: state.copy.ui.narrator, lines: fixture.lines });
+        return;
+      }
+
       // The one thing in town that is the game talking to the player about the
       // game. Every word of it is world copy; the engine only knows there is a
       // box here, and where the world said to write (DESIGN.md §2).
@@ -1602,6 +1669,7 @@ export class MapScene extends Phaser.Scene {
       bus.emit(EV.say, { speaker: state.copy.ui.narrator, lines: suggest.lines, link });
       return;
     }
+
 
     if (target.kind === 'plaque' && target.building) {
       const building = target.building;

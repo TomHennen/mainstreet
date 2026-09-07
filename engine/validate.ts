@@ -133,6 +133,44 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
         continue;
       }
       if (isSolid(map, fx, fy)) problems.push(`${where} is on a solid tile`);
+
+      // The carry verbs (DESIGN.md §2). A fixture hands a token over or spends
+      // one, never both, and whichever it does it has to have the words for
+      // both outcomes: what it says when the log changes hands, and what it
+      // says when it cannot.
+      const token = (name: 'give' | 'take', value: unknown) => {
+        if (value === undefined) return false;
+        if (typeof value !== 'string' || !value.trim()) {
+          problems.push(`${where}: "${name}" is not a name for the thing being carried`);
+        }
+        return true;
+      };
+      const gives = token('give', fixture.give);
+      const takes = token('take', fixture.take);
+      if (gives && takes) {
+        problems.push(`${where} both gives and takes — a fixture does one or the other`);
+      }
+      const words = (name: 'lines' | 'otherwise', value: unknown) => {
+        if (value === undefined) {
+          problems.push(`${where} carries a "${fixture.give ? 'give' : 'take'}" but no "${name}" to say`);
+          return;
+        }
+        if (!Array.isArray(value) || !value.length || value.some((line) => typeof line !== 'string' || !line.trim())) {
+          problems.push(`${where}: "${name}" has nothing to read on it`);
+        }
+      };
+      if (gives || takes) {
+        words('lines', fixture.lines);
+        words('otherwise', fixture.otherwise);
+      } else if (fixture.lines !== undefined) {
+        words('lines', fixture.lines);
+      }
+      if (fixture.glow !== undefined && (typeof fixture.glow !== 'number' || !(fixture.glow > 0))) {
+        problems.push(`${where}: "glow" is how many seconds it burns for, so it has to be more than none`);
+      }
+      if (fixture.glow !== undefined && !takes) {
+        problems.push(`${where}: "glow" is what a fixture does when it takes something, and this one takes nothing`);
+      }
       for (const placement of map.buildings) {
         if (fx === placement.door[0] && fy === placement.door[1]) {
           problems.push(`${where} is on building "${placement.id}"'s door tile`);

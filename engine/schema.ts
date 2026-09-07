@@ -70,12 +70,46 @@ export interface MapLabel {
  * directories); that is not wired up yet, and the drawn fixture is what
  * ships until it is.
  */
-export const FIXTURE_KINDS = ['suggestion-box', 'woodpile'] as const;
+export const FIXTURE_KINDS = ['suggestion-box', 'woodpile', 'firepit'] as const;
 export type FixtureKind = (typeof FIXTURE_KINDS)[number];
 
 export interface Fixture {
   kind: FixtureKind;
   pos: Vec2;
+  /**
+   * What reading this fixture says, one page per entry — the same shape as a
+   * `MapSign`'s lines and read the same way. A fixture with none of these
+   * falls back to the world's own copy for the kind, which is how the
+   * suggestion box gets its words.
+   */
+  lines?: string[];
+  /**
+   * **The carry verbs** (DESIGN.md §2). A fixture with `give` hands the player
+   * a token when they read it; a fixture with `take` spends that same token.
+   * That is the whole mechanic: a log off the pile, a log on the fire.
+   *
+   * The token is a string the world pack picks and only these two fixtures
+   * ever see. It lives in this visit to this map and nowhere else — it is not
+   * an inventory, it is never saved, and walking out of the yard drops it
+   * (engine/scenes/map.ts). Nothing branches on it, no flag is set, and no
+   * episode can read it: it is a small warm thing to do, not a puzzle.
+   *
+   * `lines` is what the fixture says when the exchange happens and `otherwise`
+   * is what it says when it cannot — the player already has one, or has
+   * nothing to give. Both are plain world copy; the engine only knows that
+   * the token moved.
+   */
+  give?: string;
+  take?: string;
+  /** What it says when `give`/`take` has nothing to do. See above. */
+  otherwise?: string[];
+  /**
+   * Seconds this fixture glows warmly after a successful `take` — a fire that
+   * has just been fed. One soft light disc over its tile, no strobe, and its
+   * art switches to the kind's lit variant for as long as it lasts
+   * (engine/lighting.ts). Left out, nothing lights up.
+   */
+  glow?: number;
 }
 
 /**

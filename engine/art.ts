@@ -488,6 +488,39 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, px: number, py: n
       break;
     }
 
+    // A wall somebody keeps a big chalk drawing on: a dark board edge to edge,
+    // with a chalk line running across it and a few coloured marks either side
+    // of it. Unlike `scrawl` the marks line up from tile to tile, so a long run
+    // of it reads as one picture spanning the wall rather than as graffiti —
+    // which is the difference between a mural and a scribble.
+    case 'chalkwall': {
+      const board = c[0];
+      const chalk = [c[1] ?? c[0], c[2] ?? c[1] ?? c[0], c[3] ?? c[1] ?? c[0]];
+      ctx.fillStyle = board;
+      ctx.fillRect(px, py, TILE, TILE);
+      // the wooden lip along the top, and the chalk dust ledge at the foot
+      ctx.fillStyle = 'rgba(255,255,255,.10)';
+      ctx.fillRect(px, py, TILE, 1);
+      ctx.fillStyle = 'rgba(255,255,255,.07)';
+      ctx.fillRect(px, py + TILE - 2, TILE, 2);
+      // one continuous line across the middle of every tile: the horizon
+      ctx.fillStyle = chalk[0];
+      ctx.fillRect(px, py + 8, TILE, 1);
+      ctx.fillRect(px + 4, py + 7, 5, 1);
+      // hills above it and a river below, drawn to meet at both edges
+      ctx.fillStyle = chalk[1];
+      ctx.fillRect(px, py + 5, 4, 1);
+      ctx.fillRect(px + 4, py + 4, 3, 1);
+      ctx.fillRect(px + 7, py + 3, 3, 1);
+      ctx.fillRect(px + 10, py + 4, 3, 1);
+      ctx.fillRect(px + 13, py + 5, 3, 1);
+      ctx.fillStyle = chalk[2];
+      ctx.fillRect(px, py + 12, 6, 1);
+      ctx.fillRect(px + 6, py + 11, 5, 1);
+      ctx.fillRect(px + 11, py + 12, 5, 1);
+      break;
+    }
+
     // A short bar along one axis, drawn over `base`. Tiling it leaves a gap
     // between bars, so a run of them reads as a dashed line.
     case 'stripe-h':
@@ -876,10 +909,18 @@ export function plaqueArt(scene: Phaser.Scene, placement: BuildingPlacement): Pl
 
 // --- street fixtures ---------------------------------------------------------
 
-/** The suggestion box, in pixels. Small: it is a thing on a sidewalk. */
-const FIXTURE_W = 8;
-const FIXTURE_H = 10;
-/** How far its foot sits above the bottom edge of its tile. */
+/**
+ * How big each fixture is drawn, in pixels. A fixture stands on one tile and
+ * blocks one tile whatever its size; anything taller than a tile simply leans
+ * up into the cell above, the way a stack of wood or a signpost does.
+ */
+const FIXTURE_SIZE: Record<FixtureKind, { w: number; h: number }> = {
+  'suggestion-box': { w: 8, h: 10 },
+  woodpile: { w: 16, h: 20 },
+  firepit: { w: 16, h: 16 }
+};
+
+/** How far a fixture's foot sits above the bottom edge of its tile. */
 const FIXTURE_FOOT = 2;
 
 export interface FixtureArt {
@@ -891,46 +932,101 @@ export interface FixtureArt {
 }
 
 /**
- * A little post box on a leg: two colours, engine-drawn, standing on its own
- * tile (DESIGN.md §2). Like the plaque it belongs to the engine rather than to
- * any world, so a town gets one by naming a tile in `world.json` and never by
- * painting anything.
+ * A little post box on a leg, a cord of firewood, a ring of stones with a fire
+ * in it: engine-drawn, standing on its own tile (DESIGN.md §2). Like the
+ * plaque these belong to the engine rather than to any world, so a town gets
+ * one by naming a kind in `world.json` and never by painting anything.
+ *
+ * `lit` picks the kind's lit variant where it has one — a fire somebody has
+ * just put a log on. The texture is cached per variant, so switching back and
+ * forth costs nothing after the first frame of each.
  */
-export function fixtureArt(scene: Phaser.Scene, fixture: Fixture): FixtureArt {
-  const key = `prop:fixture:${fixture.kind}`;
-  if (!scene.textures.exists(key)) drawFixture(scene, key, fixture.kind);
+export function fixtureArt(scene: Phaser.Scene, fixture: Fixture, lit = false): FixtureArt {
+  const key = `prop:fixture:${fixture.kind}${lit ? ':lit' : ''}`;
+  if (!scene.textures.exists(key)) drawFixture(scene, key, fixture.kind, lit);
 
+  const size = FIXTURE_SIZE[fixture.kind] ?? FIXTURE_SIZE['suggestion-box'];
   const [tx, ty] = fixture.pos;
   return {
     key,
-    x: tx * TILE + (TILE - FIXTURE_W) / 2,
-    y: (ty + 1) * TILE - FIXTURE_FOOT - FIXTURE_H,
+    x: tx * TILE + (TILE - size.w) / 2,
+    y: (ty + 1) * TILE - FIXTURE_FOOT - size.h,
     depth: (ty + 1) * TILE
   };
 }
 
-function drawFixture(scene: Phaser.Scene, key: string, kind: FixtureKind): void {
-  const { texture, ctx } = canvas(scene, key, FIXTURE_W, FIXTURE_H);
-  // One shape so far. Lit from the top left like everything else in town.
+function drawFixture(scene: Phaser.Scene, key: string, kind: FixtureKind, lit: boolean): void {
+  const size = FIXTURE_SIZE[kind] ?? FIXTURE_SIZE['suggestion-box'];
+  const { texture, ctx } = canvas(scene, key, size.w, size.h);
+  // Lit from the top left like everything else in town.
   const body = '#3f5f4c';
   const trim = '#d8b268';
 
   switch (kind) {
-    // A stack of split logs, cut ends towards the viewer: three courses of
-    // rounds with the sawn faces catching the light and the bark dark between
-    // them. Scenery for now — there is nothing to press A on.
+    // A cord of split wood stacked against the wall, cut ends towards the
+    // viewer: five courses of rounds with the sawn faces catching the light,
+    // dark bark between them, and two logs lying lengthwise across the top the
+    // way the last armful always ends up. A tile wide and taller than a tile,
+    // so it reads from across the yard as something to walk over to.
     case 'woodpile': {
       const bark = '#4a3826';
+      const dark = '#3a2b1d';
       const cut = '#a8825a';
-      ctx.fillStyle = 'rgba(0,0,0,.22)';
-      ctx.fillRect(0, FIXTURE_H - 1, FIXTURE_W, 1);
-      for (let row = 0; row < 3; row++) {
-        const y = FIXTURE_H - 3 - row * 3;
-        ctx.fillStyle = bark;
-        ctx.fillRect(0, y, FIXTURE_W, 3);
-        ctx.fillStyle = cut;
+      const face = '#c39a6b';
+      ctx.fillStyle = 'rgba(0,0,0,.26)';
+      ctx.fillRect(1, size.h - 2, size.w - 2, 2);
+      for (let row = 0; row < 5; row++) {
+        const y = size.h - 5 - row * 3;
+        ctx.fillStyle = row % 2 ? dark : bark;
+        ctx.fillRect(0, y, size.w, 3);
         // the sawn faces, offset course by course so the stack reads as logs
-        for (let x = row % 2; x + 2 <= FIXTURE_W; x += 3) ctx.fillRect(x, y, 2, 2);
+        for (let x = (row % 2) * 2; x + 3 <= size.w; x += 4) {
+          ctx.fillStyle = cut;
+          ctx.fillRect(x, y, 3, 3);
+          ctx.fillStyle = face;
+          ctx.fillRect(x, y, 3, 1);
+        }
+      }
+      // the two on top, lying the other way
+      ctx.fillStyle = bark;
+      ctx.fillRect(0, 1, size.w, 3);
+      ctx.fillStyle = 'rgba(255,255,255,.14)';
+      ctx.fillRect(0, 1, size.w, 1);
+      ctx.fillStyle = cut;
+      ctx.fillRect(0, 1, 2, 3);
+      ctx.fillRect(size.w - 2, 1, 2, 3);
+      break;
+    }
+
+    // A ring of stones with a fire in the middle of it. The same shape as the
+    // tileset's firepit, drawn here because this one can be walked up to and
+    // fed: `lit` is the minute or so after somebody puts a log on, with the
+    // flame standing taller and the stones taking the light.
+    case 'firepit': {
+      const stone = '#8d867d';
+      const litStone = lit ? '#c7a77e' : '#a49c92';
+      const flame = lit ? '#f0c04a' : '#d9a441';
+      const ember = lit ? '#e2732f' : '#b5542a';
+      ctx.fillStyle = 'rgba(0,0,0,.25)';
+      ctx.fillRect(2, 12, 12, 2);
+      ctx.fillStyle = '#241d16';
+      ctx.fillRect(3, 4, 10, 8);
+      ctx.fillStyle = ember;
+      ctx.fillRect(4, 8, 8, 3);
+      ctx.fillStyle = flame;
+      ctx.fillRect(6, 4, 4, 5);
+      ctx.fillRect(7, lit ? 0 : 2, 2, lit ? 5 : 3);
+      if (lit) {
+        ctx.fillRect(5, 3, 1, 3);
+        ctx.fillRect(10, 3, 1, 3);
+      }
+      ctx.fillStyle = 'rgba(255,255,255,.45)';
+      ctx.fillRect(7, 4, 2, 2);
+      for (const [x, y] of [[1, 3], [1, 8], [4, 11], [9, 11], [12, 8], [12, 3], [9, 0], [4, 0]]) {
+        ctx.fillStyle = stone;
+        ctx.fillRect(x, y, 4, 4);
+        ctx.fillStyle = litStone;
+        ctx.fillRect(x, y, 4, 1);
       }
       break;
     }
@@ -938,12 +1034,12 @@ function drawFixture(scene: Phaser.Scene, key: string, kind: FixtureKind): void 
     case 'suggestion-box':
     default:
       ctx.fillStyle = body;
-      ctx.fillRect(0, 0, FIXTURE_W, 7); // the box
-      ctx.fillRect(3, 7, 2, FIXTURE_H - 7); // the post it stands on
+      ctx.fillRect(0, 0, size.w, 7); // the box
+      ctx.fillRect(3, 7, 2, size.h - 7); // the post it stands on
       ctx.fillStyle = 'rgba(0,0,0,.22)';
-      ctx.fillRect(FIXTURE_W - 1, 1, 1, 6); // the shaded side
+      ctx.fillRect(size.w - 1, 1, 1, 6); // the shaded side
       ctx.fillStyle = trim;
-      ctx.fillRect(0, 0, FIXTURE_W, 1); // the lid
+      ctx.fillRect(0, 0, size.w, 1); // the lid
       ctx.fillRect(2, 3, 4, 1); // the slot
       break;
   }

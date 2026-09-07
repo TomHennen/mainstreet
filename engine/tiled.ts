@@ -48,6 +48,7 @@ export type TileStyle =
   | 'firepit'
   | 'paper'
   | 'scrawl'
+  | 'chalkwall'
   | 'stripe-h'
   | 'stripe-v';
 
@@ -73,6 +74,7 @@ const STYLES: readonly string[] = [
   'firepit',
   'paper',
   'scrawl',
+  'chalkwall',
   'stripe-h',
   'stripe-v'
 ];
