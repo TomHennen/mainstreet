@@ -1681,6 +1681,180 @@ async function main() {
     log(`    "${anyPainted.id}": opening with &improve=1 filled the canvas without a click`);
     await autoCtx.close();
 
+    // --- the Studio on a phone ----------------------------------------------
+    // A phone is where most of the painting will actually happen, so: the
+    // drawing opens fitting the screen it has, one finger paints, a second
+    // finger turns the gesture into a pinch that zooms and paints nothing, and
+    // Lock hands one-finger gestures back to the browser so the page can be
+    // scrolled past the canvas. Playwright's touchscreen is one finger only, so
+    // the pinch goes in as PointerEvents with two pointerIds — which is all the
+    // studio listens to anyway (CLAUDE.md #4, one input path).
+    log('  Studio: on a phone (390x844)');
+    const phoneCtx = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      isMobile: false,
+      deviceScaleFactor: 1
+    });
+    const pp = await phoneCtx.newPage();
+    attach(pp, 'studio-phone');
+    const pcdp = await phoneCtx.newCDPSession(pp);
+    await pp.goto(`${BASE}studio/?world=${WORLD_ID}&building=${paintable.id}`, { waitUntil: 'load' });
+    await pp.waitForSelector('#markers', { timeout: 20000 });
+
+    const room = await pp.evaluate(() => ({
+      drawing: document.getElementById('view').getBoundingClientRect().width,
+      stage: document.getElementById('stage').clientWidth,
+      page: document.documentElement.scrollWidth,
+      window: window.innerWidth
+    }));
+    if (room.drawing > room.stage) {
+      fail('studio-phone', `the drawing opens ${room.drawing}px wide in a ${room.stage}px stage`);
+    }
+    if (room.page > room.window) {
+      fail('studio-phone', `the studio is ${room.page}px wide on a ${room.window}px screen, so the page scrolls sideways`);
+    }
+    if (room.drawing < room.stage * 0.7) {
+      fail('studio-phone', `the drawing opens ${room.drawing}px wide in a ${room.stage}px stage, smaller than it needs to be`);
+    }
+    const zoomNow = () => pp.locator('#zoomlevel').innerText();
+    log(`    opens ${room.drawing}px wide in a ${room.stage}px stage, at ${await zoomNow()}`);
+    await shot(pp, 'studio-phone');
+
+    /** Pointer events by id, which is the studio's only input path. */
+    async function pointerSteps(steps) {
+      await pp.evaluate((steps) => {
+        const view = document.getElementById('view');
+        for (const step of steps) {
+          view.dispatchEvent(
+            new PointerEvent(step.type, {
+              pointerId: step.id,
+              pointerType: 'touch',
+              isPrimary: step.id === 1,
+              clientX: step.x,
+              clientY: step.y,
+              buttons: step.type === 'pointerup' ? 0 : 1,
+              bubbles: true,
+              cancelable: true
+            })
+          );
+        }
+      }, steps);
+    }
+
+    /** A point that is over the drawing and inside the stage, whatever the
+     *  zoom has done to the drawing's size. */
+    async function overCanvas(dx = 0.35, dy = 0.35) {
+      return pp.evaluate(
+        ({ dx, dy }) => {
+          const view = document.getElementById('view').getBoundingClientRect();
+          const stage = document.getElementById('stage').getBoundingClientRect();
+          const left = Math.max(view.left, stage.left) + 4;
+          const right = Math.min(view.right, stage.right) - 4;
+          const top = Math.max(view.top, stage.top) + 4;
+          const bottom = Math.min(view.bottom, stage.bottom) - 4;
+          return { x: left + (right - left) * dx, y: top + (bottom - top) * dy };
+        },
+        { dx, dy }
+      );
+    }
+
+    const PHONE_DRAFT = `mainstreet.studio.v1.${WORLD_ID}.${paintable.id}`;
+    const phoneCode = () =>
+      pp.evaluate((key) => {
+        try {
+          return JSON.parse(localStorage.getItem(key) ?? '{}').code ?? null;
+        } catch {
+          return null;
+        }
+      }, PHONE_DRAFT);
+    /** The draft is written 400ms after the drawing changes, so a claim that
+     *  nothing was painted has to outwait that. */
+    async function settledCode(differentFrom) {
+      for (let i = 0; i < 40; i++) {
+        const code = await phoneCode();
+        if (code && code !== differentFrom) return code;
+        await sleep(100);
+      }
+      return null;
+    }
+
+    const blankPhone = await settledCode(null);
+    if (!blankPhone) fail('studio-phone', 'the studio never saved a draft to read the drawing back from');
+
+    // One finger paints, exactly as it always did.
+    const strokeFrom = await overCanvas(0.25, 0.25);
+    await pointerSteps([{ type: 'pointerdown', id: 11, x: strokeFrom.x, y: strokeFrom.y }]);
+    await pointerSteps([{ type: 'pointermove', id: 11, x: strokeFrom.x + 14, y: strokeFrom.y + 8 }]);
+    await pointerSteps([{ type: 'pointerup', id: 11, x: strokeFrom.x + 14, y: strokeFrom.y + 8 }]);
+    const phonePainted = await settledCode(blankPhone);
+    if (!phonePainted) fail('studio-phone', 'one finger drew nothing');
+    log('    one finger paints');
+
+    // Two fingers zoom, and put back whatever the first one had started.
+    const middle = await overCanvas(0.5, 0.5);
+    const zoomBefore = await zoomNow();
+    await pointerSteps([{ type: 'pointerdown', id: 21, x: middle.x - 30, y: middle.y }]);
+    await pointerSteps([{ type: 'pointerdown', id: 22, x: middle.x + 30, y: middle.y }]);
+    for (let i = 1; i <= 3; i++) {
+      await pointerSteps([
+        { type: 'pointermove', id: 21, x: middle.x - 30 - i * 8, y: middle.y },
+        { type: 'pointermove', id: 22, x: middle.x + 30 + i * 8, y: middle.y }
+      ]);
+    }
+    await pointerSteps([{ type: 'pointerup', id: 22, x: middle.x + 54, y: middle.y }]);
+    await pointerSteps([{ type: 'pointerup', id: 21, x: middle.x - 54, y: middle.y }]);
+    await sleep(800);
+    const zoomAfter = await zoomNow();
+    if (zoomAfter === zoomBefore) fail('studio-phone', `a pinch left the zoom at ${zoomAfter}`);
+    const afterPinch = await phoneCode();
+    if (afterPinch !== phonePainted) {
+      fail('studio-phone', 'a pinch painted something — the stroke the first finger started was not put back');
+    }
+    log(`    a pinch zooms ${zoomBefore} -> ${zoomAfter} and paints nothing`);
+    await shot(pp, 'studio-phone-pinched');
+
+    // Locked, one finger belongs to the browser: it scrolls, and paints nothing.
+    await pp.locator('#lock').click();
+    await sleep(200);
+    if ((await pp.locator('#lock').getAttribute('aria-pressed')) !== 'true') {
+      fail('studio-phone', 'the Lock button did not say it was on');
+    }
+    const lockedFrom = await overCanvas(0.6, 0.6);
+    await pointerSteps([{ type: 'pointerdown', id: 31, x: lockedFrom.x, y: lockedFrom.y }]);
+    await pointerSteps([{ type: 'pointermove', id: 31, x: lockedFrom.x + 16, y: lockedFrom.y + 10 }]);
+    await pointerSteps([{ type: 'pointerup', id: 31, x: lockedFrom.x + 16, y: lockedFrom.y + 10 }]);
+    await sleep(800);
+    if ((await phoneCode()) !== afterPinch) fail('studio-phone', 'a finger painted on a locked canvas');
+
+    // And the point of the lock: a real finger, dragged up the canvas, scrolls
+    // the page past it rather than being swallowed. Real touches this time, so
+    // the browser's own touch-action handling is what is being asked.
+    // Back down to a zoom the stage holds whole, so what scrolls is the page
+    // and not the stage the drawing is sitting in.
+    for (let i = 0; i < 12; i++) {
+      const spills = await pp.evaluate(() => {
+        const stage = document.getElementById('stage');
+        return stage.scrollHeight > stage.clientHeight || stage.scrollWidth > stage.clientWidth;
+      });
+      if (!spills) break;
+      await pp.locator('#zoomout').click();
+      await sleep(120);
+    }
+    await pp.evaluate(() => window.scrollTo(0, 0));
+    await sleep(200);
+    const overDrawing = await overCanvas(0.5, 0.9);
+    await touchAt(pcdp, 'touchStart', overDrawing.x, overDrawing.y);
+    for (let y = overDrawing.y; y > overDrawing.y - 180; y -= 15) {
+      await touchAt(pcdp, 'touchMove', overDrawing.x, y);
+      await sleep(16);
+    }
+    await touchAt(pcdp, 'touchEnd', overDrawing.x, overDrawing.y - 180);
+    await sleep(600);
+    const scrolled = await pp.evaluate(() => window.scrollY);
+    if (scrolled <= 0) fail('studio-phone', 'a finger could not scroll the page past a locked canvas');
+    log(`    Lock keeps one finger from painting, and lets it scroll the page (${Math.round(scrolled)}px)`);
+
     log(`\n  ${PLAYTEST_EPISODE} completed end to end.`);
   } finally {
     await browser.close();

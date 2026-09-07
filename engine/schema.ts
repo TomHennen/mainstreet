@@ -148,6 +148,10 @@ export interface World {
   /** Where a suggestion-box fixture writes to (DESIGN.md §2). */
   feedback?: Feedback;
   palette?: string;
+  /** What the palette is called, and where it can be fetched — for anyone
+   *  painting outside the Studio. Both optional; the engine never reads them. */
+  paletteName?: string;
+  paletteLink?: string;
   episodes: string[];
   player: { id: string; accent: string };
   start: { map: string; pos: Vec2; facing: Facing };
