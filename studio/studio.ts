@@ -54,6 +54,20 @@ const UNDO_LIMIT = 60;
 const SUBMIT_ADDRESS = 'tom.hennen+mainstreet@gmail.com';
 /** Above this many characters of encoded body, a mailto stops being reliable. */
 const MAILTO_BUDGET = 1800;
+/**
+ * The same for a webmail compose link, which is an ordinary https URL and so
+ * carries a great deal more than a mailto ever will. Deliberately well under
+ * what any browser would actually refuse.
+ */
+const WEBMAIL_BUDGET = 6000;
+/**
+ * Webmail "start a new message" links, for the many desktop browsers with no
+ * mail app to hand a mailto: to. Neither company documents these, so they are
+ * offered beside the address in plain text rather than instead of it — if one
+ * of them ever stops working, copying the message still sends the drawing.
+ */
+const GMAIL_COMPOSE = 'https://mail.google.com/mail/?view=cm&fs=1';
+const OUTLOOK_COMPOSE = 'https://outlook.live.com/mail/0/deeplink/compose';
 /** Below this share of painted pixels, submitting gets a gentle reminder. */
 const LIGHT_PAINT_SHARE = 0.02;
 /** The "what you'll send" preview never gets wider than this on screen. */
@@ -718,21 +732,40 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
         <button id="send" class="primary">Open an email with my drawing</button>
         <button id="copy">Copy the code</button>
       </div>
-      <p id="sendmailwrap" hidden><a class="link" id="sendmail" href="#">If nothing opened, tap here to open the email</a></p>
       <p class="statusline" id="sendstatus" role="status" aria-live="polite">&nbsp;</p>
-      <div id="attach" hidden>
-        <p class="quiet" id="attachnote"></p>
+
+      <!--
+        Shown after every send, never only after a failed one. A mailto: click
+        that goes nowhere — which is what a desktop browser with no mail app
+        does — looks exactly like one that worked, so the studio cannot claim
+        it worked. The address sits here as plain, selectable text: whatever
+        else on this panel a browser declines to do, that always sends.
+      -->
+      <div class="fallback" id="fallback" hidden>
+        <p class="quiet" id="fallbacknote"></p>
+        <p class="address">Send it to <strong>${esc(SUBMIT_ADDRESS)}</strong></p>
         <div class="row">
+          <button id="copymessage" class="primary">Copy the whole message</button>
+          <button id="fallbackcode">Copy just the code</button>
           <button id="attachexport">Download the PNG</button>
-          <a class="button" id="attachmail" href="#">Open the email</a>
         </div>
+        <p class="quiet" id="webmailnote">Or open a new message in your webmail,
+          with the address, the subject and the drawing already written in:</p>
+        <div class="row">
+          <a class="button" id="gmail" href="#" target="_blank" rel="noreferrer">Gmail</a>
+          <a class="button" id="outlook" href="#" target="_blank" rel="noreferrer">Outlook on the web</a>
+          <a class="button" id="sendmail" href="#">Your own email app</a>
+        </div>
+        <p class="statusline" id="fallbackstatus" role="status" aria-live="polite">&nbsp;</p>
       </div>
     </section>
 
     <footer class="how">
       <p><strong>How this works:</strong> your drawing becomes a short line of
-        text, your email app opens with that line already written out, and you
-        press send. Nothing leaves this page until you do.</p>
+        text, and the studio hands it to you in a message ready to send — to
+        your own email app, to your webmail, or on the clipboard if you would
+        rather paste it somewhere yourself. Nothing leaves this page until you
+        send it.</p>
       <p><a class="link" href="${esc(contributingUrl())}">What happens next, and the licence</a></p>
     </footer>`;
 
@@ -2171,24 +2204,23 @@ function wireEditor(state: EditorState): void {
     }
   }
 
-  async function copyCode(): Promise<void> {
-    const code = currentCode();
+  /** Puts a string on the clipboard, by whichever of the two ways works. */
+  async function putOnClipboard(text: string): Promise<boolean> {
     try {
-      await navigator.clipboard.writeText(code);
-      saySend('Copied. Paste it anywhere you like — a text, an email, a note to yourself.');
-      return;
+      await navigator.clipboard.writeText(text);
+      return true;
     } catch {
       // Clipboard permission, an old browser, or an insecure origin. Fall back
       // to the oldest trick there is.
     }
     const box = document.createElement('textarea');
-    box.value = code;
+    box.value = text;
     box.setAttribute('readonly', 'readonly');
     box.style.position = 'fixed';
     box.style.opacity = '0';
     document.body.appendChild(box);
     box.select();
-    box.setSelectionRange(0, code.length);
+    box.setSelectionRange(0, text.length);
     let copied = false;
     try {
       copied = document.execCommand('copy');
@@ -2196,21 +2228,41 @@ function wireEditor(state: EditorState): void {
       copied = false;
     }
     box.remove();
-    saySend(
-      copied
-        ? 'Copied. Paste it anywhere you like.'
-        : 'This browser keeps the clipboard to itself. Exporting a PNG and attaching it works just as well.'
-    );
+    return copied;
   }
 
   el<HTMLButtonElement>('copy').addEventListener('click', () => {
     maybeReminder();
-    void copyCode();
+    void (async () => {
+      const copied = await putOnClipboard(currentCode());
+      saySend(
+        copied
+          ? 'Copied. Paste it anywhere you like — a text, an email, a note to yourself.'
+          : 'This browser keeps the clipboard to itself. Downloading the PNG and attaching it works just as well.'
+      );
+    })();
   });
 
+  function subjectLine(): string {
+    return `mainstreet art: ${state.entry.placement.id} (${state.world.id})`;
+  }
+
   function mailtoFor(body: string): string {
-    const subject = `mainstreet art: ${state.entry.placement.id} (${state.world.id})`;
-    return `mailto:${SUBMIT_ADDRESS}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return `mailto:${SUBMIT_ADDRESS}?subject=${encodeURIComponent(subjectLine())}&body=${encodeURIComponent(body)}`;
+  }
+
+  function gmailFor(body: string): string {
+    return (
+      `${GMAIL_COMPOSE}&to=${encodeURIComponent(SUBMIT_ADDRESS)}` +
+      `&su=${encodeURIComponent(subjectLine())}&body=${encodeURIComponent(body)}`
+    );
+  }
+
+  function outlookFor(body: string): string {
+    return (
+      `${OUTLOOK_COMPOSE}?to=${encodeURIComponent(SUBMIT_ADDRESS)}` +
+      `&subject=${encodeURIComponent(subjectLine())}&body=${encodeURIComponent(body)}`
+    );
   }
 
   function bodyLines(name: string): string[] {
@@ -2239,11 +2291,32 @@ function wireEditor(state: EditorState): void {
     return lines;
   }
 
+  /** The message the two copy buttons put on the clipboard, once Send has
+   *  been pressed and there is a credit name to write into it. */
+  let copyable = '';
+
+  function sayFallback(message: string): void {
+    el<HTMLParagraphElement>('fallbackstatus').textContent = message || ' ';
+  }
+
+  /**
+   * The message a link will carry: with the drawing's code written into it
+   * when a URL that long is still reliable, and asking for the PNG as an
+   * attachment when it is not. `budget` is what that particular kind of link
+   * can take — a mailto very little, a webmail compose URL a great deal more
+   * — so the same drawing can travel whole by one route and as a PNG by
+   * another, rather than every route being held to the shortest one.
+   */
+  function messageFor(name: string, code: string, budget: number): { body: string; whole: boolean } {
+    const whole = [...bodyLines(name), 'Here is the drawing, as a code:', '', code, ''].join('\n');
+    if (encodeURIComponent(whole).length <= budget) return { body: whole, whole: true };
+    return { body: [...bodyLines(name), 'My PNG is attached to this email.', ''].join('\n'), whole: false };
+  }
+
   el<HTMLButtonElement>('send').addEventListener('click', () => {
     maybeReminder();
     const name = el<HTMLInputElement>('credit').value.trim();
     const consented = el<HTMLInputElement>('consent').checked;
-    const attach = el<HTMLDivElement>('attach');
 
     if (!name) {
       saySend('Pop a name in first, so we know who to thank in the credits.');
@@ -2267,26 +2340,57 @@ function wireEditor(state: EditorState): void {
       return;
     }
 
-    const withCode = [...bodyLines(name), 'Here is the drawing, as a code:', '', code, ''].join('\n');
-    if (encodeURIComponent(withCode).length <= MAILTO_BUDGET) {
-      attach.hidden = true;
-      // The click opens the mail app on every browser we know of; the link
-      // stays on the page afterwards for the ones that quietly don't.
-      const link = el<HTMLAnchorElement>('sendmail');
-      link.href = mailtoFor(withCode);
-      el<HTMLElement>('sendmailwrap').hidden = false;
-      link.click();
-      saySend('Your email app should be opening now. Thank you — this really does make the town.');
-      return;
-    }
+    // Every route gets filled in, every time, and the panel below always
+    // opens: a mailto: that goes nowhere is indistinguishable from one that
+    // worked, so the studio offers the other ways rather than assuming.
+    const mail = messageFor(name, code, MAILTO_BUDGET);
+    const web = messageFor(name, code, WEBMAIL_BUDGET);
+    // The clipboard has no length to run out of, so the copied message always
+    // carries the drawing, however detailed it is.
+    copyable = [...bodyLines(name), 'Here is the drawing, as a code:', '', code, ''].join('\n');
 
-    const withoutCode = [...bodyLines(name), 'My PNG is attached to this email.', ''].join('\n');
-    el<HTMLElement>('attachnote').textContent =
-      `This one is too detailed to fit in an email link, which is a lovely problem to have. ` +
-      `Download the PNG and attach it to an email to ${SUBMIT_ADDRESS} — the two buttons below do both halves.`;
-    el<HTMLAnchorElement>('attachmail').href = mailtoFor(withoutCode);
-    attach.hidden = false;
-    saySend(`Download the PNG and attach it to an email to ${SUBMIT_ADDRESS}.`);
+    el<HTMLAnchorElement>('sendmail').href = mailtoFor(mail.body);
+    el<HTMLAnchorElement>('gmail').href = gmailFor(web.body);
+    el<HTMLAnchorElement>('outlook').href = outlookFor(web.body);
+    el<HTMLElement>('webmailnote').textContent = web.whole
+      ? 'Or open a new message in your webmail, with the address, the subject and the drawing already written in:'
+      : `Or open a new message in your webmail — it will be addressed and written out, and the PNG goes on as an attachment:`;
+    el<HTMLElement>('fallbacknote').textContent = mail.whole
+      ? "If your email app opened, everything is in it already and you just press send. Plenty of desktop browsers " +
+        'have no email app to open, though, so here is the same message every other way.'
+      : 'This one is too detailed to fit in an email link, which is a lovely problem to have. Download the PNG ' +
+        'below and attach it to a message — or copy the whole message, which carries the drawing whatever its size.';
+    el<HTMLDivElement>('fallback').hidden = false;
+    sayFallback('');
+
+    if (mail.whole) el<HTMLAnchorElement>('sendmail').click();
+    saySend(
+      mail.whole
+        ? 'Your email app should be opening. Thank you — this really does make the town. If nothing opened, everything you need is just below.'
+        : `Everything you need to send it is just below. Thank you — this really does make the town.`
+    );
+  });
+
+  el<HTMLButtonElement>('copymessage').addEventListener('click', () => {
+    void (async () => {
+      const copied = await putOnClipboard(copyable);
+      sayFallback(
+        copied
+          ? `Copied — the whole message. Paste it into a new email to ${SUBMIT_ADDRESS} and send it.`
+          : 'This browser keeps the clipboard to itself. Downloading the PNG and attaching it works just as well.'
+      );
+    })();
+  });
+
+  el<HTMLButtonElement>('fallbackcode').addEventListener('click', () => {
+    void (async () => {
+      const copied = await putOnClipboard(currentCode());
+      sayFallback(
+        copied
+          ? 'Copied — just the drawing code. Do add the name you would like credited when you paste it in.'
+          : 'This browser keeps the clipboard to itself. Downloading the PNG and attaching it works just as well.'
+      );
+    })();
   });
 
   // --- keyboard, for anyone at a desk ------------------------------------

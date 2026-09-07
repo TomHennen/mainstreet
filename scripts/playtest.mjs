@@ -440,6 +440,10 @@ function attach(page, tag) {
   page.on('pageerror', (err) => pageErrors.push(`${tag} pageerror: ${err.message}\n${err.stack ?? ''}`));
   page.on('requestfailed', (req) => {
     if (/\/worlds\/.*\/assets\//.test(req.url()) || /\/worlds\/[^/]+\/credits\.json/.test(req.url())) return;
+    // A mailto: with nowhere to go always aborts here, which is precisely the
+    // desktop case the studio's send panel exists for — headless Chromium has
+    // no mail app any more than a work laptop does. Not a fault.
+    if (req.url().startsWith('mailto:')) return;
     consoleLines.push(`${tag} requestfailed: ${req.url()} ${req.failure()?.errorText ?? ''}`);
   });
 }
@@ -1951,6 +1955,103 @@ async function main() {
     if (!autoCode) fail('studio-improve-auto', '&improve=1 did not load a payload onto the canvas on open');
     log(`    "${anyPainted.id}": opening with &improve=1 filled the canvas without a click`);
     await autoCtx.close();
+
+    // --- the Studio's send step ---------------------------------------------
+    // A mailto: that goes nowhere looks exactly like one that worked — which
+    // is what a desktop browser with no mail app does — so the studio shows
+    // every other way to send after every send, and never claims the mail app
+    // opened. Two things matter here: the panel appears at all, and the routes
+    // agree with each other about the address while disagreeing, correctly,
+    // about whether the drawing's code fits in their kind of link.
+    log('  Studio: sending, and every way out of it');
+    const send = await touchCtx.newPage();
+    attach(send, 'studio-send');
+
+    /** Every send route the panel offers, with its body decoded back to text. */
+    async function sendRoutes(page) {
+      return evalIn(page, 'the send panel\u2019s links', () => {
+        const body = (href, key) => {
+          const q = href.slice(href.indexOf('?') + 1);
+          const found = new URLSearchParams(q).get(key);
+          return found ?? '';
+        };
+        const href = (id) => document.getElementById(id).getAttribute('href') ?? '';
+        return {
+          shown: !document.getElementById('fallback').hidden,
+          address: document.querySelector('.fallback .address strong')?.textContent ?? '',
+          mailto: { href: href('sendmail'), body: body(href('sendmail'), 'body') },
+          gmail: { href: href('gmail'), body: body(href('gmail'), 'body') },
+          outlook: { href: href('outlook'), body: body(href('outlook'), 'body') }
+        };
+      });
+    }
+
+    await send.goto(`${BASE}studio/?world=${WORLD_ID}&building=${bare.id}`, { waitUntil: 'load' });
+    await send.waitForSelector('#markers', { timeout: 20000 });
+    if (await send.locator('#fallback').isVisible()) {
+      fail('studio-send', 'the send panel was showing before anything had been sent');
+    }
+    // The drawing code is the long line that starts with the codec's magic;
+    // the paste box's own placeholder is where the harness learns it.
+    const MAGIC = (await send.locator('#codebox').getAttribute('placeholder')).split('|')[0];
+
+    // A small drawing: the code fits in a mailto, so every route carries it.
+    await send.locator('#fromguide').click({ timeout: 20000 });
+    await sleep(400);
+    await send.locator('#credit').fill('A resident');
+    await send.locator('#consent').check({ timeout: 20000 });
+    await send.locator('#send').click({ timeout: 20000 });
+    await sleep(400);
+
+    const small = await sendRoutes(send);
+    if (!small.shown) fail('studio-send', 'pressing Send left the panel of other ways to send hidden');
+    if (!small.address.includes('@')) fail('studio-send', `the panel shows no address to send to ("${small.address}")`);
+    if (!small.mailto.href.startsWith(`mailto:${small.address}`)) {
+      fail('studio-send', `the mail-app link does not go to the address the panel shows: ${small.mailto.href.slice(0, 60)}`);
+    }
+    for (const [name, route, host] of [
+      ['Gmail', small.gmail, 'https://mail.google.com/mail/'],
+      ['Outlook', small.outlook, 'https://outlook.live.com/mail/']
+    ]) {
+      if (!route.href.startsWith(host)) fail('studio-send', `the ${name} link goes to ${route.href.slice(0, 60)}`);
+      if (!route.href.includes(encodeURIComponent(small.address))) {
+        fail('studio-send', `the ${name} link is not addressed to ${small.address}`);
+      }
+      if (!route.body.includes('A resident')) fail('studio-send', `the ${name} message carries no credit name`);
+      if (!route.body.includes(MAGIC)) fail('studio-send', `the ${name} message carries no drawing`);
+    }
+    if (!small.mailto.body.includes(MAGIC)) fail('studio-send', 'a small drawing did not fit in the mail-app link');
+    log(`    a small drawing rides in all three: your email app, Gmail, Outlook (${small.address})`);
+    await shot(send, 'studio-send');
+
+    // A finished facade: too long for a mailto, but a webmail link is an
+    // ordinary https URL and takes it comfortably. The two budgets are the
+    // point — holding every route to the shortest one would strip the drawing
+    // out of links that could have carried it.
+    await send.goto(`${BASE}studio/?world=${WORLD_ID}&building=${anyPainted.id}&improve=1`, { waitUntil: 'load' });
+    await send.waitForSelector('#markers', { timeout: 20000 });
+    await sleep(800);
+    await send.locator('#credit').fill('A resident');
+    await send.locator('#consent').check({ timeout: 20000 });
+    await send.locator('#send').click({ timeout: 20000 });
+    await sleep(400);
+
+    const big = await sendRoutes(send);
+    if (!big.shown) fail('studio-send', 'the panel of other ways to send stayed hidden on a finished facade');
+    if (!big.gmail.body.includes(MAGIC)) {
+      fail('studio-send', 'a webmail link should carry a whole finished facade, and this one did not');
+    }
+    if (big.mailto.body.includes(MAGIC) && big.mailto.body.length > 1800) {
+      fail('studio-send', 'a mail-app link was let past its budget');
+    }
+    if (!big.mailto.body.includes(MAGIC) && !big.mailto.body.includes('attached')) {
+      fail('studio-send', 'a mail-app link that cannot carry the drawing should ask for the PNG instead');
+    }
+    log(
+      `    ${anyPainted.id}: Gmail carries the drawing (${big.gmail.body.length} chars); ` +
+        `the mail-app link ${big.mailto.body.includes(MAGIC) ? 'does too' : 'asks for the PNG instead'}`
+    );
+    await shot(send, 'studio-send-finished');
 
     // Everything before this is finished with, and the phone section is the
     // one that asks the browser for a real touch scroll. A touch scroll only
