@@ -145,6 +145,14 @@
       "big": "ROUTE 10",
       "small": "back up the West Branch, north-east to STAMFORD, Queen of the Catskills."
     },
+    "stamford-hobart-trail": {
+      "big": "SCENIC TRAIL",
+      "small": "the old rail bed south, level the whole way, the West Branch off to your left — welcome to HOBART, Jewel of the West Branch."
+    },
+    "hobart-stamford-trail": {
+      "big": "SCENIC TRAIL",
+      "small": "back up the rail bed, cinders underfoot and the river alongside — north-east to STAMFORD, Queen of the Catskills."
+    },
     "enter:stewarts": {
       "big": "STEWART'S",
       "small": ""
