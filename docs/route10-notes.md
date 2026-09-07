@@ -424,37 +424,58 @@ opt-in, everything warm and affectionate) before it reaches the player.
   (a fully invented local, hard rule 5, built from the "looks exactly like
   you'd expect" archetype rather than any real person) is a nice one-off
   or recurring cameo either way.
-- **"Anybody headed down today?" — a relay episode, sketched and ready to
-  build whenever it's next in the queue.** Real inspiration: someone in
-  the city forgot something they need for tonight, and the ask goes out
-  the way these things actually go — word of mouth, a Facebook-group
-  post, someone mentioning it at the counter — hoping a neighbor's
-  headed down and can bring it. Spiced from the original "forgot their
-  keys" version: swap the item for something warmer and lower-stakes,
-  like a costume piece for a show that night, so there's a reason it has
-  to be today without needing an actual timer (the hard rules forbid
-  those anyway). Structure mirrors ep001's relay shape exactly (Earl →
-  Renata → Dot → Nora): an NPC in Jefferson explains the situation and
-  sets `heardAsk`; Stamford is a dead end that hands off a lead
-  (`triedStamford`); Hobart is a second dead end whose NPC points back
-  toward an unexpected commuter (`triedHobart`) — small-town-density
-  payoff, since the real commuter turns out to be someone the player
-  already met earlier in the episode in an unrelated capacity, not
-  introduced as "the commuter" up front; player collects the item and
-  makes the handoff before the commuter leaves (`foundDriver` →
-  `delivered`); payoff scene back with the parent NPC closes it out
-  (`done`). New cast: the flustered Jefferson parent, and the commuter
-  (revealed late, could be tied to an existing location like the
-  Belvedere or Stewart's rather than invented from nothing). One resolved
-  design question worth recording: the natural payoff beat is "a photo of
-  the kid in costume that evening," but the engine has no mechanism for
-  showing an arbitrary photo in dialogue — only fixed per-NPC portraits
-  and building facades, no generic image-in-a-line field in the sign/
-  dialogue schema (DESIGN.md §3). Rather than build new image
-  infrastructure for one payoff line, play it the way ep001 plays its
-  payoff — through text, not a picture: the parent describes getting the
-  photo and jokingly notes the player will just have to imagine it,
-  rather than the engine pretending to show one. An actual in-game photo
-  mechanism (a generic "story image" asset type, distinct from portraits)
-  would be a real feature worth scoping on its own if it ever comes up
-  again, not something to fold into this episode.
+- **"Anybody Headed Down Today?" — built, unshipped, in
+  `worlds/route10/episodes/ep002.json`.** Logline: a Jefferson kid is in a
+  dance showcase in the city tonight and left half the costume on the
+  kitchen table; find somebody driving down today who can take it. Real
+  inspiration: the ask goes out the way these things actually go — word
+  of mouth, a Facebook-group post, someone mentioning it at the counter.
+  Spiced from the original "forgot their keys" version: a costume piece
+  instead, lower-stakes and warmer, with a built-in reason it has to be
+  today without needing an actual timer (the hard rules forbid those
+  anyway). Not in `world.json`'s `episodes` list, so it doesn't ship; it
+  validates with `npm run validate-episodes -- --all` (DESIGN.md §3's
+  review path — the same way ep000 is kept around unshipped) and can be
+  played directly with `?episode=ep002`.
+
+  Went through a design pass before being written (an automated review on
+  the PR that added this note caught real issues before any JSON
+  existed — worth recording what changed and why, since the same
+  mistakes are easy to re-make): **`EpisodeNpc` has no `requires` field
+  (engine/schema.ts) — NPCs are on their tile from frame one and never
+  arrive, leave, or vanish**, so "before the commuter leaves" can only
+  ever be a line of dialogue, never a mechanic; a player who talks to
+  everyone in any order will meet the commuter (Walt, at J&H) well before
+  the reveal flag is set, so his pre-reveal line had to be written as a
+  real, standalone piece of texture that plants the clue without winking,
+  not a placeholder. The first draft also ran two flat "not me, try
+  someone else" dead ends in a row (a fetch-quest smell) and closed with
+  a return trip to Jefferson after the handoff already happened; the
+  built version fixes both — Stamford (Hannah) redirects to Hobart and
+  Tops's board; Hobart (Renata) is the one that actually cracks it with a
+  concrete, NYC-commuter-flavored clue (a cooler bag from a city grocery
+  run, not a Tops run) and names Walt; the handoff at J&H itself sets
+  `done` and fires the completion toast, so the episode ends there —
+  Priya's line for a player who walks back is a grace note, not a
+  requirement, the same way ep001 ends at Nora rather than routing back
+  through Earl. Also collapsed from six-plus flags and a separate
+  item-pickup step down to four flags (`heardAsk`, `triedStamford`,
+  `triedHobart`, `done`) and a dialogue-only handoff — Priya hands over
+  the bag in conversation rather than the player fetching a physical
+  item, which was one whole beat with nothing left to say. Register note:
+  Priya reads as steady and out of options, not flustered, matching the
+  composed-but-worried register ep001's Nora already sets rather than
+  inventing a different one.
+
+  The payoff line answers a design question worth recording on its own:
+  the natural beat is "a photo of the kid in costume that evening," but
+  the engine has no mechanism for showing an arbitrary photo in
+  dialogue — only fixed per-NPC portraits and building facades, no
+  generic image-in-a-line field in the sign/dialogue schema (DESIGN.md
+  §3). Rather than build new image infrastructure for one line, it's
+  played through text the way ep001 plays its own payoff: Priya describes
+  getting the photo and jokes that the player will just have to imagine
+  it, rather than the engine pretending to show one. An actual in-game
+  photo mechanism (a generic "story image" asset type, distinct from
+  portraits) would be a real feature worth scoping on its own if it ever
+  comes up again, not something to fold into this episode.
