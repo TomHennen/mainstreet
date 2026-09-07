@@ -1,0 +1,188 @@
+{
+  "id": "draft-word-down-the-road",
+  "title": "Word Down the Road (shelved draft, not wired into world.json)",
+  "flags": ["metEarl", "heardAtMiddleBrook", "gotGlasses", "helped", "done"],
+  "npcs": [
+    {
+      "id": "earl",
+      "name": "Earl",
+      "map": "stamford",
+      "pos": [19, 13],
+      "facing": "down",
+      "accent": "#3f6d4e",
+      "dialogue": [
+        {
+          "requires": ["done"],
+          "lines": [
+            "Best afternoon on this road in a while, and I heard every bit of it secondhand. Can't complain."
+          ]
+        },
+        {
+          "requires": ["helped"],
+          "lines": [
+            "There you are! Look who finally wandered back.",
+            "Next time, I'm coming along. Save me a seat by the barrel."
+          ],
+          "effects": [
+            { "set": "done" },
+            { "toast": "Episode complete — new story next week" }
+          ]
+        },
+        {
+          "requires": ["heardAtMiddleBrook"],
+          "lines": [
+            "Cellar Door, you said? That's a walk, but worth it on a day like this. Go on — I'll hold down the porch."
+          ]
+        },
+        {
+          "requires": ["metEarl"],
+          "lines": [
+            "Try Middle Brook Cafe up in Jefferson. Dot hears everything before the rest of us do."
+          ]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "Would you look at that — every truck that's gone by today has somebody leaning out the window, talking a mile a minute.",
+            "Nobody tells me anything anymore. Head up to Middle Brook in Jefferson and see if Dot knows what's got everybody so worked up."
+          ],
+          "effects": [{ "set": "metEarl" }]
+        }
+      ]
+    },
+    {
+      "id": "dot",
+      "name": "Dot",
+      "map": "jefferson",
+      "pos": [48, 21],
+      "facing": "down",
+      "accent": "#8a6d4e",
+      "dialogue": [
+        {
+          "requires": ["done"],
+          "lines": [
+            "Half of Jefferson wants to know who taught you to carry a case of glasses like that."
+          ]
+        },
+        {
+          "requires": ["helped"],
+          "lines": ["Bet that tasting was something. Renata never does anything halfway."]
+        },
+        {
+          "requires": ["heardAtMiddleBrook"],
+          "lines": ["Straight shot down 10 to Hobart from here. Tell Renata I said hello."]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "Oh, you'll want to sit down for this one.",
+            "Renata's throwing an open tasting down at Cellar Door — moved the whole thing out to the patio since it's such a nice day.",
+            "Half my counter's already talking about heading down after their shift."
+          ],
+          "effects": [{ "set": "heardAtMiddleBrook" }]
+        }
+      ]
+    },
+    {
+      "id": "milo",
+      "name": "Milo",
+      "map": "stamford",
+      "pos": [49, 22],
+      "facing": "down",
+      "accent": "#4a3c55",
+      "dialogue": [
+        {
+          "requires": ["done"],
+          "lines": ["Wish I could've closed up and gone myself. Next time."]
+        },
+        {
+          "requires": ["heardAtMiddleBrook"],
+          "lines": [
+            "Yeah, we heard. Half our regulars already walked down.",
+            "Tell Renata we said hi, once the cold brew's caught up with you."
+          ]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "Sit, stay — the Maple Smoke latte's worth the wait.",
+            "Good crowd today. Feels like somebody picked up a block of Brooklyn and set it down on Main Street."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "renata",
+      "name": "Renata",
+      "map": "hobart",
+      "pos": [19, 16],
+      "facing": "down",
+      "accent": "#5d4a3a",
+      "dialogue": [
+        {
+          "requires": ["helped"],
+          "lines": ["Go on, go tell Earl he missed a good one. And take a taste for the road."]
+        },
+        {
+          "requires": ["gotGlasses"],
+          "lines": [
+            "Bless you — exactly what we needed.",
+            "Too nice a day to pour indoors, so we moved the whole tasting out here, and then remembered the extra glasses were still in the shed."
+          ],
+          "effects": [
+            { "set": "helped" },
+            { "toast": "Renata's tasting is officially open" }
+          ]
+        },
+        {
+          "requires": ["heardAtMiddleBrook"],
+          "lines": [
+            "Welcome, welcome — sit anywhere on the patio.",
+            "Actually — would you mind grabbing that case by the shed? We're short a few glasses."
+          ]
+        },
+        {
+          "requires": [],
+          "lines": ["We don't usually do this without notice, but it was too nice a day to stay inside. Ask around — you'll hear where."]
+        }
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "glass-case",
+      "map": "hobart",
+      "pos": [22, 17],
+      "requires": ["heardAtMiddleBrook"],
+      "effects": [
+        { "set": "gotGlasses" },
+        { "toast": "Got the case of glasses" }
+      ],
+      "lines": ["A case of wine glasses waiting by the shed. Renata did say she was short."]
+    }
+  ],
+  "signs": [
+    {
+      "building": "middle-brook-cafe",
+      "requires": [],
+      "lines": [
+        "A chalkboard by the register: ASK ABOUT TODAY'S TASTING DOWN IN HOBART.",
+        "Underneath, in a different hand: the vegan chocolate chip cookie is, somehow, still vegan."
+      ]
+    },
+    {
+      "building": "stamford-coffee",
+      "requires": [],
+      "lines": [
+        "A hand-lettered index card taped to the register: heard there's a tasting down in Hobart today — tell Renata we say hi."
+      ]
+    },
+    {
+      "building": "cellar-door-wines",
+      "requires": [],
+      "lines": [
+        "A sign taped to the door: TASTING TODAY — ON THE PATIO, WEATHER PERMITTING. (IT IS.)"
+      ]
+    }
+  ]
+}

@@ -10,7 +10,21 @@ file current when he corrects a map; it is what every agent reads first.
 then Stamford, then Hobart south-west of Stamford along the West Branch of the
 Delaware. Route 23 runs east to west through Stamford and *is* Main Street in
 the village. Route 10 does not really pass through Harpersfield; never mention
-it.
+it. Along Route 10 between Jefferson and Stamford stands the real **Parker
+13-Sided Barn**: built 1896 by Richtmyer Hubbell, three stories, ~60 ft
+diameter, double-hipped roof topped by a matching 13-sided cupola. It
+supplied the two creameries in the Village of Jefferson as a dairy barn,
+later served as a chicken barn and then a veal operation, and has been on
+the National Register of Historic Places since September 29, 1984 — one of
+only two 13-sided barns on the Register in this part of the state. Real
+oddity, well documented, no living private person involved — strong future
+episode or landmark material, alongside the Princess Utsayantha legend
+(DESIGN.md §5). The **Catskill Scenic Trail** runs from Stamford to Hobart
+(a former rail bed) — locals and tourists both bike and walk it, and it's a
+standard thing for a visitor to do. Exact alignment relative to Route 10
+not yet confirmed; worth checking against OSM/USGS when Hobart or the
+Stamford-Hobart stretch next gets geometry work, since it's a real
+alternate path between two villages the engine already models.
 
 **Stamford.** Stewart's is on the north-west corner of the 10/23 junction.
 Mac-A-Doodles is on the east side of Route 10, south of Route 23 (the
@@ -21,7 +35,24 @@ Belvedere is up Academy Street, a long walk uphill from Main Street, and
 Academy Street is west of Stamford Coffee. Stamford Coffee has a big outdoor
 patio directly attached to the front of the building, and a huge parking
 lot. Mount Utsayantha and its lake are
-north-east up Lake Street.
+north-east up Lake Street. The south-west corner of the 10/23 junction was
+Hillhaven Farms, now closed — the owners retired to Alaska (upstate New York
+winters weren't cold enough for them). Across Main Street from Stamford Coffee is a full
+empty lot: two buildings there burned down a couple of years ago, and the
+wreckage sat for years before it was finally bulldozed. It should be mapped
+as one of the reserved full-size open lots (map rule 4), not filler scenery.
+Stamford also has **Tops**, a grocery store, between Mac-A-Doodles and
+Stamford Coffee. Current map block face may not actually have room for a
+third full-size building there — flagged under Open items below for
+whoever next redraws Stamford. It's the only grocery store within about 30
+minutes, so locals lean on it even though it's rough around the edges
+(produce that's a little iffy, regular items — jalapeños, say — often out
+of stock). The genuine local feeling is gratitude that it's there at all,
+not the gripe about what it's missing; see Flavor & story hooks for how
+that has to land in-game. West of Tops was **Mountain Dog Cafe**, now
+closed — see Flavor & story hooks for its story alongside Stamford Coffee.
+**80 Main** is attached directly to Stamford Coffee, its own storefront
+right next door, sharing that same front patio.
 
 **Jefferson.** Main Street is the spine and reads as a main street (paved).
 Mill Pond Inn and Middle Brook Cafe are on the south side of Main Street.
@@ -32,10 +63,57 @@ Route 10 leaves the junction north and east; the east arm is the road to
 Stamford.
 
 **Hobart.** Route 10 is Main Street, running south-west to north-east. The
-village hugs the West Branch; Maple Avenue crosses it on a bridge.
+village hugs the West Branch; Maple Avenue crosses it on a bridge. Hobart is
+a real **book village** — half a dozen or so independent bookshops on Main
+Street, walkable end to end (real shop names on record — don't use any
+in-game without the friendly-heads-up step in DESIGN.md §5). The
+designation is recent (early-to-mid 2000s); full origin story and the rule
+on how that recency may/may not show up in-game are under Flavor & story
+hooks below. Hobart is currently the least developed of the three villages
+and is the natural place to grow bookshop lots over time — reserve several
+full-size open lots along Main Street per map rule 4, and let named shops
+fill in gradually rather than all at once.
 
 **Stewart's interior.** The clerk is enclosed behind the counter; the player
 talks across it and cannot walk round.
+
+## Open items — pending map work
+
+New businesses/landmarks Tom has named that aren't placed on the map yet.
+Don't guess coordinates for these; they need a real Stamford redraw pass
+(reference imagery + critic rubric, per the map rules below) rather than a
+notes-file guess:
+
+- **Tops** needs to fit on the Main/Route 23 block face between
+  Mac-A-Doodles and Stamford Coffee. Tom's flagged that the current map
+  likely doesn't have enough room there for a third full-size building —
+  the block may need to be widened, the existing two buildings' lots
+  tightened, or the block face re-thought.
+- **Mountain Dog Cafe** (closed) — west of Tops, so exact position waits
+  on Tops's own placement above.
+- **80 Main** needs its own storefront directly attached to Stamford
+  Coffee, sharing a patio with it — not a lot of its own, but built onto
+  or immediately beside the existing building. Whoever redraws that block
+  should treat the two as a connected pair, not separate buildings with
+  separate approach paths.
+- **Solinsky's** (butcher) — village and exact position not yet given.
+- **The fire department** — west of Solinsky's, so Stamford, same
+  unplaced block as Solinsky's; exact position not yet given.
+- **John's Tavern** — almost certainly Stamford (Tom's contrasting it
+  directly with the Belvedere's crowd), exact position not yet given.
+- **TP's Cafe** and **Ace Hardware** — TP's is "off Railroad Ave, next to
+  Ace Hardware." **Railroad Ave doesn't exist on the current map** — this
+  is the first place a new street name will be needed; treat it as a
+  geometry task (confirm the real alignment, add it to
+  `docs/route10-geometry.md`, then the map) before placing either
+  building.
+- **Veterans Memorial Park** — a possible future addition; village and
+  position not yet given. See the flavor note below on tone.
+- **Hobart's bookshop lots.** Hobart is under-built relative to Stamford
+  and Jefferson right now. Next time Hobart's map gets attention, reserve
+  several full-size open lots along Main Street for bookshops — no need to
+  name or place actual shops yet, just make sure the room exists so the
+  village can visibly grow, episode by episode, matching map rule 4.
 
 ## Map rules (agreed 2026-09-06)
 
@@ -96,3 +174,188 @@ no model-generated art goes in. AI can help a contributor behind the scenes
 (turning a photo into a plan they paint themselves), and if it did, their
 credit says so in their own words. Unpainted buildings stay placeholder
 boxes until someone paints them — that's the invitation, not a gap.
+
+## Flavor & story hooks
+
+Fun, true things about the area to draw on for episodes and ambient
+dialogue. These are raw material, not finished copy — run anything derived
+from them through hard rules 5 and 6 (no real private people without
+opt-in, everything warm and affectionate) before it reaches the player.
+
+- **How Hobart became a book village — real origin story, strong episode
+  material.** Hobart was a near-ghost town on Main Street when a couple
+  opened an antiquarian bookshop around 2000, mostly to store their
+  overflow books from a Manhattan apartment. A local who'd returned to the
+  area (former concert pianist, ex-IBM, restored furniture in between)
+  thought the idea was ridiculous — "the dumbest thing I'd ever heard, an
+  antiquarian bookstore in a ghost village" — until someone brought up
+  Hay-on-Wye, the real "town of books" in Wales that draws bibliophiles by
+  the tens of thousands. He came around, opened two more shops himself in
+  2005, and started renting out empty storefronts to other booksellers.
+  That's a genuinely great small-town story: skepticism turning into a
+  whole village's identity, on a bet, over a shared joke about a town in
+  Wales. Strong candidate for an actual episode (told in flashback by a
+  present-day character, or as an oral-history "how did this all start"
+  conversation with a visitor. That distinction matters: **no
+  anniversary/founding-date sign posted in the village itself** — a
+  visible "20 years of Book Village!" placard would make Hobart read as
+  newer to a visitor than it feels, which is the wrong direction. But
+  spoken aloud, by a character, as a surprise reveal to a newcomer ("you
+  know this was all empty storefronts, not that long ago?") is exactly the
+  fun version of the same fact — fair game for dialogue and even a whole
+  episode's premise. Sign vs. story, not silence vs. story. The real
+  founder and the couple who opened the first shop are real, named people —
+  per hard rule 5, any character built on this needs to be its own invented
+  local (a fictional "town historian" or old-timer telling the story
+  secondhand), not a stand-in for them, unless they opt in.
+- **Hobart Festival of Women Writers.** Real annual event, founded 2013,
+  three days of workshops and public readings held through the village's
+  actual bookstores each June. Good calendar-reactive material (DESIGN.md
+  §1) for a June episode — a village-wide happening rather than a
+  single-building story, and a natural way to show off several bookshops
+  at once without inventing shop names prematurely.
+- **The Belvedere ("the Bel").** From the outside it's the spookiest
+  building in Stamford: big, visibly leaning, a single door tucked on a side
+  wall that reads a little "sus," the kind of place that looks haunted. The
+  building across the street somehow looks even more run-down. Inside,
+  though, it's the warmest, friendliest dive bar going — karaoke, open mic
+  nights, trivia, even big-name comics passing through. The gag writes
+  itself: judge-a-book-by-its-cover, and the book is secretly lovely. Good
+  for a "first time visiting" beat where a townsperson has to talk a
+  newcomer into just opening the door.
+- **Stamford Coffee.** Feels transplanted straight out of Brooklyn — hip
+  crowd, always busy, good sandwiches and baked goods. A fun beat for a
+  visiting-the-big-city-in-miniature moment, or a character who moved up
+  from the city and feels instantly at home there. A prior owner once said
+  he hadn't realized running a coffee shop meant really being in the milk
+  business — a genuinely funny, true line about the unglamorous logistics
+  behind a nice cup of coffee. Don't attribute it to a real named person
+  (hard rule 5, and no name was given anyway); it works as something the
+  current fictional owner or a longtime regular says, retelling it as
+  local lore ("the old owner used to say...").
+- **Mountain Dog Cafe and Stamford Coffee's shared origin story.** A true,
+  delightful coincidence: Stamford had no coffee shop, then two opened
+  the very same week — Mountain Dog Cafe (west of Tops) and Stamford
+  Coffee — neither one knowing the other existed until it happened. For a
+  while the town had a gentle, good-natured split: more of the longtime
+  locals went to Mountain Dog, more of the city transplants and visitors
+  went to Stamford Coffee. Not a real rivalry, just two good options and
+  people had their habits. Mountain Dog is closed now. Handle the closure
+  like Hillhaven Farms above — matter-of-fact and a little wistful. Extra
+  care both directions: never frame it as "the local place lost" (a dig at
+  Stamford Coffee, a real, currently open business) and never frame
+  Mountain Dog's closure itself as a dig at Mountain Dog either — no
+  implication it wasn't good enough, closed for a sad reason, etc. It
+  simply closed; both places were loved. The real hook here isn't the
+  rivalry, it's the coincidence itself: **how did two coffee shops open in
+  a town this small, the same week, without either one knowing about the
+  other — when everybody here knows everything else that's going on?**
+  That's a genuinely fun small-town-density irony (the one time the town's
+  gossip network somehow missed something) and probably the better beat to
+  actually write, more than the "who went where" split. Good material for
+  an old-timer telling it as a "you won't believe this" story.
+- **Middle Brook Cafe's lot.** Dollar General had been eyeing that land
+  before the cafe went in — locals are quietly glad DG ended up down the
+  road to the east instead. Frame this warmly (relief that the cafe is
+  there), never as a knock on the Dollar General itself, which is a real
+  business a few doors down.
+- **The unreachable contractor.** A very true, very relatable rural
+  frustration: everyone's always looking for a contractor to fix up the
+  house, and half of them just don't return calls — often because the
+  good ones are simply swamped with work, not because they're flaky. No
+  real business involved, so this one's easy: a classic "help someone
+  chase down a contractor" or "the contractor everyone swears by is
+  booked till spring" episode premise, played as a shared, good-natured
+  town frustration rather than a knock on anyone in particular.
+- **The old-timer who fixes septic problems.** Real-world inspiration for
+  a great character archetype: an old-timer, well past the age you'd
+  expect to still be doing the work, who's the person everyone calls for
+  septic trouble — and who tends to show up trailing an entourage of
+  other local characters, so what should be a quick fix turns into a
+  small social event. **This needs to be built as a fully invented
+  character, not the real person** (hard rule 5 — Tom flagged this one
+  himself as needing careful handling). Don't use the real name or
+  identifying details beyond the archetype: old, a fixture of the towns,
+  more showman than tradesman, brings a crowd. A good "help someone" or
+  "witness an event" episode could turn a mundane errand (something's
+  wrong with the septic) into a chance to meet three new characters at
+  once, purely through his orbit.
+- **Small-town density.** Wherever you are on Route 10, you will run into
+  someone you know. Good recurring texture for episodes: NPCs who greet the
+  player by name away from their "home" location, or a travel-card beat
+  about running into a familiar face mid-errand.
+- **The empty lot across from Stamford Coffee.** Two buildings burned down
+  there a couple of years back, and the wreckage sat for a long time before
+  it finally got cleared. Handle with care per hard rule 6 — never dwell on
+  the fire itself. The lot as it stands now (bare, waiting, prime real
+  estate everyone has an opinion about) is good material: a "what should go
+  here" debate among townspeople, a pop-up farmers market or community
+  garden using the space in the meantime, or a hopeful beat about something
+  finally being planned for it.
+- **Hillhaven Farms (closed).** Used to sit on the south-west corner of the
+  10/23 junction in Stamford. The owners retired to Alaska — the joke being
+  that upstate New York winters weren't cold enough for them. A fond,
+  funny closure rather than a sad one; good for an affectionate aside from
+  a local ("last I heard from them, they were shoveling snow in July and
+  loving it") rather than a story about the business itself.
+- **Tops (Stamford's grocery store).** Handle with extra care — hard rule 6
+  is not optional here. The real local feeling is genuine gratitude: it's
+  the only grocery store within about 30 minutes, and without it a lot of
+  people would be driving 30-40 minutes each way for everything. Yes, the
+  produce can be a little iffy and it doesn't always stock the basics
+  (jalapeños have come up as an example) — but any copy drawn from that has
+  to land as "we're so glad we have this place," with the quirks as
+  endearing texture at most, never as a complaint about the store. A good
+  test: would the person working the register smile reading it? If a line
+  reads like a Yelp gripe, cut it. Good material for an NPC who's just
+  relieved to grab dinner on the way home, not for a "the produce is bad"
+  joke on its own.
+- **NYC commuter culture.** A fair number of locals commute back and forth
+  to New York City for work — train out of Albany is one route people use.
+  Some do their "real" grocery run in the city or along the way home (a
+  Friday Whole Foods stop, say) rather than at Tops. Good texture for a
+  fictional commuter-archetype NPC (tired Friday-evening energy, a cooler
+  bag from a city store, catching up on local news they missed all week) —
+  not tied to any specific real person.
+- **Solinsky's.** An excellent butcher — brisket sandwiches on Saturdays,
+  and they genuinely sell out. Same "get there before it's gone" texture as
+  the Mill Pond Inn's ribs joke already in ep000; a nice recurring town
+  motif (good things in Route 10 run out, and everyone knows to plan
+  around it). Good for a light "race the clock" beat without any real
+  stakes.
+- **John's Tavern.** The local counterpart to the Belvedere — a different
+  crowd, less "Brooklyn transplant," more homegrown regulars. Not a
+  rivalry, just two good bars with two different personalities; nice for a
+  "which one's your spot" beat, or a townsperson explaining the difference
+  to a newcomer without putting either place down.
+- **TP's Cafe / Ace Hardware / Railroad Ave.** A new little corridor to
+  open up on a future map pass — TP's sits off Railroad Ave next to Ace
+  Hardware. Good candidate for a "there's a whole street I hadn't
+  noticed" discovery beat once it's mapped.
+- **Veterans Memorial Park.** Different register from the rest of this
+  list — a memorial, not a business or a gag. If and when it's added,
+  keep any copy quiet and respectful rather than cute; still warm, but the
+  "everyone would smile at this" humor bar from CLAUDE.md hard rule 6
+  mostly doesn't apply here. Good for a still, reflective beat (a bench, a
+  flag, someone tending the flowerbeds) rather than a punchline.
+- **The fire department.** Volunteer-run, and a lot of people end up
+  joining who never expected to — including city transplants who moved up
+  for a quieter life and somehow wound up as volunteer firefighters. Warm,
+  slightly funny material: someone's whole self-image shifting ("I used to
+  work in finance, now I show up when the siren goes"), or a proud, low-key
+  local-hero energy around the department without making it a big dramatic
+  thing. Ties nicely into the small-town-density and NYC-commuter notes
+  above — this is the same kind of person who'd have that arc.
+- **Catskill Scenic Trail.** Runs Stamford to Hobart along an old rail
+  bed; a standard tourist thing to do, and plenty of locals bike or walk
+  it too. Good material for a "visiting for the day" episode framing, a
+  tourist NPC asking for directions, or simply an alternate way to
+  narrate the travel-screen trip between those two villages (a bike ride
+  along the trail instead of a drive down 10) once the geometry's mapped.
+- **Jefferson Town Hall.** Dog licensing happens there, though hardly
+  anyone actually goes and does it. Town court sits about once a month.
+  Metal recycling drop-off is the first Saturday of the month. Good
+  low-stakes bureaucratic-comedy texture for signs and board-agenda jokes
+  (ep000's "the goat situation (continued)" is already in that vein) — a
+  posted notice, a bored clerk, a "did you know" beat rather than a full
+  episode on its own.

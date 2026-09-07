@@ -1,0 +1,196 @@
+{
+  "id": "ep001",
+  "title": "The Dog Who Got Around",
+  "flags": ["metEarl", "sawHobart", "sawJefferson", "gotDog", "done"],
+  "npcs": [
+    {
+      "id": "earl",
+      "name": "Earl",
+      "map": "stamford",
+      "pos": [19, 13],
+      "facing": "down",
+      "accent": "#3f6d4e",
+      "dialogue": [
+        {
+          "requires": ["done"],
+          "lines": ["Route 10's back to its regular amount of chaos. Best kind."]
+        },
+        {
+          "requires": ["gotDog"],
+          "lines": ["Well, would you look at that. Go find his person before he changes his mind about the whole arrangement."]
+        },
+        {
+          "requires": ["sawJefferson"],
+          "lines": ["Sounds like you're closing in. My money's always been on the mill pond — every dog in this county ends up there eventually."]
+        },
+        {
+          "requires": ["sawHobart"],
+          "lines": ["Down at Cellar Door too? That dog's putting on some miles. Try Middle Brook next — Dot doesn't miss much."]
+        },
+        {
+          "requires": ["metEarl"],
+          "lines": ["Head down toward Hobart first — I heard Cellar Door had a sighting."]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "Have you seen the flyers? Somebody's dog got loose a few days back — sweet thing, fast as anything.",
+            "Half the county's spotted him by now and nobody's caught him yet.",
+            "If you're headed out today, keep an eye open — every sighting helps."
+          ],
+          "effects": [{ "set": "metEarl" }]
+        }
+      ]
+    },
+    {
+      "id": "renata",
+      "name": "Renata",
+      "map": "hobart",
+      "pos": [19, 16],
+      "facing": "down",
+      "accent": "#5d4a3a",
+      "dialogue": [
+        {
+          "requires": ["done"],
+          "lines": ["Glad that one has a happy ending. Come back for a tasting sometime, once things settle down."]
+        },
+        {
+          "requires": ["gotDog"],
+          "lines": ["There he is! Knew he'd turn up looking pleased with himself."]
+        },
+        {
+          "requires": ["sawHobart"],
+          "lines": ["Told you — trotted right through here like he owned the patio. Middle Brook's your next stop."]
+        },
+        {
+          "requires": ["metEarl"],
+          "lines": [
+            "Oh, the escape artist! He came through the patio yesterday like he owned the place,",
+            "then vanished off toward the scenic trail before anyone could grab a leash."
+          ],
+          "effects": [{ "set": "sawHobart" }]
+        },
+        {
+          "requires": [],
+          "lines": ["Welcome — pull up a seat on the patio anytime."]
+        }
+      ]
+    },
+    {
+      "id": "dot",
+      "name": "Dot",
+      "map": "jefferson",
+      "pos": [48, 21],
+      "facing": "down",
+      "accent": "#8a6d4e",
+      "dialogue": [
+        {
+          "requires": ["done"],
+          "lines": ["Bet he's back home causing a whole new kind of trouble. Good."]
+        },
+        {
+          "requires": ["gotDog"],
+          "lines": ["You got him?! Bring him by — everyone in here's been rooting for you all week."]
+        },
+        {
+          "requires": ["sawJefferson"],
+          "lines": ["Try the mill pond, past the inn. Dogs love that shade by the water."]
+        },
+        {
+          "requires": ["sawHobart"],
+          "lines": [
+            "Oh, the dog! He was right outside our window yesterday, plain as day, gone before anyone could grab him.",
+            "If I were you, I'd try the mill pond — there's shade by the water and dogs love that spot on a warm day."
+          ],
+          "effects": [{ "set": "sawJefferson" }]
+        },
+        {
+          "requires": ["metEarl"],
+          "lines": ["Heard Cellar Door had a sighting too — small world. Try there if you haven't yet."]
+        },
+        {
+          "requires": [],
+          "lines": ["Big week around here — ask Earl down at Stewart's in Stamford, he'll fill you in."]
+        }
+      ]
+    },
+    {
+      "id": "nora",
+      "name": "Nora",
+      "map": "jefferson",
+      "pos": [17, 20],
+      "facing": "down",
+      "accent": "#6b7fa3",
+      "dialogue": [
+        {
+          "requires": ["done"],
+          "lines": ["Still can't believe it. Thank you again — I mean it about the coffee."]
+        },
+        {
+          "requires": ["gotDog"],
+          "lines": [
+            "Scout?! Oh — oh, thank you, I've been up and down this road for two days.",
+            "Come by Stamford Coffee sometime — coffee's on me. I mean that."
+          ],
+          "effects": [
+            { "set": "done" },
+            { "toast": "Episode complete — new story next week" }
+          ]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "Have you seen a scruffy little guy, answers to Scout — well, doesn't answer to Scout, that's rather the problem?",
+            "I'm starting to think he's doing this on purpose."
+          ]
+        }
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "scout",
+      "map": "jefferson",
+      "pos": [14, 20],
+      "requires": ["sawHobart", "sawJefferson"],
+      "effects": [
+        { "set": "gotDog" },
+        { "toast": "Got him — good boy, Scout" }
+      ],
+      "lines": [
+        "A scruffy dog is sprawled in the shade by the mill pond, thoroughly pleased with himself.",
+        "He trots straight over like he'd been expecting you the whole time."
+      ]
+    }
+  ],
+  "signs": [
+    {
+      "building": "stewarts",
+      "requires": [],
+      "lines": [
+        "A hand-drawn flyer taped inside the window: LOST DOG — SCOUT. ANSWERS TO NOTHING. LAST SEEN EVERYWHERE."
+      ]
+    },
+    {
+      "building": "middle-brook-cafe",
+      "requires": [],
+      "lines": [
+        "A flyer on the corkboard by the register, same dog, a new hand-written line underneath: \"still out here having the time of his life.\""
+      ]
+    },
+    {
+      "building": "cellar-door-wines",
+      "requires": [],
+      "lines": [
+        "Taped to the door: the same LOST DOG flyer, with a little pencil sketch someone's added of a dog wearing sunglasses."
+      ]
+    },
+    {
+      "building": "mill-pond-inn",
+      "requires": [],
+      "lines": [
+        "Chalkboard by the tavern door: pizza night Monday and Wednesday. Someone's chalked a small paw print in the corner, for luck."
+      ]
+    }
+  ]
+}
