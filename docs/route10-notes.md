@@ -216,6 +216,27 @@ opt-in, everything warm and affectionate) before it reaches the player.
   road to the east instead. Frame this warmly (relief that the cafe is
   there), never as a knock on the Dollar General itself, which is a real
   business a few doors down.
+- **The unreachable contractor.** A very true, very relatable rural
+  frustration: everyone's always looking for a contractor to fix up the
+  house, and half of them just don't return calls — often because the
+  good ones are simply swamped with work, not because they're flaky. No
+  real business involved, so this one's easy: a classic "help someone
+  chase down a contractor" or "the contractor everyone swears by is
+  booked till spring" episode premise, played as a shared, good-natured
+  town frustration rather than a knock on anyone in particular.
+- **The old-timer who fixes septic problems.** Real-world inspiration for
+  a great character archetype: an old-timer, well past the age you'd
+  expect to still be doing the work, who's the person everyone calls for
+  septic trouble — and who tends to show up trailing an entourage of
+  other local characters, so what should be a quick fix turns into a
+  small social event. **This needs to be built as a fully invented
+  character, not the real person** (hard rule 5 — Tom flagged this one
+  himself as needing careful handling). Don't use the real name or
+  identifying details beyond the archetype: old, a fixture of the towns,
+  more showman than tradesman, brings a crowd. A good "help someone" or
+  "witness an event" episode could turn a mundane errand (something's
+  wrong with the septic) into a chance to meet three new characters at
+  once, purely through his orbit.
 - **Small-town density.** Wherever you are on Route 10, you will run into
   someone you know. Good recurring texture for episodes: NPCs who greet the
   player by name away from their "home" location, or a travel-card beat
