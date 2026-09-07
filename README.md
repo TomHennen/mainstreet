@@ -197,6 +197,18 @@ the code, checks it against the building's size, writes the PNG under
 `worlds/<id>/assets/buildings/`, adds the credit to `credits.json`, and runs
 `validate-assets` on the result. Then open a PR with the two changed files.
 
+## Licences
+
+- **Code** — everything outside `worlds/` — is Apache 2.0: see [`LICENSE`](LICENSE).
+- **Art and world content** — everything under `worlds/`, and everything
+  contributed to the project — is Creative Commons Attribution 4.0
+  ([`LICENSE-CONTENT.md`](LICENSE-CONTENT.md), and a pointer to it at
+  [`worlds/LICENSE.md`](worlds/LICENSE.md)). In short: anyone may copy, share
+  and adapt it, commercially too, as long as they credit the creator.
+- Contributors keep the copyright to what they make. The in-game plaque and the
+  `credits.json` entry behind it *are* the attribution CC BY 4.0 asks for —
+  there is nothing to sign.
+
 ## Status
 
 Milestone M2 is done (see `DESIGN.md` §7): Vitest, `validate-episodes`,

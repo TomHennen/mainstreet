@@ -4,6 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "description": "Engine for small, episodic, pixel-art town games.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TomHennen/mainstreet"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
