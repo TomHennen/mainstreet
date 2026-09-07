@@ -328,6 +328,155 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, px: number, py: n
       break;
     }
 
+    // A small round seat on a single leg: a bar stool, a step stool, a
+    // milking stool. The disc's little sibling — same pedestal, same
+    // foreshortened top, nothing set on it, and drawn small enough that a
+    // ring of them round a counter still reads as a ring of stools.
+    case 'stool':
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.fillRect(px + 5, py + 9, 7, 2);
+      ctx.fillRect(px + 4, py + 10, 9, 1);
+      // the leg and its foot, a darkened cut of the seat's own colour
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px + 7, py + 7, 2, 4);
+      ctx.fillRect(px + 6, py + 10, 4, 1);
+      ctx.fillStyle = 'rgba(0,0,0,.45)';
+      ctx.fillRect(px + 7, py + 7, 2, 4);
+      ctx.fillRect(px + 6, py + 10, 4, 1);
+      // the seat, foreshortened the way the tables are
+      ctx.fillStyle = c[1] ?? c[0];
+      ctx.fillRect(px + 5, py + 3, 6, 5);
+      ctx.fillRect(px + 4, py + 4, 8, 3);
+      ctx.fillStyle = 'rgba(255,255,255,.18)';
+      ctx.fillRect(px + 5, py + 4, 5, 1);
+      ctx.fillStyle = 'rgba(0,0,0,.20)';
+      ctx.fillRect(px + 4, py + 6, 8, 1);
+      ctx.fillRect(px + 5, py + 7, 6, 1);
+      break;
+
+    // A games table: a sunk playfield in a heavy frame with rods across it —
+    // foosball, air hockey, shuffleboard. The frame runs the full width of the
+    // cell and the rods repeat inside it, so a table two or three cells long
+    // reads as one table rather than as a row of them.
+    case 'foosball': {
+      const field = c[1] ?? c[0];
+      const rod = c[2] ?? c[0];
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.fillRect(px, py + 11, TILE, 2);
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px, py + 1, TILE, 11);
+      ctx.fillStyle = field;
+      ctx.fillRect(px, py + 4, TILE, 6);
+      ctx.fillStyle = 'rgba(255,255,255,.16)';
+      ctx.fillRect(px, py + 1, TILE, 1);
+      ctx.fillStyle = 'rgba(0,0,0,.30)';
+      ctx.fillRect(px, py + 10, TILE, 2);
+      ctx.fillStyle = rod;
+      for (const x of [3, 8, 13]) {
+        ctx.fillRect(px + x, py + 2, 1, 9);
+        ctx.fillRect(px + x - 1, py + 6, 3, 2);
+      }
+      break;
+    }
+
+    // A closed door in a wall: jamb, leaf, two panels and a handle. Fills its
+    // cell, because it stands in for a wall tile rather than on the floor —
+    // a bathroom door, a cellar door, a door somebody has hung a sign on.
+    case 'door':
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = c[1] ?? c[0];
+      ctx.fillRect(px + 3, py + 2, 10, 14);
+      ctx.fillStyle = 'rgba(255,255,255,.16)';
+      ctx.fillRect(px + 3, py + 2, 10, 1);
+      ctx.fillStyle = 'rgba(0,0,0,.30)';
+      ctx.fillRect(px + 3, py + 2, 1, 14);
+      ctx.fillRect(px + 4, py + 5, 8, 1);
+      ctx.fillRect(px + 4, py + 11, 8, 1);
+      ctx.fillStyle = 'rgba(0,0,0,.18)';
+      ctx.fillRect(px + 5, py + 6, 6, 4);
+      ctx.fillRect(px + 5, py + 12, 6, 3);
+      ctx.fillStyle = c[2] ?? c[1] ?? c[0];
+      ctx.fillRect(px + 10, py + 8, 2, 2);
+      break;
+
+    // A ring of stones round a warm middle: a firepit, a campfire, a brazier.
+    // Nothing animates — the glow is painted, so it costs a tile and not a
+    // timer.
+    case 'firepit': {
+      const stone = c[0];
+      const litStone = c[1] ?? c[0];
+      const flame = c[2] ?? c[0];
+      const ember = c[3] ?? flame;
+      ctx.fillStyle = 'rgba(0,0,0,.25)';
+      ctx.fillRect(px + 3, py + 11, 11, 2);
+      // the ash bed, then the embers and the flame standing out of it
+      ctx.fillStyle = 'rgba(30,25,18,.85)';
+      ctx.fillRect(px + 4, py + 4, 8, 7);
+      ctx.fillStyle = ember;
+      ctx.fillRect(px + 5, py + 7, 6, 3);
+      ctx.fillStyle = flame;
+      ctx.fillRect(px + 6, py + 4, 4, 4);
+      ctx.fillRect(px + 7, py + 2, 2, 3);
+      ctx.fillStyle = 'rgba(255,255,255,.40)';
+      ctx.fillRect(px + 7, py + 4, 2, 2);
+      // the stones round it, lit along the top like everything else in town
+      for (const [x, y] of [[1, 4], [2, 8], [5, 11], [9, 11], [12, 8], [12, 4], [9, 1], [5, 1]]) {
+        ctx.fillStyle = stone;
+        ctx.fillRect(px + x, py + y, 3, 3);
+        ctx.fillStyle = litStone;
+        ctx.fillRect(px + x, py + y, 3, 1);
+      }
+      break;
+    }
+
+    // A wall that has been papered over: a flat hanging with its seams
+    // showing, lit at the top and in its own shadow at the foot, so a run of
+    // it reads as a surface somebody covered rather than as a painted wall.
+    case 'paper': {
+      const seam = c[1] ?? c[0];
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = seam;
+      ctx.fillRect(px, py, 1, TILE);
+      ctx.fillRect(px + 8, py, 1, TILE);
+      ctx.fillStyle = 'rgba(255,255,255,.14)';
+      ctx.fillRect(px + 1, py, 7, 2);
+      ctx.fillRect(px + 9, py, 7, 2);
+      ctx.fillStyle = 'rgba(0,0,0,.18)';
+      ctx.fillRect(px, py + TILE - 3, TILE, 3);
+      break;
+    }
+
+    // A wall covered in marks: names, drawings, whatever people put there.
+    // The marks are small and go in three colours, so a run of the tile reads
+    // as a covered wall and never as a pattern with a shape of its own.
+    case 'scrawl': {
+      const ink = [c[1] ?? c[0], c[2] ?? c[1] ?? c[0], c[3] ?? c[1] ?? c[0]];
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px, py, TILE, TILE);
+      const marks = [
+        [2, 2, 3, 1],
+        [6, 1, 1, 4],
+        [9, 3, 4, 1],
+        [12, 5, 1, 3],
+        [3, 6, 2, 2],
+        [7, 7, 4, 1],
+        [1, 10, 4, 1],
+        [6, 10, 2, 3],
+        [10, 11, 3, 1],
+        [13, 1, 1, 2],
+        [4, 12, 1, 2]
+      ];
+      marks.forEach(([x, y, w, h], i) => {
+        ctx.fillStyle = ink[i % ink.length];
+        ctx.fillRect(px + x, py + y, w, h);
+      });
+      ctx.fillStyle = 'rgba(0,0,0,.18)';
+      ctx.fillRect(px, py + TILE - 3, TILE, 3);
+      break;
+    }
+
     // A short bar along one axis, drawn over `base`. Tiling it leaves a gap
     // between bars, so a run of them reads as a dashed line.
     case 'stripe-h':
@@ -756,6 +905,25 @@ function drawFixture(scene: Phaser.Scene, key: string, kind: FixtureKind): void 
   const trim = '#d8b268';
 
   switch (kind) {
+    // A stack of split logs, cut ends towards the viewer: three courses of
+    // rounds with the sawn faces catching the light and the bark dark between
+    // them. Scenery for now — there is nothing to press A on.
+    case 'woodpile': {
+      const bark = '#4a3826';
+      const cut = '#a8825a';
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.fillRect(0, FIXTURE_H - 1, FIXTURE_W, 1);
+      for (let row = 0; row < 3; row++) {
+        const y = FIXTURE_H - 3 - row * 3;
+        ctx.fillStyle = bark;
+        ctx.fillRect(0, y, FIXTURE_W, 3);
+        ctx.fillStyle = cut;
+        // the sawn faces, offset course by course so the stack reads as logs
+        for (let x = row % 2; x + 2 <= FIXTURE_W; x += 3) ctx.fillRect(x, y, 2, 2);
+      }
+      break;
+    }
+
     case 'suggestion-box':
     default:
       ctx.fillStyle = body;

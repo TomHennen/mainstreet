@@ -41,6 +41,12 @@ export type TileStyle =
   | 'mat'
   | 'planks'
   | 'pavers'
+  | 'stool'
+  | 'foosball'
+  | 'door'
+  | 'firepit'
+  | 'paper'
+  | 'scrawl'
   | 'stripe-h'
   | 'stripe-v';
 
@@ -60,6 +66,12 @@ const STYLES: readonly string[] = [
   'mat',
   'planks',
   'pavers',
+  'stool',
+  'foosball',
+  'door',
+  'firepit',
+  'paper',
+  'scrawl',
   'stripe-h',
   'stripe-v'
 ];
