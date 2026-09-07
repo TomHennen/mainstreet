@@ -19,7 +19,12 @@ the National Register of Historic Places since September 29, 1984 — one of
 only two 13-sided barns on the Register in this part of the state. Real
 oddity, well documented, no living private person involved — strong future
 episode or landmark material, alongside the Princess Utsayantha legend
-(DESIGN.md §5).
+(DESIGN.md §5). The **Catskill Scenic Trail** runs from Stamford to Hobart
+(a former rail bed) — locals and tourists both bike and walk it, and it's a
+standard thing for a visitor to do. Exact alignment relative to Route 10
+not yet confirmed; worth checking against OSM/USGS when Hobart or the
+Stamford-Hobart stretch next gets geometry work, since it's a real
+alternate path between two villages the engine already models.
 
 **Stamford.** Stewart's is on the north-west corner of the 10/23 junction.
 Mac-A-Doodles is on the east side of Route 10, south of Route 23 (the
@@ -215,6 +220,12 @@ opt-in, everything warm and affectionate) before it reaches the player.
   "everyone would smile at this" humor bar from CLAUDE.md hard rule 6
   mostly doesn't apply here. Good for a still, reflective beat (a bench, a
   flag, someone tending the flowerbeds) rather than a punchline.
+- **Catskill Scenic Trail.** Runs Stamford to Hobart along an old rail
+  bed; a standard tourist thing to do, and plenty of locals bike or walk
+  it too. Good material for a "visiting for the day" episode framing, a
+  tourist NPC asking for directions, or simply an alternate way to
+  narrate the travel-screen trip between those two villages (a bike ride
+  along the trail instead of a drive down 10) once the geometry's mapped.
 - **Jefferson Town Hall.** Dog licensing happens there, though hardly
   anyone actually goes and does it. Town court sits about once a month.
   Metal recycling drop-off is the first Saturday of the month. Good
