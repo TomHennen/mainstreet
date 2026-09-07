@@ -339,17 +339,40 @@ between episodes:
 }
 ```
 
-They have a `look` (§4) and somewhere to be, and **no dialogue at all**:
-pressing A on one gets a single kind line from `copy.json` `ui.passerby`,
-picked from that list by their id, so the same person always says the same
-thing and no line is written twice. The name on the box is `ui.passerbyName`
-— "A neighbour" on Route 10 — unless the person carries a `name` of their
-own, which is the exception rather than the rule: these are people the player
-passes, not people they are introduced to. A world with no `ui.passerby`
-simply has nothing for them to say, and they read as somebody minding their
-own business; one with no `ui.passerbyName` shows a box with no name on it
-(hard rule 3). Anybody with something to say is an episode NPC. Two or three
-per map is what a street reads as; the validator refuses more than six.
+They have a `look` (§4) and somewhere to be, and by default **no dialogue at
+all**: pressing A on one gets a single kind line from `copy.json`
+`ui.passerby`, picked from that list by their id, so the same person always
+says the same thing and no line is written twice. The name on the box is
+`ui.passerbyName` — "A neighbour" on Route 10 — unless the person carries a
+`name` of their own, which is the exception rather than the rule: these are
+people the player passes, not people they are introduced to. A world with no
+`ui.passerby` simply has nothing for them to say, and they read as somebody
+minding their own business; one with no `ui.passerbyName` shows a box with no
+name on it (hard rule 3). Two or three per map is what a street reads as; the
+validator refuses more than six.
+
+A person can also carry their own `lines` — one or two pages, in their own
+voice — for someone who has something to say every week without a story
+attached to it, such as a barista behind a counter:
+
+```jsonc
+{ "id": "stamford-coffee-barista", "name": "Ronnie", "pos": [7, 1], "facing": "down",
+  "look": { "hair": "curly", "hairColor": "#3a2a1e", "shirt": "#5c7a8f" },
+  "lines": ["Morning. The board's up there; the Maple Smoke's the one everybody asks about."] }
+```
+
+`lines` shows with that person's `name` (or `ui.passerbyName`) as speaker,
+exactly like an episode NPC's dialogue, but it is still not a story: it never
+branches on a flag and never sets one — anybody whose line needs to change
+with the story stays an episode NPC. A person with neither `route` nor
+`wander` simply stands on `pos`, which is how somebody is posted behind a
+counter: the validator only asks that `pos` itself is stand-able ground (not
+a wall, doorstep, plaque or exit), never that it connects to the door on
+foot, so a staff strip sealed off from the room the way Stewart's is
+(`scripts/make-room.ts`'s `sealStrip`) validates fine even though nobody
+could ever walk there — the
+player talks to them across the counter instead, within an interior's talking
+reach (engine/scenes/map.ts), exactly as Hannah is talked to in Stewart's.
 
 Missing NPC sheet = generic townsperson sprite, drawn from that person's
 `look` (§4) in their own accent color. Missing portrait = no portrait pane.

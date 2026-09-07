@@ -855,7 +855,13 @@ describe('worlds/route10 validates cleanly', () => {
     const walkers: { where: string; who: { id: string; pos: [number, number]; route?: unknown; wander?: unknown } }[] =
       [];
     for (const [mapId, meta] of Object.entries(world.maps)) {
-      for (const person of meta.people ?? []) walkers.push({ where: mapId, who: person });
+      // A person with neither is meant to stand still — someone posted behind
+      // a counter, say — so only one who was actually given a route or a
+      // wander belongs in this "did it walk" check (same filter as the
+      // episode NPCs below).
+      for (const person of meta.people ?? []) {
+        if (person.route || person.wander) walkers.push({ where: mapId, who: person });
+      }
     }
     for (const episodeId of world.episodes) {
       const episode = JSON.parse(readFileSync(resolve(root, 'episodes', `${episodeId}.json`), 'utf8')) as Episode;
@@ -1474,5 +1480,54 @@ describe('overlayNotes', () => {
       ]
     } as never);
     expect(overlayNotes(episode, maps as never)).toEqual([]);
+  });
+});
+
+/**
+ * A person's own standing line (DESIGN.md §2) — a barista behind a counter,
+ * say, with something kind to say every week and no story attached to it.
+ */
+describe('a person’s own lines', () => {
+  const ROWS = ['..........', '..........', '..#####...', '..........', '..........'];
+
+  const townWith = (people: unknown) =>
+    makeWorld({
+      maps: {
+        town: makeMap({ people: people as MapMeta['people'] }, ROWS)
+      }
+    });
+
+  it('accepts a still person with their own lines', () => {
+    const problems = runWorld(
+      townWith([{ id: 'barista', pos: [1, 1], lines: ['Morning. What can I get you?'] }])
+    );
+    expect(problems).toEqual([]);
+  });
+
+  it('rejects lines that are not a non-empty array', () => {
+    const problems = runWorld(townWith([{ id: 'barista', pos: [1, 1], lines: [] }]));
+    expect(problems[0]).toContain('"lines" that isn\'t a non-empty array');
+  });
+
+  it('rejects an empty line', () => {
+    const problems = runWorld(townWith([{ id: 'barista', pos: [1, 1], lines: ['Morning.', '  '] }]));
+    expect(problems[0]).toContain('lines[1] is empty');
+  });
+
+  // Behind a counter, the staff strip is sealed off from the rest of the room
+  // on foot (scripts/make-room.ts's sealStrip) — nobody could ever walk there,
+  // but the tile itself is ordinary floor, so a still person is fine there the
+  // same way Hannah is fine behind Stewart's counter (DESIGN.md §2).
+  it('accepts a still person in a pocket of floor sealed off from the rest of the room', () => {
+    const rows = ['.......', '.#####.', '.#...#.', '.#####.', '.......'];
+    const problems = runWorld(
+      makeWorld({
+        start: { map: 'town', pos: [1, 0], facing: 'down' },
+        maps: {
+          town: makeMap({ people: [{ id: 'barista', pos: [3, 2], lines: ['Welcome in.'] }] }, rows)
+        }
+      })
+    );
+    expect(problems).toEqual([]);
   });
 });

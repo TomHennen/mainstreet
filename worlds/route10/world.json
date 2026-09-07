@@ -983,6 +983,19 @@
           "facing": "down",
           "style": "door"
         }
+      ],
+      "people": [
+        {
+          "id": "stamford-coffee-barista",
+          "name": "Ronnie",
+          "pos": [7, 1],
+          "facing": "down",
+          "look": { "hair": "curly", "hairColor": "#3a2a1e", "shirt": "#5c7a8f" },
+          "lines": [
+            "Morning. The board's up there, but the Maple Smoke latte's the one everybody ends up asking about.",
+            "Take your time picking a table — the patio's lovely if the sun's out."
+          ]
+        }
       ]
     },
     "the-belvedere-interior": {

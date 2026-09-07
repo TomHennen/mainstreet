@@ -222,7 +222,11 @@ describe('the rooms route10 ships', () => {
       const world = readJson(join(PACK, 'world.json'));
       const spec: RoomSpec = readJson(join(PACK, 'rooms', `${id}.json`));
       const built = buildRoom(spec, paletteOf(tileset()));
-      expect(world.maps[id]).toEqual(built.meta);
+      // A room's cast (DESIGN.md §2) is hand-placed straight into world.json —
+      // the spec has no say in who works there — so it's the one field world's
+      // stanza is allowed to carry that make-room never generates.
+      const { people: _people, ...generated } = world.maps[id];
+      expect(generated).toEqual(built.meta);
       const placement = world.maps[spec.exit.to].buildings.find((b: { interior?: string }) => b.interior === id);
       expect(placement.enter).toEqual(built.enter);
       expect(built.meta.exits[0].spawn).toEqual(placement.door);
