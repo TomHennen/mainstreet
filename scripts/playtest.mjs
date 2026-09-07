@@ -199,6 +199,24 @@ function npcAt(mapId, x, y, episode = EPISODE) {
 }
 
 /**
+ * What each tile id in the world's own tileset is: its Tiled class and the
+ * shape the engine draws it with. Read off the pack rather than hard-coded, so
+ * a check can say "that wall is a blackboard and this one is papered over"
+ * without the harness learning any of route10's tile numbers.
+ */
+const TILE_OF = (() => {
+  const dir = resolve(PACK, 'assets', 'tiles');
+  const out = new Map();
+  for (const file of readdirSync(dir).filter((name) => name.endsWith('.json'))) {
+    for (const tile of readJson(resolve(dir, file)).tiles ?? []) {
+      const style = (tile.properties ?? []).find((prop) => prop.name === 'style')?.value;
+      out.set(tile.id, { kind: tile.type ?? '', style: style ?? '' });
+    }
+  }
+  return out;
+})();
+
+/**
  * Street fixtures stand on a walkable tile and block it, so — like NPCs, and
  * for the same reason — they are not in isSolid() but MapScene.solidTile()
  * stops the player on them (DESIGN.md §2).
@@ -1392,6 +1410,59 @@ async function main() {
           log(`    the island bar: solid all round, ${mouth.length} tile(s) of way in at ${mouth.join(' ') || 'nowhere'}`);
           continue;
         }
+        // A peninsula is a bar that joins a wall at one end: counter down
+        // three sides, the room's own wall closing the fourth, and the staff
+        // strip inside it — somewhere the player can never get to, which is
+        // what lets whoever is working stand in it (scripts/make-room.ts).
+        if (prop.kind === 'peninsula') {
+          const [rx, ry, rw, rh] = prop.rect;
+          const attach = prop.attach ?? 'bottom';
+          const onAttach = (x, y) =>
+            attach === 'bottom'
+              ? y === ry + rh - 1
+              : attach === 'top'
+                ? y === ry
+                : attach === 'left'
+                  ? x === rx
+                  : x === rx + rw - 1;
+          const corner = (x, y) =>
+            attach === 'bottom' || attach === 'top'
+              ? x === rx || x === rx + rw - 1
+              : y === ry || y === ry + rh - 1;
+          const strip = [];
+          for (let j = 0; j < rh; j++) {
+            for (let i = 0; i < rw; i++) {
+              const [x, y] = [rx + i, ry + j];
+              const edge = i === 0 || j === 0 || i === rw - 1 || j === rh - 1;
+              const counter = edge && !(onAttach(x, y) && !corner(x, y));
+              if (counter) {
+                if (!isSolid(room, x, y)) {
+                  fail(`${place.id}-solid`, `the bar at ${x},${y} in ${name} is not solid — you would walk through it`);
+                }
+                blocking.push(['peninsula', x, y]);
+              } else {
+                if (isSolid(room, x, y)) {
+                  fail(`${place.id}-solid`, `the staff strip at ${x},${y} in ${name} is blocked`);
+                }
+                strip.push([x, y]);
+              }
+            }
+          }
+          for (const [x, y] of strip) {
+            for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+              const [nx, ny] = [x + dx, y + dy];
+              if (nx >= rx && nx < rx + rw && ny >= ry && ny < ry + rh) continue;
+              if (!isSolid(room, nx, ny)) {
+                fail(`${place.id}-solid`, `the staff strip in ${name} is open to the room at ${nx},${ny}`);
+              }
+            }
+          }
+          log(
+            `    the bar: a ${rw}x${rh} peninsula against the ${attach} wall, ` +
+              `${strip.length} tile(s) of staff strip, sealed all round`
+          );
+          continue;
+        }
         const cells = [...(prop.at ?? [])];
         if (prop.rect) {
           const [rx, ry, rw, rh] = prop.rect;
@@ -1408,11 +1479,11 @@ async function main() {
           if (!walkThrough && !blocks) {
             fail(`${place.id}-solid`, `the ${prop.kind} at ${x},${y} in ${name} is not solid — you would walk through it`);
           }
-          if (['counter', 'bar', 'stage', 'foosball'].includes(prop.kind)) blocking.push([prop.kind, x, y]);
+          if (['counter', 'bar', 'stage', 'foosball', 'stool'].includes(prop.kind)) blocking.push([prop.kind, x, y]);
         }
       }
       if (!blocking.length) fail(`${place.id}-solid`, `${name}'s room has nothing solid enough to lean on in it`);
-      log(`    ${blocking.length} tile(s) of counter/bar/stage/foosball, every one solid in the grid`);
+      log(`    ${blocking.length} tile(s) of bar/counter/stage/foosball/stool, every one solid in the grid`);
 
       // And solid underfoot, not only in the grid: walked straight at from two
       // tiles below, the player has to stop at its near edge. The hitbox is
@@ -1430,6 +1501,36 @@ async function main() {
         fail(`${place.id}-solid`, `the player walked into the ${push[0]} at ${push[1]},${push[2]}: stopped at y ${stopped.y.toFixed(2)}`);
       }
       log(`    walking at the ${push[0]} on ${[push[1], push[2]]} stopped at y ${stopped.y.toFixed(2)}`);
+
+      // Which wall is which, where a room has a bar with walls either side of
+      // it: Tom's call, September 2026 — the papered-over wall and the pool
+      // behind it are on the bar's right coming in the door, and the wall on
+      // its left is a blackboard somebody redraws every few months.
+      const barProp = (spec.props ?? []).find((prop) => prop.kind === 'peninsula' || prop.kind === 'island');
+      const wallPanels = (spec.props ?? []).filter(
+        (prop) => prop.kind === 'panel' && prop.rect && (prop.rect[0] === 0 || prop.rect[0] === room.width - 1)
+      );
+      if (barProp && wallPanels.length >= 2) {
+        const sideOf = (prop) => (prop.rect[0] < barProp.rect[0] ? 'left' : 'right');
+        const styleOf = (prop) => TILE_OF.get(prop.tiles?.[0])?.style ?? '(the tileset default)';
+        const left = wallPanels.filter((prop) => sideOf(prop) === 'left');
+        const right = wallPanels.filter((prop) => sideOf(prop) === 'right');
+        if (!left.length || !right.length) {
+          fail(
+            `${place.id}-walls`,
+            `${name}'s bar has ${left.length} wall(s) on its left and ${right.length} on its right — one each was the idea`
+          );
+        }
+        for (const [side, panels] of [['left', left], ['right', right]]) {
+          for (const panel of panels) {
+            const tall = panel.rect[3];
+            if (tall < 4) {
+              fail(`${place.id}-walls`, `the ${styleOf(panel)} wall on the bar's ${side} in ${name} is only ${tall} tiles of it`);
+            }
+            log(`    on the bar's ${side}: ${tall} tiles of "${styleOf(panel)}" wall at x ${panel.rect[0]}`);
+          }
+        }
+      }
 
       // A corridor off the room, where there is one: every tile of it has to
       // be somewhere to walk, or the doors and the wall along it are behind a
@@ -1485,17 +1586,98 @@ async function main() {
         // Whatever the far side has standing in it is solid there too.
         const beyondSpec = resolve(PACK, 'rooms', `${onward.to}.json`);
         if (existsSync(beyondSpec)) {
-          for (const prop of readJson(beyondSpec).props ?? []) {
+          const outsideSpec = readJson(beyondSpec);
+          for (const prop of outsideSpec.props ?? []) {
             for (const [x, y] of prop.at ?? []) {
               if (prop.kind !== 'mat' && !isSolid(beyond, x, y)) {
                 fail(`${place.id}-onward`, `the ${prop.kind} at ${x},${y} in ${beyond.name} is not solid`);
               }
             }
           }
-          log(`    ${beyond.name}'s furniture is solid, firepit included`);
+          log(`    ${beyond.name}'s furniture is solid`);
+
+          // A yard is outside, so its floor is the ground: grass and what
+          // grows in it (Tom, Sep 2026). Anything paved in one is a patch
+          // somebody laid — the ring round a fire — and never the whole floor.
+          const ground = (outsideSpec.floor ?? []).map((id) => TILE_OF.get(id)?.kind ?? String(id));
+          const growing = ground.filter((kind) => kind === 'grass' || kind === 'flowers');
+          if (beyond.kind === 'interior' && outsideSpec.floor && growing.length !== ground.length) {
+            const paved = [...new Set(ground.filter((kind) => kind !== 'grass' && kind !== 'flowers'))];
+            fail(`${place.id}-onward`, `${beyond.name}'s floor is ${paved.join('/')} — a yard's floor is grass`);
+          }
+          if (outsideSpec.floor) {
+            log(
+              `    ${beyond.name}'s floor: ${ground.filter((k) => k === 'grass').length} grass ` +
+                `and ${ground.filter((k) => k === 'flowers').length} flowers in ${ground.length}`
+            );
+          }
         }
         for (const fixture of beyond.fixtures ?? []) {
           log(`    a ${fixture.kind} standing at ${fixture.pos}`);
+        }
+
+        // --- a log off the pile and onto the fire ---------------------------
+        // The carry verbs (DESIGN.md §2, issue #74): one fixture hands a token
+        // over and another spends it. Both halves are world copy, so the
+        // harness reads the lines out of the map rather than knowing any of
+        // them, and it is the one place in the game where doing a thing
+        // changes what is there to see.
+        const giver = (beyond.fixtures ?? []).find((one) => one.give);
+        const taker = (beyond.fixtures ?? []).find((one) => one.take && one.take === giver?.give);
+        if (giver && taker) {
+          const besideIt = (fixture) =>
+            [[0, 1], [0, -1], [1, 0], [-1, 0]]
+              .map(([dx, dy]) => [fixture.pos[0] + dx, fixture.pos[1] + dy])
+              .find(
+                (tile) =>
+                  !isSolid(beyond, tile[0], tile[1]) &&
+                  !(beyond.fixtures ?? []).some((one) => one.pos[0] === tile[0] && one.pos[1] === tile[1])
+              );
+          const readIt = async (fixture, lines, why) => {
+            const spot = besideIt(fixture);
+            if (!spot) fail(`${place.id}-carry`, `nowhere to stand beside the ${fixture.kind} at ${fixture.pos}`);
+            await walkTo(page, `${place.id}-carry`, spot);
+            await pressA(page);
+            const said = await expectDialogue(page, `${place.id}-carry`, `the ${fixture.kind} (${why})`);
+            if (said.dialogue?.text !== lines[0]) {
+              fail(`${place.id}-carry`, `the ${fixture.kind} said "${said.dialogue?.text}", expected "${lines[0]}"`);
+            }
+            await advanceDialogue(page, `${place.id}-carry`, lines.length);
+            return said;
+          };
+
+          log(`  a log off the ${giver.kind} and onto the ${taker.kind}`);
+          // Nothing in hand yet, so the fire asks for one rather than taking it.
+          await readIt(taker, taker.otherwise, 'nothing in hand');
+          const empty = await snap(page);
+          if (empty.held !== null) fail(`${place.id}-carry`, `carrying "${empty.held}" before picking anything up`);
+          log(`    the ${taker.kind}, empty-handed: "${taker.otherwise[0].slice(0, 52)}…"`);
+
+          await readIt(giver, giver.lines, 'taking one');
+          const carrying = await snap(page);
+          if (carrying.held !== giver.give) {
+            fail(`${place.id}-carry`, `took a "${giver.give}" and ended up carrying "${carrying.held}"`);
+          }
+          log(`    the ${giver.kind}: "${giver.lines[0].slice(0, 52)}…" — carrying a ${carrying.held}`);
+
+          // Already holding one: the pile says so rather than handing over a second.
+          await readIt(giver, giver.otherwise, 'already holding one');
+
+          await readIt(taker, taker.lines, 'putting it on');
+          const fed = await snap(page);
+          if (fed.held !== null) fail(`${place.id}-carry`, `the ${taker.kind} took the log and left "${fed.held}" in hand`);
+          if (taker.glow && !(fed.light?.glows > 0)) {
+            fail(`${place.id}-carry`, `the ${taker.kind} took a log and nothing lit up (${fed.light?.glows} glows)`);
+          }
+          log(`    the ${taker.kind}: "${taker.lines[0].slice(0, 52)}…" — ${fed.light?.glows} light burning`);
+          await shot(page, `${onward.to}-lit`);
+
+          // And it stays lit while the player walks away: no strobe, no blink.
+          await readIt(taker, taker.otherwise, 'already going');
+
+          // The log is this map's and nothing else's: carry one out of the
+          // yard and it is not in your hands when you come back.
+          await readIt(giver, giver.lines, 'one more for the road');
         }
 
         const home = beyond.exits.find((back) => back.to === place.interior);
@@ -1507,6 +1689,10 @@ async function main() {
           fail(`${place.id}-onward`, `"${home.id}" put the player on ${backIn}, not ${home.spawn}`);
         }
         log(`    and back into ${name} at ${backIn}, facing ${returned.facing}`);
+        if (giver && returned.held !== null) {
+          fail(`${place.id}-carry`, `walked out of ${beyond.name} still carrying "${returned.held}"`);
+        }
+        if (giver) log(`    and the ${giver.give} stayed in ${beyond.name}, where it belongs`);
       }
 
       log(`  back out of ${name}`);
