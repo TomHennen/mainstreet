@@ -84,3 +84,12 @@ lat/lon to tile maths are in `docs/route10-geometry.md`.
 
 No real private person appears by name without opting in (CLAUDE.md hard
 rule 5). Signs refer to "the owner" or a fictional character.
+
+## Art policy
+
+Code, maps, tools, and checks are built with AI help. The art that ships in
+`worlds/route10/` — facades, characters, portraits — is painted by people;
+no model-generated art goes in. AI can help a contributor behind the scenes
+(turning a photo into a plan they paint themselves), and if it did, their
+credit says so in their own words. Unpainted buildings stay placeholder
+boxes until someone paints them — that's the invitation, not a gap.

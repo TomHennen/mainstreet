@@ -83,8 +83,16 @@ for feel and behavior*, not code to reuse.
   generous, reserve full-size empty lots, never shift the grid. Run a critic
   pass (rubric in `docs/route10-notes.md`) before merging map changes and put
   whole-map previews in `playtest-out/` so Tom can open them.
+- Small changes go under a standing issue rather than opening a new one:
+  #27 art submissions, #36 Studio and contributing, #37 map and content
+  tweaks. Branch as `agent/<issue>/<short-name>`. Open a dedicated issue only
+  for something that needs a decision, or a change that takes more than a
+  day.
 - Incoming art from contributors is handled by the runbook in
   `docs/receiving-art.md` (standing issue #27). Follow it step by step.
+- No model-generated art goes under `worlds/` — see CONTRIBUTING.md
+  "Where AI fits". Computer-made examples are fine elsewhere (e.g. in docs)
+  only when clearly labelled as computer-made.
 - Local knowledge about the real villages lives in `docs/route10-notes.md`.
   Check it before placing anything; OpenStreetMap is a fallback, Tom's notes
   win.

@@ -28,6 +28,20 @@ If you'd rather use a "real" pixel art tool, **Aseprite** (paid) or
 **Piskel** (free, in-browser) both work — just follow the spec below by
 hand.
 
+### What good enough looks like
+
+Here's a plain, ordinary building at the size and level of detail we're
+hoping for — a flat wall, a roof band, a few windows, a door, a sign.
+Nothing fancy; that's the point.
+
+![A modest painted building facade, 80 by 64 pixels, shown at 4x scale: a tan wall, a dark red roof band, four blue-glass windows with light top edges, a brown door with a step, and a blank white sign panel above the door.](docs/examples/demo-facade-x4.png)
+
+*This one was made by a computer to show size and detail. We won't put
+computer art in the game; we'd rather have yours.*
+
+Anything at this level of finish or better is very welcome — and rougher
+first tries are welcome too. We'll help you get it over the line.
+
 ## The spec in plain words
 
 - Everything sits on a **16×16 pixel grid** — like building out of little
@@ -65,6 +79,17 @@ our own storefront:
   the place instead.
 - No real private people appear without their own say-so first.
 - Keep it warm. If in doubt, make it kinder.
+
+## Where AI fits
+
+The game's code, maps, and tools get built with AI help — that's normal
+here. The art that ships in the towns doesn't: no model-generated pixel art
+goes into a world pack. Every facade, character, and portrait is painted by
+a person. If AI helped you get there behind the scenes — turning a photo of
+a building into a plan you then finished by hand, say — that's fine, and
+your credit can say so, in your own words. An unpainted building stays a
+plain placeholder box until someone paints it. That's not a gap to patch
+quickly; it's the invitation this whole project runs on.
 
 ## Licenses
 
