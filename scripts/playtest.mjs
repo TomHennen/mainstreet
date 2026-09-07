@@ -1200,6 +1200,14 @@ async function main() {
     }
     log(`    sign: ${signRead} page(s), no link`);
 
+    // A person is not a building waiting for paint: no link on their dialogue.
+    log('  no "Paint it" on a person');
+    await walkTo(tp, 'paint-it-npc', [earl.pos[0], earl.pos[1] + 1]);
+    await pressA(tp);
+    await expectDialogue(tp, 'paint-it-npc', 'Earl');
+    if (await paint.isVisible()) fail('paint-it-npc', 'the "Paint it" link showed on Earl\'s dialogue');
+    await advanceDialogue(tp, 'paint-it-npc', 3);
+
     // --- a standing sign from world.json ------------------------------------
     // A building the episode says nothing about is not silent: its own sign in
     // the buildings registry is what the door reads, and only a building with
@@ -1237,13 +1245,42 @@ async function main() {
     }
     log(`    ${standing.id}: ${standingRead} page(s) of its own copy, no episode sign in sight`);
 
-    // A person is not a building waiting for paint: no link on their dialogue.
-    log('  no "Paint it" on a person');
-    await walkTo(tp, 'paint-it-npc', [earl.pos[0], earl.pos[1] + 1]);
+    // --- both kinds of sign, in order ---------------------------------------
+    // A story goes on top of a place, not in place of it: where the episode
+    // has a sign for a building that also has a standing sign, the door reads
+    // the episode's pages first and the building's own after them, so a week
+    // of story never costs the player the colour of where it sent them
+    // (DESIGN.md §3).
+    log('  a building with both signs reads the episode first, then its own');
+    const both = WORLD.maps.stamford.buildings.find(
+      (b) =>
+        !b.interior &&
+        (WORLD.buildings[b.id].sign ?? []).length > 0 &&
+        (EPISODE.signs ?? []).some((sg) => sg.building === b.id && (sg.requires ?? []).length === 0 && !sg.replace)
+    );
+    if (!both) fail('both-signs', 'no Stamford building carries an episode sign and a standing sign at once');
+    const bothWant = signLinesOf(both.id);
+    const bothStanding = WORLD.buildings[both.id].sign;
+    await walkTo(tp, 'both-signs', both.door);
     await pressA(tp);
-    await expectDialogue(tp, 'paint-it-npc', 'Earl');
-    if (await paint.isVisible()) fail('paint-it-npc', 'the "Paint it" link showed on Earl\'s dialogue');
-    await advanceDialogue(tp, 'paint-it-npc', 3);
+    await expectDialogue(tp, 'both-signs', `${both.id}'s sign`);
+    await shot(tp, 'both-signs');
+    const bothRead = await readDialogue(tp, 'both-signs', bothWant.length, async (i) => {
+      const on = (await snap(tp)).dialogue;
+      if (on?.text !== bothWant[i]) {
+        fail('both-signs', `${both.id} page ${i + 1} reads "${on?.text}", expected "${bothWant[i]}"`);
+      }
+    });
+    if (bothRead !== bothWant.length) {
+      fail(
+        'both-signs',
+        `${both.id} read ${bothRead} page(s) for ${bothWant.length} line(s) — the standing sign is being dropped`
+      );
+    }
+    log(
+      `    ${both.id}: ${bothWant.length - bothStanding.length} episode page(s), ` +
+        `then ${bothStanding.length} of its own`
+    );
 
     // --- the Studio's door and plaque markers -------------------------------
     // The artist says where the door and the little plaque go, and the code
