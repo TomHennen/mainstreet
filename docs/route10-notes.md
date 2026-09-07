@@ -500,11 +500,24 @@ opt-in, everything warm and affectionate) before it reaches the player.
   gossip speculates (new to the area? grieving? feuding with someone?
   just private?) and the fun is in the theories more than a tidy
   resolution, similar in shape to the beaver saga's "everyone's got a
-  theory" structure above. Needs the same care as any hook drawn from a
-  real person: per hard rule 5, she must be built as a fully invented
-  character (not a stand-in for anyone real), and per hard rule 6 the
-  resolution — if there is one — needs to land warm, not as a punchline at
-  a private, guarded person's expense; something like "she's new and
-  hasn't been told the rule yet, same as us" or "she's shy and it's
-  costing her nothing to let her come round in her own time" fits the
+  theory" structure above. **A sharper wrinkle than the other hard-rule-5
+  entries in this file: the real inspiration is a specific real woman in
+  Tom's own neighborhood, and Tom knows nothing about her beyond the
+  behavior itself — no name, no backstory, nothing to launder into a
+  character.** That's the opposite situation from the septic-guy or
+  Hobart-founder hooks above, where there's real biography to draw on and
+  reshape; here there is none, so anything the game gives her — name,
+  reason, resolution — is invented from nothing, not adapted from fact.
+  That cuts both ways: less real detail to leak, but a real risk that an
+  invented backstory reads as a guess about *her* specifically, since
+  neighbors who know Tom's actual street could place the behavior even
+  with every other detail changed. If this ever gets built, put real
+  distance between the in-game version and the source: change the
+  village, the frequency, the setting, anything that would let a
+  real-world neighbor map her one-to-one onto the NPC, on top of the
+  usual hard-rule-5 fully-invented-character treatment. Per hard rule 6,
+  the resolution — if there is one — still needs to land warm, not as a
+  punchline at a private, guarded person's expense; something like "she's
+  new and hasn't been told the rule yet, same as us" or "she's shy and
+  it's costing her nothing to let her come round in her own time" fits the
   town's spirit a lot better than anything that mocks her for it.
