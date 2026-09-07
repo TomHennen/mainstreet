@@ -286,7 +286,18 @@ opt-in, everything warm and affectionate) before it reaches the player.
   more showman than tradesman, brings a crowd. A good "help someone" or
   "witness an event" episode could turn a mundane errand (something's
   wrong with the septic) into a chance to meet three new characters at
-  once, purely through his orbit.
+  once, purely through his orbit. When a tank fills up, the fix is a call
+  for the truck that pumps it out — locally nicknamed the **"honey
+  wagon"** — and that's a fun, silly, warm bit of texture on its own (the
+  kind of thing a newcomer hears for the first time and can't quite
+  believe is real). A good visual beat for a "watch the honey wagon at
+  work" moment: the truck parked at the tank, hose down, pumping with a
+  slow rhythmic pulse. Once #83 (parked vehicles) and #85 (declarative
+  scenes) land, a parked truck plus a short scene gets the "watch it work"
+  moment with no new engine feature; the rhythmic-pulse part specifically
+  is an idle animation on a placed object, which the engine doesn't have
+  yet — a nice small feature worth its own issue if it comes up again,
+  not something to bolt on for one gag.
 - **Small-town density.** Wherever you are on Route 10, you will run into
   someone you know. Good recurring texture for episodes: NPCs who greet the
   player by name away from their "home" location, or a travel-card beat
@@ -545,3 +556,18 @@ opt-in, everything warm and affectionate) before it reaches the player.
   alongside the Stamford fire-department-open-house epic (see DESIGN.md
   §3a) as a candidate for a later, separate episode — not bundled into
   that one.
+- **The wave.** Out here everyone waves: a pedestrian waves at every car
+  that passes, drivers wave at other drivers and pedestrians, and two
+  pedestrians who cross paths usually stop and chat. Nobody explains this
+  to you — newcomers don't know it, and it reads as standoffish until
+  someone points it out. Real inspiration, and Tom's to give (him and his
+  wife both, so any character drawn from it should be too): their own
+  first months here, when neighbors — now good friends — had privately
+  nicknamed them the "witness protection couple" for never waving or
+  smiling at anyone. Good for a newcomer NPC gently ribbed once they're
+  let in on the joke, or a "nobody told me!" beat for a newcomer-coded
+  player. Not everyone waves back right away — new, shy, deep in
+  thought — and the town's answer is simple: wave anyway. No mystery, no
+  reveal, no speculation about why any one person doesn't; per hard rule
+  6, that stays generic texture, not a puzzle about a real guarded
+  person's inner life.
