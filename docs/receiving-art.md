@@ -104,6 +104,15 @@ the name given, spelled as given. First name only is fine.
    (validate-assets runs there too), merge. The building is live on the
    next Pages deploy; tell Tom the URL so he can reply to the contributor.
 
+## The form's questions
+
+The code's first two segments already say which world and which building
+(`MSA1|route10|stewarts|...`), so the form need not ask for either; if it
+does, browsers may autofill an empty "name"-like box with the person's own
+name. Trust the code over those two columns, and feel free to delete those
+questions from the form: `submit.art.fields.building` and `.world` in
+world.json are optional.
+
 ## Repaints, removals and credit changes
 
 - A better version of an already painted building: same steps with

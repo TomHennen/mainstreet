@@ -173,7 +173,7 @@ describe('validateWorld', () => {
     it('flags a missing or empty field id', () => {
       const blank = art({ fields: { building: 'entry.1', world: '  ', credit: 'entry.3', code: 'entry.4' } });
       expect(runWorld(makeWorld({ submit: blank as never })).join('\n')).toContain(
-        'world "submit.art" has no field id for "world"'
+        'world "submit.art" has a "world" field id that is empty'
       );
       const missing = art({ fields: { building: 'entry.1', world: 'entry.2', credit: 'entry.3' } });
       expect(runWorld(makeWorld({ submit: missing as never })).join('\n')).toContain(
