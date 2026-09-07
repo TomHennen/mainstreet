@@ -12,10 +12,13 @@
  * and takes everything — names, footprints, colours — from there.
  *
  * The canvas listens to pointer events and nothing else (hard rule 4): no
- * touch handlers anywhere, so nothing can fire twice. One finger paints; a
- * second finger turns the gesture into a two-finger pan and quietly puts back
- * whatever the first finger had started, so scrolling a big drawing never
- * leaves marks on it. The ordinary controls are <button>s on `click`, which is
+ * touch handlers anywhere, so nothing can fire twice. The strip of door and
+ * plaque markers under it is the same one path — drag a marker with a finger
+ * or a mouse — with a row of buttons beside the drawing for anyone who would
+ * rather not drag, or is using a keyboard. One finger paints; a second finger
+ * turns the gesture into a two-finger pan and quietly puts back whatever the
+ * first finger had started, so scrolling a big drawing never leaves marks on
+ * it. The ordinary controls are <button>s on `click`, which is
  * one path too and is the one a keyboard can reach.
  */
 import { CodeError, MAGIC, TRANSPARENT, decode, encode } from './codec';
@@ -24,6 +27,7 @@ import {
   fitCode,
   fitImport,
   nearestIn,
+  ordinal,
   paletteRgb,
   plural,
   rgbOf,
@@ -52,6 +56,14 @@ const MAILTO_BUDGET = 1800;
 const LIGHT_PAINT_SHARE = 0.02;
 /** The "what you'll send" preview never gets wider than this on screen. */
 const PREVIEW_MAX_WIDTH = 260;
+/**
+ * The door and plaque markers. Deliberately not palette colours: a marker has
+ * to look like a marker and never like something somebody painted.
+ */
+const DOOR_MARK = '#ffd166';
+const PLAQUE_MARK = '#8fd6a8';
+/** Height of the little strip of draggable markers under the canvas, in CSS pixels. */
+const MARKER_STRIP = 24;
 
 const CONSENT =
   "I made this, I'm happy for it to appear in mainstreet with credit to the " +
@@ -66,6 +78,7 @@ const CANNOT_READ =
 
 type Tool = 'pencil' | 'fill' | 'eraser' | 'eyedropper' | 'line' | 'rect';
 type BrushSize = 1 | 2 | 3;
+type Marker = 'door' | 'plaque';
 
 // --- world pack shapes (read-only; the engine owns the real schema) ----------
 
@@ -211,8 +224,20 @@ async function loadPalette(world: World): Promise<(string | null)[]> {
  * same scale, so an artist can see where the door and the sign sit today. It
  * is a reference, not a template: nobody has to keep any of it — except the
  * plaque, which the engine draws over the finished art either way.
+ *
+ * `doorCol` and `plaqueCol` are tile columns across the front of the building,
+ * counting from 0 at its left edge — wherever the artist has put the markers,
+ * which is where the town will end up putting them too. `plaqueCol` is null
+ * for a building that has no plaque.
  */
-function referenceCanvas(placement: Placement, def: BuildingDef, width: number, height: number): HTMLCanvasElement {
+function referenceCanvas(
+  placement: Placement,
+  def: BuildingDef,
+  width: number,
+  height: number,
+  doorCol: number,
+  plaqueCol: number | null
+): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -240,15 +265,14 @@ function referenceCanvas(placement: Placement, def: BuildingDef, width: number, 
     ctx.fillRect(8 + i * TILE, top + OVERHEAD + 12, 8, 8);
   }
 
-  const doorX = (placement.door[0] - placement.pos[0]) * TILE;
+  const doorX = doorCol * TILE;
   ctx.fillStyle = '#3a2c1e';
   ctx.fillRect(doorX + 3, top + OVERHEAD + bodyH - 14, 10, 14);
 
   // The engine hangs its own little plaque here, over whatever is painted
   // beneath it, so nobody has to draw one.
-  const plaque = plaqueTile(placement);
-  if (plaque) {
-    const plaqueX = (plaque[0] - placement.pos[0]) * TILE + (TILE - PLAQUE_W) / 2;
+  if (plaqueCol !== null) {
+    const plaqueX = plaqueCol * TILE + (TILE - PLAQUE_W) / 2;
     const plaqueY = height - PLAQUE_LIFT - PLAQUE_H;
     ctx.fillStyle = '#8a6a35';
     ctx.fillRect(plaqueX, plaqueY, PLAQUE_W, PLAQUE_H);
@@ -336,8 +360,70 @@ interface EditorState {
   zoom: number;
   showGrid: boolean;
   showReference: boolean;
+  /** Tile column the door goes in, counting from 0 at the building's left edge. */
+  doorCol: number;
+  /** The same for the plaque, or null for a building that has none. */
+  plaqueCol: number | null;
+  /** Where the town has them today, so "Reset" and the code both know. */
+  defaultDoorCol: number;
+  defaultPlaqueCol: number | null;
   undo: Uint8Array[];
   redo: Uint8Array[];
+}
+
+/**
+ * Which columns a code should carry: both of them once either has been moved,
+ * and neither while they are still where the town put them — an untouched
+ * drawing sends exactly the code it always did.
+ */
+function placedColumns(state: EditorState): { door?: number; plaque?: number } {
+  const doorMoved = state.doorCol !== state.defaultDoorCol;
+  const plaqueMoved = state.plaqueCol !== null && state.plaqueCol !== state.defaultPlaqueCol;
+  if (!doorMoved && !plaqueMoved) return {};
+  if (state.plaqueCol === null) return { door: state.doorCol };
+  return { door: state.doorCol, plaque: state.plaqueCol };
+}
+
+/** The whole drawing as the codec wants it — the one place that assembles it. */
+function drawingOf(state: EditorState): Parameters<typeof encode>[0] {
+  return {
+    world: state.world.id,
+    building: state.entry.placement.id,
+    width: state.width,
+    height: state.height,
+    pixels: state.pixels,
+    ...placedColumns(state)
+  };
+}
+
+/**
+ * Takes the door and plaque columns a code carries, if it carries any. A code
+ * written before this part of the format existed says nothing about them, and
+ * the markers simply stay where the town has them.
+ */
+function adoptColumns(state: EditorState, drawing: { door?: number; plaque?: number }): boolean {
+  const columns = state.entry.placement.size[0];
+  const fits = (col: number | undefined): col is number =>
+    col !== undefined && Number.isInteger(col) && col >= 0 && col < columns;
+  if (!fits(drawing.door)) return false;
+
+  state.doorCol = drawing.door;
+  if (state.plaqueCol !== null && fits(drawing.plaque) && drawing.plaque !== drawing.door) {
+    state.plaqueCol = drawing.plaque;
+  }
+  // The codec never hands back two markers on one column, but a plaque left
+  // sitting under the door would be a confusing thing to draw, so it steps
+  // aside rather than doubling up.
+  if (state.plaqueCol === state.doorCol) {
+    const aside = state.doorCol > 0 ? state.doorCol - 1 : 1;
+    state.plaqueCol = aside < columns ? aside : null;
+  }
+  return true;
+}
+
+/** "3rd column from the left" — how a person would say where a marker is. */
+function whereIs(col: number): string {
+  return `${ordinal(col + 1)} column from the left`;
 }
 
 function draftKey(worldId: string, buildingId: string): string {
@@ -354,6 +440,18 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
   const { placement, def } = entry;
   const footW = placement.size[0] * TILE;
   const footH = placement.size[1] * TILE;
+  const columns = placement.size[0];
+
+  // Where the town has the door and the plaque today. A plaque that this world
+  // has switched off, or has deliberately hung somewhere off the front of the
+  // building, gets no marker and is left exactly as it is.
+  const inFront = (tile: [number, number] | null): number | null => {
+    if (!tile) return null;
+    const col = tile[0] - placement.pos[0];
+    return col >= 0 && col < columns ? col : null;
+  };
+  const doorCol = inFront(placement.door) ?? 0;
+  const plaqueDefault = columns > 1 ? inFront(plaqueTile(placement)) : null;
 
   const state: EditorState = {
     world,
@@ -371,6 +469,10 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
     zoom: 4,
     showGrid: true,
     showReference: false,
+    doorCol,
+    plaqueCol: plaqueDefault,
+    defaultDoorCol: doorCol,
+    defaultPlaqueCol: plaqueDefault,
     undo: [],
     redo: []
   };
@@ -400,7 +502,10 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
     </section>
 
     <div class="stage" id="stage">
-      <canvas id="view"></canvas>
+      <div class="canvasstack">
+        <canvas id="view"></canvas>
+        <canvas id="markers" aria-hidden="true"></canvas>
+      </div>
     </div>
     <p class="quiet" id="guidenote" hidden>Guide only. It isn't part of your drawing.</p>
 
@@ -409,6 +514,7 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
     <section class="preview">
       <canvas id="previewcanvas"></canvas>
       <p class="quiet">What you'll send: just what you drew.</p>
+      <p class="quiet" id="sendcolumns" hidden></p>
     </section>
 
     <section class="tools">
@@ -441,6 +547,30 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
         <button id="fewerrows">Fewer rows above</button>
         <button id="morerows">More rows above</button>
       </div>
+      <div class="row marker" id="doorrow">
+        <span class="marker-key" style="background:${DOOR_MARK}" aria-hidden="true"></span>
+        <span class="marker-name" id="doorname">Door</span>
+        <button id="doorleft" aria-label="Move the door one column left"
+          aria-describedby="doorwhere">◀</button>
+        <span class="marker-where" id="doorwhere"></span>
+        <button id="doorright" aria-label="Move the door one column right"
+          aria-describedby="doorwhere">▶</button>
+        <button id="doorreset" aria-label="Put the door back where the town has it">Reset</button>
+      </div>
+      <div class="row marker" id="plaquerow">
+        <span class="marker-key" style="background:${PLAQUE_MARK}" aria-hidden="true"></span>
+        <span class="marker-name" id="plaquename">Plaque</span>
+        <button id="plaqueleft" aria-label="Move the plaque one column left"
+          aria-describedby="plaquewhere">◀</button>
+        <span class="marker-where" id="plaquewhere"></span>
+        <button id="plaqueright" aria-label="Move the plaque one column right"
+          aria-describedby="plaquewhere">▶</button>
+        <button id="plaquereset" aria-label="Put the plaque back where the town has it">Reset</button>
+      </div>
+      <p class="quiet" id="markernote">Where the door and the little plaque will
+        be. The game draws the plaque; you draw the door. Drag either marker
+        under the canvas, or use the arrows — they are markers only, and never
+        end up in the picture.</p>
       <div class="palette" id="palette">${swatches}</div>
     </section>
 
@@ -549,9 +679,23 @@ function wireEditor(state: EditorState): void {
   const status = el<HTMLParagraphElement>('status');
   const sendStatus = el<HTMLParagraphElement>('sendstatus');
 
+  const strip = el<HTMLCanvasElement>('markers');
+
   const pix = document.createElement('canvas');
-  let reference = referenceCanvas(state.entry.placement, state.entry.def, state.width, state.height);
+  let reference = buildReference();
   let saveTimer = 0;
+
+  /** The faint guide, redrawn whenever the canvas or a marker moves. */
+  function buildReference(): HTMLCanvasElement {
+    return referenceCanvas(
+      state.entry.placement,
+      state.entry.def,
+      state.width,
+      state.height,
+      state.doorCol,
+      state.plaqueCol
+    );
+  }
 
   function say(message: string): void {
     status.textContent = message || ' ';
@@ -637,7 +781,89 @@ function wireEditor(state: EditorState): void {
       for (let y = 0; y < h; y += 8) ctx.fillRect(mid - 1, y, 2, 4);
     }
 
+    drawMarkers(ctx, w, h);
+    renderStrip();
     renderPreview();
+  }
+
+  /**
+   * The door and the plaque, outlined on the bottom row of the canvas. They are
+   * drawn here, on the view, and nowhere else: `pix` — which the preview, the
+   * exported PNG and the code all read from — never sees them, so a marker
+   * cannot end up in somebody's drawing.
+   */
+  function drawMarkers(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const tile = TILE * state.zoom;
+    const inset = Math.min(2.5, Math.max(1.5, state.zoom / 2));
+    for (const mark of markerList()) {
+      const x = mark.col * tile;
+      const y = h - tile;
+      const box: [number, number, number, number] = [x + inset, y + inset, tile - inset * 2, tile - inset * 2];
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(18,22,15,.7)';
+      ctx.strokeRect(...box);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = mark.colour;
+      ctx.setLineDash([3, 3]);
+      ctx.strokeRect(...box);
+      ctx.setLineDash([]);
+
+      if (tile >= 34) {
+        ctx.font = '9px ui-monospace, Menlo, Consolas, monospace';
+        ctx.textAlign = 'center';
+        const label = mark.label;
+        const plate = Math.ceil(ctx.measureText(label).width) + 6;
+        const mid = Math.min(w - plate / 2, Math.max(plate / 2, x + tile / 2));
+        ctx.fillStyle = 'rgba(18,22,15,.8)';
+        ctx.fillRect(mid - plate / 2, y + inset + 2, plate, 11);
+        ctx.fillStyle = mark.colour;
+        ctx.fillText(label, mid, y + inset + 10.5);
+      }
+    }
+  }
+
+  /**
+   * The strip of markers just under the canvas: one chip per marker, sitting
+   * over its column, and the thing a finger actually drags. Keeping it off the
+   * drawing surface means dragging a marker can never be mistaken for a brush
+   * stroke, and a brush stroke along the bottom row can never nudge a marker.
+   */
+  function renderStrip(): void {
+    const w = state.width * state.zoom;
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    strip.width = Math.round(w * dpr);
+    strip.height = Math.round(MARKER_STRIP * dpr);
+    strip.style.width = `${w}px`;
+    strip.style.height = `${MARKER_STRIP}px`;
+    const ctx = strip.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, w, MARKER_STRIP);
+
+    const tile = TILE * state.zoom;
+    ctx.font = 'bold 10px ui-monospace, Menlo, Consolas, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const mark of markerList()) {
+      const centre = mark.col * tile + tile / 2;
+      const chip = Math.min(w, Math.max(34, ctx.measureText(mark.label).width + 14));
+      const left = Math.max(0, Math.min(w - chip, centre - chip / 2));
+      ctx.fillStyle = mark.colour;
+      ctx.fillRect(centre - 1, 0, 2, 6);
+      ctx.fillRect(left, 5, chip, 16);
+      ctx.fillStyle = '#12160f';
+      ctx.fillText(mark.label, left + chip / 2, 13.5);
+    }
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  /** The markers there are to draw, in the order they are drawn. */
+  function markerList(): { which: Marker; col: number; colour: string; label: string }[] {
+    const list = [{ which: 'door' as Marker, col: state.doorCol, colour: DOOR_MARK, label: 'Door' }];
+    if (state.plaqueCol !== null) {
+      list.push({ which: 'plaque' as Marker, col: state.plaqueCol, colour: PLAQUE_MARK, label: 'Plaque' });
+    }
+    return list;
   }
 
   /** The biggest whole zoom (3 or 2, falling back to 1) that keeps the "what
@@ -721,7 +947,68 @@ function wireEditor(state: EditorState): void {
     el<HTMLButtonElement>('redo').disabled = state.redo.length === 0;
     el<HTMLButtonElement>('fewerrows').disabled = state.extraRows <= 0;
     el<HTMLButtonElement>('morerows').disabled = state.extraRows >= MAX_EXTRA_ROWS;
+    refreshMarkers();
     describeShape();
+  }
+
+  /** The two marker rows, and the quiet line about what goes in the email. */
+  function refreshMarkers(): void {
+    const columns = state.entry.placement.size[0];
+    const row = (which: Marker, col: number | null) => {
+      const wrap = el<HTMLDivElement>(`${which}row`);
+      wrap.hidden = col === null;
+      if (col === null) return;
+      el<HTMLElement>(`${which}where`).textContent = `${ordinal(col + 1)} of ${columns}`;
+      el<HTMLButtonElement>(`${which}left`).disabled = col <= 0;
+      el<HTMLButtonElement>(`${which}right`).disabled = col >= columns - 1;
+      const home = which === 'door' ? state.defaultDoorCol : state.defaultPlaqueCol;
+      el<HTMLButtonElement>(`${which}reset`).disabled = col === home;
+    };
+    row('door', state.doorCol);
+    row('plaque', state.plaqueCol);
+
+    const note = el<HTMLElement>('sendcolumns');
+    const moved = placedColumns(state);
+    if (moved.door === undefined) {
+      note.hidden = true;
+      return;
+    }
+    const where =
+      moved.plaque === undefined
+        ? `the door in the ${whereIs(moved.door)}`
+        : `the door in the ${whereIs(moved.door)} and the plaque in the ${whereIs(moved.plaque)}`;
+    note.textContent = `The code carries where you put them too: ${where}.`;
+    note.hidden = false;
+  }
+
+  /**
+   * Moves one marker to a column, and lets the other one step into the space it
+   * has left if that is where it was standing — so the two always have a column
+   * each, whichever way anyone drags or steps them.
+   */
+  function moveMarker(which: Marker, to: number): boolean {
+    const columns = state.entry.placement.size[0];
+    const from = which === 'door' ? state.doorCol : state.plaqueCol;
+    if (from === null) return false;
+    const col = Math.max(0, Math.min(columns - 1, to));
+    if (col === from) return false;
+
+    const other = which === 'door' ? state.plaqueCol : state.doorCol;
+    if (other === col) {
+      if (which === 'door') state.plaqueCol = from;
+      else state.doorCol = from;
+    }
+    if (which === 'door') state.doorCol = col;
+    else state.plaqueCol = col;
+
+    reference = buildReference();
+    changed();
+    return true;
+  }
+
+  function sayMarkers(): void {
+    const parts = markerList().map((mark) => `the ${mark.label.toLowerCase()} in the ${whereIs(mark.col)}`);
+    say(`That puts ${parts.join(', and ')}.`);
   }
 
   function changed(): void {
@@ -998,7 +1285,9 @@ function wireEditor(state: EditorState): void {
 
   function fitZoom(): number {
     const wide = Math.max(1, Math.floor((stage.clientWidth - 8) / state.width));
-    const tall = Math.max(1, Math.floor((stage.clientHeight - 8) / state.height));
+    // The strip of markers shares the stage with the canvas, so it gets its
+    // height out of the way first (plus the 4px gap between the two).
+    const tall = Math.max(1, Math.floor((stage.clientHeight - 12 - MARKER_STRIP) / state.height));
     return Math.min(12, Math.max(1, Math.min(wide, tall)));
   }
 
@@ -1015,7 +1304,7 @@ function wireEditor(state: EditorState): void {
     state.pixels = pixels;
     state.height = height;
     state.extraRows = next;
-    reference = referenceCanvas(state.entry.placement, state.entry.def, state.width, state.height);
+    reference = buildReference();
     state.zoom = fitZoom();
     changed();
     say(
@@ -1027,6 +1316,108 @@ function wireEditor(state: EditorState): void {
 
   el<HTMLButtonElement>('morerows').addEventListener('click', () => setRows(state.extraRows + 1));
   el<HTMLButtonElement>('fewerrows').addEventListener('click', () => setRows(state.extraRows - 1));
+
+  // --- the door and the plaque ------------------------------------------
+
+  /**
+   * The strip listens to pointer events and nothing else, exactly as the canvas
+   * does (hard rule 4): one finger, one marker, no touch handlers anywhere. A
+   * tap on a column takes the nearer marker straight there, which on a phone is
+   * often quicker than dragging it.
+   */
+  let dragging: Marker | null = null;
+  /** Where both markers stood when the drag began, so the other one can step
+   *  aside while it is stood on and go back the moment it isn't. */
+  let dragFrom: { moving: number; other: number | null } | null = null;
+
+  function columnAt(clientX: number): number {
+    const rect = strip.getBoundingClientRect();
+    const columns = state.entry.placement.size[0];
+    const col = Math.floor(((clientX - rect.left) / rect.width) * columns);
+    return Math.max(0, Math.min(columns - 1, col));
+  }
+
+  /** Whichever marker is already on that column, or else the nearer one. */
+  function markerNear(col: number): Marker {
+    const marks = markerList();
+    const on = marks.find((mark) => mark.col === col);
+    if (on) return on.which;
+    let best = marks[0];
+    for (const mark of marks) {
+      if (Math.abs(mark.col - col) < Math.abs(best.col - col)) best = mark;
+    }
+    return best.which;
+  }
+
+  /**
+   * A marker under a finger. The other marker only steps aside while the one
+   * being dragged is actually standing on it, and is back where it was as soon
+   * as the drag moves on — so passing over the plaque on the way somewhere else
+   * leaves it exactly where its owner put it.
+   */
+  function dragTo(which: Marker, col: number): void {
+    if (!dragFrom) return;
+    const columns = state.entry.placement.size[0];
+    const target = Math.max(0, Math.min(columns - 1, col));
+    const other = dragFrom.other === null ? null : target === dragFrom.other ? dragFrom.moving : dragFrom.other;
+
+    if (which === 'door') {
+      state.doorCol = target;
+      if (other !== null) state.plaqueCol = other;
+    } else {
+      state.plaqueCol = target;
+      if (other !== null) state.doorCol = other;
+    }
+    reference = buildReference();
+    changed();
+  }
+
+  strip.addEventListener('pointerdown', (event) => {
+    if (dragging) return;
+    event.preventDefault();
+    strip.setPointerCapture(event.pointerId);
+    const col = columnAt(event.clientX);
+    dragging = markerNear(col);
+    dragFrom =
+      dragging === 'door'
+        ? { moving: state.doorCol, other: state.plaqueCol }
+        : { moving: state.plaqueCol ?? 0, other: state.doorCol };
+    dragTo(dragging, col);
+  });
+
+  strip.addEventListener('pointermove', (event) => {
+    if (!dragging || !strip.hasPointerCapture(event.pointerId)) return;
+    dragTo(dragging, columnAt(event.clientX));
+  });
+
+  function dropMarker(event: PointerEvent): void {
+    if (!dragging) return;
+    if (strip.hasPointerCapture(event.pointerId)) strip.releasePointerCapture(event.pointerId);
+    dragging = null;
+    dragFrom = null;
+    sayMarkers();
+  }
+
+  strip.addEventListener('pointerup', dropMarker);
+  strip.addEventListener('pointercancel', dropMarker);
+
+  // The same two markers by button, for a keyboard, a screen reader, or anyone
+  // who would rather tap than drag. A <button> on `click` is one path as well.
+  for (const which of ['door', 'plaque'] as Marker[]) {
+    const at = () => (which === 'door' ? state.doorCol : state.plaqueCol) ?? 0;
+    el<HTMLButtonElement>(`${which}left`).addEventListener('click', () => {
+      if (moveMarker(which, at() - 1)) sayMarkers();
+    });
+    el<HTMLButtonElement>(`${which}right`).addEventListener('click', () => {
+      if (moveMarker(which, at() + 1)) sayMarkers();
+    });
+    el<HTMLButtonElement>(`${which}reset`).addEventListener('click', () => {
+      const home = which === 'door' ? state.defaultDoorCol : state.defaultPlaqueCol;
+      if (home === null) return;
+      moveMarker(which, home);
+      say(`Back where the town has it. ${markerList().map((m) => `The ${m.label.toLowerCase()} is in the ${whereIs(m.col)}.`).join(' ')}`);
+    });
+  }
 
   el<HTMLDivElement>('toolrow').addEventListener('click', (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('.tool');
@@ -1089,7 +1480,7 @@ function wireEditor(state: EditorState): void {
     if (height === state.height) return;
     state.height = height;
     state.extraRows = (height - state.entry.placement.size[1] * TILE) / TILE;
-    reference = referenceCanvas(state.entry.placement, state.entry.def, state.width, state.height);
+    reference = buildReference();
     state.zoom = fitZoom();
   }
 
@@ -1421,6 +1812,10 @@ function wireEditor(state: EditorState): void {
     const rowsBefore = state.extraRows;
     pushUndo();
     state.pixels = settled.pixels;
+    // A code that says where the door and the plaque went brings the markers
+    // back with it; one that says nothing leaves them where they are.
+    const carriedColumns = adoptColumns(state, drawing);
+    reference = buildReference();
     fixHeight();
     changed();
 
@@ -1434,6 +1829,11 @@ function wireEditor(state: EditorState): void {
         fit.extraRows === 0
           ? 'It stops at the roofline, so the canvas came down to meet it.'
           : `It has ${plural(fit.extraRows, 'row', 'rows')} above the footprint, so the canvas made room.`
+      );
+    }
+    if (carriedColumns) {
+      notes.push(
+        `It says where the door goes — the ${whereIs(state.doorCol)} — so the markers moved to match.`
       );
     }
     if (settled.stray > 0) {
@@ -1453,13 +1853,7 @@ function wireEditor(state: EditorState): void {
   // --- sending -----------------------------------------------------------
 
   function currentCode(): string {
-    return encode({
-      world: state.world.id,
-      building: state.entry.placement.id,
-      width: state.width,
-      height: state.height,
-      pixels: state.pixels
-    });
+    return encode(drawingOf(state));
   }
 
   function isBlank(): boolean {
@@ -1531,15 +1925,29 @@ function wireEditor(state: EditorState): void {
   }
 
   function bodyLines(name: string): string[] {
-    return [
+    const lines = [
       `Name for the credit: ${name}`,
       '',
       CONSENT,
       '',
       `Building: ${state.entry.def.name} (${state.entry.placement.id}) in ${state.world.title}`,
-      `Canvas: ${state.width} by ${state.height} pixels`,
-      ''
+      `Canvas: ${state.width} by ${state.height} pixels`
     ];
+    // Only when they have been moved, and in the same words the code uses, so
+    // whoever opens the email can read it either way round — this is the one
+    // line that matters when the drawing comes as an attached PNG instead.
+    const moved = placedColumns(state);
+    if (moved.door !== undefined) {
+      const pairs = [`door=${moved.door}`];
+      if (moved.plaque !== undefined) pairs.push(`plaque=${moved.plaque}`);
+      lines.push(
+        `Door and plaque: ${pairs.join(', ')} — that is the ${whereIs(moved.door)}` +
+          (moved.plaque === undefined ? '' : ` and the ${whereIs(moved.plaque)}`) +
+          ' (columns across the front, counting from 0 at the left edge).'
+      );
+    }
+    lines.push('');
+    return lines;
   }
 
   el<HTMLButtonElement>('send').addEventListener('click', () => {
@@ -1686,13 +2094,7 @@ function saveDraft(state: EditorState): void {
   try {
     localStorage.setItem(
       draftKey(state.world.id, state.entry.placement.id),
-      JSON.stringify({ saved: Date.now(), code: encode({
-        world: state.world.id,
-        building: state.entry.placement.id,
-        width: state.width,
-        height: state.height,
-        pixels: state.pixels
-      }) })
+      JSON.stringify({ saved: Date.now(), code: encode(drawingOf(state)) })
     );
   } catch {
     // A full or blocked localStorage is not worth interrupting anyone over.
@@ -1719,6 +2121,7 @@ function restoreDraft(state: EditorState): void {
     state.width = drawing.width;
     state.height = drawing.height;
     state.extraRows = extra;
+    adoptColumns(state, drawing);
   } catch {
     // An unreadable draft is simply not restored; the blank canvas is fine.
   }

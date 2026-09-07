@@ -55,6 +55,12 @@ first tries are welcome too. We'll help you get it over the line.
 - **Height** is a multiple of 16, and can be taller than the footprint —
   the art sits on the bottom of the canvas, and any extra rows above are
   where a roof, awning, or hanging sign goes.
+- **You choose where the door goes.** Two little markers sit on the bottom
+  row of the Studio's canvas, one for the door and one for the plaque, and
+  you can put them in any column you like — drag them along the strip under
+  the drawing, or use the ◀ ▶ buttons beside it. The game reads them for
+  where a player knocks and where your name hangs. They're markers, not
+  paint: they never appear in the picture.
 
 Exact sizes for every open building are below.
 
@@ -62,9 +68,13 @@ Exact sizes for every open building are below.
 
 The Studio's **Submit** button opens an email to
 **tom.hennen+mainstreet@gmail.com** with a text code of your drawing
-already in the body — just hit send.
+already in the body — just hit send. If you moved the door or the plaque, the
+code brings that along, and the email says so in words as well.
 
-Painted outside the Studio? Email that same address and attach the PNG.
+Painted outside the Studio? Email that same address and attach the PNG. If
+you'd like the door somewhere other than where the placeholder has it, just
+say which column in the email — counting the tile columns across the front of
+the building — and we'll set it that way.
 
 Either way, include **the name you'd like credited.** We may nudge colors
 or proportions slightly to fit, asking first for anything big — and your
@@ -73,7 +83,7 @@ the building you painted, where anyone walking past can read it, and on the
 site's front page under the town you painted for. It doesn't appear in the
 building's sign, so the story the game has to tell about the place stays
 uninterrupted. The plaque itself is the game's own — you never have to paint
-one, it goes on top of your art.
+one, it goes on top of your art — but where it hangs is yours to choose.
 
 ## The kindness rule
 
