@@ -113,7 +113,8 @@
       "roof": "#5c6b41",
       "sign": [
         "Up the hill and lit early, and it sounds like everybody in there knows everybody.",
-        "Inside there is a long bar, a little corner stage, and a board with tonight's plan chalked on it.",
+        "It was a hotel once, and the building still has the shoulders for it. These days the bar is the part that's open, and the bar is plenty.",
+        "Inside: one long bar you can walk all the way round, foosball, a little corner stage, and a board with tonight's plan chalked on it.",
         "A taped-up flyer teases a big-name comedian, headed this way one of these days. DATE TBA. Guess you'll just have to keep checking back."
       ]
     },
@@ -612,17 +613,17 @@
             2
           ],
           "size": [
-            5,
-            3
+            8,
+            4
           ],
           "door": [
             80,
-            5
+            6
           ],
           "interior": "the-belvedere-interior",
           "enter": [
-            10,
-            12
+            12,
+            18
           ]
         }
       ],
@@ -1007,18 +1008,139 @@
         {
           "id": "the-belvedere-exit",
           "at": [
-            10,
-            13,
+            12,
+            19,
             2,
             1
           ],
           "to": "stamford",
           "spawn": [
             80,
-            5
+            6
           ],
           "facing": "down",
           "style": "door"
+        },
+        {
+          "id": "the-belvedere-yard-door",
+          "at": [
+            25,
+            9,
+            1,
+            2
+          ],
+          "to": "the-belvedere-yard",
+          "spawn": [
+            1,
+            5
+          ],
+          "facing": "right",
+          "style": "door"
+        }
+      ],
+      "signs": [
+        {
+          "pos": [
+            0,
+            9
+          ],
+          "lines": [
+            "A whole wall of it, papered over floor to ceiling, and papered again where the seams went.",
+            "Behind it, they say, is the old hotel's swimming pool \u2014 dry for years, and quietly still there."
+          ]
+        },
+        {
+          "pos": [
+            21,
+            8
+          ],
+          "lines": [
+            "Somebody drew something on this wall once, and everybody has been drawing on it ever since.",
+            "A whole wall of them, in every hand in town: a dog, a mountain, a pickup, a heart with two names in it, and one very good cow."
+          ]
+        },
+        {
+          "pos": [
+            21,
+            11
+          ],
+          "lines": [
+            "A note taped to this one, in marker: OUT OF ORDER, SORRY \u2014 BACK SOON.",
+            "Underneath, in a different hand and a different pen: it's alright, the other one's nicer anyway."
+          ]
+        },
+        {
+          "pos": [
+            23,
+            11
+          ],
+          "lines": [
+            "The other one: a urinal, a stall, and no sign on the door about who it's for.",
+            "There's a latch on the inside if you'd like the room to yourself."
+          ]
+        },
+        {
+          "pos": [
+            10,
+            18
+          ],
+          "lines": [
+            "A chalkboard propped by the door, wiped and rewritten so many times the paint has gone soft.",
+            "TONIGHT: whoever turns up, whatever they feel like. Underneath, smaller: the stage is right there, and nobody in here is a critic."
+          ]
+        }
+      ],
+      "people": [
+        {
+          "id": "bel-barman",
+          "pos": [
+            5,
+            13
+          ],
+          "facing": "down",
+          "look": {
+            "hair": "bald",
+            "skin": "#c98d63",
+            "shirt": "#3f6d7d",
+            "build": "broad"
+          },
+          "lines": [
+            "Evening. Anywhere you like \u2014 it's all the good seats in here.",
+            "Anything you need, I'm right here. I'm always right here."
+          ]
+        }
+      ]
+    },
+    "the-belvedere-yard": {
+      "name": "The Belvedere Yard",
+      "kind": "interior",
+      "buildings": [],
+      "labels": [],
+      "exits": [
+        {
+          "id": "the-belvedere-yard-exit",
+          "at": [
+            0,
+            5,
+            1,
+            2
+          ],
+          "to": "the-belvedere-interior",
+          "spawn": [
+            24,
+            10
+          ],
+          "facing": "left",
+          "style": "door"
+        }
+      ],
+      "fixtures": [
+        {
+          "kind": "woodpile",
+          "pos": [
+            4,
+            8
+          ]
         }
       ]
     }

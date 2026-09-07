@@ -1,17 +1,81 @@
 {
   "name": "The Belvedere",
-  "size": [22, 14],
+  "size": [26, 20],
   "wall": 15,
   "floor": [12, 11],
-  "door": { "side": "bottom", "column": 10, "width": 2 },
-  "exit": { "id": "the-belvedere-exit", "to": "stamford", "spawn": [80, 5], "facing": "down" },
+  "door": { "side": "bottom", "column": 12, "width": 2 },
+  "exit": { "id": "the-belvedere-exit", "to": "stamford", "spawn": [80, 6], "facing": "down" },
   "props": [
-    { "kind": "bar", "rect": [2, 3, 1, 8], "behind": "left" },
-    { "kind": "stage", "rect": [15, 2, 5, 3], "front": "bottom" },
-    { "kind": "sign", "at": [[5, 1]] },
-    { "kind": "shelf", "rect": [20, 6, 1, 5], "tiles": [20] },
-    { "kind": "table", "at": [[5, 4], [8, 4], [5, 7], [8, 7], [5, 10], [8, 10], [12, 4], [12, 10], [15, 10], [18, 10]] },
-    { "kind": "planter", "at": [[3, 12], [19, 12]] },
-    { "kind": "mat", "rect": [10, 12, 2, 1] }
+    { "kind": "stage", "rect": [10, 1, 6, 3], "front": "bottom" },
+    { "kind": "shelf", "rect": [16, 2, 1, 2], "tiles": [22] },
+    { "kind": "island", "rect": [4, 6, 3, 8], "open": "bottom" },
+    { "kind": "stool", "around": 2 },
+    {
+      "kind": "panel",
+      "rect": [0, 6, 1, 7],
+      "tiles": [50],
+      "lines": [
+        "A whole wall of it, papered over floor to ceiling, and papered again where the seams went.",
+        "Behind it, they say, is the old hotel's swimming pool — dry for years, and quietly still there."
+      ]
+    },
+    { "kind": "foosball", "rect": [16, 6, 2, 1] },
+    { "kind": "foosball", "rect": [16, 9, 2, 1] },
+    { "kind": "foosball", "rect": [16, 12, 2, 1] },
+    { "kind": "hall", "rect": [19, 9, 6, 2] },
+    {
+      "kind": "panel",
+      "rect": [19, 8, 5, 1],
+      "tiles": [51],
+      "lines": [
+        "Somebody drew something on this wall once, and everybody has been drawing on it ever since.",
+        "A whole wall of them, in every hand in town: a dog, a mountain, a pickup, a heart with two names in it, and one very good cow."
+      ]
+    },
+    {
+      "kind": "door",
+      "at": [[21, 11]],
+      "lines": [
+        "A note taped to this one, in marker: OUT OF ORDER, SORRY — BACK SOON.",
+        "Underneath, in a different hand and a different pen: it's alright, the other one's nicer anyway."
+      ]
+    },
+    {
+      "kind": "door",
+      "at": [[23, 11]],
+      "lines": [
+        "The other one: a urinal, a stall, and no sign on the door about who it's for.",
+        "There's a latch on the inside if you'd like the room to yourself."
+      ]
+    },
+    {
+      "kind": "exit",
+      "rect": [25, 9, 1, 2],
+      "id": "the-belvedere-yard-door",
+      "to": "the-belvedere-yard",
+      "spawn": [1, 5],
+      "facing": "right"
+    },
+    { "kind": "table", "at": [[9, 16], [11, 16], [8, 3]] },
+    {
+      "kind": "sign",
+      "at": [[10, 18]],
+      "lines": [
+        "A chalkboard propped by the door, wiped and rewritten so many times the paint has gone soft.",
+        "TONIGHT: whoever turns up, whatever they feel like. Underneath, smaller: the stage is right there, and nobody in here is a critic."
+      ]
+    }
+  ],
+  "people": [
+    {
+      "id": "bel-barman",
+      "pos": [5, 13],
+      "facing": "down",
+      "look": { "hair": "bald", "skin": "#c98d63", "shirt": "#3f6d7d", "build": "broad" },
+      "lines": [
+        "Evening. Anywhere you like — it's all the good seats in here.",
+        "Anything you need, I'm right here. I'm always right here."
+      ]
+    }
   ]
 }
