@@ -3600,19 +3600,44 @@ async function main() {
         return found;
       };
 
-      // It drives on its own, with the player nowhere near it.
-      const from = await whereIsCar(carData.id);
-      await sleep(2000);
-      const to = await whereIsCar(carData.id);
-      const covered = Math.hypot(to.x - from.x, to.y - from.y);
-      if (covered < 1) {
+      /**
+       * How far a car covers, added up poll by poll rather than measured end
+       * to end. Two reasons for the adding up: a car that turns at the end of
+       * its leg and comes back has barely moved as the crow flies but has very
+       * much been driving, and a slow machine polls at whatever rate it can
+       * manage. `want` tiles ends the watch early and is what the checks below
+       * wait on; `ms` is only how long to keep looking.
+       *
+       * Nothing here counts frames or assumes a frame rate: the engine
+       * publishes where the car *is*, and this reads that, so the same numbers
+       * come out of a fast laptop and a loaded CI runner.
+       */
+      const drivenBy = async (id, want, ms, why) => {
+        const t0 = Date.now();
+        let last = await whereIsCar(id);
+        let total = 0;
+        while (Date.now() - t0 < ms) {
+          await sleep(60);
+          const now = await whereIsCar(id);
+          total += Math.hypot(now.x - last.x, now.y - last.y);
+          last = now;
+          if (total >= want) return { tiles: total, ms: Date.now() - t0 };
+        }
         fail(
           'cars',
-          `"${carData.id}" covered ${covered.toFixed(2)} tiles in two seconds — ` +
-            `${[from.x, from.y]} to ${[to.x, to.y]}`
+          `"${id}" covered ${total.toFixed(2)} tiles in ${((Date.now() - t0) / 1000).toFixed(1)}s ` +
+            `and is sitting at ${[last.x, last.y]} — ${why}`
         );
-      }
-      log(`    covered ${covered.toFixed(1)} tiles in 2s with nobody near it`);
+      };
+
+      // It sets off on its own, with the player nowhere near it. A car stands
+      // at a waypoint for a beat before each leg (`pause`), so this waits for
+      // it to be under way rather than starting a stopwatch on the chance that
+      // it already is — which is exactly what a slower machine gets wrong.
+      const away = await drivenBy(carData.id, 1, 30000, 'it never set off with nobody near it');
+      log(`    set off on its own: ${away.tiles.toFixed(1)} tiles in ${(away.ms / 1000).toFixed(1)}s`);
+      const on = await drivenBy(carData.id, 4, 20000, 'it set off and then stopped with nobody near it');
+      log(`    kept going: ${on.tiles.toFixed(1)} more tiles in ${(on.ms / 1000).toFixed(1)}s`);
 
       // Two places to stand, both found from the car's own first leg rather
       // than written down: one *in* its lane, and one beside it on the next
@@ -3658,19 +3683,49 @@ async function main() {
       // Beside the lane, on the line the car does not drive on: it goes past
       // without stopping, and nothing about the player changes when it does.
       await walkTo(cp, 'cars', beside);
+      // Walking over may have crossed the lane and stopped the car; give it
+      // its road back before watching for it.
+      await drivenBy(carData.id, 1, 30000, 'it never picked up again after the player crossed the road');
       const before = await snap(cp);
       const wasAt = here(before);
       const wasFlags = JSON.stringify(before.flags);
       log(`    standing at ${wasAt}, one line over from the lane`);
+
+      // "It went past" is a crossing, not a near miss: which side of the
+      // player it is on has to flip. A slow machine polls slowly, and a car
+      // can cover several tiles between two polls, so waiting to *catch* it
+      // alongside would be waiting on the sampling rate. Being within a tile
+      // still ends the wait first when the polling is quick enough, because
+      // that is the frame worth photographing.
+      const axis = alongX ? 'x' : 'y';
+      const cross = alongX ? 'y' : 'x';
+      let side = null;
+      let closest = Infinity;
+      // Roughly a dozen seconds between passes — the car comes by on one lane
+      // and then the other — so the wait is minutes of headroom, not a guess.
+      const sawItAt = Date.now();
       const passing = await waitUntil(
         cp,
         (state) => {
           const v = (state.vehicles ?? []).find((q) => q.id === carData.id);
-          return Boolean(v) && Math.abs(v.x - state.x) <= 1 && Math.abs(v.y - state.y) <= 1;
+          if (!v) return false;
+          // Only while it is on one of the lanes beside the player: the far
+          // side of the loop crosses the same line and is not this pass.
+          if (Math.abs(v[cross] - state[cross]) > 1.2) {
+            side = null;
+            return false;
+          }
+          closest = Math.min(closest, Math.hypot(v.x - state.x, v.y - state.y));
+          if (closest <= 1) return true;
+          const now = Math.sign(v[axis] - state[axis]);
+          if (now === 0) return true;
+          if (side === null) side = now;
+          return now !== side;
         },
         `"${carData.id}" to come past the watching spot`,
         90000
       );
+      const waitedToPass = ((Date.now() - sawItAt) / 1000).toFixed(1);
       await shot(cp, 'car-passing');
       const went = (passing.vehicles ?? []).find((v) => v.id === carData.id);
       if (went.stopped) fail('cars', `"${carData.id}" stopped for somebody who was not even in its lane`);
@@ -3681,11 +3736,22 @@ async function main() {
       if (nudged > 0.01 || String(here(passing)) !== String(wasAt)) {
         fail('cars', `a car going by moved the player ${nudged.toFixed(2)} tiles, ${wasAt} -> ${here(passing)}`);
       }
-      log('    it went by without stopping, and left the player and the flags alone');
+      log(
+        `    it went by after ${waitedToPass}s (${closest === Infinity ? 'a crossing' : `${closest.toFixed(1)} tiles off`}) ` +
+          'without stopping, and left the player and the flags alone'
+      );
 
-      // In the lane: it sees the player, coasts to a stop and waits.
+      // In the lane: it sees the player, coasts to a stop and waits. Started
+      // from a car that is known to be driving, so "it stopped" means it
+      // stopped *for the player* rather than for its own waypoint.
+      await drivenBy(carData.id, 1, 30000, 'it was not driving before the player stepped into its lane');
       await walkTo(cp, 'cars', inLane);
       log(`    standing in the lane at ${inLane}`);
+      // Only one of the lanes is this one, so the wait here is a whole lap of
+      // the car's route rather than half — half a minute at Route 10's pace,
+      // and the allowance is five times that so a loaded machine is slow
+      // rather than broken.
+      const steppedInAt = Date.now();
       const held = await waitUntil(
         cp,
         (state) => {
@@ -3693,18 +3759,28 @@ async function main() {
           return Boolean(v) && v.stopped && v.yielding;
         },
         `"${carData.id}" to give way to the player standing in its lane`,
-        90000
+        150000
       );
       const waiting = (held.vehicles ?? []).find((v) => v.id === carData.id);
       const gap = Math.hypot(waiting.x - held.x, waiting.y - held.y);
-      log(`    it stopped ${gap.toFixed(1)} tiles short of the player and waited`);
+      log(
+        `    it stopped ${gap.toFixed(1)} tiles short of the player and waited ` +
+          `(it came round in ${((Date.now() - steppedInAt) / 1000).toFixed(1)}s)`
+      );
       await shot(cp, 'car-stopped');
       if (gap < 0.5) fail('cars', `"${carData.id}" stopped on top of the player rather than behind them`);
 
-      // And it stays stopped for as long as they stand there.
-      await sleep(1500);
-      const stillWaiting = await whereIsCar(carData.id);
-      const crept = Math.hypot(stillWaiting.x - waiting.x, stillWaiting.y - waiting.y);
+      // And it stays stopped for as long as they stand there — watched all
+      // the way through rather than looked at twice, so a crawl is caught too.
+      // Read once more first: `stopped` is "throttle closed", and the last
+      // fraction of a tile of coasting belongs to the stop, not to creeping.
+      const parkedAt = await whereIsCar(carData.id);
+      let crept = 0;
+      for (let i = 0; i < 8; i++) {
+        await sleep(200);
+        const now = await whereIsCar(carData.id);
+        crept = Math.max(crept, Math.hypot(now.x - parkedAt.x, now.y - parkedAt.y));
+      }
       if (crept > 0.05) {
         fail('cars', `"${carData.id}" crept ${crept.toFixed(2)} tiles with the player still standing in front of it`);
       }
@@ -3712,14 +3788,8 @@ async function main() {
 
       // Step off the road and it carries on.
       await walkTo(cp, 'cars', beside);
-      const resumeFrom = await whereIsCar(carData.id);
-      await sleep(2000);
-      const resumeTo = await whereIsCar(carData.id);
-      const resumed = Math.hypot(resumeTo.x - resumeFrom.x, resumeTo.y - resumeFrom.y);
-      if (resumed < 1) {
-        fail('cars', `"${carData.id}" never pulled away again: ${resumed.toFixed(2)} tiles in two seconds`);
-      }
-      log(`    pulled away again once the player stepped off (${resumed.toFixed(1)} tiles in 2s)`);
+      const again = await drivenBy(carData.id, 2, 30000, 'it never pulled away again once the player stepped off');
+      log(`    pulled away again once the player stepped off: ${again.tiles.toFixed(1)} tiles in ${(again.ms / 1000).toFixed(1)}s`);
     }
 
     log(`\n  ${PLAYTEST_EPISODE} completed end to end.`);
