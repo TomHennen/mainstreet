@@ -28,6 +28,42 @@ If you'd rather use a "real" pixel art tool, **Aseprite** (paid) or
 **Piskel** (free, in-browser) both work — just follow the spec below by
 hand.
 
+### Drawing on a phone
+
+The Studio is happy on a phone, and this is all there is to it:
+
+- **One finger draws** with whichever tool is selected.
+- **Two fingers zoom and pan** — pinch to get right in close to a few
+  pixels, and slide to move around a drawing that's bigger than the screen.
+  Starting a pinch never leaves a stray dot behind: whatever the first
+  finger touched goes back the way it was.
+- **Lock** (the button under the drawing) tells the canvas to ignore one
+  finger, so you can scroll the page past it to reach the tools and the
+  palette. Two fingers still zoom and pan while it's locked. Tap it again
+  to paint.
+
+The drawing opens sized to fit your screen, and the little **×6** beside
+the zoom buttons says how big a pixel is right now.
+
+### Prefer a real pixel-art app?
+
+That works just as well, and some of them are lovely to draw in — on a
+phone, **Dotpict**, **Pixquare** and **Pixel Studio** are three that people
+use; on a desktop, Aseprite or Piskel. Set them up like this:
+
+1. Load the palette **Resurrect 64**, which is on Lospec:
+   <https://lospec.com/palette-list/resurrect-64>. (The Studio will also
+   hand you the same palette as a `.png` or a `.hex` file, under "Painting
+   somewhere else?".)
+2. Use the size for your building from the table at the bottom of this
+   page — the width is fixed; the height can be that or taller in steps of
+   16 pixels, with the extra rows at the top for a roof or a sign.
+3. Export a PNG with a transparent background and no smoothing.
+
+Then either **import the PNG in the Studio** — it checks the size, nudges
+any near-miss colors onto the palette, and tells you what it changed — or
+just email it to us as an attachment. Both land in the same place.
+
 ### What good enough looks like
 
 Here's a plain, ordinary building at the size and level of detail we're

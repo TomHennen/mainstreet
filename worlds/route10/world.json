@@ -8,6 +8,8 @@
     "subject": "A story idea for Route 10"
   },
   "palette": "palette.png",
+  "paletteName": "Resurrect 64",
+  "paletteLink": "https://lospec.com/palette-list/resurrect-64",
   "episodes": [
     "ep001"
   ],

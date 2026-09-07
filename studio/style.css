@@ -161,9 +161,15 @@ a.link {
   background: var(--night);
   border: 2px solid var(--edge);
   border-radius: 6px;
+  /* Scrolls itself when the drawing is zoomed in past it, and deliberately
+     without overscroll-behavior: contain — with the canvas locked, a finger has
+     to be able to scroll the stage and then carry on down the page, which is
+     the whole point of the lock. */
   overflow: auto;
-  height: 44vh;
-  min-height: 220px;
+  /* Tall enough on a phone that the width is what decides the opening zoom,
+     even with a full-size marker strip under the drawing. */
+  height: 50vh;
+  min-height: 240px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -187,6 +193,16 @@ a.link {
   image-rendering: pixelated;
   touch-action: none;
   flex: none;
+}
+
+#gesturenote {
+  margin: -2px 0 10px;
+}
+
+.zoomlevel {
+  font-variant-numeric: tabular-nums;
+  min-width: 26px;
+  text-align: center;
 }
 
 /* Dragged with a finger or a mouse; touch-action keeps the browser from
@@ -346,6 +362,37 @@ kbd {
 .swatch.on {
   border-color: var(--paper);
   outline: 2px solid var(--maple);
+}
+
+/* A phone gets bigger targets than a mouse does. This sits below the rules it
+   overrides, so plain source order settles it. */
+@media (pointer: coarse), (max-width: 719px) {
+  /* Nothing a finger has to hit is smaller than 44 CSS pixels across. The rows
+     wrap rather than shrink, and the palette wraps onto as many lines as it
+     takes — a mis-tapped colour is a nuisance nobody should have to work
+     around. The marker chips get the same room; studio.ts draws them 44 tall
+     to match (MARKER_STRIP_TOUCH). */
+  button,
+  .button {
+    min-height: 44px;
+  }
+
+  .tool,
+  .size,
+  .toggle,
+  .marker button {
+    min-width: 44px;
+    justify-content: center;
+  }
+
+  .palette {
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+    gap: 6px;
+  }
+
+  .swatch {
+    min-height: 44px;
+  }
 }
 
 /* --- files and sending ----------------------------------------------------- */
@@ -519,6 +566,7 @@ kbd {
     grid-template-areas:
       'head head'
       'stage tools'
+      'gestures tools'
       'guide tools'
       'status tools'
       'files preview'
@@ -533,6 +581,9 @@ kbd {
   }
   .editing .stage {
     grid-area: stage;
+  }
+  .editing #gesturenote {
+    grid-area: gestures;
   }
   .editing #guidenote {
     grid-area: guide;

@@ -15,11 +15,13 @@
  * touch handlers anywhere, so nothing can fire twice. The strip of door and
  * plaque markers under it is the same one path — drag a marker with a finger
  * or a mouse — with a row of buttons beside the drawing for anyone who would
- * rather not drag, or is using a keyboard. One finger paints; a second finger
- * turns the gesture into a two-finger pan and quietly puts back whatever the
- * first finger had started, so scrolling a big drawing never leaves marks on
- * it. The ordinary controls are <button>s on `click`, which is
- * one path too and is the one a keyboard can reach.
+ * rather not drag, or is using a keyboard. One finger paints; the moment a
+ * second finger lands the gesture becomes a pinch — zoom and pan together —
+ * and whatever the first finger had started goes back the way it was, so
+ * getting a closer look never leaves a stray dot behind. Lock puts the
+ * drawing hand away entirely, so a finger can scroll the page past the
+ * canvas. The ordinary controls are <button>s on `click`, which is one path
+ * too and is the one a keyboard can reach.
  */
 import { CodeError, MAGIC, TRANSPARENT, decode, encode } from './codec';
 import {
@@ -62,14 +64,39 @@ const PREVIEW_MAX_WIDTH = 260;
  */
 const DOOR_MARK = '#ffd166';
 const PLAQUE_MARK = '#8fd6a8';
-/** Height of the little strip of draggable markers under the canvas, in CSS pixels. */
+/**
+ * Height of the little strip of draggable markers under the canvas, in CSS
+ * pixels: trim under a mouse, and a full 44 where a finger has to land on it.
+ */
 const MARKER_STRIP = 24;
+const MARKER_STRIP_TOUCH = 44;
+/** Where style.css draws the line between a phone and a desk, in one place. */
+const PHONE = '(pointer: coarse), (max-width: 719px)';
+
+function onAPhone(): boolean {
+  return window.matchMedia(PHONE).matches;
+}
+
+function stripHeight(): number {
+  return onAPhone() ? MARKER_STRIP_TOUCH : MARKER_STRIP;
+}
+
+/** The closest the canvas will come: screen pixels per drawing pixel. */
+const MAX_ZOOM = 12;
 
 const CONSENT =
   "I made this, I'm happy for it to appear in mainstreet with credit to the " +
   'name above, and I license it under the terms on the contributing page.';
 
 const GUIDANCE = "Draw the storefront as you remember it; please don't paste a logo.";
+
+const GESTURES =
+  'One finger paints; two fingers zoom and pan, and so does ctrl with a mouse ' +
+  'wheel. Lock the canvas when you would rather a finger scrolled the page past it.';
+
+const LOCK_ON = 'Locked, so a finger can scroll the page past the drawing. Two fingers still zoom and pan.';
+
+const LOCK_OFF = 'Unlocked — one finger paints again.';
 
 const CANNOT_READ =
   "That file would not open here as a picture, and it may well be nothing you did. " +
@@ -125,6 +152,10 @@ interface World {
   title: string;
   subtitle?: string;
   palette?: string;
+  /** What this world's palette is called, and where it lives, if the pack says
+   *  — for anyone painting in an editor that can fetch a palette by name. */
+  paletteName?: string;
+  paletteLink?: string;
   buildings: Record<string, BuildingDef>;
   maps: Record<string, MapDef>;
 }
@@ -366,6 +397,8 @@ interface EditorState {
   zoom: number;
   showGrid: boolean;
   showReference: boolean;
+  /** Locked: one finger scrolls the page past the canvas instead of painting. */
+  locked: boolean;
   /** Tile column the door goes in, counting from 0 at the building's left edge. */
   doorCol: number;
   /** The same for the plaque, or null for a building that has none. */
@@ -481,6 +514,7 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
     zoom: 4,
     showGrid: true,
     showReference: false,
+    locked: false,
     doorCol,
     plaqueCol: plaqueDefault,
     defaultDoorCol: doorCol,
@@ -496,6 +530,15 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
   here.textContent = def.name;
   home.href = `?world=${encodeURIComponent(world.id)}`;
   home.textContent = `← ${world.title}`;
+
+  // Named in the world pack, never here (hard rule 1): a world that says what
+  // its palette is called gets a line about it, and one that doesn't, doesn't.
+  const paletteNamed = world.paletteName
+    ? ` The palette is called ${esc(world.paletteName)}` +
+      (world.paletteLink
+        ? `, and it lives at <a class="link" href="${esc(world.paletteLink)}" rel="noreferrer">${esc(world.paletteLink)}</a>.`
+        : '.')
+    : '';
 
   const swatches = palette
     .map((colour, index) =>
@@ -520,6 +563,7 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
         <canvas id="markers" aria-hidden="true"></canvas>
       </div>
     </div>
+    <p class="quiet" id="gesturenote">${esc(GESTURES)}</p>
     <p class="quiet" id="guidenote" hidden>Guide only. It isn't part of your drawing.</p>
 
     <p class="statusline" id="status" role="status" aria-live="polite">&nbsp;</p>
@@ -550,10 +594,13 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
       <div class="row">
         <button id="undo">Undo<kbd>⌘Z</kbd></button>
         <button id="redo">Redo<kbd>⇧⌘Z</kbd></button>
-        <button id="zoomout">Zoom −<kbd>[</kbd></button>
-        <button id="zoomin">Zoom +<kbd>]</kbd></button>
+        <button id="zoomout" aria-label="Zoom out">Zoom −<kbd>[</kbd></button>
+        <button id="zoomin" aria-label="Zoom in">Zoom +<kbd>]</kbd></button>
+        <span class="quiet zoomlevel" id="zoomlevel">×4</span>
         <button id="grid" class="toggle">Grid<kbd>G</kbd></button>
         <button id="reference" class="toggle">Reference<kbd>V</kbd></button>
+        <button id="lock" class="toggle" aria-pressed="false"
+          aria-describedby="gesturenote">Lock<kbd>K</kbd></button>
       </div>
       <div class="row rows">
         <span class="quiet" id="rowslabel"></span>
@@ -640,7 +687,7 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
             <button id="downloadhex">Download the palette as .hex</button>
           </div>
           <p class="quiet">The .hex file is one colour per line, which
-            Aseprite, Piskel and Lospec all read straight in.</p>
+            Aseprite, Piskel and Lospec all read straight in.${paletteNamed}</p>
           <p class="quiet">Import a PNG above afterwards and the Studio sorts
             out the small things itself: it moves any colour that isn't quite
             on the palette to the nearest one that is, makes up its mind about
@@ -845,29 +892,34 @@ function wireEditor(state: EditorState): void {
    */
   function renderStrip(): void {
     const w = state.width * state.zoom;
+    const height = stripHeight();
     const dpr = Math.min(3, window.devicePixelRatio || 1);
     strip.width = Math.round(w * dpr);
-    strip.height = Math.round(MARKER_STRIP * dpr);
+    strip.height = Math.round(height * dpr);
     strip.style.width = `${w}px`;
-    strip.style.height = `${MARKER_STRIP}px`;
+    strip.style.height = `${height}px`;
     const ctx = strip.getContext('2d');
     if (!ctx) return;
     ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, w, MARKER_STRIP);
+    ctx.clearRect(0, 0, w, height);
 
+    // A chip is at least 44 across on a phone, and the stem above it is part of
+    // the same target, so a fingertip has somewhere comfortable to land.
+    const stem = 6;
+    const least = onAPhone() ? MARKER_STRIP_TOUCH : 34;
     const tile = TILE * state.zoom;
     ctx.font = 'bold 10px ui-monospace, Menlo, Consolas, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const mark of markerList()) {
       const centre = mark.col * tile + tile / 2;
-      const chip = Math.min(w, Math.max(34, ctx.measureText(mark.label).width + 14));
+      const chip = Math.min(w, Math.max(least, ctx.measureText(mark.label).width + 14));
       const left = Math.max(0, Math.min(w - chip, centre - chip / 2));
       ctx.fillStyle = mark.colour;
-      ctx.fillRect(centre - 1, 0, 2, 6);
-      ctx.fillRect(left, 5, chip, 16);
+      ctx.fillRect(centre - 1, 0, 2, stem);
+      ctx.fillRect(left, stem - 1, chip, height - stem + 1);
       ctx.fillStyle = '#12160f';
-      ctx.fillText(mark.label, left + chip / 2, 13.5);
+      ctx.fillText(mark.label, left + chip / 2, stem + (height - stem) / 2);
     }
     ctx.textBaseline = 'alphabetic';
   }
@@ -958,6 +1010,13 @@ function wireEditor(state: EditorState): void {
     el<HTMLButtonElement>('grid').classList.toggle('on', state.showGrid);
     el<HTMLButtonElement>('reference').classList.toggle('on', state.showReference);
     el<HTMLElement>('guidenote').hidden = !state.showReference;
+    const lock = el<HTMLButtonElement>('lock');
+    lock.classList.toggle('on', state.locked);
+    lock.setAttribute('aria-pressed', String(state.locked));
+    // Locked, one-finger gestures go back to the browser, which scrolls the
+    // stage and then the page with them; unlocked, they are the studio's own.
+    view.style.touchAction = state.locked ? 'pan-y' : 'none';
+    el<HTMLElement>('zoomlevel').textContent = `×${state.zoom}`;
     el<HTMLButtonElement>('undo').disabled = state.undo.length === 0;
     el<HTMLButtonElement>('redo').disabled = state.redo.length === 0;
     el<HTMLButtonElement>('fewerrows').disabled = state.extraRows <= 0;
@@ -1041,11 +1100,23 @@ function wireEditor(state: EditorState): void {
 
   // --- the canvas, under a finger or a mouse ----------------------------
 
+  /**
+   * Every finger and every mouse on the canvas, by pointerId — one path,
+   * pointer events only, no touch handlers anywhere (hard rule 4). One pointer
+   * draws. A second turns the whole gesture into a pinch: zoom about the point
+   * between the fingers, and pan with it, until every pointer has lifted.
+   */
   const pointers = new Map<number, { x: number; y: number }>();
   let strokeSnapshot: Uint8Array | null = null;
   let last: { x: number; y: number } | null = null;
   let shapeStart: { x: number; y: number } | null = null;
-  let panFrom: { x: number; y: number } | null = null;
+  /** The one pointer that is drawing, while one is. */
+  let drawingWith: number | null = null;
+  /** A pinch under way: the drawing point the fingers came down on, how far
+   *  apart they were, and the zoom they started from. */
+  let pinch: { anchor: { x: number; y: number }; spread: number; zoom: number } | null = null;
+  /** The last point between the fingers, so the snap on release lands there. */
+  let pinchMid = { x: 0, y: 0 };
 
   function cellAt(event: PointerEvent): { x: number; y: number } | null {
     const rect = view.getBoundingClientRect();
@@ -1197,18 +1268,133 @@ function wireEditor(state: EditorState): void {
     return { x: x / pointers.size, y: y / pointers.size };
   }
 
+  /** How far apart the two fingers are, in screen pixels; never zero. */
+  function spread(): number {
+    const points = Array.from(pointers.values());
+    if (points.length < 2) return 1;
+    return Math.max(1, Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y));
+  }
+
+  /** Screen pixels per drawing pixel as the canvas stands right now — a whole
+   *  number, except part-way through a pinch. */
+  function shownZoom(): number {
+    const rect = view.getBoundingClientRect();
+    return rect.width > 0 ? rect.width / state.width : state.zoom;
+  }
+
+  /** Where a point on the screen lands in the drawing, in fractional pixels. */
+  function drawingPoint(clientX: number, clientY: number): { x: number; y: number } {
+    const rect = view.getBoundingClientRect();
+    const zoom = shownZoom();
+    return { x: (clientX - rect.left) / zoom, y: (clientY - rect.top) / zoom };
+  }
+
+  /**
+   * Scrolls the stage until a point in the drawing sits under a point on the
+   * screen. It is how a pinch keeps whatever is between the fingers between
+   * them, and how the zoom buttons keep the middle of the view still. When the
+   * drawing is smaller than the stage there is nothing to scroll and it simply
+   * stays centred, which is where it wants to be then anyway.
+   */
+  function anchorAt(point: { x: number; y: number }, clientX: number, clientY: number): void {
+    const rect = view.getBoundingClientRect();
+    const zoom = shownZoom();
+    stage.scrollLeft += rect.left + point.x * zoom - clientX;
+    stage.scrollTop += rect.top + point.y * zoom - clientY;
+  }
+
+  /**
+   * The canvas at a part-way zoom, without redrawing a pixel: the bitmap stays
+   * exactly as it is and the browser scales it, which is what keeps a pinch
+   * smooth on a phone. The marker strip is stretched by the same amount so its
+   * chips stay over their columns. render() puts both back on a whole number.
+   */
+  function showAtZoom(zoom: number): void {
+    view.style.width = `${state.width * zoom}px`;
+    view.style.height = `${state.height * zoom}px`;
+    strip.style.width = `${state.width * zoom}px`;
+  }
+
+  /**
+   * Holding on to a pointer so its moves keep coming even if it wanders off the
+   * canvas. A pointer that has already been let go of cannot be captured, and
+   * that is not worth an exception: the handlers below cope either way.
+   */
+  function capture(pointerId: number): void {
+    try {
+      view.setPointerCapture(pointerId);
+    } catch {
+      // Nothing to hold on to; carry on.
+    }
+  }
+
+  function beginPinch(): void {
+    pinchMid = centroid();
+    pinch = { anchor: drawingPoint(pinchMid.x, pinchMid.y), spread: spread(), zoom: shownZoom() };
+  }
+
+  function movePinch(): void {
+    if (!pinch) return;
+    pinchMid = centroid();
+    const zoom = Math.min(MAX_ZOOM, Math.max(1, (pinch.zoom * spread()) / pinch.spread));
+    showAtZoom(zoom);
+    anchorAt(pinch.anchor, pinchMid.x, pinchMid.y);
+    // The readout keeps up with the fingers, and refreshChrome() puts the
+    // settled number back the moment they lift.
+    el<HTMLElement>('zoomlevel').textContent = `×${Math.round(zoom)}`;
+  }
+
+  /** A finger has lifted: settle on the nearest whole zoom, still looking at
+   *  whatever the pinch was looking at. */
+  function endPinch(): void {
+    if (!pinch) return;
+    const { anchor } = pinch;
+    pinch = null;
+    state.zoom = Math.min(MAX_ZOOM, Math.max(1, Math.round(shownZoom())));
+    render();
+    refreshChrome();
+    anchorAt(anchor, pinchMid.x, pinchMid.y);
+  }
+
+  /**
+   * Every zoom that isn't a pinch comes through here — the buttons, the
+   * keyboard and a ctrl-wheel — so they all agree with each other and all keep
+   * a point of the drawing under the same spot on the screen.
+   */
+  function setZoom(next: number, at?: { x: number; y: number }): void {
+    const zoom = Math.min(MAX_ZOOM, Math.max(1, Math.round(next)));
+    if (zoom === state.zoom) return;
+    const box = stage.getBoundingClientRect();
+    const spot = at ?? { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+    const anchor = drawingPoint(spot.x, spot.y);
+    state.zoom = zoom;
+    changed();
+    anchorAt(anchor, spot.x, spot.y);
+  }
+
   view.addEventListener('pointerdown', (event) => {
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (pointers.size > 1) {
       // A second finger means "move the canvas", never "paint". Whatever the
-      // first finger did on the way down goes back the way it was.
+      // first finger had started goes back the way it was, and nothing paints
+      // again until every pointer has lifted.
       abortStroke();
-      panFrom = centroid();
+      drawingWith = null;
+      capture(event.pointerId);
+      beginPinch();
       return;
     }
 
+    // Locked, the canvas is something to scroll past rather than draw on: the
+    // gesture stays the browser's, and preventDefault() is never called, so the
+    // page scrolls. The pointer is still held on to, and still counted, so that
+    // a second finger arriving is a pinch and a first finger leaving is heard
+    // wherever it happens to be by then.
+    capture(event.pointerId);
+    if (state.locked) return;
+
     event.preventDefault();
-    view.setPointerCapture(event.pointerId);
+    drawingWith = event.pointerId;
     const cell = cellAt(event);
     if (!cell) return;
 
@@ -1244,14 +1430,10 @@ function wireEditor(state: EditorState): void {
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
     if (pointers.size > 1) {
-      const now = centroid();
-      if (panFrom) {
-        stage.scrollLeft -= now.x - panFrom.x;
-        stage.scrollTop -= now.y - panFrom.y;
-      }
-      panFrom = now;
+      movePinch();
       return;
     }
+    if (drawingWith !== event.pointerId) return;
     if (!strokeSnapshot || state.tool === 'fill') return;
 
     const cell = cellAt(event);
@@ -1271,9 +1453,10 @@ function wireEditor(state: EditorState): void {
 
   function endPointer(event: PointerEvent): void {
     pointers.delete(event.pointerId);
-    if (pointers.size < 2) panFrom = null;
-    if (pointers.size > 0) return;
     if (view.hasPointerCapture(event.pointerId)) view.releasePointerCapture(event.pointerId);
+    if (pinch && pointers.size < 2) endPinch();
+    if (pointers.size > 0) return;
+    drawingWith = null;
     if (strokeSnapshot) {
       const before = strokeSnapshot;
       strokeSnapshot = null;
@@ -1296,14 +1479,35 @@ function wireEditor(state: EditorState): void {
   view.addEventListener('pointerup', endPointer);
   view.addEventListener('pointercancel', endPointer);
 
+  // A wheel with ctrl or ⌘ held is what a trackpad pinch sends, and what every
+  // other pixel editor takes as zoom. A plain wheel belongs to the page, and
+  // is left well alone so the rest of the studio scrolls as it always did.
+  view.addEventListener(
+    'wheel',
+    (event) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      setZoom(state.zoom + (event.deltaY < 0 ? 1 : -1), { x: event.clientX, y: event.clientY });
+    },
+    { passive: false }
+  );
+
   // --- canvas size, zoom, toggles ---------------------------------------
 
+  /**
+   * The zoom a drawing opens at, and goes back to whenever its size changes:
+   * the biggest whole number of screen pixels per drawing pixel that still
+   * shows the whole drawing inside the stage. On a phone the width is what
+   * decides it — an 80-pixel facade opens filling the screen across — and the
+   * height only comes into it on a stage too short to hold the result. Never
+   * less than 1, so there is always something to see and pinch into.
+   */
   function fitZoom(): number {
     const wide = Math.max(1, Math.floor((stage.clientWidth - 8) / state.width));
     // The strip of markers shares the stage with the canvas, so it gets its
     // height out of the way first (plus the 4px gap between the two).
-    const tall = Math.max(1, Math.floor((stage.clientHeight - 12 - MARKER_STRIP) / state.height));
-    return Math.min(12, Math.max(1, Math.min(wide, tall)));
+    const tall = Math.max(1, Math.floor((stage.clientHeight - 12 - stripHeight()) / state.height));
+    return Math.min(MAX_ZOOM, Math.max(1, Math.min(wide, tall)));
   }
 
   function setRows(rows: number): void {
@@ -1501,14 +1705,24 @@ function wireEditor(state: EditorState): void {
 
   el<HTMLButtonElement>('undo').addEventListener('click', undo);
   el<HTMLButtonElement>('redo').addEventListener('click', redo);
-  el<HTMLButtonElement>('zoomin').addEventListener('click', () => {
-    state.zoom = Math.min(12, state.zoom + 1);
-    changed();
-  });
-  el<HTMLButtonElement>('zoomout').addEventListener('click', () => {
-    state.zoom = Math.max(1, state.zoom - 1);
-    changed();
-  });
+  el<HTMLButtonElement>('zoomin').addEventListener('click', () => setZoom(state.zoom + 1));
+  el<HTMLButtonElement>('zoomout').addEventListener('click', () => setZoom(state.zoom - 1));
+  /**
+   * Lock: the canvas stops taking one finger as a brush and hands the gesture
+   * back to the browser, so the page scrolls past a big drawing the way every
+   * other page does. Two fingers still zoom and pan, and the tools, the
+   * buttons and the keyboard are all untouched by it.
+   */
+  function setLocked(on: boolean): void {
+    if (state.locked === on) return;
+    state.locked = on;
+    abortStroke();
+    refreshChrome();
+    say(on ? LOCK_ON : LOCK_OFF);
+  }
+
+  el<HTMLButtonElement>('lock').addEventListener('click', () => setLocked(!state.locked));
+
   el<HTMLButtonElement>('grid').addEventListener('click', () => {
     state.showGrid = !state.showGrid;
     changed();
@@ -2133,13 +2347,14 @@ function wireEditor(state: EditorState): void {
       case ']':
       case '+':
       case '=':
-        state.zoom = Math.min(12, state.zoom + 1);
-        changed();
+        setZoom(state.zoom + 1);
         return;
       case '[':
       case '-':
-        state.zoom = Math.max(1, state.zoom - 1);
-        changed();
+        setZoom(state.zoom - 1);
+        return;
+      case 'k':
+        setLocked(!state.locked);
         return;
       default:
         return;
@@ -2147,9 +2362,12 @@ function wireEditor(state: EditorState): void {
     refreshChrome();
   });
 
+  // A turn of the phone, or a window dragged wider: the drawing goes back to
+  // fitting the room it now has.
   window.addEventListener('resize', () => {
     state.zoom = fitZoom();
     render();
+    refreshChrome();
   });
 
   state.zoom = fitZoom();

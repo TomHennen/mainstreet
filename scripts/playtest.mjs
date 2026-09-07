@@ -192,8 +192,15 @@ const pageErrors = [];
 
 class Failure extends Error {}
 
+/**
+ * The last thing the run said out loud. The watchdog reads it, so that a run
+ * that wedges says where it got to instead of just stopping.
+ */
+let lastSaid = 'starting up';
+
 /** Everything the run prints also lands in playtest-out/playtest.log. */
 function log(line = '') {
+  if (line.trim()) lastSaid = line.trim();
   console.log(line);
   try {
     appendFileSync(LOG, line + '\n');
@@ -216,6 +223,28 @@ function fail(milestone, detail) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * A wait with a ceiling on it. Two things in here have no timeout of their
+ * own and can therefore wait for ever: `page.evaluate()` and a CDP `send()`.
+ * The touch dispatches are the sharp edge — Chromium only answers
+ * `Input.dispatchTouchEvent` once the renderer has acknowledged the event, and
+ * a touchmove that starts a scroll is not acknowledged until a frame has been
+ * painted, which a busy machine can put off indefinitely. Everything that
+ * could hang goes through here, so a stuck run fails with a sentence rather
+ * than sitting there.
+ */
+function within(ms, label, work) {
+  let timer;
+  const capped = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Failure(`[timeout] ${label} did not answer inside ${Math.round(ms / 1000)}s`)), ms);
+    timer.unref?.();
+  });
+  return Promise.race([work, capped]).finally(() => clearTimeout(timer));
+}
+
+/** page.evaluate() with a ceiling on it. */
+const evalIn = (page, label, fn, arg, ms = 20000) => within(ms, label, page.evaluate(fn, arg));
 
 async function shot(page, slug) {
   shotIndex += 1;
@@ -408,10 +437,14 @@ function attach(page, tag) {
 // --- CDP touch ---------------------------------------------------------------
 
 async function touchAt(cdp, type, x, y) {
-  await cdp.send('Input.dispatchTouchEvent', {
-    type,
-    touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1, radiusX: 8, radiusY: 8, force: 1 }]
-  });
+  await within(
+    20000,
+    `a ${type} at ${Math.round(x)},${Math.round(y)}`,
+    cdp.send('Input.dispatchTouchEvent', {
+      type,
+      touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1, radiusX: 8, radiusY: 8, force: 1 }]
+    })
+  );
 }
 
 async function centerOf(page, selector) {
@@ -442,11 +475,13 @@ async function ensureServer() {
   };
   if (await up()) return null;
   log('  starting vite …');
-  const child = spawn('npx', ['vite', '--port', '5173', '--strictPort'], {
-    cwd: ROOT,
-    stdio: 'ignore',
-    detached: false
-  });
+  // Vite's own entry point rather than `npx vite`: npx is a wrapper, and
+  // killing a wrapper leaves the server it started holding port 5173, which
+  // the next run then quietly reuses.
+  const vite = resolve(ROOT, 'node_modules/vite/bin/vite.js');
+  const child = existsSync(vite)
+    ? spawn(process.execPath, [vite, '--port', '5173', '--strictPort'], { cwd: ROOT, stdio: 'ignore', detached: false })
+    : spawn('npx', ['vite', '--port', '5173', '--strictPort'], { cwd: ROOT, stdio: 'ignore', detached: false });
   for (let i = 0; i < 60; i++) {
     await sleep(500);
     if (await up()) return child;
@@ -455,16 +490,54 @@ async function ensureServer() {
   throw new Error('vite did not come up on 5173');
 }
 
+// --- the watchdog ------------------------------------------------------------
+
+/**
+ * A whole run is ~2 minutes and has never been near 8, so a run that is still
+ * going at 8 minutes is stuck, not slow. Rather than sit there until CI gives
+ * up an hour later with nothing to read, say where it got to and stop. The
+ * limit is a minute-count in PLAYTEST_WATCHDOG_MIN for anyone on a very slow
+ * machine.
+ */
+const WATCHDOG_MS = Number(process.env.PLAYTEST_WATCHDOG_MIN ?? 8) * 60_000;
+let watchdog = null;
+let runningBrowser = null;
+let runningServer = null;
+
+function startWatchdog() {
+  watchdog = setTimeout(() => {
+    logErr(`\nFAILED: still running after ${WATCHDOG_MS / 60000} minutes, which means something is stuck.`);
+    logErr(`  the last thing it managed was: ${lastSaid}`);
+    logErr(`  screenshots + log: ${OUT}`);
+    // Take the browser and the server down by hand: process.exit() would
+    // otherwise leave a headless Chromium and a vite behind.
+    try {
+      runningBrowser?.process()?.kill('SIGKILL');
+    } catch {
+      /* already gone */
+    }
+    try {
+      runningServer?.kill();
+    } catch {
+      /* already gone */
+    }
+    process.exit(1);
+  }, WATCHDOG_MS);
+}
+
 // --- the playtest ------------------------------------------------------------
 
 async function main() {
+  startWatchdog();
   mkdirSync(OUT, { recursive: true });
   writeFileSync(LOG, `mainstreet playtest — ${new Date().toISOString()}\n  world: ${WORLD_ID}  episode: ${EPISODE.id} \u201c${EPISODE.title}\u201d\n  url: ${GAME_URL}\n\n`);
   const server = await ensureServer();
+  runningServer = server;
 
   const browser = await chromium.launch({
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
   });
+  runningBrowser = browser;
 
   try {
     // PLAYTEST_VIEWPORT=1024x768 checks the desktop layout; default is a
@@ -1509,7 +1582,7 @@ async function main() {
     const DRAFT = `mainstreet.studio.v1.${WORLD_ID}.${paintable.id}`;
     async function studioCode(differentFrom) {
       for (let i = 0; i < 80; i++) {
-        const code = await sp.evaluate((key) => {
+        const code = await evalIn(sp, 'the marker draft', (key) => {
           try {
             return JSON.parse(localStorage.getItem(key) ?? '{}').code ?? null;
           } catch {
@@ -1523,9 +1596,9 @@ async function main() {
     }
 
     for (const sel of ['#doorrow', '#plaquerow', '#doorleft', '#doorright', '#doorreset', '#markers']) {
-      if (!(await sp.locator(sel).isVisible())) fail('studio-markers', `${sel} is not on the page`);
+      if (!(await sp.locator(sel).isVisible({ timeout: 20000 }))) fail('studio-markers', `${sel} is not on the page`);
     }
-    const doorAt = async () => (await sp.locator('#doorwhere').innerText()).trim();
+    const doorAt = async () => (await sp.locator('#doorwhere').innerText({ timeout: 20000 })).trim();
     const restingPlace = await doorAt();
     if (!restingPlace) fail('studio-markers', 'the door marker does not say which column it is in');
 
@@ -1538,7 +1611,7 @@ async function main() {
     // to before they are tapped — a touch goes to a place on the screen, not to
     // an element.
     async function tapAfterScroll(selector) {
-      await sp.locator(selector).scrollIntoViewIfNeeded();
+      await sp.locator(selector).scrollIntoViewIfNeeded({ timeout: 20000 });
       await sleep(150);
       await tapEl(scdp, sp, selector);
     }
@@ -1565,9 +1638,9 @@ async function main() {
 
     // The pointer path: drag the door marker along the strip to the left-hand
     // column. One pointer, no touch handlers (CLAUDE.md #4).
-    await sp.locator('#markers').scrollIntoViewIfNeeded();
+    await sp.locator('#markers').scrollIntoViewIfNeeded({ timeout: 20000 });
     await sleep(150);
-    const strip = await sp.locator('#markers').boundingBox();
+    const strip = await sp.locator('#markers').boundingBox({ timeout: 20000 });
     const wide = paintable.size[0];
     const colAt = (col) => ({ x: strip.x + (strip.width / wide) * (col + 0.5), y: strip.y + strip.height / 2 });
     // Reset has just put the door back on the column the world has it on, so
@@ -1618,14 +1691,14 @@ async function main() {
     await ip.goto(`${BASE}studio/?world=${WORLD_ID}&building=${anyPainted.id}`, { waitUntil: 'load' });
     await ip.waitForSelector('#markers', { timeout: 20000 });
     const improveButton = ip.locator('#improveit');
-    if (!(await improveButton.isVisible())) {
+    if (!(await improveButton.isVisible({ timeout: 20000 }))) {
       fail('studio-improve', `"Improve it?" is missing on painted ${anyPainted.id}`);
     }
 
     const IMPROVE_DRAFT = `mainstreet.studio.v1.${WORLD_ID}.${anyPainted.id}`;
     async function improveCode(differentFrom) {
       for (let i = 0; i < 80; i++) {
-        const code = await ip.evaluate((key) => {
+        const code = await evalIn(ip, 'the \u201cImprove it?\u201d draft', (key) => {
           try {
             return JSON.parse(localStorage.getItem(key) ?? '{}').code ?? null;
           } catch {
@@ -1639,13 +1712,13 @@ async function main() {
     }
 
     const blank = await improveCode(null);
-    await improveButton.click();
+    await improveButton.click({ timeout: 20000 });
     const filled = await improveCode(blank);
     if (filled === blank) fail('studio-improve', '"Improve it?" did not change the drawing');
     log(`    "${anyPainted.id}": clicking "Improve it?" filled the canvas from the shipped PNG`);
     // The click scrolled the "Files" row into view; scroll back up so the
     // screenshot shows the canvas with the painting now on it.
-    await ip.locator('#stage').scrollIntoViewIfNeeded();
+    await ip.locator('#stage').scrollIntoViewIfNeeded({ timeout: 20000 });
     await sleep(150);
     await shot(ip, 'improve-it');
 
@@ -1667,7 +1740,7 @@ async function main() {
     const AUTO_DRAFT = `mainstreet.studio.v1.${WORLD_ID}.${anyPainted.id}`;
     let autoCode = null;
     for (let i = 0; i < 80; i++) {
-      autoCode = await auto.evaluate((key) => {
+      autoCode = await evalIn(auto, 'the \u0026improve=1 draft', (key) => {
         try {
           return JSON.parse(localStorage.getItem(key) ?? '{}').code ?? null;
         } catch {
@@ -1681,10 +1754,197 @@ async function main() {
     log(`    "${anyPainted.id}": opening with &improve=1 filled the canvas without a click`);
     await autoCtx.close();
 
+    // Everything before this is finished with, and the phone section is the
+    // one that asks the browser for a real touch scroll. A touch scroll only
+    // completes once a frame has been painted, and Chromium does not answer
+    // the touchmove that starts it until then; three pages still running a
+    // game loop are enough to keep a small CI runner from ever finding the
+    // moment to paint one, and the run then waits for ever. So the rest of the
+    // run is put away first — which is tidy anyway, and much the quickest part
+    // of the whole playtest.
+    for (const finished of [context, walkCtx, touchCtx]) await finished.close();
+
+    // --- the Studio on a phone ----------------------------------------------
+    // A phone is where most of the painting will actually happen, so: the
+    // drawing opens fitting the screen it has, one finger paints, a second
+    // finger turns the gesture into a pinch that zooms and paints nothing, and
+    // Lock hands one-finger gestures back to the browser so the page can be
+    // scrolled past the canvas. Playwright's touchscreen is one finger only, so
+    // the pinch goes in as PointerEvents with two pointerIds — which is all the
+    // studio listens to anyway (CLAUDE.md #4, one input path).
+    log('  Studio: on a phone (390x844)');
+    const phoneCtx = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      isMobile: false,
+      deviceScaleFactor: 1
+    });
+    const pp = await phoneCtx.newPage();
+    attach(pp, 'studio-phone');
+    const pcdp = await phoneCtx.newCDPSession(pp);
+    await pp.goto(`${BASE}studio/?world=${WORLD_ID}&building=${paintable.id}`, { waitUntil: 'load' });
+    await pp.waitForSelector('#markers', { timeout: 20000 });
+
+    const room = await evalIn(pp, 'the phone studio\u2019s measurements', () => ({
+      drawing: document.getElementById('view').getBoundingClientRect().width,
+      stage: document.getElementById('stage').clientWidth,
+      page: document.documentElement.scrollWidth,
+      window: window.innerWidth
+    }));
+    if (room.drawing > room.stage) {
+      fail('studio-phone', `the drawing opens ${room.drawing}px wide in a ${room.stage}px stage`);
+    }
+    if (room.page > room.window) {
+      fail('studio-phone', `the studio is ${room.page}px wide on a ${room.window}px screen, so the page scrolls sideways`);
+    }
+    if (room.drawing < room.stage * 0.7) {
+      fail('studio-phone', `the drawing opens ${room.drawing}px wide in a ${room.stage}px stage, smaller than it needs to be`);
+    }
+    const zoomNow = () => pp.locator('#zoomlevel').innerText({ timeout: 20000 });
+    log(`    opens ${room.drawing}px wide in a ${room.stage}px stage, at ${await zoomNow()}`);
+    await shot(pp, 'studio-phone');
+
+    /** Pointer events by id, which is the studio's only input path. */
+    async function pointerSteps(steps) {
+      await evalIn(pp, `pointer ${steps.map((s) => `${s.type}#${s.id}`).join(', ')}`, (steps) => {
+        const view = document.getElementById('view');
+        for (const step of steps) {
+          view.dispatchEvent(
+            new PointerEvent(step.type, {
+              pointerId: step.id,
+              pointerType: 'touch',
+              isPrimary: step.id === 1,
+              clientX: step.x,
+              clientY: step.y,
+              buttons: step.type === 'pointerup' ? 0 : 1,
+              bubbles: true,
+              cancelable: true
+            })
+          );
+        }
+      }, steps);
+    }
+
+    /** A point that is over the drawing and inside the stage, whatever the
+     *  zoom has done to the drawing's size. */
+    async function overCanvas(dx = 0.35, dy = 0.35) {
+      return evalIn(
+        pp,
+        'a point over the drawing',
+        ({ dx, dy }) => {
+          const view = document.getElementById('view').getBoundingClientRect();
+          const stage = document.getElementById('stage').getBoundingClientRect();
+          const left = Math.max(view.left, stage.left) + 4;
+          const right = Math.min(view.right, stage.right) - 4;
+          const top = Math.max(view.top, stage.top) + 4;
+          const bottom = Math.min(view.bottom, stage.bottom) - 4;
+          return { x: left + (right - left) * dx, y: top + (bottom - top) * dy };
+        },
+        { dx, dy }
+      );
+    }
+
+    const PHONE_DRAFT = `mainstreet.studio.v1.${WORLD_ID}.${paintable.id}`;
+    const phoneCode = () =>
+      evalIn(pp, 'the saved draft', (key) => {
+        try {
+          return JSON.parse(localStorage.getItem(key) ?? '{}').code ?? null;
+        } catch {
+          return null;
+        }
+      }, PHONE_DRAFT);
+    /** The draft is written 400ms after the drawing changes, so a claim that
+     *  nothing was painted has to outwait that. */
+    async function settledCode(differentFrom) {
+      for (let i = 0; i < 40; i++) {
+        const code = await phoneCode();
+        if (code && code !== differentFrom) return code;
+        await sleep(100);
+      }
+      return null;
+    }
+
+    const blankPhone = await settledCode(null);
+    if (!blankPhone) fail('studio-phone', 'the studio never saved a draft to read the drawing back from');
+
+    // One finger paints, exactly as it always did.
+    const strokeFrom = await overCanvas(0.25, 0.25);
+    await pointerSteps([{ type: 'pointerdown', id: 11, x: strokeFrom.x, y: strokeFrom.y }]);
+    await pointerSteps([{ type: 'pointermove', id: 11, x: strokeFrom.x + 14, y: strokeFrom.y + 8 }]);
+    await pointerSteps([{ type: 'pointerup', id: 11, x: strokeFrom.x + 14, y: strokeFrom.y + 8 }]);
+    const phonePainted = await settledCode(blankPhone);
+    if (!phonePainted) fail('studio-phone', 'one finger drew nothing');
+    log('    one finger paints');
+
+    // Two fingers zoom, and put back whatever the first one had started.
+    const middle = await overCanvas(0.5, 0.5);
+    const zoomBefore = await zoomNow();
+    await pointerSteps([{ type: 'pointerdown', id: 21, x: middle.x - 30, y: middle.y }]);
+    await pointerSteps([{ type: 'pointerdown', id: 22, x: middle.x + 30, y: middle.y }]);
+    for (let i = 1; i <= 3; i++) {
+      await pointerSteps([
+        { type: 'pointermove', id: 21, x: middle.x - 30 - i * 8, y: middle.y },
+        { type: 'pointermove', id: 22, x: middle.x + 30 + i * 8, y: middle.y }
+      ]);
+    }
+    await pointerSteps([{ type: 'pointerup', id: 22, x: middle.x + 54, y: middle.y }]);
+    await pointerSteps([{ type: 'pointerup', id: 21, x: middle.x - 54, y: middle.y }]);
+    await sleep(800);
+    const zoomAfter = await zoomNow();
+    if (zoomAfter === zoomBefore) fail('studio-phone', `a pinch left the zoom at ${zoomAfter}`);
+    const afterPinch = await phoneCode();
+    if (afterPinch !== phonePainted) {
+      fail('studio-phone', 'a pinch painted something — the stroke the first finger started was not put back');
+    }
+    log(`    a pinch zooms ${zoomBefore} -> ${zoomAfter} and paints nothing`);
+    await shot(pp, 'studio-phone-pinched');
+
+    // Locked, one finger belongs to the browser: it scrolls, and paints nothing.
+    await pp.locator('#lock').click({ timeout: 20000 });
+    await sleep(200);
+    if ((await pp.locator('#lock').getAttribute('aria-pressed', { timeout: 20000 })) !== 'true') {
+      fail('studio-phone', 'the Lock button did not say it was on');
+    }
+    const lockedFrom = await overCanvas(0.6, 0.6);
+    await pointerSteps([{ type: 'pointerdown', id: 31, x: lockedFrom.x, y: lockedFrom.y }]);
+    await pointerSteps([{ type: 'pointermove', id: 31, x: lockedFrom.x + 16, y: lockedFrom.y + 10 }]);
+    await pointerSteps([{ type: 'pointerup', id: 31, x: lockedFrom.x + 16, y: lockedFrom.y + 10 }]);
+    await sleep(800);
+    if ((await phoneCode()) !== afterPinch) fail('studio-phone', 'a finger painted on a locked canvas');
+
+    // And the point of the lock: a real finger, dragged up the canvas, scrolls
+    // the page past it rather than being swallowed. Real touches this time, so
+    // the browser's own touch-action handling is what is being asked.
+    // Back down to a zoom the stage holds whole, so what scrolls is the page
+    // and not the stage the drawing is sitting in.
+    for (let i = 0; i < 12; i++) {
+      const spills = await evalIn(pp, 'whether the drawing still spills out of the stage', () => {
+        const stage = document.getElementById('stage');
+        return stage.scrollHeight > stage.clientHeight || stage.scrollWidth > stage.clientWidth;
+      });
+      if (!spills) break;
+      await pp.locator('#zoomout').click({ timeout: 20000 });
+      await sleep(120);
+    }
+    await evalIn(pp, 'scrolling the phone page back to the top', () => window.scrollTo(0, 0));
+    await sleep(200);
+    const overDrawing = await overCanvas(0.5, 0.9);
+    await touchAt(pcdp, 'touchStart', overDrawing.x, overDrawing.y);
+    for (let y = overDrawing.y; y > overDrawing.y - 180; y -= 15) {
+      await touchAt(pcdp, 'touchMove', overDrawing.x, y);
+      await sleep(16);
+    }
+    await touchAt(pcdp, 'touchEnd', overDrawing.x, overDrawing.y - 180);
+    await sleep(600);
+    const scrolled = await evalIn(pp, 'how far the phone page scrolled', () => window.scrollY);
+    if (scrolled <= 0) fail('studio-phone', 'a finger could not scroll the page past a locked canvas');
+    log(`    Lock keeps one finger from painting, and lets it scroll the page (${Math.round(scrolled)}px)`);
+
     log(`\n  ${PLAYTEST_EPISODE} completed end to end.`);
   } finally {
     await browser.close();
     if (server) server.kill();
+    clearTimeout(watchdog);
   }
 
   if (consoleLines.length) {
