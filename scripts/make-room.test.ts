@@ -28,10 +28,15 @@ const PALETTE: RoomPalette = {
   bar: 6,
   shelf: [7, 8],
   table: 9,
+  stool: 14,
+  foosball: 15,
   stage: 10,
   stageFront: 11,
   planter: 12,
-  sign: 13
+  sign: 13,
+  firepit: 16,
+  door: 17,
+  panel: 18
 };
 
 const BASE: RoomSpec = {
@@ -42,7 +47,10 @@ const BASE: RoomSpec = {
 };
 
 const room = (spec: Partial<RoomSpec> = {}) => buildRoom({ ...BASE, ...spec }, PALETTE);
-const tileAt = (r: ReturnType<typeof room>, x: number, y: number) => r.tiles[y * r.width + x];
+/** The topmost tile at a cell: what stands there, or the floor if nothing does. */
+const tileAt = (r: ReturnType<typeof room>, x: number, y: number) =>
+  r.props[y * r.width + x] ?? r.tiles[y * r.width + x];
+const groundAt = (r: ReturnType<typeof room>, x: number, y: number) => r.tiles[y * r.width + x];
 
 describe('buildRoom: the shell', () => {
   it('rings the room in wall and fills the rest with floor', () => {
