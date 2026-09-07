@@ -23,10 +23,21 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
   checkLook(world.player.look, `player "${world.player.id}"`, problems);
 
   // A building's standing sign is the copy its door shows on an ordinary day
-  // (DESIGN.md §3). It is optional, but an empty one — or an empty page in the
-  // middle of one — would open a dialogue box with nothing in it.
+  // (DESIGN.md §3). Every building actually standing on a map needs one: the
+  // engine's `copy.ui.unpainted` fallback keeps a door from opening an empty
+  // box, but it is a stand-in, not copy anyone wrote for that place, and a
+  // door the player can walk up to deserves the real thing. A building in the
+  // registry that no map places yet is exempt — it is not readable. An empty
+  // sign, or an empty page in the middle of one, would open a box with
+  // nothing in it.
+  const placed = new Set(Object.values(world.maps).flatMap((meta) => meta.buildings.map((b) => b.id)));
   for (const [id, def] of Object.entries(world.buildings)) {
-    if (def.sign === undefined) continue;
+    if (def.sign === undefined) {
+      if (placed.has(id)) {
+        problems.push(`building "${id}" is placed on a map but has no "sign" — every door needs a standing sign`);
+      }
+      continue;
+    }
     if (!Array.isArray(def.sign) || def.sign.length === 0) {
       problems.push(`building "${id}" has a "sign" that isn't a non-empty array of lines`);
       continue;

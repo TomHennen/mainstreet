@@ -32,37 +32,65 @@
     "mill-pond-inn": {
       "name": "Mill Pond Inn",
       "wall": "#8a6d4e",
-      "roof": "#5b4632"
+      "roof": "#5b4632",
+      "sign": [
+        "Pizza night Monday and Wednesday, chalked by the door in a hand that has written it a hundred times.",
+        "The mill pond sits right behind the place, and on a warm evening the door stays propped so the talk carries out over the water."
+      ]
     },
     "jefferson-town-hall": {
       "name": "Jefferson Town Hall",
       "wall": "#d9d2c0",
-      "roof": "#6d6a5c"
+      "roof": "#6d6a5c",
+      "sign": [
+        "Posted hours end at 2 PM most days. The board agenda lists road salt bids and 'the goat situation (continued).'",
+        "Meeting nights are posted, court sits about once a month, and metal recycling is the first Saturday. Small things, kept up carefully."
+      ]
     },
     "heartbreak-hotel": {
       "name": "Heartbreak Hotel",
       "wall": "#a34a4a",
-      "roof": "#6e2f2f"
+      "roof": "#6e2f2f",
+      "sign": [
+        "A hand-lettered sign by the door: PRIME RIB SATURDAY. MAKE A RESERVATION. WE MEAN IT.",
+        "Two hearts up under the roofline, a porch light on early, and somebody inside already laughing at the bar."
+      ]
     },
     "middle-brook-cafe": {
       "name": "Middle Brook Cafe",
       "wall": "#c2a15c",
-      "roof": "#7c6236"
+      "roof": "#7c6236",
+      "sign": [
+        "The stone patio out front is filling up, and there is a cup on nearly every table catching the morning sun.",
+        "Inside, a customer is explaining, with great intensity, that the chocolate chip cookie is somehow vegan."
+      ]
     },
     "stewarts": {
       "name": "Stewart's",
       "wall": "#e4e0d4",
-      "roof": "#b5542a"
+      "roof": "#b5542a",
+      "sign": [
+        "Coffee in one hand and a cone in the other, and the whole junction of NY 10 and NY 23 going by the window.",
+        "Taped to the ice cream case inside, a hand-written sheet keeps the softball league standings current."
+      ]
     },
     "mac-a-doodles": {
       "name": "Mac-A-Doodles",
       "wall": "#7a8fb0",
-      "roof": "#4d5f7d"
+      "roof": "#4d5f7d",
+      "sign": [
+        "Ice cream is the main event here: the soft-serve window, cones going out steadily, and kids at the counter choosing with real seriousness.",
+        "A dog outside is finishing a pup cup with real focus. The menu board also offers a mac-n-cheese burger, and it is not a dare."
+      ]
     },
     "stamford-coffee": {
       "name": "Stamford Coffee",
       "wall": "#6f5b7d",
-      "roof": "#4a3c55"
+      "roof": "#4a3c55",
+      "sign": [
+        "The patio out front is half the building: tables full, a dog asleep under one, and somebody ordering a Maple Smoke latte.",
+        "This is where the week gets talked over. Through the side doorway, 80 Main's shelves are calling."
+      ]
     },
     "the-belvedere": {
       "name": "The Belvedere",
@@ -76,7 +104,11 @@
     "cellar-door-wines": {
       "name": "Cellar Door Wines",
       "wall": "#5d4a3a",
-      "roof": "#3c2f24"
+      "roof": "#3c2f24",
+      "sign": [
+        "Through the window, the owner is walking a couple through an Austrian orange wine. Nobody leaves this shop empty-handed.",
+        "Out front there is a bench, and if you sit on it for any length of time a friend is sure to stop in."
+      ]
     },
     "tops": {
       "name": "Tops",

@@ -93,7 +93,8 @@ function makeWorld(overrides: Partial<World> = {}): World {
     episodes: ['ep000'],
     player: { id: 'player', accent: '#fff' },
     start: { map: 'town', pos: [1, 1], facing: 'down' },
-    buildings: { shop: { name: 'Shop', wall: '#fff', roof: '#000' } },
+    // A placed building needs a standing sign, so the default fixture has one.
+    buildings: { shop: { name: 'Shop', wall: '#fff', roof: '#000', sign: ['Open till six.'] } },
     maps: { town: makeMap() },
     ...overrides
   };
@@ -173,6 +174,33 @@ describe('validateWorld', () => {
   it('accepts a building with a standing sign', () => {
     const world = makeWorld({
       buildings: { shop: { name: 'Shop', wall: '#fff', roof: '#000', sign: ['Open till six.'] } }
+    });
+    expect(runWorld(world)).toEqual([]);
+  });
+
+  it('flags a building that a map places with no standing sign at all', () => {
+    const world = makeWorld({
+      buildings: { shop: { name: 'Shop', wall: '#fff', roof: '#000' } },
+      maps: {
+        town: makeMap({ buildings: [{ id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1] }] })
+      }
+    });
+    expect(runWorld(world).join('\n')).toContain(
+      'building "shop" is placed on a map but has no "sign" — every door needs a standing sign'
+    );
+  });
+
+  it('leaves a registry building alone while no map places it', () => {
+    // A world pack may name a building ahead of putting it on a map; nobody
+    // can walk up to that door yet, so it owes no copy.
+    const world = makeWorld({
+      buildings: {
+        shop: { name: 'Shop', wall: '#fff', roof: '#000', sign: ['Open till six.'] },
+        future: { name: 'Future', wall: '#fff', roof: '#000' }
+      },
+      maps: {
+        town: makeMap({ buildings: [{ id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1] }] })
+      }
     });
     expect(runWorld(world)).toEqual([]);
   });
@@ -315,7 +343,7 @@ describe('validateWorld', () => {
           buildings: [{ id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1], interior: 'shop-interior' }]
         })
       },
-      buildings: { shop: { name: 'Shop', wall: '#fff', roof: '#000' } }
+      buildings: { shop: { name: 'Shop', wall: '#fff', roof: '#000', sign: ['Open till six.'] } }
     });
     world.maps['shop-interior'] = makeMap({ kind: 'interior' });
     const problems = runWorld(world);

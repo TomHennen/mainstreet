@@ -1,36 +1,53 @@
 {
   "id": "ep000",
   "title": "The Crossword Pen",
-  "flags": ["metEarl", "hasPen", "done"],
+  "flags": [
+    "metEarl",
+    "hasPen",
+    "done"
+  ],
   "npcs": [
     {
       "id": "earl",
       "name": "Earl",
       "map": "stamford",
-      "pos": [19, 13],
+      "pos": [
+        19,
+        13
+      ],
       "facing": "down",
       "accent": "#3f6d4e",
       "look": { "hair": "cap", "hairColor": "#6b6257" },
       "dialogue": [
         {
-          "requires": ["done"],
+          "requires": [
+            "done"
+          ],
           "lines": [
             "Seventeen across: 'small kindness, nine letters.' I'm going to say it's you, kid."
           ]
         },
         {
-          "requires": ["hasPen"],
+          "requires": [
+            "hasPen"
+          ],
           "lines": [
             "Ha — my pen! Knew I left it up at the pond.",
             "Next time you're at the counter, tell Hannah your coffee's on me."
           ],
           "effects": [
-            { "set": "done" },
-            { "toast": "Episode complete — new story next week" }
+            {
+              "set": "done"
+            },
+            {
+              "toast": "Episode complete — new story next week"
+            }
           ]
         },
         {
-          "requires": ["metEarl"],
+          "requires": [
+            "metEarl"
+          ],
           "lines": [
             "Take Route 10 north to Jefferson. There's a bench by the mill pond, near the inn. That's my puzzle spot."
           ]
@@ -42,7 +59,11 @@
             "I was up there Wednesday for pizza night at the Mill Pond — and somewhere between the pond and here I lost my crossword pen.",
             "Forty years of Saturday puzzles with that pen. If you're headed back north, would you look by the bench?"
           ],
-          "effects": [{ "set": "metEarl" }]
+          "effects": [
+            {
+              "set": "metEarl"
+            }
+          ]
         }
       ]
     },
@@ -50,17 +71,26 @@
       "id": "hannah",
       "name": "Hannah",
       "map": "stewarts-interior",
-      "pos": [6, 12],
+      "pos": [
+        6,
+        12
+      ],
       "facing": "down",
       "accent": "#7a3e5f",
       "look": { "hair": "bun", "hairColor": "#4a3524", "build": "slim" },
       "dialogue": [
         {
-          "requires": ["done"],
-          "lines": ["Earl showed everybody the pen. Twice. You're famous now."]
+          "requires": [
+            "done"
+          ],
+          "lines": [
+            "Earl showed everybody the pen. Twice. You're famous now."
+          ]
         },
         {
-          "requires": ["hasPen"],
+          "requires": [
+            "hasPen"
+          ],
           "lines": [
             "Is that Earl's pen? Oh, he's going to be insufferable about the puzzle this week.",
             "Go on — he's right out front."
@@ -80,9 +110,21 @@
     {
       "id": "pen",
       "map": "jefferson",
-      "pos": [16, 19],
-      "requires": ["metEarl"],
-      "effects": [{ "set": "hasPen" }, { "toast": "Got it" }],
+      "pos": [
+        16,
+        19
+      ],
+      "requires": [
+        "metEarl"
+      ],
+      "effects": [
+        {
+          "set": "hasPen"
+        },
+        {
+          "toast": "Got it"
+        }
+      ],
       "lines": [
         "A fine ballpoint, half-buried in the grass by the pond bench. This has to be Earl's."
       ]
@@ -93,45 +135,14 @@
       "building": "mill-pond-inn",
       "requires": [],
       "lines": [
-        "Chalkboard by the tavern door: pizza night Monday and Wednesday. A second line, underlined twice: RIBS SOLD OUT."
-      ]
-    },
-    {
-      "building": "jefferson-town-hall",
-      "requires": [],
-      "lines": [
-        "Posted hours end at 2 PM most days. The board agenda lists road salt bids and 'the goat situation (continued).'"
-      ]
-    },
-    {
-      "building": "heartbreak-hotel",
-      "requires": [],
-      "lines": [
-        "A hand-lettered sign: PRIME RIB SATURDAY — MAKE A RESERVATION. WE MEAN IT.",
-        "Someone inside is laughing at the bar."
-      ]
-    },
-    {
-      "building": "middle-brook-cafe",
-      "requires": [],
-      "lines": [
-        "A customer is explaining, with great intensity, that the chocolate chip cookie is somehow vegan."
+        "A second line has gone up on the chalkboard today, underlined twice: RIBS SOLD OUT."
       ]
     },
     {
       "building": "mac-a-doodles",
       "requires": [],
       "lines": [
-        "The menu board offers a mac-n-cheese burger, and it is not a dare.",
-        "A dog outside is finishing a pup cup with real focus."
-      ]
-    },
-    {
-      "building": "stamford-coffee",
-      "requires": [],
-      "lines": [
-        "Someone orders a Maple Smoke latte — maple, a pinch of liquid smoke, sea salt.",
-        "Through the side doorway, the Catskill Outpost shelves are calling."
+        "Someone at the window is ordering for a table of six and counting on their fingers."
       ]
     },
     {
@@ -145,18 +156,14 @@
     },
     {
       "map": "stewarts-interior",
-      "pos": [20, 5],
+      "pos": [
+        20,
+        5
+      ],
       "requires": [],
       "lines": [
         "Shelves of the essentials: chips, motor oil, birthday candles, one lonely jigsaw puzzle.",
         "The ice cream case hums along beside them. Taped to the glass, a hand-written sheet keeps the softball league standings current."
-      ]
-    },
-    {
-      "building": "cellar-door-wines",
-      "requires": [],
-      "lines": [
-        "Through the window, the owner is walking a couple through an Austrian orange wine. Nobody leaves this shop empty-handed."
       ]
     }
   ]
