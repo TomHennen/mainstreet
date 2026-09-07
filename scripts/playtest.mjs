@@ -80,6 +80,19 @@ function isSolid(map, x, y) {
   );
 }
 
+/**
+ * The tile a building's plaque is read from — a second implementation of
+ * engine/schema.ts's `plaqueTile`, deliberately, like isSolid() above.
+ * Default: right of the door, or left of it when the door is already in the
+ * building's right-most column. `"plaque": false` means the building has none.
+ */
+function plaqueOf(placement) {
+  if (placement.plaque === false) return null;
+  if (placement.plaque) return placement.plaque;
+  const rightMost = placement.pos[0] + placement.size[0] - 1;
+  return [placement.door[0] + (placement.door[0] >= rightMost ? -1 : 1), placement.door[1]];
+}
+
 /** NPCs are episode data, so MapScene.solidTile() blocks on them separately. */
 function npcAt(mapId, x, y) {
   return EPISODE.npcs.some((n) => n.map === mapId && n.pos[0] === x && n.pos[1] === y);
@@ -506,23 +519,39 @@ async function main() {
     expectFlag(await snap(page), 'pen', 'hasPen');
     await shot(page, 'pen-toast');
 
-    // --- a painted building reads clean --------------------------------------
-    // The painter's name belongs on the site's front page and, later, a
-    // credits screen — never in the sign, where it would interrupt the copy
-    // the player is reading (DESIGN.md §2/§4). So a painted building shows its
-    // sign lines and nothing else: no extra page, and no studio link.
+    // --- a painted building: thanks on the plaque, story on the sign ---------
+    // The painter is thanked on the plaque beside the door and named on the
+    // site's front page — never in the sign, where it would interrupt the copy
+    // the player is reading (DESIGN.md §2/§4). So the plaque is one page of
+    // thanks with no studio link, and the sign is the episode's lines and
+    // nothing else.
     const painted = WORLD.maps.jefferson.buildings.find(
       (b) => !b.interior && existsSync(resolve(PACK, 'assets', 'buildings', `${b.id}.png`))
     );
     if (painted) {
-      log('  read a painted building');
+      const deskLink = page.locator('a[data-overlay="link"]');
+
+      log('  read a painted building: its plaque');
+      const paintedPlaque = plaqueOf(painted);
+      if (!paintedPlaque) fail('painted-plaque', `${painted.id} has no plaque to read`);
+      await walkTo(page, 'painted-plaque', paintedPlaque);
+      await pressA(page);
+      await expectDialogue(page, 'painted-plaque', `${painted.id}'s plaque`);
+      if (await deskLink.isVisible()) {
+        fail('painted-plaque', `a "Paint it" link showed on painted ${painted.id}'s plaque`);
+      }
+      await shot(page, 'painted-plaque');
+      const plaquePages = await readDialogue(page, 'painted-plaque', 1);
+      if (plaquePages !== 1) fail('painted-plaque', `${painted.id}'s plaque read ${plaquePages} page(s), expected 1`);
+      log(`    ${painted.id}: plaque thanks its painter in one page, no link`);
+
+      log('  read a painted building: its sign');
       const paintedSign = (EPISODE.signs ?? []).find((s) => s.building === painted.id);
       const paintedLines = paintedSign?.lines.length ?? 0;
       if (paintedLines === 0) fail('painted-sign', `ep000 gives painted ${painted.id} no sign copy to read`);
       await walkTo(page, 'painted-sign', painted.door);
       await pressA(page);
       await expectDialogue(page, 'painted-sign', painted.id);
-      const deskLink = page.locator('a[data-overlay="link"]');
       if (await deskLink.isVisible()) fail('painted-sign', `a "Paint it" link showed on painted ${painted.id}`);
       await shot(page, 'painted-sign');
       const read = await readDialogue(page, 'painted-sign', paintedLines);
@@ -666,23 +695,24 @@ async function main() {
     await shot(tp, 'touch-complete');
 
     // --- Paint it -----------------------------------------------------------
-    // An unpainted building reads as its own sign copy and nothing more; the
-    // invitation to draw it is the DOM link beside the box, deep-linked to the
-    // building and up for the whole entry rather than for one line of it
-    // (DESIGN.md §2). Checked on the touch page so the link is exercised at
+    // The invitation to draw an unpainted building lives on the plaque beside
+    // its door: one kind line, with the DOM link beside the box, deep-linked
+    // to the building and up for the whole entry rather than for one line of
+    // it (DESIGN.md §2). Checked on the touch page so the link is exercised at
     // phone width, where it has the least room.
-    log('  "Paint it" on an unpainted building');
+    log('  "Paint it" on an unpainted building\'s plaque');
     const bare = WORLD.maps.stamford.buildings.find(
       (b) => !b.interior && !existsSync(resolve(PACK, 'assets', 'buildings', `${b.id}.png`))
     );
     if (!bare) fail('paint-it', 'no unpainted building without an interior in Stamford to read');
-    const bareSign = (EPISODE.signs ?? []).find((s) => s.building === bare.id);
-    // No sign copy this episode and the engine shows one stand-in line instead
-    // of an empty box, so there is always at least one page.
-    const bareLines = bareSign?.lines.length ?? 1;
-    await walkTo(tp, 'paint-it', bare.door);
+    const barePlaque = plaqueOf(bare);
+    if (!barePlaque) fail('paint-it', `${bare.id} has no plaque to read`);
+    // The plaque is always exactly one line, whatever the episode says at the
+    // sign next door.
+    const bareLines = 1;
+    await walkTo(tp, 'paint-it', barePlaque);
     await pressA(tp);
-    await expectDialogue(tp, 'paint-it', bare.id);
+    await expectDialogue(tp, 'paint-it', `${bare.id}'s plaque`);
     const paint = tp.locator('a[data-overlay="link"]');
     if (!(await paint.isVisible())) fail('paint-it', `no "Paint it" link on ${bare.id}'s first page`);
     const href = (await paint.getAttribute('href')) ?? '';
@@ -718,11 +748,31 @@ async function main() {
     if (bareRead !== bareLines) {
       fail(
         'paint-it',
-        `${bare.id} read ${bareRead} page(s) for ${bareLines} line(s) of copy — the invitation is still taking a line of its own`
+        `${bare.id}'s plaque read ${bareRead} page(s) for ${bareLines} line(s) of copy`
       );
     }
     log(`    link held for all ${bareRead} page(s)`);
     if (await paint.isVisible()) fail('paint-it', 'the "Paint it" link outlived the dialogue');
+
+    // And the sign a tile away is the story only: same unpainted building, no
+    // link anywhere near it (DESIGN.md §2/§4).
+    log('  no "Paint it" on the same building\'s sign');
+    const bareSign = (EPISODE.signs ?? []).find((s) => s.building === bare.id);
+    // With no sign copy this episode the engine shows one stand-in line
+    // instead of an empty box, so there is always at least one page.
+    const bareSignLines = bareSign?.lines.length ?? 1;
+    await walkTo(tp, 'paint-it-sign', bare.door);
+    await pressA(tp);
+    await expectDialogue(tp, 'paint-it-sign', `${bare.id}'s sign`);
+    if (await paint.isVisible()) fail('paint-it-sign', `the "Paint it" link showed on ${bare.id}'s sign`);
+    await shot(tp, 'unpainted-sign');
+    const signRead = await readDialogue(tp, 'paint-it-sign', bareSignLines, async (i) => {
+      if (await paint.isVisible()) fail('paint-it-sign', `a "Paint it" link appeared on sign page ${i + 1}`);
+    });
+    if (signRead !== bareSignLines) {
+      fail('paint-it-sign', `${bare.id}'s sign read ${signRead} page(s) for ${bareSignLines} line(s) of copy`);
+    }
+    log(`    sign: ${signRead} page(s), no link`);
 
     // A person is not a building waiting for paint: no link on their dialogue.
     log('  no "Paint it" on a person');

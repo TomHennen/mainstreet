@@ -1,3 +1,6 @@
+// Runtime import, so it carries the extension scripts/validate-episodes.ts
+// needs under Node's type stripping (see that file's header).
+import { plaqueTile } from './schema.ts';
 import type { Episode, GameMap, World } from './schema';
 
 /**
@@ -33,6 +36,20 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
       }
       if (placement.label !== undefined && typeof placement.label !== 'boolean') {
         problems.push(`building "${placement.id}" has a "label" that isn't a boolean`);
+      }
+      // The plaque is read from its own tile, so the player has to be able to
+      // stand on it — and it cannot double up with the door.
+      const plaque = plaqueTile(placement);
+      if (plaque) {
+        const [px, py] = plaque;
+        if (px < 0 || py < 0 || px >= map.width || py >= map.height) {
+          problems.push(`building "${placement.id}" has its plaque outside the map`);
+        } else if (isSolid(map, px, py)) {
+          problems.push(`building "${placement.id}" has its plaque on a solid tile`);
+        }
+        if (px === placement.door[0] && py === placement.door[1]) {
+          problems.push(`building "${placement.id}" has its plaque on its own door tile`);
+        }
       }
       if (placement.interior) {
         if (!world.maps[placement.interior]) {

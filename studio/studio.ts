@@ -37,6 +37,10 @@ const BASE = import.meta.env.BASE_URL;
 const TILE = 16;
 /** Head-room the engine's placeholder facade draws above the footprint. */
 const OVERHEAD = 20;
+/** The plaque the engine draws beside every door (engine/art.ts plaqueArt). */
+const PLAQUE_W = 6;
+const PLAQUE_H = 5;
+const PLAQUE_LIFT = 4;
 /** Most spare rows of 16px an artist may add above the footprint. */
 const MAX_EXTRA_ROWS = 3;
 const DEFAULT_EXTRA_ROWS = 1;
@@ -76,6 +80,20 @@ interface Placement {
   pos: [number, number];
   size: [number, number];
   door: [number, number];
+  plaque?: [number, number] | false;
+}
+
+/**
+ * Where the engine hangs this building's plaque — a small copy of
+ * engine/schema.ts's rule, because the Studio reads world packs rather than
+ * importing the engine. Right of the door, or left of it when the door is
+ * already in the building's right-most column; `false` means no plaque.
+ */
+function plaqueTile(placement: Placement): [number, number] | null {
+  if (placement.plaque === false) return null;
+  if (placement.plaque) return placement.plaque;
+  const rightMost = placement.pos[0] + placement.size[0] - 1;
+  return [placement.door[0] + (placement.door[0] >= rightMost ? -1 : 1), placement.door[1]];
 }
 
 interface MapDef {
@@ -191,7 +209,8 @@ async function loadPalette(world: World): Promise<(string | null)[]> {
 /**
  * A rough redrawing of the engine's unpainted facade (engine/art.ts) at the
  * same scale, so an artist can see where the door and the sign sit today. It
- * is a reference, not a template: nobody has to keep any of it.
+ * is a reference, not a template: nobody has to keep any of it — except the
+ * plaque, which the engine draws over the finished art either way.
  */
 function referenceCanvas(placement: Placement, def: BuildingDef, width: number, height: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
@@ -224,6 +243,18 @@ function referenceCanvas(placement: Placement, def: BuildingDef, width: number, 
   const doorX = (placement.door[0] - placement.pos[0]) * TILE;
   ctx.fillStyle = '#3a2c1e';
   ctx.fillRect(doorX + 3, top + OVERHEAD + bodyH - 14, 10, 14);
+
+  // The engine hangs its own little plaque here, over whatever is painted
+  // beneath it, so nobody has to draw one.
+  const plaque = plaqueTile(placement);
+  if (plaque) {
+    const plaqueX = (plaque[0] - placement.pos[0]) * TILE + (TILE - PLAQUE_W) / 2;
+    const plaqueY = height - PLAQUE_LIFT - PLAQUE_H;
+    ctx.fillStyle = '#8a6a35';
+    ctx.fillRect(plaqueX, plaqueY, PLAQUE_W, PLAQUE_H);
+    ctx.fillStyle = '#d8b268';
+    ctx.fillRect(plaqueX, plaqueY, PLAQUE_W, 1);
+  }
 
   ctx.font = '8px ui-monospace, Menlo, Consolas, monospace';
   ctx.textAlign = 'center';
@@ -456,7 +487,9 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
           <p class="quiet">Export a PNG with a transparent background — no
             anti-aliasing or smoothing — using only the palette colours below.
             The footprint sits at the very bottom of the canvas; any spare
-            rows for a roof, sign or awning go above it.</p>
+            rows for a roof, sign or awning go above it. The game adds a small
+            plaque low on the wall beside the door — that's where it thanks
+            you — so there's no need to paint one.</p>
           <div class="row">
             <a class="button" id="downloadpalette" href="#" download>Download the palette PNG</a>
             <button id="downloadhex">Download the palette as .hex</button>
