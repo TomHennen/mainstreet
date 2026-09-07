@@ -483,8 +483,11 @@ opt-in, everything warm and affectionate) before it reaches the player.
   inspiration, being scoped as a full epic (DESIGN.md §3a/§3b) rather than
   a single episode. The story, as told so far: the empty lot across from
   Stamford Coffee noted above once held Half Acre, a high-end restaurant
-  four new-to-town locals opened together, with their own apartments
-  upstairs. The year before Half Acre's own fire, they hosted a
+  four new-to-town locals opened together. The apartments upstairs weren't
+  the owners' own — they were rented out to other people, likely renters
+  who couldn't easily afford a house of their own, which is part of what
+  makes their later displacement bite so much harder against the housing
+  crunch. The year before Half Acre's own fire, the four hosted a
   local-business fundraiser dinner — the whole town there — when a wave of
   pagers went off mid-meal: M&M's auto shop, further east than the current
   map runs, was on fire, and it was a big one. The volunteer firefighters
@@ -493,10 +496,10 @@ opt-in, everything warm and affectionate) before it reaches the player.
   water from a pond west of Route 10 (not currently on the map) all the
   way to the fire. The town turned out for M&M, which is rebuilt now and
   looking great. Some time later, Half Acre itself burned down, and the
-  people living in the apartments above it lost their homes; the community
-  helped, but it landed in the middle of an already-tight local housing
-  market (see the second-homes/Airbnb note below, kept as a separate,
-  later topic).
+  renters living in the apartments above it lost their homes; the
+  community helped, but it landed in the middle of an already-tight local
+  housing market (see the second-homes/Airbnb note below, kept as a
+  separate, later topic).
 
   Proposed shape: an **open house** framing (a real fire-department open
   house day, present-day) rather than a literal flashback the player plays
@@ -514,10 +517,17 @@ opt-in, everything warm and affectionate) before it reaches the player.
   Hard-rule-6 guardrails, restated for whoever picks this up: never depict
   either fire on-screen (the vignette schema's smoke-not-flames rule
   exists for this), never put the player or any NPC in on-screen danger,
-  and land the whole thing on the town coming together, not on loss. At
-  least two episodes' worth of material — the open house epic first, a
-  Half-Acre-lot / housing-adjacent follow-up later and separately, with
-  Tom's explicit sign-off before that second one gets written.
+  and land the whole thing on the town coming together, not on loss. Tom's
+  read (Sep 2026): these are real facts and fine to have written down here
+  — it's public knowledge — but the game itself needs more care than the
+  notes do. The displaced renters specifically are the part to be most
+  careful with in-game copy: real private people, not business owners who
+  chose public visibility, so no in-game dialogue should identify or
+  describe them concretely — an oblique, unnamed reference at most, if
+  even that. At least two episodes' worth of material — the open house
+  epic first, a Half-Acre-lot / housing-adjacent follow-up later and
+  separately, with Tom's explicit sign-off before that second one gets
+  written.
 - **Second homes, Airbnb, and the housing crunch.** Real and current
   tension worth facing eventually, not avoiding — people from the city
   buying up houses as vacation homes or short-term rentals is a genuine
