@@ -39,6 +39,7 @@ export type TileStyle =
   | 'shelf'
   | 'mat'
   | 'planks'
+  | 'pavers'
   | 'stripe-h'
   | 'stripe-v';
 
@@ -56,6 +57,7 @@ const STYLES: readonly string[] = [
   'shelf',
   'mat',
   'planks',
+  'pavers',
   'stripe-h',
   'stripe-v'
 ];

@@ -1,12 +1,12 @@
 {
   "columns": 5,
   "image": "route10.png",
-  "imageheight": 128,
+  "imageheight": 144,
   "imagewidth": 80,
   "margin": 0,
   "name": "route10",
   "spacing": 0,
-  "tilecount": 40,
+  "tilecount": 42,
   "tiledversion": "1.10.2",
   "tileheight": 16,
   "tilewidth": 16,
@@ -920,6 +920,63 @@
           "name": "style",
           "type": "string",
           "value": "umbrella"
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "type": "patio",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#675c4d"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#b5a98f,#9d8f76,#c4baa5"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "pavers"
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "type": "patio",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#675c4d"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#b5a98f,#9d8f76,#c4baa5"
+        },
+        {
+          "name": "edge",
+          "type": "string",
+          "value": "#4f463a"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "pavers"
         }
       ]
     }

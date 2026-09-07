@@ -255,6 +255,53 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, px: number, py: n
       break;
     }
 
+    // Flagstones on a grout bed: a paved patio, a stone path, a terrace. Four
+    // slabs of four different sizes in two courses, with the joints of one
+    // course offset from the other's and the course line stepping a pixel where
+    // it crosses a slab. Each course has a slab that runs off the cell and
+    // wraps round to the far side, so the same slab carries on into the next
+    // tile and no grout line ever lands on a cell boundary — a run of these
+    // reads as one paved surface rather than as a grid of tiles.
+    case 'pavers': {
+      const grout = def.base ?? c[0];
+      const tone = [c[0], c[1] ?? c[0], c[2] ?? c[1] ?? c[0]];
+      ctx.fillStyle = grout;
+      ctx.fillRect(px, py, TILE, TILE);
+
+      // A rectangle in cell coordinates, clipped to the cell so a slab that
+      // overhangs never paints into the tile beside it on the sheet.
+      const rect = (x: number, y: number, w: number, h: number, fill: string) => {
+        const x0 = Math.max(0, x);
+        const y0 = Math.max(0, y);
+        const x1 = Math.min(TILE, x + w);
+        const y1 = Math.min(TILE, y + h);
+        if (x1 <= x0 || y1 <= y0) return;
+        ctx.fillStyle = fill;
+        ctx.fillRect(px + x0, py + y0, x1 - x0, y1 - y0);
+      };
+
+      // x, y, width, height, which stone value. Anything past the right or
+      // bottom edge is drawn again a cell earlier, which is the wrap.
+      const slabs = [
+        [3, 6, 6, 6, 0],
+        [10, 7, 8, 5, 2],
+        [5, 13, 9, 8, 1],
+        [15, 14, 5, 7, 0]
+      ];
+      for (const [x, y, w, h, value] of slabs) {
+        for (const ox of [0, -TILE]) {
+          for (const oy of [0, -TILE]) {
+            rect(x + ox, y + oy, w, h, tone[value]);
+            // Each slab sits a hair proud of the bed: lit along its top, in
+            // its own shadow along the bottom.
+            rect(x + ox, y + oy, w, 1, 'rgba(255,255,255,.10)');
+            rect(x + ox, y + oy + h - 1, w, 1, 'rgba(0,0,0,.18)');
+          }
+        }
+      }
+      break;
+    }
+
     // A short bar along one axis, drawn over `base`. Tiling it leaves a gap
     // between bars, so a run of them reads as a dashed line.
     case 'stripe-h':
