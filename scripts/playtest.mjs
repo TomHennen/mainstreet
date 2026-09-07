@@ -809,7 +809,7 @@ async function main() {
           if (writeIndex < 0 || (after && after.kind !== 'forget')) {
             fail('title', `the "write to us" row is not where it belongs: ${JSON.stringify(list.items.map((i) => i.kind))}`);
           }
-          const write = tip.locator('a[data-overlay="link"]');
+          const write = tip.locator('#say-link');
           if (!(await write.isVisible())) fail('title', 'no "write to us" link on the title screen');
           if ((await write.innerText()).trim() !== writeLabel) {
             fail('title', `the link reads "${(await write.innerText()).trim()}", expected "${writeLabel}"`);
@@ -1068,7 +1068,75 @@ async function main() {
           if (words.licence && list.credits.licence !== words.licence) {
             fail('title-credits', `the licence line reads "${list.credits.licence}", expected "${words.licence}"`);
           }
+
+          // The Credits screen's own closing rows (issue #65 addendum): About
+          // this game, Paint a building and Open source on GitHub, each a
+          // real DOM link, and a "Back" row last (Tom's walkthrough: "no
+          // obvious way back").
+          if (words.about) {
+            const about = list.credits.links.find((l) => l.label === words.about);
+            if (!about) fail('title-credits', `no "${words.about}" row on Credits: ${JSON.stringify(list.credits.links)}`);
+            if (!about.href.startsWith('http')) fail('title-credits', `"${words.about}" href is "${about.href}"`);
+            log(`    "${about.label}" -> ${about.href}`);
+          }
+          if (words.paint) {
+            const paint = list.credits.links.find((l) => l.label === words.paint);
+            if (!paint) fail('title-credits', `no "${words.paint}" row on Credits: ${JSON.stringify(list.credits.links)}`);
+            if (WORLD.contribute && paint.href !== WORLD.contribute) {
+              fail('title-credits', `"${words.paint}" href is "${paint.href}", expected world.contribute "${WORLD.contribute}"`);
+            }
+            log(`    "${paint.label}" -> ${paint.href}`);
+          }
+          if (words.source) {
+            const source = list.credits.links.find((l) => l.label === words.source);
+            if (!source) fail('title-credits', `no "${words.source}" row on Credits: ${JSON.stringify(list.credits.links)}`);
+            if (!source.href.includes('github.com')) {
+              fail('title-credits', `"${words.source}" href is "${source.href}", expected a GitHub URL`);
+            }
+            log(`    "${source.label}" -> ${source.href}`);
+          }
+          if (words.back) {
+            if (!list.credits.back) fail('title-credits', 'no "Back" row on Credits');
+            else if (list.credits.back.label !== words.back) {
+              fail('title-credits', `the Back row reads "${list.credits.back.label}", expected "${words.back}"`);
+            }
+            log(`    "${list.credits.back?.label}" row is on screen`);
+          }
           await shot(tip, 'title-credits');
+
+          // A closes Credits from anywhere (there is nothing else for it to
+          // do there) — the same thing tapping the visible "Back" row does,
+          // so this is that row's own keyboard/A path.
+          if (words.back) {
+            await pressA(tip);
+            list = await listNow('after pressing A on "Back"');
+            if (list.credits) fail('title-credits', 'pressing A did not close Credits from "Back"');
+            log('    A on "Back" returns to the episode list');
+
+            // "Write to us" takes the shared anchor back once Credits closes.
+            if (WORLD.feedback && writeLabel) {
+              const restored = tip.locator('#say-link');
+              if (!(await restored.isVisible())) fail('title-credits', '"write to us" was not restored after Credits closed');
+              const restoredHref = (await restored.getAttribute('href')) ?? '';
+              if (!restoredHref.startsWith('mailto:') && !restoredHref.startsWith('http')) {
+                fail('title-credits', `"write to us" href is "${restoredHref}" after Credits closed`);
+              }
+              if ((await restored.innerText()).trim() !== writeLabel) {
+                fail(
+                  'title-credits',
+                  `"write to us" reads "${(await restored.innerText()).trim()}" after Credits closed, expected "${writeLabel}"`
+                );
+              }
+              log('    "write to us" is restored after Credits closes');
+            }
+
+            // Back into Credits, so the tap-anywhere-closes check below still
+            // has something open to close.
+            list = await titleSnap(tip);
+            await tapRow(list.items.find((item) => item.kind === 'credits'));
+            await sleep(320);
+            list = await listNow('with Credits open again, for the tap-anywhere check');
+          }
 
           await tapPoint(tcdp, {
             x: list.credits.backRect.x + list.credits.backRect.w / 2,
@@ -1346,7 +1414,7 @@ async function main() {
       await pressA(page);
       await expectDialogue(page, 'suggestion-box', 'the suggestion box');
 
-      const write = page.locator('a[data-overlay="link"]');
+      const write = page.locator('#say-link');
       if (!(await write.isVisible())) fail('suggestion-box', 'no link beside the suggestion box');
       const writeHref = (await write.getAttribute('href')) ?? '';
       // A world may point the box at a page (a form) or at the player's own
@@ -1407,7 +1475,7 @@ async function main() {
       (b) => !b.interior && existsSync(resolve(PACK, 'assets', 'buildings', `${b.id}.png`))
     );
     if (painted) {
-      const deskLink = page.locator('a[data-overlay="link"]');
+      const deskLink = page.locator('#say-link');
 
       log('  read a painted building: its plaque');
       const paintedPlaque = plaqueOf(painted);
@@ -2048,7 +2116,7 @@ async function main() {
     await walkTo(tp, 'paint-it', barePlaque);
     await pressA(tp);
     await expectDialogue(tp, 'paint-it', `${bare.id}'s plaque`);
-    const paint = tp.locator('a[data-overlay="link"]');
+    const paint = tp.locator('#say-link');
     if (!(await paint.isVisible())) fail('paint-it', `no "Paint it" link on ${bare.id}'s first page`);
     const href = (await paint.getAttribute('href')) ?? '';
     if (!href.endsWith(`&building=${bare.id}`)) fail('paint-it', `link href is "${href}"`);
@@ -2066,7 +2134,7 @@ async function main() {
     let focused = false;
     for (let i = 0; i < 4 && !focused; i++) {
       await tp.keyboard.press('Tab');
-      focused = await tp.evaluate(() => document.activeElement?.matches('a[data-overlay="link"]') === true);
+      focused = await tp.evaluate(() => document.activeElement?.matches('#say-link') === true);
     }
     if (!focused) fail('paint-it', 'the "Paint it" link is not reachable with Tab');
     await pressA(tp);

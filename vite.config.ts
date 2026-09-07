@@ -1,11 +1,28 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { cp } from 'node:fs/promises';
-import { createReadStream, readdirSync, statSync } from 'node:fs';
+import { createReadStream, readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const WORLDS_DIR = resolve(ROOT, 'worlds');
+
+/**
+ * Where this repository lives, for the Credits screen's "Open source on
+ * GitHub" row (issue #65). A checkout has no way of knowing its own remote,
+ * so this is read from `package.json`'s own `repository.url` at build time
+ * and handed to the engine as `import.meta.env.VITE_REPOSITORY` (below) — a
+ * project-level URL is not world knowledge (CLAUDE.md §"engine must know
+ * nothing about any specific town"), but it is still not the engine's to
+ * type out either, so it never appears as a literal in engine source.
+ * Mirrors `scripts/build-site.mjs`'s own `repoUrl()`, deliberately: both
+ * read the same field, the same way, for the same reason.
+ */
+function repositoryUrl(): string {
+  const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8'));
+  const declared = typeof pkg.repository === 'string' ? pkg.repository : pkg.repository?.url;
+  return (declared ?? '').replace(/^git\+/, '').replace(/\.git$/, '');
+}
 
 const MIME: Record<string, string> = {
   '.json': 'application/json',
@@ -112,6 +129,13 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ROOT, 'VITE_');
   return {
     plugins: [worldPacks(env.VITE_WORLD)],
-    build: { outDir: 'dist', emptyOutDir: true }
+    build: { outDir: 'dist', emptyOutDir: true },
+    // A compile-time replacement rather than an env-file variable: the value
+    // comes from package.json, not from anything a `.env` would declare, so
+    // it has to be `define`d instead of merely loaded (see `loadEnv` above,
+    // which only ever reads VITE_-prefixed keys out of `.env` files).
+    define: {
+      'import.meta.env.VITE_REPOSITORY': JSON.stringify(repositoryUrl())
+    }
   };
 });

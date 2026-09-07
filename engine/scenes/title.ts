@@ -73,7 +73,11 @@ interface Row {
  * Neither ever fires without that confirmation. A `Credits` item, between the
  * episodes and "Write to us", swaps the episode list for a scrollable one:
  * every painted building's painter, any episode's writer `credits.json`
- * names, and two closing lines of copy.
+ * names, two closing lines of copy, and — below those, past the scrolling
+ * part — a short stack of closing rows (issue #65 addendum): "About this
+ * game", "Paint a building" and "Open source on GitHub" as real DOM links
+ * (any missing its copy or its URL is simply left out, DESIGN.md §2), and
+ * last of all a "Back" row that returns to the episode list.
  *
  * Controls are the game's own, on one path each (hard rule 4): tapping an
  * entry picks it, the d-pad or the arrow keys move the cursor up and down,
@@ -82,9 +86,14 @@ interface Row {
  * highlighted. On touch, "Start over" (and Yes/Keep) are their own tappable
  * targets beside the primary one, each at least 44px on a side. The Credits
  * list scrolls on the d-pad/arrow keys (held) or by dragging, and a tap or A
- * closes it. The "write to us" link at the foot of the list is a real DOM
- * anchor, the same one the suggestion box uses, so touch, Tab and Enter are
- * the browser's job rather than the game's.
+ * closes it from anywhere on the screen — the "Back" row is a second, more
+ * discoverable way to do the same thing, not a different one, since A always
+ * closes Credits and there is nothing else for it to do while Credits is
+ * open. The "write to us" link at the foot of the episode list, and the
+ * closing rows on the Credits list, are real DOM anchors — a small pool of
+ * them, since Credits can show more than one at once (unlike the dialogue
+ * box's single link they are cousins of) — so touch, Tab and Enter are the
+ * browser's job rather than the game's.
  */
 export class TitleScene extends Phaser.Scene {
   private booted!: Booted;
@@ -114,6 +123,21 @@ export class TitleScene extends Phaser.Scene {
   private creditsCam!: Phaser.Cameras.Scene2D.Camera;
   private linkEl: HTMLAnchorElement | null = null;
   private writeUrl?: string;
+  /** The repository URL (`import.meta.env.VITE_REPOSITORY`, set at build time
+   *  from `package.json` — see vite.config.ts), for the Credits screen's
+   *  "Open source on GitHub" row. Never a literal in engine source. */
+  private sourceUrl?: string;
+  /**
+   * A small pool of DOM anchors (index.html) for the Credits screen's own
+   * closing link rows — About this game, Paint a building, Open source on
+   * GitHub — one per row that can be on screen at once. `#say-link` covers
+   * "write to us" on the episode list; Credits needs more than one anchor
+   * live at the same time, which `#say-link` alone never has to be.
+   */
+  private linkPool: HTMLAnchorElement[] = [];
+  /** The Credits screen's "Back" row — a canvas button, not a link. */
+  private backText!: Phaser.GameObjects.Text;
+  private backRect: Rect | null = null;
   /** Where the list is drawn, in this scene's pixels — the dev snapshot's aim. */
   private panelBox = { left: 0, width: 0 };
   private unbind: (() => void)[] = [];
@@ -162,12 +186,20 @@ export class TitleScene extends Phaser.Scene {
       .text(0, 0, '', { fontFamily: FONT, fontSize: '13px', color: '#2a231a', lineSpacing: 6 })
       .setDepth(2)
       .setVisible(false);
+    this.backText = this.add
+      .text(0, 0, '', { fontFamily: FONT, fontSize: '13px', color: '#2a231a', fontStyle: 'bold' })
+      .setOrigin(0.5, 0.5)
+      .setDepth(2)
+      .setVisible(false);
     // A second camera, viewport-sized to the visible window, renders only the
     // credits body — see the field comment for why not a mask. Left
     // transparent (the default) so the panel behind it, drawn by the main
     // camera, still shows through.
     this.creditsCam = this.cameras.add(0, 0, 1, 1);
     this.cameras.main.ignore(this.creditsBody);
+
+    this.linkPool = Array.from(document.querySelectorAll<HTMLAnchorElement>('a.credit-link'));
+    this.sourceUrl = import.meta.env.VITE_REPOSITORY || undefined;
 
     for (const episode of episodes) {
       const done = isCompleted(save, episode.id);
@@ -196,8 +228,11 @@ export class TitleScene extends Phaser.Scene {
       this.linkEl.href = this.writeUrl;
       this.linkEl.textContent = writeLabel;
       // Dresses the shared link as one of this list's rows rather than the
-      // dialogue box's button (style.css `#say-link.row-link`); taken off
-      // again on shutdown so the dialogue box gets its own look back.
+      // dialogue box's button (style.css `.row-link`); taken off again on
+      // shutdown so the dialogue box gets its own look back. Unlike the
+      // Credits screen's own pool (`linkPool`, below), this one anchor is
+      // never repointed at anything else — it is "write to us" for as long
+      // as the title screen is up.
       this.linkEl.classList.add('row-link');
       // Same rule as the in-game link (engine/scenes/ui.ts): a form URL opens
       // in a new tab so the title screen is still there afterwards; a
@@ -225,6 +260,7 @@ export class TitleScene extends Phaser.Scene {
       this.heading,
       this.subtitle,
       this.creditsHeading,
+      this.backText,
       ...this.rows.flatMap((row) => [row.text, row.actionText, row.secondaryText, row.doneText])
     ]);
 
@@ -275,6 +311,7 @@ export class TitleScene extends Phaser.Scene {
       this.unbind = [];
       this.hideLink();
       this.linkEl?.classList.remove('row-link');
+      this.hideCreditLinks();
       if (import.meta.env.DEV) publishTitle(null);
     });
   }
@@ -524,8 +561,55 @@ export class TitleScene extends Phaser.Scene {
     this.mode = 'list';
     this.creditsHeading.setVisible(false);
     this.creditsBody.setVisible(false);
+    this.backText.setVisible(false);
+    this.backRect = null;
+    this.hideCreditLinks();
     this.setListVisible(true);
     this.layout();
+  }
+
+  /** Hides every anchor in `linkPool`, the way `hideLink()` hides `#say-link`. */
+  private hideCreditLinks(): void {
+    for (const el of this.linkPool) this.hideOne(el);
+  }
+
+  /**
+   * About/Paint/Source, in the order they're drawn — each shown only when
+   * both its copy label and its target exist (hard rule 3). None of these
+   * URLs is a world's to carry (CLAUDE.md hard rule 1): the repository comes
+   * from the engine's own build (`sourceUrl`), and the front page / Studio /
+   * contributing page are all worked out from where this page is served
+   * (`import.meta.env.BASE_URL`), the same layout `scripts/build-site.mjs`
+   * lays the site out in — `/<world>/` beside `/`, `/studio/` and
+   * `/contributing/`.
+   */
+  private creditsLinks(): { label: string; url: string }[] {
+    const words = this.booted.loaded.copy.ui.title;
+    const world = this.booted.loaded.world;
+    const links: { label: string; url: string }[] = [];
+
+    // `import.meta.env.BASE_URL` is a path ("/", "/mainstreet/route10/"), not
+    // a full URL, so it needs `location.href` to resolve against before a
+    // "one level up" relative URL can be built from it.
+    const base = new URL(import.meta.env.BASE_URL, location.href);
+
+    if (words?.about) {
+      links.push({ label: words.about, url: new URL('../', base).toString() });
+    }
+
+    // The Studio for this world when it names one (world.json `contribute` —
+    // always a full address of its own, engine/paint.ts's own doc explains
+    // why); otherwise the contributing page, one level up alongside it.
+    if (words?.paint) {
+      const paintUrl = world.contribute ?? new URL('../contributing/', base).toString();
+      links.push({ label: words.paint, url: paintUrl });
+    }
+
+    if (words?.source && this.sourceUrl) {
+      links.push({ label: words.source, url: this.sourceUrl });
+    }
+
+    return links;
   }
 
   private setListVisible(show: boolean): void {
@@ -553,11 +637,23 @@ export class TitleScene extends Phaser.Scene {
     const panelW = Math.min(width - 24, PANEL_MAX);
     const left = Math.round((width - panelW) / 2);
     this.panelBox = { left, width: panelW };
+    const words = this.booted.loaded.copy.ui.title;
 
     this.creditsHeading.setPosition(Math.round(width / 2), 20);
 
+    // Below the scrollable panel: About/Paint/Source as DOM link rows, then
+    // "Back" — a fixed stack rather than more of the scrolling content, since
+    // Credits has no selectable-row cursor of its own to carry a live one
+    // through scrolled text (only the held-key/drag scroll in update()); a
+    // fixed last group the player never has to scroll to find is the simpler
+    // of the two ways CLAUDE.md's issue #65 addendum offered.
+    const links = this.creditsLinks();
+    const showBack = Boolean(words?.back);
+    const footerRows = links.length + (showBack ? 1 : 0);
+    const footerH = footerRows > 0 ? footerRows * (ROW_H + ROW_GAP) : 0;
+
     const viewTop = 20 + 34;
-    const viewBottom = height - 20;
+    const viewBottom = height - 20 - footerH;
     const viewH = Math.max(40, viewBottom - viewTop);
 
     this.creditsBody.setWordWrapWidth(panelW - 28, true);
@@ -576,7 +672,55 @@ export class TitleScene extends Phaser.Scene {
     this.creditsCam.setViewport(left, viewTop, panelW, viewH);
     this.creditsCam.setScroll(0, this.creditsScroll);
 
+    let fy = viewBottom + ROW_GAP;
+    links.forEach((link, i) => {
+      // An outline like every other unselected row on the episode list
+      // (`layout()`, below), so this reads as one more page of the same
+      // list rather than a different kind of thing.
+      this.panel.lineStyle(2, PAPER, 0.35);
+      this.panel.strokeRect(left + 1, fy + 1, panelW - 2, ROW_H - 2);
+      const el = this.linkPool[i];
+      if (el) {
+        el.href = link.url;
+        el.textContent = link.label;
+        el.target = '_blank';
+        el.rel = 'noopener';
+        this.positionLink(el, left, fy, panelW, ROW_H, '#f3ead8', 1);
+      }
+      fy += ROW_H + ROW_GAP;
+    });
+    // Any pool anchors past however many rows apply this time (a world
+    // missing one of the three labels, or the Studio/front-page URL) stay
+    // hidden — hard rule 3, the same as any other row a world leaves out.
+    for (let i = links.length; i < this.linkPool.length; i++) this.hideOne(this.linkPool[i]);
+
+    if (showBack && words?.back) {
+      // Drawn "selected" — paper fill, ink text — always: it is the one
+      // thing in Credits there is to select, so there is no cursor state for
+      // it to be off. Tapping it (or anywhere else in Credits) and pressing
+      // A both already close Credits; this is the visible, discoverable way
+      // to do the same thing (Tom's walkthrough: "no obvious way back").
+      this.panel.fillStyle(PAPER, 1);
+      this.panel.fillRect(left, fy, panelW, ROW_H);
+      this.panel.lineStyle(3, INK, 1);
+      this.panel.strokeRect(left + 1.5, fy + 1.5, panelW - 3, ROW_H - 3);
+      this.backText.setText(words.back);
+      this.backText.setPosition(left + panelW / 2, fy + ROW_H / 2);
+      this.backText.setVisible(true);
+      this.backRect = { x: left, y: fy, w: panelW, h: ROW_H };
+    } else {
+      this.backText.setVisible(false);
+      this.backRect = null;
+    }
+
     if (import.meta.env.DEV) this.publish();
+  }
+
+  /** Hides one pooled anchor, same as `hideCreditLinks()` does for all of them. */
+  private hideOne(el: HTMLAnchorElement | undefined): void {
+    if (!el) return;
+    if (document.activeElement === el) el.blur();
+    el.hidden = true;
   }
 
   /** Client (CSS) pixels to the coordinates this scene draws in. */
@@ -738,7 +882,7 @@ export class TitleScene extends Phaser.Scene {
       // the cursor moving onto and off of it colours theirs.
       if (row.kind === 'write' && this.linkEl) {
         row.text.setVisible(false);
-        this.positionLink(left, y, panelW, row.h, selected);
+        this.positionLink(this.linkEl, left, y, panelW, row.h, selected ? '#2a231a' : '#f3ead8', selected ? 1 : 0.8);
       }
 
       y += row.h + ROW_GAP;
@@ -748,14 +892,13 @@ export class TitleScene extends Phaser.Scene {
   }
 
   /**
-   * Positions the title screen's "write to us" row: same left/top math the
-   * dialogue box's link used before it grew a `w`/`h`/`selected` — but sized
-   * to the row underneath (so its tap target is the whole row, not just its
-   * text) and coloured the way `layout()` colours every other row's label.
+   * Positions one of the screen's DOM anchors over a canvas-drawn row: same
+   * left/top math the dialogue box's link used before it grew a `w`/`h`/
+   * colour of its own — sized to the row underneath (so its tap target is
+   * the whole row, not just its text). Shared by "write to us" on the
+   * episode list and, in Credits, every anchor in `linkPool`.
    */
-  private positionLink(x: number, y: number, w: number, h: number, selected: boolean): void {
-    const el = this.linkEl;
-    if (!el) return;
+  private positionLink(el: HTMLAnchorElement, x: number, y: number, w: number, h: number, color: string, opacity: number): void {
     const canvas = this.game.canvas;
     const stage = canvas?.parentElement;
     if (!canvas || !stage) return;
@@ -771,8 +914,8 @@ export class TitleScene extends Phaser.Scene {
     el.style.width = `${Math.round(w * sx)}px`;
     el.style.height = `${Math.round(h * sy)}px`;
     el.style.paddingLeft = `${Math.round(14 * sx)}px`;
-    el.style.color = selected ? '#2a231a' : '#f3ead8';
-    el.style.opacity = selected ? '1' : '0.8';
+    el.style.color = color;
+    el.style.opacity = String(opacity);
     el.hidden = false;
   }
 
@@ -790,13 +933,25 @@ export class TitleScene extends Phaser.Scene {
       this.mode === 'credits'
         ? (() => {
             const info = this.creditsData();
+            // Read straight off the DOM anchors `layoutCredits()` just
+            // positioned — their own bounding boxes, rather than a second
+            // recomputation of the same scaling math, and `href` resolved to
+            // an absolute URL the way a test would read it.
+            const links = this.linkPool
+              .filter((el) => !el.hidden)
+              .map((el) => {
+                const box = el.getBoundingClientRect();
+                return { label: el.textContent ?? '', href: el.href, rect: { x: box.left, y: box.top, w: box.width, h: box.height } };
+              });
             return {
               heading: info.heading,
               buildings: info.buildings,
               stories: info.stories,
               palette: info.palette,
               licence: info.licence,
-              backRect: { x: rect?.left ?? 0, y: rect?.top ?? 0, w: (rect?.width ?? width) as number, h: (rect?.height ?? height) as number }
+              backRect: { x: rect?.left ?? 0, y: rect?.top ?? 0, w: (rect?.width ?? width) as number, h: (rect?.height ?? height) as number },
+              links,
+              back: this.backRect ? { label: this.backText.text, rect: toClient(this.backRect)! } : undefined
             };
           })()
         : null;

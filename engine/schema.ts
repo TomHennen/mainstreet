@@ -439,6 +439,22 @@ export interface WorldCopy {
      * that opens the Credits list; `palette` and `licence` are its two fixed
      * closing lines — plain copy, so the engine never has to name a person or
      * a licence itself.
+     *
+     * Four more label the Credits screen's own closing rows (issue #65
+     * addendum): `source` is "Open source on GitHub" — the repository URL
+     * itself is never a world's to know, so it comes from the engine's own
+     * build instead (`import.meta.env.VITE_REPOSITORY`, set in
+     * `vite.config.ts` from `package.json`) and this only supplies the
+     * label. `about` links to the site's front page and `paint` to the
+     * Studio for this world (falling back to the contributing page when the
+     * world names no Studio of its own, via `world.contribute`) — both
+     * worked out from where the page itself is served, never typed
+     * anywhere. `back` is the button, last on the list, that returns to the
+     * episode list — offered alongside the screen's existing tap-anywhere
+     * and A-to-close, for anyone who didn't know either of those would work.
+     * Any of the four left out simply isn't drawn (hard rule 3), and
+     * `source`/`about`/`paint` each also depend on their URL actually being
+     * available.
      */
     title?: {
       play?: string;
@@ -457,6 +473,10 @@ export interface WorldCopy {
       storyBy?: string;
       palette?: string;
       licence?: string;
+      source?: string;
+      about?: string;
+      paint?: string;
+      back?: string;
     };
   };
   intro?: { speaker: string; lines: string[] };

@@ -32,7 +32,11 @@
       "credits": "Credits",
       "storyBy": "Story by",
       "palette": "Palette: Resurrect 64 by Kerrie Lake",
-      "licence": "Code Apache-2.0. Art and words CC BY 4.0."
+      "licence": "Code Apache-2.0. Art and words CC BY 4.0.",
+      "source": "Open source on GitHub",
+      "about": "About this game",
+      "paint": "Paint a building",
+      "back": "Back"
     },
     "suggest": {
       "lines": [

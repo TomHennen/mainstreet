@@ -134,6 +134,14 @@ export interface DebugCreditsLine {
   credit: string;
 }
 
+/** One of the Credits screen's own DOM link rows: About this game, Paint a building, Open source on GitHub. */
+export interface DebugCreditsLink {
+  label: string;
+  /** The anchor's resolved `href` (absolute, even when written as a relative URL). */
+  href: string;
+  rect: DebugRect;
+}
+
 /** The Credits list's content, published only while it is open (engine/scenes/title.ts). */
 export interface DebugCredits {
   heading: string;
@@ -143,6 +151,10 @@ export interface DebugCredits {
   licence: string;
   /** Tapping anywhere in here goes back to the episode list. */
   backRect: DebugRect;
+  /** About/Paint/Source — only the rows actually shown, in the order they're drawn. */
+  links: DebugCreditsLink[];
+  /** The visible "Back" row (issue #65 addendum), when the world labels one. */
+  back?: { label: string; rect: DebugRect };
 }
 
 export interface DebugTitle {
