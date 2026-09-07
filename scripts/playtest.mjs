@@ -636,12 +636,16 @@ async function main() {
         if (!row.selected) fail('title', 'the cursor is not on the first unfinished episode');
         log(`    "${list.world}" — "${row.label}" [${row.action}]`);
 
-        // The world's "write to us", last on the list and a real DOM link, so
-        // touch, Tab and Enter are the browser's (DESIGN.md §2).
+        // The world's "write to us" — a real DOM link (DESIGN.md §2), sitting
+        // after Credits and before "Forget everything" (the true last item,
+        // when the world offers it) rather than always at the very foot.
         const writeLabel = words.write ?? COPY.ui?.suggest?.link;
         if (WORLD.feedback && writeLabel) {
-          const last = list.items[list.items.length - 1];
-          if (last.kind !== 'write') fail('title', 'the "write to us" row is not the last item on the list');
+          const writeIndex = list.items.findIndex((item) => item.kind === 'write');
+          const after = list.items[writeIndex + 1];
+          if (writeIndex < 0 || (after && after.kind !== 'forget')) {
+            fail('title', `the "write to us" row is not where it belongs: ${JSON.stringify(list.items.map((i) => i.kind))}`);
+          }
           const write = tip.locator('a[data-overlay="link"]');
           if (!(await write.isVisible())) fail('title', 'no "write to us" link on the title screen');
           if ((await write.innerText()).trim() !== writeLabel) {
@@ -744,6 +748,80 @@ async function main() {
         await advanceDialogue(tip, 'title-continue', followUp.lines.length);
         await shot(tip, 'title-continued');
 
+        // "Start over" (issue #65): offered beside "Continue" once an episode
+        // has progress — a true reset, unlike "play again" below, which
+        // forgets nothing about the episode having been played. The follow-up
+        // conversation above left the browser mid-episode, on the Map scene,
+        // so this starts by going back to the title screen the way a player
+        // actually would.
+        await tip.reload({ waitUntil: 'load' });
+        list = await listNow('back on the title screen, for "Start over"');
+        row = rowFor(list, shippedId);
+        if (!row.secondary) fail('title-reset', 'an episode with progress offers no secondary action');
+        if (words.reset && row.secondary !== words.reset) {
+          fail('title-reset', `the secondary action reads "${row.secondary}", expected "${words.reset}"`);
+        }
+        if (!row.secondaryRect) fail('title-reset', 'the secondary action has no tap target');
+        log(`    "${row.action}" and "${row.secondary}" both offered on an episode with progress`);
+
+        // Spaced out past the 220ms action debounce, like pressA() — a tap
+        // right on the heels of another one would otherwise be swallowed.
+        const tapZone = async (r) => {
+          await tapPoint(tcdp, { x: r.x + r.w / 2, y: r.y + r.h / 2 });
+          await sleep(320);
+        };
+
+        await tapZone(row.secondaryRect);
+        list = await listNow('after tapping "Start over"');
+        row = rowFor(list, shippedId);
+        if (!row.confirming) fail('title-reset', 'tapping "Start over" did not open its confirmation');
+        if (words.resetAsk && row.confirmAsk !== words.resetAsk) {
+          fail('title-reset', `the confirmation asks "${row.confirmAsk}", expected "${words.resetAsk}"`);
+        }
+        if (!row.yesRect || !row.keepRect) fail('title-reset', 'the confirmation has no Yes/Keep targets');
+        await shot(tip, 'title-reset-confirm');
+
+        // "Keep it" backs out without touching anything.
+        await tapZone(row.keepRect);
+        list = await listNow('after "Keep it"');
+        row = rowFor(list, shippedId);
+        if (row.confirming) fail('title-reset', '"Keep it" left the confirmation open');
+        if (words.continue && row.action !== words.continue) {
+          fail('title-reset', `"Keep it" changed the episode's own action to "${row.action}"`);
+        }
+        const kept = JSON.parse((await tip.evaluate((key) => localStorage.getItem(key), SAVE_KEY)) ?? 'null');
+        if (!kept?.episodes?.[shippedId]) fail('title-reset', '"Keep it" erased the episode’s progress');
+        log('    "Keep it" backs out without losing anything');
+
+        // Now for real.
+        await tapZone(row.secondaryRect);
+        list = await titleSnap(tip);
+        row = rowFor(list, shippedId);
+        await tapZone(row.yesRect);
+        list = await titleSnap(tip);
+        row = rowFor(list, shippedId);
+        if (row.done) fail('title-reset', '"Start over" did not clear the done mark');
+        if (row.secondary) fail('title-reset', '"Start over" left a secondary action on a fresh episode');
+        if (words.play && row.action !== words.play) {
+          fail('title-reset', `after "Start over" the episode offers "${row.action}", expected "${words.play}"`);
+        }
+        const afterReset = JSON.parse((await tip.evaluate((key) => localStorage.getItem(key), SAVE_KEY)) ?? 'null');
+        if (afterReset?.episodes?.[shippedId]) fail('title-reset', '"Start over" left progress behind in the save');
+        log('    "Start over", confirmed: back to "Play", nothing left behind');
+
+        await tapRow(row);
+        const startedOver = await waitUntil(
+          tip,
+          (s) => s.map === WORLD.start.map,
+          'the episode to start fresh after "Start over"',
+          20000
+        );
+        expectFlag(startedOver, 'title-reset', flag, false);
+        if (here(startedOver)[0] !== WORLD.start.pos[0] || here(startedOver)[1] !== WORLD.start.pos[1]) {
+          fail('title-reset', `"Start over" started at ${here(startedOver)}, expected the world start ${WORLD.start.pos}`);
+        }
+        log(`    started fresh at ${here(startedOver)}, on "${startedOver.map}"`);
+
         // A finished episode wears its done mark and offers to be played
         // again. Finishing this one properly takes the whole story, so the
         // save is marked the way the engine marks it — its `completed` list —
@@ -782,6 +860,86 @@ async function main() {
           fail('title-again', `playing again forgot that "${shippedId}" was finished: ${JSON.stringify(after)}`);
         }
         log(`    played again from ${here(fresh)}, still on the finished list`);
+
+        // Credits (Tom's addendum to issue #65): a Credits item between the
+        // episodes and "write to us" swaps the list for a scrollable one —
+        // every painted building's painter, off `credits.json`, plus the two
+        // closing lines of copy. "Played again" above left the browser mid-
+        // episode, so this starts by going back to the title screen.
+        await tip.goto(BASE, { waitUntil: 'load' });
+        list = await listNow('back on the title screen, for Credits');
+        if (words.credits) {
+          const creditsRow = list.items.find((item) => item.kind === 'credits');
+          if (!creditsRow) fail('title-credits', 'no Credits item on the list');
+          if (list.items[list.items.length - 1].kind === 'credits') {
+            fail('title-credits', 'Credits is the last item on the list; it belongs before "write to us"/"forget everything"');
+          }
+          await tapRow(creditsRow);
+          await sleep(320); // past the action debounce
+          list = await listNow('with Credits open');
+          if (!list.credits) fail('title-credits', 'opening Credits published no credits data');
+          if (words.credits && list.credits.heading !== words.credits) {
+            fail('title-credits', `the Credits heading reads "${list.credits.heading}", expected "${words.credits}"`);
+          }
+          const mbc = list.credits.buildings.find((b) => b.label === 'Middle Brook Cafe');
+          if (!mbc) fail('title-credits', `no line for Middle Brook Cafe: ${JSON.stringify(list.credits.buildings)}`);
+          else if (mbc.credit !== 'Tom and Lana') {
+            fail('title-credits', `Middle Brook Cafe's line reads "${mbc.credit}", expected "Tom and Lana"`);
+          }
+          const hh = list.credits.buildings.find((b) => b.label === 'Heartbreak Hotel');
+          if (!hh) fail('title-credits', `no line for Heartbreak Hotel: ${JSON.stringify(list.credits.buildings)}`);
+          else if (hh.credit !== 'Tom') fail('title-credits', `Heartbreak Hotel's line reads "${hh.credit}", expected "Tom"`);
+          log(`    Credits: "${mbc?.label} — ${mbc?.credit}", "${hh?.label} — ${hh?.credit}"`);
+          if (words.palette && list.credits.palette !== words.palette) {
+            fail('title-credits', `the palette line reads "${list.credits.palette}", expected "${words.palette}"`);
+          }
+          if (words.licence && list.credits.licence !== words.licence) {
+            fail('title-credits', `the licence line reads "${list.credits.licence}", expected "${words.licence}"`);
+          }
+          await shot(tip, 'title-credits');
+
+          await tapPoint(tcdp, {
+            x: list.credits.backRect.x + list.credits.backRect.w / 2,
+            y: list.credits.backRect.y + list.credits.backRect.h / 2
+          });
+          await sleep(320); // past the action debounce
+          list = await listNow('back from Credits');
+          if (list.credits) fail('title-credits', 'tapping Credits did not close it');
+          log('    a tap goes back to the episode list');
+        }
+
+        // "Forget everything" (Tom's addendum to issue #65), tested once: the
+        // same one-step confirmation as "Start over", but for the whole save.
+        if (words.forget) {
+          const forgetRow = list.items.find((item) => item.kind === 'forget');
+          if (!forgetRow) fail('title-forget', 'no "Forget everything" item on the list');
+          if (list.items[list.items.length - 1].kind !== 'forget') {
+            fail('title-forget', `"Forget everything" is not the last item on the list: ${JSON.stringify(list.items.map((i) => i.kind))}`);
+          }
+          await tapRow(forgetRow);
+          await sleep(320); // past the action debounce
+          list = await listNow('after tapping "Forget everything"');
+          let fr = list.items.find((item) => item.kind === 'forget');
+          if (!fr.confirming) fail('title-forget', 'tapping "Forget everything" did not open its confirmation');
+          if (words.forgetAsk && fr.confirmAsk !== words.forgetAsk) {
+            fail('title-forget', `the confirmation asks "${fr.confirmAsk}", expected "${words.forgetAsk}"`);
+          }
+          await shot(tip, 'title-forget-confirm');
+
+          await tapZone(fr.yesRect);
+          list = await titleSnap(tip);
+          const afterForget = JSON.parse((await tip.evaluate((key) => localStorage.getItem(key), SAVE_KEY)) ?? 'null');
+          if (afterForget !== null) fail('title-forget', `"Forget everything" left a save behind: ${JSON.stringify(afterForget)}`);
+          const shippedAfterForget = rowFor(list, shippedId);
+          if (shippedAfterForget.done) fail('title-forget', 'a finished episode is still done after "Forget everything"');
+          if (words.play && shippedAfterForget.action !== words.play) {
+            fail(
+              'title-forget',
+              `after "Forget everything" the episode offers "${shippedAfterForget.action}", expected "${words.play}"`
+            );
+          }
+          log('    "Forget everything", confirmed: the whole save is gone');
+        }
       } finally {
         await titleCtx.close();
       }

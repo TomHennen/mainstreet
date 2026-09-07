@@ -162,18 +162,36 @@ episode's progress without forgetting it was played.
 
 **The title screen** (`engine/scenes/title.ts`) is what a URL with no
 parameters opens on: the world's name and subtitle, the episodes `world.json`
-ships — number, title, and a done mark on the finished ones — and the world's
-"write to us" link as the last item, wherever `world.json` has a `feedback`
-block. The cursor waits on the first unfinished episode, and the highlighted
-entry says what taking it would do: play it, carry on with it where there is a
-save, or play it again where it is finished. All five words are `copy.json`'s
-(`ui.title.play`, `.continue`, `.again`, `.done`, `.write`) — the engine draws
-the list and knows none of the wording (hard rule 1), and a world that leaves
-one out simply doesn't get that bit drawn (hard rule 3). Tapping an entry takes
-it, the d-pad and the arrow keys move the cursor, A (space, enter) takes the
+ships — number, title, and a done mark on the finished ones — a Credits item,
+a "Forget everything" item, and the world's "write to us" link as the last
+item, wherever `world.json` has a `feedback` block. The cursor waits on the
+first unfinished episode, and the highlighted entry says what taking it would
+do: play it, carry on with it where there is a save, or play it again where it
+is finished. All of it is `copy.json`'s (`ui.title.*`) — the engine draws the
+list and knows none of the wording (hard rule 1), and a world that leaves one
+out simply doesn't get that bit drawn (hard rule 3). Tapping an entry takes it,
+the d-pad and the arrow keys move the cursor, A (space, enter) takes the
 highlighted one, and the write link is a real DOM anchor, so touch, Tab and
 Enter stay the browser's job. `?episode=<id>` skips the title and plays that
 episode for review (§3).
+
+An episode with progress or a done mark also offers **"Start over"** beside its
+usual action — left/right (or a second tap target, ≥44px, beside the primary
+one) arms it, A/tap takes it — which asks once, in place on the row
+(`ui.title.resetAsk`/`.forgetAsk`, answered with `.yes`/`.keep`), then clears
+that episode's save entry *and* its `completed` mark (`engine/save.ts`
+`resetEpisode`) — a true reset, unlike "play again", which replays without
+forgetting the episode was finished. **"Forget everything"**, at the foot of
+the list, asks the same way and then clears the world's whole save
+(`forgetAll`). Neither ever fires without that confirmation.
+
+**Credits**, between the episodes and "write to us", swaps the list for a
+scrollable one (up/down, held, or drag to scroll; A or a tap anywhere goes
+back): every painted building's painter (`creditFor`, the same rule the plaque
+uses — painted *and* named in `credits.json`), any episode `credits.json`
+names a writer for under an optional `stories` map (episode id → name(s),
+under `ui.title.storyBy`), and two closing lines straight from copy
+(`ui.title.palette`, `.licence`) — the engine names nobody itself.
 
 **Fallback art (engine-built, not per-world):** unpainted building =
 flat facade in a neutral wall color + roof band + door + the building's name

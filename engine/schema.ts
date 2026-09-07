@@ -275,6 +275,14 @@ export interface Credits {
   chars?: Record<string, string | string[]>;
   portraits?: Record<string, string | string[]>;
   tiles?: Record<string, string | string[]>;
+  /**
+   * Who wrote an episode's story, keyed by episode id — separate from the art
+   * credits above because a story has no PNG to have painted, so there is no
+   * "actually painted" gate on it (contrast `creditFor`). Optional, and
+   * usually absent: most worlds simply don't fill it in, and the title
+   * screen's Credits list leaves out the whole "Story by" group when it is.
+   */
+  stories?: Record<string, string | string[]>;
 }
 
 /** UI strings. Anything the player reads that is not episode dialogue. */
@@ -359,6 +367,17 @@ export interface WorldCopy {
      * `feedback` block (the same link the suggestion box offers). Anything
      * missing simply isn't drawn — no wording of any of it is in the engine
      * (CLAUDE.md hard rules 1 and 3).
+     *
+     * `reset` is the secondary action offered beside `continue`/`again` — a
+     * true reset, forgetting the episode was ever finished, as opposed to
+     * `again`'s replay, which keeps it on the done list. `resetAsk` and
+     * `forgetAsk` are the one-step confirmation's question, asked in place on
+     * the same row, with `yes`/`keep` as its two answers. `forget` is the
+     * "wipe the whole save" item at the foot of the list; leaving it out
+     * simply leaves that item off (hard rule 3). `credits` labels the item
+     * that opens the Credits list; `palette` and `licence` are its two fixed
+     * closing lines — plain copy, so the engine never has to name a person or
+     * a licence itself.
      */
     title?: {
       play?: string;
@@ -366,6 +385,17 @@ export interface WorldCopy {
       again?: string;
       done?: string;
       write?: string;
+      reset?: string;
+      resetAsk?: string;
+      yes?: string;
+      keep?: string;
+      forget?: string;
+      forgetAsk?: string;
+      credits?: string;
+      /** Heading over an episode's writer(s) on the Credits list, when `credits.json` has a `stories` entry for it. */
+      storyBy?: string;
+      palette?: string;
+      licence?: string;
     };
   };
   intro?: { speaker: string; lines: string[] };

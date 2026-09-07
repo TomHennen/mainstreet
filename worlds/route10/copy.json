@@ -22,7 +22,17 @@
       "continue": "Continue",
       "again": "Play again",
       "done": "Done",
-      "write": "Write to us"
+      "write": "Write to us",
+      "reset": "Start over",
+      "resetAsk": "Start over? This forgets your progress on this episode.",
+      "yes": "Yes",
+      "keep": "Keep it",
+      "forget": "Forget everything",
+      "forgetAsk": "Forget everything? This clears every episode's progress on this device.",
+      "credits": "Credits",
+      "storyBy": "Story by",
+      "palette": "Palette: Resurrect 64 by Kerrie Lake",
+      "licence": "Code Apache-2.0. Art and words CC BY 4.0."
     },
     "suggest": {
       "lines": [

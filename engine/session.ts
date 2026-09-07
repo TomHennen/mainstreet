@@ -147,11 +147,17 @@ export function joinCredits(names: string[]): string {
  * §2/§4: "painted ones carry an art credit" — an unpainted building has
  * nothing to credit yet, even if credits.json names it ahead of time). Read
  * by the plaque beside the door, which is where the painter — or painters —
- * are thanked. A `credits.json` entry may be one name or an array of names,
- * in order of contribution; either way this returns one joined line.
+ * are thanked, and by the title screen's Credits list, which has no running
+ * session to read `assets`/`credits` from — hence the second argument,
+ * defaulted to the session's own for every other caller. A `credits.json`
+ * entry may be one name or an array of names, in order of contribution;
+ * either way this returns one joined line.
  */
-export function creditFor(buildingId: string): string | undefined {
-  const { assets, credits } = session();
+export function creditFor(
+  buildingId: string,
+  ctx: { assets: AssetIndex; credits: Credits } = session()
+): string | undefined {
+  const { assets, credits } = ctx;
   if (!assets.buildings.has(buildingId)) return undefined;
   const entry = credits.buildings?.[buildingId];
   if (entry === undefined) return undefined;
