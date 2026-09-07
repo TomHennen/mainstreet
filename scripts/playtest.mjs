@@ -2363,7 +2363,16 @@ async function main() {
       if (!lines.includes(talking.dialogue?.text)) {
         fail('walkers', `"${stroller.id}" said "${talking.dialogue?.text}", which is not one of ui.passerby`);
       }
-      log(`    tapped them at ${aim} and walked over: "${talking.dialogue?.text}"`);
+      // Somebody the player is passing rather than being introduced to: the
+      // box carries the world's own word for them (copy.json ui.passerbyName).
+      const passerbyName = COPY.ui.passerbyName ?? '';
+      if (talking.dialogue?.speaker !== (stroller.name ?? passerbyName)) {
+        fail(
+          'walkers',
+          `the box named "${stroller.id}" "${talking.dialogue?.speaker}", expected "${stroller.name ?? passerbyName}"`
+        );
+      }
+      log(`    tapped them at ${aim} and walked over: ${talking.dialogue?.speaker} — "${talking.dialogue?.text}"`);
       await shot(sp, 'stroller-tapped');
       await advanceDialogue(sp, 'walkers', 1);
 

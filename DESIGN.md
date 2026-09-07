@@ -299,8 +299,12 @@ between episodes:
 They have a `look` (§4) and somewhere to be, and **no dialogue at all**:
 pressing A on one gets a single kind line from `copy.json` `ui.passerby`,
 picked from that list by their id, so the same person always says the same
-thing and no line is written twice. A world with no `ui.passerby` simply has
-nothing for them to say, and they read as somebody minding their own business
+thing and no line is written twice. The name on the box is `ui.passerbyName`
+— "A neighbour" on Route 10 — unless the person carries a `name` of their
+own, which is the exception rather than the rule: these are people the player
+passes, not people they are introduced to. A world with no `ui.passerby`
+simply has nothing for them to say, and they read as somebody minding their
+own business; one with no `ui.passerbyName` shows a box with no name on it
 (hard rule 3). Anybody with something to say is an episode NPC. Two or three
 per map is what a street reads as; the validator refuses more than six.
 

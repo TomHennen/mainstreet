@@ -342,6 +342,14 @@ export interface WorldCopy {
      */
     passerby?: string[];
     /**
+     * The name on the dialogue box when one of those townspeople has none of
+     * their own (DESIGN.md §2). A world person is somebody the player passes
+     * rather than somebody they are introduced to, so a world pack usually
+     * leaves their `name` out and lets this stand in for all of them — "A
+     * neighbour", say. No `passerbyName` and the box simply shows no name.
+     */
+    passerbyName?: string;
+    /**
      * The title screen (DESIGN.md §2). The engine draws the world's name and
      * its list of episodes; every word on it comes from here. `play` is the
      * action on an episode not started yet, `continue` on one with a save to

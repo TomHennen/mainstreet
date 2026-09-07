@@ -11,6 +11,7 @@
       "It's lovely up here this time of year. I never do get tired of it.",
       "Afternoon — mind how you go, and enjoy the village."
     ],
+    "passerbyName": "A neighbour",
     "plaque": {
       "painted": "A little plaque by the door: {building}, painted by {credit}. Thank you, {credit}!",
       "anonymous": "A little plaque by the door: somebody painted {building} for everyone to enjoy. Thank you, whoever you are.",

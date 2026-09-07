@@ -1104,7 +1104,9 @@ export class MapScene extends Phaser.Scene {
         const line = this.passerbyLine(walker.id);
         if (!line) return;
         bus.emit(EV.say, {
-          speaker: walker.name,
+          // Their own name if the world pack gave them one, and otherwise the
+          // world's word for somebody the player is passing in the street.
+          speaker: walker.name || (state.copy.ui.passerbyName ?? ''),
           lines: [line],
           portrait: state.assets.portraits.has(walker.id) ? `art:portrait:${walker.id}` : undefined
         });
