@@ -63,10 +63,19 @@ Street, walkable end to end (real names on record: Adams' Antiquarian,
 Book Nook, More Good Books, Creative Corner Books, among others — don't use
 any of these in-game without the friendly-heads-up step in DESIGN.md §5).
 The real designation only dates to the early 2000s (Don Dales began leasing
-empty storefronts to booksellers around 2001-2005), but **in-game, never
-put a number on it** — no "20th anniversary" sign, no founding date. Let it
-read as though it's been a book village forever; the mystery is better
-than the truth here. Hobart is currently the least developed of the three
+empty storefronts to booksellers around 2001-2005) — correction from an
+earlier version of this note: the rule isn't "never reveal this," it's
+**no anniversary/founding-date sign posted in the town itself**. A visible
+"20 years of Book Village!" sign would read wrong to a visitor walking
+through — it'd make the place feel newer than it feels. But the recency is
+itself great story material: an episode about how Hobart became a book
+village (empty storefronts, one bookseller taking a chance, others
+following), or a beat where a townsperson casually surprises the player
+with "you know this all used to be empty, right? Not that long ago
+either" — that reveal-to-a-visitor moment is exactly the fun version of
+this fact. So: keep it off physical signage, but it's fair game for
+dialogue and even a future episode's whole premise. Hobart is currently
+the least developed of the three
 villages and is the natural place to grow bookshop lots over time — reserve
 several full-size open lots along Main Street per map rule 4, and let named
 shops fill in gradually rather than all at once.
