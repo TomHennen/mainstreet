@@ -559,7 +559,7 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
 
     <div class="stage" id="stage">
       <div class="canvasstack">
-        <canvas id="view"></canvas>
+        <canvas id="view" role="img" aria-label="The drawing, ${esc(def.name)}"></canvas>
         <canvas id="markers" aria-hidden="true"></canvas>
       </div>
     </div>
@@ -569,7 +569,7 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
     <p class="statusline" id="status" role="status" aria-live="polite">&nbsp;</p>
 
     <section class="preview">
-      <canvas id="previewcanvas"></canvas>
+      <canvas id="previewcanvas" role="img" aria-label="What you'll send"></canvas>
       <p class="quiet">What you'll send: just what you drew.</p>
       <p class="quiet" id="sendcolumns" hidden></p>
     </section>
@@ -650,10 +650,12 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
         <button id="fromguide">Start from the guide</button>
         <button id="clear">Start again</button>
       </div>
-      <p class="quiet">Painting in Aseprite or Piskel instead? Lovely — export a
-        PNG at the width above, any of the heights it lists, and import it here
-        to send it in.</p>
-      <p class="quiet">Turns the guide into real pixels you can edit and send.</p>
+      <p class="quiet">Painting in another app instead? Lovely — "Painting
+        somewhere else?" below has the exact size to use, the palette to load,
+        and a few apps people like. Export a PNG and import it here to send
+        it in.</p>
+      <p class="quiet">"Start from the guide" turns the faint guide into real
+        pixels you can edit and send.</p>
       ${entry.painted ? '<p class="quiet">"Improve it?" brings in the painting as it ships in the game today, as real pixels — a touch-up starts from there instead of the guide.</p>' : ''}
       <p class="quiet">Sent a drawing in already and want to carry on with it?
         The code is in your sent email — paste it back and it picks up right
@@ -688,6 +690,10 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
           </div>
           <p class="quiet">The .hex file is one colour per line, which
             Aseprite, Piskel and Lospec all read straight in.${paletteNamed}</p>
+          <p class="quiet">Not sure which app to paint in? The
+            <a class="link" href="${esc(contributingUrl())}">contributing
+            page</a> lists a few that people use, on a phone and at a desk,
+            with what each one costs and whether it can load our palette.</p>
           <p class="quiet">Import a PNG above afterwards and the Studio sorts
             out the small things itself: it moves any colour that isn't quite
             on the palette to the nearest one that is, makes up its mind about

@@ -28,9 +28,9 @@ palette for you, so there's nothing to get wrong.
 Pick the building you want, and it sets you up with a correctly-sized,
 correctly-paletted canvas to draw on.
 
-If you'd rather use a "real" pixel art tool, **Aseprite** (paid) or
-**Piskel** (free, in-browser) both work — just follow the spec below by
-hand.
+If you'd rather use a "real" pixel art tool, that works just as well —
+there's a list of ones people use under "Prefer a real pixel-art app?" below,
+and the spec to follow by hand is further down again.
 
 ### Drawing on a phone
 
@@ -51,9 +51,30 @@ the zoom buttons says how big a pixel is right now.
 
 ### Prefer a real pixel-art app?
 
-That works just as well, and some of them are lovely to draw in — on a
-phone, **Dotpict**, **Pixquare** and **Pixel Studio** are three that people
-use; on a desktop, Aseprite or Piskel. Set them up like this:
+That works just as well, and some of them are lovely to draw in. Our sizes
+are small and exact (32 to 96 pixels wide, heights in steps of 16), the
+background has to be transparent, and the palette is Resurrect 64 on Lospec —
+so the two things worth checking in any app are **whether you can set the
+canvas to an exact size like 80 × 48**, and **whether you can load our
+palette**.
+
+Here's what we could confirm from each app's own site or store listing, checked
+on 7 September 2026. Where a page didn't say, we've written "unverified"
+rather than guess — do have a look yourself before you buy anything.
+
+| App | Where it runs | Price | Palette | Notes |
+| --- | --- | --- | --- | --- |
+| **Pixquare** | iPhone, iPad, Mac | Free to download with an in-app purchase; the maker's FAQ describes it as a one-time purchase — $24.99 for all devices, or $7.99 iPhone-only | Saves and loads Lospec palettes from inside the app | Exports PNG, GIF, MOV and sprite sheets, and supports Apple Pencil. Exact canvas sizing unverified. |
+| **Pixel Studio** | iPhone, iPad, Android, Windows, macOS | Free, with in-app purchases | Downloads palettes from Lospec in-app; also reads JASC `.pal` and Aseprite `.ase` files | Says "unlimited canvas size" and canvas resizing, and exports PNG. Apple Pencil and S-Pen. |
+| **Resprite** | iPhone, iPad | Free to download; $1.99 a month, $14.99 a year, or $24.99 once | Reads `.gpl` files, and imports palettes straight from a Lospec link | Interactive canvas resizing and sprite-sheet export. Transparent-PNG details unverified. |
+| **Dotpict** | iPhone, iPad (there's an Android version too; we couldn't check its store page) | Free, with a $3.99 premium unlock | Preset palettes, and you can build one from a photo; loading a palette file is unverified | The listing offers "several different canvas pixel sizes to choose from" and names 96 × 96 as the largest. Whether you can set an exact size like 80 × 48 is unverified, so it's worth a look before you start. |
+| **Aseprite** | Windows, macOS, Linux | $19.99, paid once | Loads `.gpl` palette files, and the Studio's `.hex` download works in it too | The long-standing favourite for work like this. Desktop only. |
+| **LibreSprite** | Windows, macOS, Linux | Free and open source (GPL v2) | "Ready to use palettes, or make your own"; the formats it reads are unverified | A free, community-run fork of an early Aseprite. |
+| **Piskel** | Any desktop browser, plus free downloads for Windows, macOS and Linux | Free and open source | Not stated on its site; `.gpl` is what people generally use with it | Its site says it's "best used in a desktop browser and in landscape orientation", so it's a desk tool rather than a phone one. |
+| **Lospec Pixel Editor** | Desktop browsers | Free | Any palette from Lospec's own list, in one click | Simple and pleasant, though the page notes it is no longer being developed and only works on desktop browsers. |
+
+If you use something that isn't on this list and it works well, tell us and
+we'll add it. Whichever you pick, set it up like this:
 
 1. Load the palette **Resurrect 64**, which is on Lospec:
    <https://lospec.com/palette-list/resurrect-64>. (The Studio will also
@@ -106,9 +127,11 @@ Exact sizes for every open building are below.
 
 ## How to send it
 
-The Studio's **Submit** button opens an email to
+The Studio's **Open an email with my drawing** button opens an email to
 **tom.hennen+mainstreet@gmail.com** with a text code of your drawing
-already in the body — just hit send. If you moved the door or the plaque, the
+already in the body — just hit send. (A very detailed drawing can outgrow what
+an email link will carry; the Studio notices, says so, and offers you the PNG
+to attach instead.) If you moved the door or the plaque, the
 code brings that along, and the email says so in words as well.
 
 Painted outside the Studio? Email that same address and attach the PNG. If
@@ -167,14 +190,14 @@ quickly; it's the invitation this whole project runs on.
 
 ## Buildings waiting for an artist
 
-Middle Brook Cafe has its first coat (thank you, Tom and Lana). Every
+Middle Brook Cafe has its first coat (thank you, Tom and Lana), and so has
+Heartbreak Hotel (thank you, Tom) — both are open for touch-ups any time. Every
 building below is still a placeholder box, and any of them is up for grabs:
 
 | Building | Village | Size (pixels) |
 | --- | --- | --- |
 | Jefferson Town Hall (`jefferson-town-hall`) | Jefferson | 80 × 48 |
 | Mill Pond Inn (`mill-pond-inn`) | Jefferson | 80 × 48 |
-| Heartbreak Hotel (`heartbreak-hotel`) | Jefferson | 80 × 48 |
 | Stewart's (`stewarts`) | Stamford | 96 × 64 |
 | Mac-A-Doodles (`mac-a-doodles`) | Stamford | 64 × 48 |
 | Stamford Coffee (`stamford-coffee`) | Stamford | 80 × 48 |
