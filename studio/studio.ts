@@ -2669,8 +2669,8 @@ function wireEditor(state: EditorState): void {
   function prefillUrl(form: SubmitArt, name: string, notes: string, code: string | null): string {
     const params = new URLSearchParams();
     params.set('usp', 'pp_url');
-    params.set(form.fields.building, state.entry.placement.id);
-    params.set(form.fields.world, state.world.id);
+    if (form.fields.building) params.set(form.fields.building, state.entry.placement.id);
+    if (form.fields.world) params.set(form.fields.world, state.world.id);
     params.set(form.fields.credit, name);
     if (code !== null) params.set(form.fields.code, code);
     if (form.fields.notes && notes) params.set(form.fields.notes, notes);

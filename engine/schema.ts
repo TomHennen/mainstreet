@@ -269,8 +269,14 @@ export interface Submit {
     page?: string;
     /** The form's own field ids, by what the Studio writes into each. */
     fields: {
-      building: string;
-      world: string;
+      /**
+       * Optional: the code's first two segments already carry the world and
+       * building ids, so a form need not ask. A named field is filled in when
+       * present (browsers may autofill an empty "name"-like box, so most forms
+       * are better off without these two questions).
+       */
+      building?: string;
+      world?: string;
       credit: string;
       code: string;
       /** Optional free text from the painter. No field, no textarea. */

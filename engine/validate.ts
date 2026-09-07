@@ -932,14 +932,17 @@ function checkSubmit(submit: Submit | undefined, problems: string[]): void {
     problems.push('world "submit.art" needs a "fields" object naming the form\'s field ids');
     return;
   }
-  for (const name of ['building', 'world', 'credit', 'code'] as const) {
+  for (const name of ['credit', 'code'] as const) {
     const value = fields[name];
     if (typeof value !== 'string' || value.trim() === '') {
       problems.push(`world "submit.art" has no field id for "${name}"`);
     }
   }
-  if (fields.notes !== undefined && (typeof fields.notes !== 'string' || fields.notes.trim() === '')) {
-    problems.push('world "submit.art" has a "notes" field id that is empty');
+  for (const name of ['building', 'world', 'notes'] as const) {
+    const value = fields[name];
+    if (value !== undefined && (typeof value !== 'string' || value.trim() === '')) {
+      problems.push(`world "submit.art" has a "${name}" field id that is empty`);
+    }
   }
 }
 
