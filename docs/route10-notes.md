@@ -120,6 +120,39 @@ on your left as you come in, is papered over, and it looks like there are
 glass doors behind the paper: behind those is the hotel's old swimming pool,
 dry for years.
 
+**The Belvedere, second walk-through (Tom, Sep 2026).** Corrections to the
+note above, after seeing the first room built. All of them are in the map now:
+
+- **The front room is narrow.** It was built 26x20 and read as a hall. The
+  room you walk into is long and narrow — 16x24 in the map — so coming in the
+  door you are looking down the length of a bar room, not across one.
+- **The bar is a peninsula, not an island.** Its near end is against the front
+  wall, the wall you came in through, and it runs away from you up the room on
+  your left. Stools down the three free sides; whoever is working stands in
+  the strip inside it, and the wall closes the fourth end. Nobody walks round
+  it.
+- **The papered wall is on the bar's right**, coming in the door — the glass
+  doors and the dry pool are behind that one. (The first note said left; this
+  supersedes it.)
+- **The wall on the bar's left is a blackboard**, the full height of the bar,
+  and it gets new art every few months. Whatever is on it is a line of copy in
+  `worlds/route10/rooms/the-belvedere-interior.json` and nothing else, so
+  redrawing it is a copy edit: this month it is a chalk mural of the valley,
+  road and river and all, by whoever got the ladder first.
+- **The chalkboard belongs out front.** It had ended up propped inside by the
+  door, which reads as odd — a bar's board is on the walk where somebody
+  walking past can read it. It stands on the Stamford map now, past the
+  plaque, beside the Belvedere's door. The party demo's PARTY TONIGHT board
+  takes the same tile for its week.
+- **The bartender is a woman** — she almost always is — and she has a name.
+  Marnie: invented, not anybody, and not a name any other episode uses.
+- **The yard's floor is grass**, not stone. The only paving out there is the
+  small ring of pavers the fire sits on.
+- **The woodpile is a thing you use.** It was drawn small enough to miss. It
+  is a full stack now, and the beat Tom wanted works: take a split log off the
+  pile, put it on the fire, and the fire burns brighter for a minute. See
+  "A piece of wood on the fire" below.
+
 **What plays at the Belvedere (Tom, Sep 2026).** DJ nights, and sometimes a
 scrappy punk band. It is not a fiddle place — don't write one in. Karaoke,
 open mic and trivia are already on record, and a big-name comic passes
@@ -136,12 +169,12 @@ than a notes-file guess:
   building is on Stamford's Main Street block, west of Tops, as an unnamed
   filler; naming it waits on Tom.
 
-- **The Belvedere's outdoor area and firepit.** Mapped in a first pass as
-  `the-belvedere-yard` (a small paved yard off the end of the bathroom
-  hallway, with a firepit and a woodpile). It wants a proper pass of its own
-  once someone has eyes on the real thing: how big the yard is, where the
-  seating goes, what it looks over. The woodpile is scenery for now — see
-  Flavor & story hooks for the beat it is waiting for.
+- **The Belvedere's outdoor area and firepit.** Mapped as
+  `the-belvedere-yard` — a grass yard off the end of the bathroom hallway,
+  with a fire circle on a ring of pavers, stools round it and a stack of wood
+  you can take a log off. It still wants a proper pass of its own once
+  somebody has eyes on the real thing: how big the yard is, where the seating
+  goes, what it looks over.
 
 - **Hobart's bookshop lots.** Hobart is under-built relative to Stamford
   and Jefferson right now. Next time Hobart's map gets attention, reserve
@@ -616,13 +649,14 @@ opt-in, everything warm and affectionate) before it reaches the player.
   reveal, no speculation about why any one person doesn't; per hard rule
   6, that stays generic texture, not a puzzle about a real guarded
   person's inner life.
-- **A piece of wood on the fire.** The Belvedere's yard has a firepit and a
-  stack of wood beside it. The beat Tom wants: pick up a piece of wood, put it
-  on the fire. Small, warm, no puzzle — the kind of thing a player does once
-  and remembers. It needs a carry-and-place verb the engine does not have yet
-  (items today are picked up, not put down), so it is parked as an episode
-  idea rather than a map job. The woodpile is already standing in the yard,
-  waiting for it.
+- **A piece of wood on the fire.** Built, September 2026. The Belvedere's
+  yard has a firepit and a stack of wood beside it, and the beat Tom wanted is
+  in: take a split log off the pile, put it on the fire, and the fire catches
+  and burns brighter for a minute. Small, warm, no puzzle. The engine grew the
+  carry verbs for it (DESIGN.md §2, `give`/`take` on a fixture); what is
+  carried lives in that visit to that yard and nowhere else, so it is not an
+  inventory and no episode can ever be gated on it. Both the pile and the fire
+  say something whichever way round you find them.
 - **The mayor and the pool.** Years ago, when the Belvedere was being shown
   to its owner, the mayor — who is also the realtor — walked out across the
   plywood laid over the hotel's old swimming pool and went straight through

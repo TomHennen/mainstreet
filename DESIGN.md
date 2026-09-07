@@ -256,8 +256,10 @@ furniture that belongs to no building and no episode:
 }
 ```
 
-`kind` is one of the shapes the engine knows how to draw (today: just
-`suggestion-box`, a little post box in two colours). A fixture stands on its
+`kind` is one of the shapes the engine knows how to draw (today
+`suggestion-box`, a little post box in two colours; `woodpile`, a cord of
+split logs stacked taller than its tile; `firepit`, a ring of stones with a
+fire in it). A fixture stands on its
 own tile, is drawn at that tile's depth so the player passes behind it going
 up the street, and is **solid** — the player walks up beside it and presses A
 rather than standing on it, which is the one way it differs from the plaque.
@@ -320,6 +322,46 @@ only fires on an actual road tile — walking off the mapped area into grass or
 trees shows nothing at all, since that reads as open country rather than a
 road that ran out. A world with no `ui.roadEnd` simply shows nothing for the
 roads nobody wrote a line for (hard rule 3).
+
+**The carry verbs: taking something and putting it somewhere.** A fixture may
+also hand the player a thing, and another may take it off them again. That is
+the whole mechanic — the log on the Belvedere's fire — and it is two fields:
+
+```jsonc
+"fixtures": [
+  { "kind": "woodpile", "pos": [5, 7],
+    "give": "log",                                   // hands this over
+    "lines":     ["You take a split log off the pile."],
+    "otherwise": ["You've already got one under your arm."] },
+
+  { "kind": "firepit", "pos": [8, 6],
+    "take": "log",                                   // spends the same token
+    "glow": 60,                                      // seconds it burns brighter
+    "lines":     ["You set the log on the fire and it catches."],
+    "otherwise": ["The fire's going fine; it could use a log from the pile."] }
+]
+```
+
+`give` and `take` name a token the world pack invents and only those two
+fixtures ever see: the engine moves it and never learns what it is. `lines` is
+what the fixture says when the exchange happens, `otherwise` what it says when
+it cannot — the player already has one, or has nothing to give. A fixture does
+one or the other, never both, and the validator insists on both sets of words
+and on a token that is actually a name.
+
+**What the token is not.** It is not an inventory, it is not a flag, and it is
+not a save. One thing is carried at a time, it lives in this visit to this map
+and nowhere else, and walking out of the yard drops it — deliberately, so
+nothing accumulates and no episode can ever be gated on it (hard rule 2 keeps
+story in dialogue conditions, and this is not story). An episode item picked up
+off the ground (§3) is the other thing entirely: that one persists and sets a
+flag.
+
+`glow`, on a fixture that takes something, is how many seconds it burns
+brighter afterwards: one warm light disc over its tile (`engine/lighting.ts`,
+which breathes and fades and never strobes) and, where the kind has one, the
+lit variant of its art. It is the only thing in the game that a player's doing
+changes about a map, and it puts itself back.
 
 **Townspeople who walk.** Nothing on a map moves but the player unless the
 data says otherwise, and two shapes of data say otherwise. Both belong to a

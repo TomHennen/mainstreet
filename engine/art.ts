@@ -489,35 +489,40 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, px: number, py: n
     }
 
     // A wall somebody keeps a big chalk drawing on: a dark board edge to edge,
-    // with a chalk line running across it and a few coloured marks either side
-    // of it. Unlike `scrawl` the marks line up from tile to tile, so a long run
-    // of it reads as one picture spanning the wall rather than as graffiti —
-    // which is the difference between a mural and a scribble.
+    // the ghosts of what was wiped off it still showing, and chalk marks in a
+    // few colours over the top. The marks are drawn long and loose rather than
+    // arranged, so a run of the tile — up a wall or along one — reads as a
+    // picture somebody is partway through and never as a pattern.
     case 'chalkwall': {
       const board = c[0];
       const chalk = [c[1] ?? c[0], c[2] ?? c[1] ?? c[0], c[3] ?? c[1] ?? c[0]];
       ctx.fillStyle = board;
       ctx.fillRect(px, py, TILE, TILE);
-      // the wooden lip along the top, and the chalk dust ledge at the foot
+      // wiped over and drawn on again, which is most of what a board like this is
+      ctx.fillStyle = 'rgba(255,255,255,.06)';
+      ctx.fillRect(px + 1, py + 2, 14, 5);
+      ctx.fillRect(px + 2, py + 10, 12, 4);
+      const marks = [
+        [1, 2, 6, 1],
+        [7, 1, 1, 5],
+        [10, 3, 5, 1],
+        [3, 5, 3, 1],
+        [12, 6, 1, 5],
+        [2, 8, 4, 1],
+        [6, 7, 1, 4],
+        [9, 9, 5, 1],
+        [1, 12, 5, 1],
+        [7, 12, 2, 3],
+        [11, 13, 4, 1],
+        [4, 13, 1, 2]
+      ];
+      marks.forEach(([x, y, w, h], i) => {
+        ctx.fillStyle = chalk[i % chalk.length];
+        ctx.fillRect(px + x, py + y, w, h);
+      });
+      // chalk dust along the foot of it, the way it collects on a real one
       ctx.fillStyle = 'rgba(255,255,255,.10)';
-      ctx.fillRect(px, py, TILE, 1);
-      ctx.fillStyle = 'rgba(255,255,255,.07)';
       ctx.fillRect(px, py + TILE - 2, TILE, 2);
-      // one continuous line across the middle of every tile: the horizon
-      ctx.fillStyle = chalk[0];
-      ctx.fillRect(px, py + 8, TILE, 1);
-      ctx.fillRect(px + 4, py + 7, 5, 1);
-      // hills above it and a river below, drawn to meet at both edges
-      ctx.fillStyle = chalk[1];
-      ctx.fillRect(px, py + 5, 4, 1);
-      ctx.fillRect(px + 4, py + 4, 3, 1);
-      ctx.fillRect(px + 7, py + 3, 3, 1);
-      ctx.fillRect(px + 10, py + 4, 3, 1);
-      ctx.fillRect(px + 13, py + 5, 3, 1);
-      ctx.fillStyle = chalk[2];
-      ctx.fillRect(px, py + 12, 6, 1);
-      ctx.fillRect(px + 6, py + 11, 5, 1);
-      ctx.fillRect(px + 11, py + 12, 5, 1);
       break;
     }
 
