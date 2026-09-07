@@ -357,3 +357,29 @@ opt-in, everything warm and affectionate) before it reaches the player.
   (ep000's "the goat situation (continued)" is already in that vein) — a
   posted notice, a bored clerk, a "did you know" beat rather than a full
   episode on its own.
+- **The sunflower field.** Real inspiration: someone bought a piece of
+  land and planted a whole field of sunflowers, for no reason other than
+  delighting the neighbors. Pure, simple material — a field of flowers
+  that exists purely to make people happy, no conflict needed, exactly the
+  "just be delighted" register CLAUDE.md hard rule 6 is asking for. Good
+  for a late-summer seasonal beat: a travel-card glimpse of the field from
+  the road, an NPC who detours to walk past it, a "take one" jar left at
+  the edge of the field. Build the owner as a fully invented local
+  character (hard rule 5), not a stand-in for the real person, unless they
+  opt in.
+- **The flower farm and the zoning hearing.** Real inspiration: a couple
+  bought land and started a flower farm; at the town hearing for approval,
+  someone objected on zoning grounds even though Jefferson is explicitly
+  right-to-farm, arguing that flowers aren't really a "crop" the way
+  vegetables or hay are. The board overruled the objection and the farm
+  went ahead. A genuinely good story of small-town process working the way
+  it's supposed to — play it as "the system got it right," not as a
+  grievance against anyone who spoke up. Per hard rule 5, both the farm's
+  real owners and the real objector need to become fully invented
+  characters, not stand-ins, unless they opt in. The comic engine is the
+  argument itself ("are flowers a crop?") — good bored-clerk/town-hall
+  material pairing with the Jefferson Town Hall note above, voiced by an
+  invented skeptical neighbor and resolved warmly by an invented board
+  member citing the real right-to-farm rule. Could turn out to be the same
+  flower farm as the sunflower field above, or a separate one — worth
+  settling when the episode actually gets plotted.
