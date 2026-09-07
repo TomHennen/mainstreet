@@ -21,7 +21,7 @@ import type { Facing, Route, Vec2, Wander } from './schema';
 /** Seconds a person waits at a waypoint, or between wanders, by default. */
 export const DEFAULT_PAUSE = 1.5;
 /** A townsperson is strolling; the player is going somewhere. */
-export const STROLL_FACTOR = 0.8;
+export const STROLL_FACTOR = 0.45;
 /** How long a blocked person waits for the way to clear before re-routing. */
 const REPLAN_AFTER = 0.6;
 /** Sub-pixel slack, in tiles. */

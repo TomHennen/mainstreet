@@ -295,7 +295,7 @@ tiles:
 "route":  { "path": [[75, 15], [42, 15]],   // waypoints, walked in order
             "loop": true,                    // default: back to the first
             "pause": 1.2,                    // seconds at each one, default 1.5
-            "speed": 5.1 },                  // tiles/s, default walking x 0.8
+            "speed": 5.1 },                  // tiles/s, default walking x 0.45
 "wander": { "radius": 3, "pause": 2 }        // or: potter about near home
 ```
 
