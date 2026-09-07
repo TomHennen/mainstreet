@@ -286,19 +286,18 @@ opt-in, everything warm and affectionate) before it reaches the player.
   more showman than tradesman, brings a crowd. A good "help someone" or
   "witness an event" episode could turn a mundane errand (something's
   wrong with the septic) into a chance to meet three new characters at
-  once, purely through his orbit. He really does wells too, but he's known
-  around town for septic. When a tank fills up, the fix is a call for the
-  truck that pumps it out — locally nicknamed the **"honey wagon"** — and
-  that's a fun, silly, warm bit of texture on its own (the kind of thing a
-  newcomer hears for the first time and can't quite believe is real). A
-  good visual beat for a "watch the honey wagon at work" moment: the truck
-  parked at the tank, hose down, pumping with a slow rhythmic pulse — the
-  sort of thing an idle animation could sell nicely if the engine ever
-  grows a way to animate an object sitting on the map (it doesn't yet;
-  today's only precedent is the travel screen's rolling-road effect,
-  DESIGN.md, which is a different, screen-specific mechanism, not a
-  general one). Worth keeping in mind next time animation support comes up
-  as its own engine feature, rather than something to bolt on for one gag.
+  once, purely through his orbit. When a tank fills up, the fix is a call
+  for the truck that pumps it out — locally nicknamed the **"honey
+  wagon"** — and that's a fun, silly, warm bit of texture on its own (the
+  kind of thing a newcomer hears for the first time and can't quite
+  believe is real). A good visual beat for a "watch the honey wagon at
+  work" moment: the truck parked at the tank, hose down, pumping with a
+  slow rhythmic pulse. Once #83 (parked vehicles) and #85 (declarative
+  scenes) land, a parked truck plus a short scene gets the "watch it work"
+  moment with no new engine feature; the rhythmic-pulse part specifically
+  is an idle animation on a placed object, which the engine doesn't have
+  yet — a nice small feature worth its own issue if it comes up again,
+  not something to bolt on for one gag.
 - **Small-town density.** Wherever you are on Route 10, you will run into
   someone you know. Good recurring texture for episodes: NPCs who greet the
   player by name away from their "home" location, or a travel-card beat
@@ -491,45 +490,18 @@ opt-in, everything warm and affectionate) before it reaches the player.
   photo mechanism (a generic "story image" asset type, distinct from
   portraits) would be a real feature worth scoping on its own if it ever
   comes up again, not something to fold into this episode.
-- **The wave — real local custom, strong lore/texture, maybe a mystery
-  episode.** Out here everyone waves: a pedestrian waves at every car that
-  passes, drivers wave at other drivers and at pedestrians, and two
-  pedestrians who cross paths usually stop and chat rather than just
-  nodding. Nobody explains this to you — you're just supposed to already
-  know it. Newcomers don't, and it reads as standoffish until someone
-  points it out; real inspiration is Tom and his wife's own first months
-  here, when neighbors (now good friends) had privately nicknamed them the
-  "witness protection couple" because they never waved or smiled at
-  anyone. That's a lovely, funny, true bit of texture on its own — good for
-  a newcomer NPC who gets gently ribbed once they're let in on the joke,
-  or a "nobody told me!" beat the player can share if they play a
-  newcomer-coded character. The mystery hook is a separate, sharper idea
-  riding on the same custom: a woman who's often out walking the
-  neighborhood but never waves, never makes eye contact with passing cars,
-  and sometimes visibly looks away as one goes by — which, against a
-  custom this universal, reads as pointed rather than shy. **"Who is the
-  mysterious woman who won't wave?"** is a good slow-burn hook — town
-  gossip speculates (new to the area? grieving? feuding with someone?
-  just private?) and the fun is in the theories more than a tidy
-  resolution, similar in shape to the beaver saga's "everyone's got a
-  theory" structure above. **A sharper wrinkle than the other hard-rule-5
-  entries in this file: the real inspiration is a specific real woman in
-  Tom's own neighborhood, and Tom knows nothing about her beyond the
-  behavior itself — no name, no backstory, nothing to launder into a
-  character.** That's the opposite situation from the septic-guy or
-  Hobart-founder hooks above, where there's real biography to draw on and
-  reshape; here there is none, so anything the game gives her — name,
-  reason, resolution — is invented from nothing, not adapted from fact.
-  That cuts both ways: less real detail to leak, but a real risk that an
-  invented backstory reads as a guess about *her* specifically, since
-  neighbors who know Tom's actual street could place the behavior even
-  with every other detail changed. If this ever gets built, put real
-  distance between the in-game version and the source: change the
-  village, the frequency, the setting, anything that would let a
-  real-world neighbor map her one-to-one onto the NPC, on top of the
-  usual hard-rule-5 fully-invented-character treatment. Per hard rule 6,
-  the resolution — if there is one — still needs to land warm, not as a
-  punchline at a private, guarded person's expense; something like "she's
-  new and hasn't been told the rule yet, same as us" or "she's shy and
-  it's costing her nothing to let her come round in her own time" fits the
-  town's spirit a lot better than anything that mocks her for it.
+- **The wave.** Out here everyone waves: a pedestrian waves at every car
+  that passes, drivers wave at other drivers and pedestrians, and two
+  pedestrians who cross paths usually stop and chat. Nobody explains this
+  to you — newcomers don't know it, and it reads as standoffish until
+  someone points it out. Real inspiration, and Tom's to give (him and his
+  wife both, so any character drawn from it should be too): their own
+  first months here, when neighbors — now good friends — had privately
+  nicknamed them the "witness protection couple" for never waving or
+  smiling at anyone. Good for a newcomer NPC gently ribbed once they're
+  let in on the joke, or a "nobody told me!" beat for a newcomer-coded
+  player. Not everyone waves back right away — new, shy, deep in
+  thought — and the town's answer is simple: wave anyway. No mystery, no
+  reveal, no speculation about why any one person doesn't; per hard rule
+  6, that stays generic texture, not a puzzle about a real guarded
+  person's inner life.
