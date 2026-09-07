@@ -4,12 +4,21 @@ import type { Facing } from './schema';
  * One input path only (CLAUDE.md hard rule 4): pointer events for touch and
  * mouse, keyboard separately, and never two handlers on the same control. The
  * action button is debounced and key repeat is ignored.
+ *
+ * Three ways in, all of them pointer or key: tapping the world (the primary
+ * one — the scene walks there), the d-pad and A button beside it, and the
+ * keyboard behind both.
  */
 const ACTION_DEBOUNCE_MS = 220;
+/** Past this much travel between press and release it was a drag, not a tap. */
+const TAP_SLOP_PX = 12;
 
 const held: Record<Facing, boolean> = { up: false, down: false, left: false, right: false };
 const listeners = new Set<() => void>();
+const tapListeners = new Set<(x: number, y: number) => void>();
 let lastAction = 0;
+let lastTap = 0;
+let pressed: { id: number; x: number; y: number } | null = null;
 
 const KEY_DIRS: Record<string, Facing> = {
   arrowup: 'up',
@@ -43,7 +52,18 @@ export function onAction(fn: () => void): () => void {
   return () => listeners.delete(fn);
 }
 
+/**
+ * A tap or click on the game surface, in client (CSS pixel) coordinates —
+ * whoever is drawing knows how to turn those into a place in the world.
+ * Returns an unsubscribe function.
+ */
+export function onTap(fn: (x: number, y: number) => void): () => void {
+  tapListeners.add(fn);
+  return () => tapListeners.delete(fn);
+}
+
 export function releaseAll(): void {
+  pressed = null;
   for (const dir of Object.keys(held) as Facing[]) held[dir] = false;
   for (const el of document.querySelectorAll('.held')) el.classList.remove('held');
 }
@@ -115,13 +135,42 @@ export function bindControls(root: Document = document): void {
     button.addEventListener('lostpointercapture', release);
   }
 
-  // Tapping the game surface advances dialogue, and only that: the scene sets
-  // this attribute while a box is open, so a tap can never also trigger a talk.
+  // The game surface, on one pointer path like every other control: the press
+  // is remembered and the release decides what it was. With a box open the
+  // press advances it and the release does nothing — so the tap that reads the
+  // last line can never also walk the player to wherever that line was. With
+  // no box open, a release close to its press is a tap on the world, and one
+  // that travelled was a drag and is dropped.
   const stage = root.getElementById('stage');
+  const forget = () => {
+    pressed = null;
+  };
+
   stage?.addEventListener('pointerdown', (event) => {
+    forget();
     if (isOverlay(event.target)) return;
-    if (document.body.dataset.dialogue !== 'open') return;
     event.preventDefault();
-    fireAction();
+    if (document.body.dataset.dialogue === 'open') {
+      fireAction();
+      return;
+    }
+    pressed = { id: event.pointerId, x: event.clientX, y: event.clientY };
   });
+
+  stage?.addEventListener('pointerup', (event) => {
+    const start = pressed;
+    forget();
+    if (!start || start.id !== event.pointerId) return;
+    if (isOverlay(event.target)) return;
+    if (document.body.dataset.dialogue === 'open') return;
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > TAP_SLOP_PX) return;
+    // Debounced like the action button, and for the same reason (hard rule 4).
+    const now = performance.now();
+    if (now - lastTap < ACTION_DEBOUNCE_MS) return;
+    lastTap = now;
+    for (const fn of [...tapListeners]) fn(event.clientX, event.clientY);
+  });
+
+  stage?.addEventListener('pointercancel', forget);
+  stage?.addEventListener('pointerleave', forget);
 }

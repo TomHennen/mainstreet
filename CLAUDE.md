@@ -42,8 +42,10 @@ for feel and behavior*, not code to reuse.
    PNG renders the built-in labeled placeholder ("unpainted" look). A missing
    portrait means text-only dialogue. Content must always be shippable ahead
    of art.
-4. **Mobile first.** Touch d-pad + A button is the primary control scheme;
-   keyboard (arrows/WASD, space/enter) is secondary. One input path via
+4. **Mobile first.** Tap or click where you want to go is the primary control
+   scheme — tap a person, a door, a sign or a plaque and the player walks over
+   and reads it — with the touch d-pad + A button kept alongside it; keyboard
+   (arrows/WASD, space/enter) is secondary. One input path via
    pointer events only — never register both pointer and touch handlers for
    the same control (this caused a real double-fire bug in the prototype).
    Debounce action taps (~200ms). Ignore key repeat for the action key.

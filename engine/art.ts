@@ -824,6 +824,24 @@ export function promptTexture(scene: Phaser.Scene, glyph: string): string {
   return key;
 }
 
+/**
+ * Where a tapped walk is headed: a small ring on the destination tile, hollow
+ * so whatever the player tapped is still visible under it. Engine chrome like
+ * the A prompt beside it — no world ever supplies one.
+ */
+export function markerTexture(scene: Phaser.Scene): string {
+  const key = 'prop:marker';
+  if (scene.textures.exists(key)) return key;
+  const { texture, ctx } = canvas(scene, key, TILE, TILE);
+  ctx.fillStyle = 'rgba(42,35,26,.55)';
+  ctx.fillRect(4, 4, 8, 8);
+  ctx.fillStyle = '#f3ead8';
+  ctx.fillRect(5, 5, 6, 6);
+  ctx.clearRect(6, 6, 4, 4);
+  texture.refresh();
+  return key;
+}
+
 export function dashTexture(scene: Phaser.Scene): string {
   const key = 'prop:dash';
   if (scene.textures.exists(key)) return key;

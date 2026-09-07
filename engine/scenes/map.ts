@@ -9,6 +9,7 @@ import {
   frameIndex,
   itemTexture,
   mapTexture,
+  markerTexture,
   namePlateArt,
   plateLift,
   plaqueArt,
@@ -16,14 +17,15 @@ import {
   TILE
 } from '../art';
 import { publishDebug } from '../debug';
-import { isHeld, onAction } from '../input';
+import { isHeld, onAction, onTap } from '../input';
 import { feedbackUrl } from '../feedback';
 import { paintUrl } from '../paint';
+import { findPath, pathToTile } from '../path';
 import { creditFor, dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signFor } from '../session';
 import { isSolid } from '../validate';
 import { plaqueTile } from '../schema';
 import type { PlateBox } from '../art';
-import type { BuildingPlacement, EpisodeItem, EpisodeSign, Facing, Fixture, GameMap, Vec2 } from '../schema';
+import type { BuildingPlacement, EpisodeItem, EpisodeSign, Facing, Fixture, GameMap, MapExit, Vec2 } from '../schema';
 
 const SPEED = 102; // px/s — the prototype's 1.7px/frame at 60fps
 const HITBOX = TILE;
@@ -74,12 +76,20 @@ export class MapScene extends Phaser.Scene {
 
   private player!: Phaser.GameObjects.Sprite;
   private prompt!: Phaser.GameObjects.Image;
+  private marker!: Phaser.GameObjects.Image;
   private itemSprites = new Map<string, Phaser.GameObjects.Image>();
   private exitArmed = false;
   private enterArmed = false;
   private spawnX = 0;
   private spawnY = 0;
   private unbindAction: (() => void) | null = null;
+  private unbindTap: (() => void) | null = null;
+
+  /** Tiles still to walk, nearest first, while a tapped walk is running. */
+  private walkPath: Vec2[] | null = null;
+  private walkGoal: Vec2 | null = null;
+  /** Whether arriving should read whatever was tapped, as if A had been pressed. */
+  private walkReads = false;
 
   constructor() {
     super('Map');
@@ -96,6 +106,9 @@ export class MapScene extends Phaser.Scene {
     this.exitArmed = false;
     this.enterArmed = false;
     this.itemSprites = new Map();
+    this.walkPath = null;
+    this.walkGoal = null;
+    this.walkReads = false;
   }
 
   create(data: MapSceneData): void {
@@ -190,15 +203,23 @@ export class MapScene extends Phaser.Scene {
     this.syncPlayerSprite();
 
     this.prompt = this.add.image(0, 0, promptTexture(this, 'A')).setOrigin(0.5, 1).setDepth(9000).setVisible(false);
+    // Sits under the A prompt and over the town, so a destination behind a
+    // porch roof is still findable while the player walks to it.
+    this.marker = this.add.image(0, 0, markerTexture(this)).setOrigin(0, 0).setDepth(8500).setVisible(false);
     dashTexture(this); // warm the travel interstitial's texture while we have a scene
 
     this.applyCamera();
     this.scale.on(Phaser.Scale.Events.RESIZE, this.applyCamera, this);
 
     this.unbindAction = onAction(() => this.interact());
+    this.unbindTap = onTap((x, y) => this.tap(x, y));
+    if (import.meta.env.DEV) this.events.on(Phaser.Scenes.Events.RENDER, this.publishState, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unbindAction?.();
       this.unbindAction = null;
+      this.unbindTap?.();
+      this.unbindTap = null;
+      this.events.off(Phaser.Scenes.Events.RENDER, this.publishState, this);
       this.scale.off(Phaser.Scale.Events.RESIZE, this.applyCamera, this);
     });
 
@@ -209,21 +230,36 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Dev-only snapshot for the playtest harness. It hangs off the render event
+   * rather than off update() on purpose: the camera recalculates its scroll
+   * and its worldView while the frame is being drawn, so this is the frame the
+   * player is looking at — and a tap the harness aims with it lands on the
+   * tile it looks like it lands on, however slow the machine is.
+   */
+  private publishState(): void {
+    const state = session();
+    const view = this.cameras.main.worldView;
+    publishDebug({
+      map: this.mapId,
+      x: this.px / TILE,
+      y: this.py / TILE,
+      facing: this.facing,
+      dialogueOpen: state.dialogueOpen,
+      locked: state.locked,
+      walkTo: this.walkGoal ? [this.walkGoal[0], this.walkGoal[1]] : null,
+      view: { x: view.x, y: view.y, width: view.width, height: view.height, tile: TILE },
+      flags: state.flags.snapshot()
+    });
+  }
+
   update(_time: number, delta: number): void {
     const state = session();
     this.armEnters();
-    if (import.meta.env.DEV) {
-      publishDebug({
-        map: this.mapId,
-        x: this.px / TILE,
-        y: this.py / TILE,
-        facing: this.facing,
-        dialogueOpen: state.dialogueOpen,
-        locked: state.locked,
-        flags: state.flags.snapshot()
-      });
-    }
     if (state.locked || state.dialogueOpen) {
+      // A card or a box means the trip is over: the walk does not pick itself
+      // back up behind the player's back once they have read the line.
+      this.stopWalk();
       this.moving = false;
       this.player.setFrame(frameIndex(this.facing, 0));
       this.updatePrompt();
@@ -237,6 +273,10 @@ export class MapScene extends Phaser.Scene {
     if (isHeld('left')) dx = -1;
     else if (isHeld('right')) dx = 1;
 
+    // The d-pad and the movement keys always win: taking hold of a direction
+    // calls off a tapped walk on the frame it is seen.
+    if (dx !== 0 || dy !== 0) this.stopWalk();
+
     this.moving = dx !== 0 || dy !== 0;
     if (dx !== 0) this.facing = dx < 0 ? 'left' : 'right';
     else if (dy !== 0) this.facing = dy < 0 ? 'up' : 'down';
@@ -249,15 +289,18 @@ export class MapScene extends Phaser.Scene {
       const ny = this.py + dy * step;
       if (dx !== 0 && this.free(nx, this.py)) this.px = nx;
       if (dy !== 0 && this.free(this.px, ny)) this.py = ny;
-      this.walkTime += delta;
-    } else {
-      this.walkTime = 0;
+    } else if (this.walkPath) {
+      this.moving = this.followPath((SPEED * delta) / 1000);
     }
+
+    if (this.moving) this.walkTime += delta;
+    else this.walkTime = 0;
 
     this.player.setFrame(frameIndex(this.facing, this.moving ? 1 + (Math.floor(this.walkTime / WALK_FRAME_MS) % 2) : 0));
     this.syncPlayerSprite();
     this.refreshItems();
     this.updatePrompt();
+    this.updateMarker();
     this.checkExits();
   }
 
@@ -371,6 +414,212 @@ export class MapScene extends Phaser.Scene {
     return best;
   }
 
+  // --- tap to walk -----------------------------------------------------------
+
+  /**
+   * A tap or click on the town: walk there. Tapping a person, a door, a plaque,
+   * a sign or something lying about walks to where it is read from and reads it
+   * on arrival — the same thing A does, without the trip being the player's
+   * job. Everything below is engine-level: it asks the map and the episode
+   * where things are, never what they are (hard rule 1).
+   */
+  private tap(clientX: number, clientY: number): void {
+    const state = session();
+    if (state.locked || state.dialogueOpen) return;
+
+    const tile = this.tileAt(clientX, clientY);
+    if (!tile) return;
+
+    const readable = this.readableAt(tile[0], tile[1]);
+    const goal = readable?.at ?? tile;
+    const start = this.startTile();
+    const walkable = this.walkableTo(goal);
+    let route = pathToTile(start, goal, walkable);
+    if (!route && readable) {
+      // Somebody behind a counter has no free tile beside them, and is still
+      // perfectly easy to talk to across it. Failing that, stand anywhere the
+      // A button would reach them from — the same reach findTarget() uses.
+      route = findPath(start, (x, y) => Math.hypot(x - goal[0], y - goal[1]) <= readable.reach, walkable);
+    }
+    if (!route?.length) {
+      this.refuse(tile);
+      return;
+    }
+
+    this.walkPath = route;
+    this.walkGoal = route[route.length - 1];
+    this.walkReads = readable !== null;
+    this.tweens.killTweensOf(this.marker);
+    this.marker.setPosition(this.walkGoal[0] * TILE, this.walkGoal[1] * TILE).setAlpha(1).setVisible(true);
+  }
+
+  /** Client pixels to a tile, through the canvas box and the camera. */
+  private tileAt(clientX: number, clientY: number): Vec2 | null {
+    const rect = this.game.canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
+    const { width, height } = this.scale.gameSize;
+    const point = this.cameras.main.getWorldPoint((x * width) / rect.width, (y * height) / rect.height);
+    return [Math.floor(point.x / TILE), Math.floor(point.y / TILE)];
+  }
+
+  /**
+   * The tile a walk starts from. The player is rarely tile-aligned, so this is
+   * the nearest of the tiles their hitbox is over that they could stand on.
+   */
+  private startTile(): Vec2 {
+    const cx = this.px + TILE / 2;
+    const cy = this.py + TILE / 2;
+    let best: Vec2 = [Math.round(this.px / TILE), Math.round(this.py / TILE)];
+    let bestDist = Infinity;
+    for (const ox of [MARGIN, HITBOX - MARGIN]) {
+      for (const oy of [MARGIN, HITBOX - MARGIN]) {
+        const tx = Math.floor((this.px + ox) / TILE);
+        const ty = Math.floor((this.py + oy) / TILE);
+        if (this.solidTile(tx, ty)) continue;
+        const dist = Math.hypot(cx - (tx * TILE + TILE / 2), cy - (ty * TILE + TILE / 2));
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = [tx, ty];
+        }
+      }
+    }
+    return best;
+  }
+
+  /**
+   * What a route may cross. Solid tiles and people are out, and so are the
+   * exits: walking over one is a trip to the next village, and a tap on this
+   * side of town never asked for that. The tapped tile itself is always fair
+   * game, which is how a tap on the road out still takes it.
+   */
+  private walkableTo(goal: Vec2): (x: number, y: number) => boolean {
+    return (x, y) => {
+      if (this.solidTile(x, y)) return false;
+      if (x === goal[0] && y === goal[1]) return true;
+      return !this.exitAt(x, y);
+    };
+  }
+
+  private exitAt(x: number, y: number): MapExit | undefined {
+    return this.map.exits.find(
+      (exit) => x >= exit.at[0] && x < exit.at[0] + exit.at[2] && y >= exit.at[1] && y < exit.at[1] + exit.at[3]
+    );
+  }
+
+  /**
+   * What the player tapped, if it was something readable, and the tile the
+   * reading is done from. Order matches findTarget()'s: people, then things,
+   * then buildings. People are drawn two tiles tall, so their head counts as
+   * them; a building answers for its door tile, the doorway above it, and its
+   * plaque.
+   */
+  private readableAt(tx: number, ty: number): { at: Vec2; reach: number } | null {
+    const npcReach = this.map.kind === 'interior' ? REACH.npcInterior : REACH.npcVillage;
+    for (const npc of npcsOn(this.mapId)) {
+      if (npc.pos[0] === tx && (npc.pos[1] === ty || npc.pos[1] - 1 === ty)) return { at: npc.pos, reach: npcReach };
+    }
+    for (const item of itemsOn(this.mapId)) {
+      if (itemVisible(item) && item.pos[0] === tx && item.pos[1] === ty) return { at: item.pos, reach: REACH.item };
+    }
+    for (const sign of propSignsOn(this.mapId)) {
+      if (sign.pos && sign.pos[0] === tx && sign.pos[1] === ty) return { at: sign.pos, reach: REACH.prop };
+    }
+    for (const building of this.map.buildings) {
+      const plaque = plaqueTile(building);
+      if (plaque && plaque[0] === tx && plaque[1] === ty) return { at: plaque, reach: REACH.plaque };
+      if (building.door[0] === tx && (building.door[1] === ty || building.door[1] - 1 === ty)) {
+        return { at: building.door, reach: REACH.door };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Walks the route with the same step and the same speed as a held direction,
+   * so a tapped walk and a d-pad walk look like the same walk. Returns whether
+   * the player moved this frame.
+   */
+  private followPath(budget: number): boolean {
+    const path = this.walkPath;
+    if (!path) return false;
+    let moved = false;
+
+    while (budget > 0.0001 && path.length) {
+      const [tx, ty] = path[0];
+      const gx = tx * TILE;
+      const gy = ty * TILE;
+      const dx = gx - this.px;
+      const dy = gy - this.py;
+      const len = Math.hypot(dx, dy);
+      if (len < 0.0001) {
+        path.shift();
+        continue;
+      }
+
+      // The facing turns with the leg being walked, exactly as it does under a
+      // thumb — including the little sidestep onto the first tile.
+      if (Math.abs(dx) >= Math.abs(dy)) this.facing = dx < 0 ? 'left' : 'right';
+      else this.facing = dy < 0 ? 'up' : 'down';
+
+      const use = Math.min(budget, len);
+      const nx = this.px + (dx / len) * use;
+      const ny = this.py + (dy / len) * use;
+      if (!this.free(nx, ny)) {
+        // Somebody stepped into the route after it was found. Stop rather than
+        // lean on them.
+        this.stopWalk();
+        return moved;
+      }
+      this.px = nx;
+      this.py = ny;
+      budget -= use;
+      moved = true;
+      if (use >= len - 0.0001) {
+        this.px = gx;
+        this.py = gy;
+        path.shift();
+      }
+    }
+
+    if (!path.length) {
+      const reads = this.walkReads;
+      this.stopWalk();
+      // The arrival press, once. interact() is guarded against firing mid-walk,
+      // so this is the only place a tapped walk ever reads anything.
+      if (reads) this.interact();
+    }
+    return moved;
+  }
+
+  private stopWalk(): void {
+    this.walkPath = null;
+    this.walkGoal = null;
+    this.walkReads = false;
+    this.marker.setVisible(false);
+  }
+
+  /** Nowhere to go: the marker blinks once where the tap landed and fades. */
+  private refuse(tile: Vec2): void {
+    this.tweens.killTweensOf(this.marker);
+    this.marker.setPosition(tile[0] * TILE, tile[1] * TILE).setAlpha(0.85).setVisible(true);
+    this.tweens.add({
+      targets: this.marker,
+      alpha: 0,
+      duration: 320,
+      onComplete: () => {
+        if (!this.walkPath) this.marker.setVisible(false);
+      }
+    });
+  }
+
+  private updateMarker(): void {
+    if (!this.walkPath) return;
+    this.marker.setAlpha(0.72 + Math.sin(this.time.now / 190) * 0.28);
+  }
+
   private updatePrompt(): void {
     const state = session();
     if (state.dialogueOpen || state.locked) {
@@ -398,6 +647,11 @@ export class MapScene extends Phaser.Scene {
     // The dialogue overlay owns the action button while it is open, and for a
     // beat after it closes, so dismissing a line can never re-trigger a talk.
     if (state.locked || state.dialogueOpen || performance.now() - state.lastDialogueClose < 200) return;
+    // A tapped walk is a promise to arrive. A press part-way there would either
+    // strand the player or strike up a conversation with somebody they were
+    // only walking past, so A waits until the walk is done — and the walk
+    // presses A itself if the tap was on something to read.
+    if (this.walkPath) return;
 
     const target = this.findTarget();
     if (!target) return;
@@ -502,9 +756,7 @@ export class MapScene extends Phaser.Scene {
   private checkExits(): void {
     const tx = Math.floor((this.px + TILE / 2) / TILE);
     const ty = Math.floor((this.py + TILE / 2) / TILE);
-    const on = this.map.exits.find(
-      (exit) => tx >= exit.at[0] && tx < exit.at[0] + exit.at[2] && ty >= exit.at[1] && ty < exit.at[1] + exit.at[3]
-    );
+    const on = this.exitAt(tx, ty);
 
     // Arriving on top of an exit must not immediately bounce back through it.
     if (!on) {

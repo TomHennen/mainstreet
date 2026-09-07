@@ -14,6 +14,14 @@ export interface DebugSnapshot {
   facing: Facing;
   dialogueOpen: boolean;
   locked: boolean;
+  /** Destination tile of a tapped walk while one is running, else null. */
+  walkTo: [number, number] | null;
+  /**
+   * The slice of the world on screen, in world pixels, and the tile size it is
+   * measured in — enough for the harness to turn a tile into a point on the
+   * canvas and tap it.
+   */
+  view: { x: number; y: number; width: number; height: number; tile: number };
   flags: Record<string, boolean>;
 }
 
