@@ -1,0 +1,166 @@
+{
+  "id": "ep002",
+  "title": "Anybody Headed Down Today?",
+  "flags": ["heardAsk", "triedStamford", "triedHobart", "done"],
+  "npcs": [
+    {
+      "id": "priya",
+      "name": "Priya",
+      "map": "jefferson",
+      "pos": [30, 20],
+      "facing": "down",
+      "accent": "#c76b8a",
+      "dialogue": [
+        {
+          "requires": ["done"],
+          "lines": [
+            "He texted a photo from the stage door the second he got it — you'll just have to imagine it, but trust me, it's a whole look.",
+            "Thank you, truly."
+          ]
+        },
+        {
+          "requires": ["triedHobart"],
+          "lines": ["Still asking around? Try the gas station — half the county passes through there before nine."]
+        },
+        {
+          "requires": ["triedStamford"],
+          "lines": ["Renata might know something — Cellar Door, down in Hobart."]
+        },
+        {
+          "requires": ["heardAsk"],
+          "lines": ["Hannah's over at Stewart's, in Stamford — start there if you haven't yet."]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "My kid's in a dance showcase in the city tonight, and half his costume's still sitting right here on the table.",
+            "I'm covering the register at Middle Brook till close, or I'd drive it down myself. Here — the bag's by the door, take it with you.",
+            "If you hear of anybody headed down today, ask them for me. Hannah's behind the counter at Stewart's, down in Stamford; she hears everybody's plans before they make them."
+          ],
+          "effects": [{ "set": "heardAsk" }]
+        }
+      ]
+    },
+    {
+      "id": "hannah",
+      "name": "Hannah",
+      "map": "stewarts-interior",
+      "pos": [6, 12],
+      "facing": "down",
+      "accent": "#7a3e5f",
+      "dialogue": [
+        {
+          "requires": ["done"],
+          "lines": ["Tell me that bag made it to the stage door in one piece."]
+        },
+        {
+          "requires": ["triedHobart"],
+          "lines": ["Renata sent you to Walt, then — J&H, the gas station up in Jefferson."]
+        },
+        {
+          "requires": ["heardAsk"],
+          "lines": [
+            "Nobody from in here's going down today, far as I know.",
+            "Check the board at Tops on your way through — and Cellar Door in Hobart, Renata always seems to know who's coming and going."
+          ],
+          "effects": [{ "set": "triedStamford" }]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "Morning! Coffee's on, and the sundae bar's real, if you're curious.",
+            "Priya called down from Jefferson asking if anybody's driving to the city today — she's out on the green up there, if you're headed that way."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "renata",
+      "name": "Renata",
+      "map": "hobart",
+      "pos": [19, 16],
+      "facing": "down",
+      "accent": "#5d4a3a",
+      "dialogue": [
+        {
+          "requires": ["done"],
+          "lines": ["Glad it worked out. Come by for a tasting sometime, once things settle down."]
+        },
+        {
+          "requires": ["triedHobart"],
+          "lines": ["Go on, catch him before he leaves — the gas station, up in Jefferson."]
+        },
+        {
+          "requires": ["triedStamford"],
+          "lines": [
+            "Not me today — my truck's in the shop.",
+            "But I saw someone loading a cooler bag into their trunk up at the gas station this morning. Nobody packs a cooler for a trip up the road — that's a city run.",
+            "That'll be Walt — J&H, the gas station up in Jefferson."
+          ],
+          "effects": [{ "set": "triedHobart" }]
+        },
+        {
+          "requires": ["heardAsk"],
+          "lines": [
+            "Priya's costume run? Word travels. Not me today — my truck's in the shop.",
+            "Ask Hannah at the counter in Stewart's, up in Stamford; she'll know who was in this morning."
+          ]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "Welcome — pull up a seat on the bench anytime.",
+            "If you're headed up toward Jefferson, say hi to Priya on the green — I hear she's asking around about something."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "walt",
+      "name": "Walt",
+      "map": "jefferson",
+      "pos": [48, 11],
+      "facing": "down",
+      "accent": "#8a6b48",
+      "dialogue": [
+        {
+          "requires": ["done"],
+          "lines": ["Tell the kid break a leg from me. Had it there by six, like I said."]
+        },
+        {
+          "requires": ["triedHobart"],
+          "lines": [
+            "Priya's kid's costume? Sure — I'm headed down myself today, every other Friday like clockwork.",
+            "I'll get it to the stage door by six. Tell the kid break a leg."
+          ],
+          "effects": [{ "set": "done" }, { "toast": "Episode complete — new story next week" }]
+        },
+        {
+          "requires": ["heardAsk"],
+          "lines": [
+            "Heard something's going around about a favor for Priya. Nothing solid on my end, but you never know who overhears what."
+          ]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "Every other Friday I'm elbow-deep in city traffic by nine. Don't ask me why I keep doing it to myself.",
+            "If you're new around here, Priya's out on the green — good person to know."
+          ]
+        }
+      ]
+    }
+  ],
+  "signs": [
+    {
+      "building": "jh-gas-station",
+      "requires": ["heardAsk"],
+      "lines": ["Taped by the register: \"Anybody headed down today? Ask around!\" Half the county's already heard."]
+    },
+    {
+      "building": "tops",
+      "requires": ["heardAsk"],
+      "lines": ["Pinned to the board by the door: someone's asking if anybody's headed down to the city today. Half the county's seen it already."]
+    }
+  ]
+}
