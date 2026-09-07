@@ -244,18 +244,29 @@ export interface Feedback {
  * (CLAUDE.md hard rule 1: the form and every field id are world data, so no
  * address and no form ever appears in the Studio's code).
  *
- * `art.form` is the URL a plain HTML form post goes to — a Google Form's
- * `formResponse` address, say — and `art.fields` names the field the form
- * expects each part of a submission in. The Studio posts across origins and so
- * can never read the answer back; a world with no `submit.art` keeps the older
- * behaviour, where Send hands the drawing to the painter's own email app
- * instead. Nothing here is an account, and nothing is a third-party service
- * the world's owner does not already own (hard rule 7).
+ * `art.form` is the form's `formResponse` address — a Google Form's own name
+ * for the URL a plain HTML form post goes to — and `art.fields` names the
+ * field the form expects each part of a submission in. Send never posts to
+ * this address itself: it opens the form's own page, prefilled, in a new tab,
+ * so the painter presses Submit there and sees Google's own confirmation
+ * (the Studio can never read a cross-origin post's answer, so it stopped
+ * guessing). That page is `art.page` when the pack gives one, or else
+ * `art.form` with a trailing `/formResponse` swapped for `/viewform` — the
+ * same form's own two addresses for the same set of fields. A world with no
+ * `submit.art` keeps the older behaviour, where Send hands the drawing to the
+ * painter's own email app instead. Nothing here is an account, and nothing is
+ * a third-party service the world's owner does not already own (hard rule 7).
  */
 export interface Submit {
   art?: {
-    /** Where the post goes. https, always. */
+    /** The form's post address. https, always. */
     form: string;
+    /**
+     * The form's own page to open prefilled, if it isn't `art.form` with
+     * `/formResponse` swapped for `/viewform`. https, always. Optional, and
+     * usually absent.
+     */
+    page?: string;
     /** The form's own field ids, by what the Studio writes into each. */
     fields: {
       building: string;

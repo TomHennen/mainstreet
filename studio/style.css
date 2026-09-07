@@ -21,6 +21,17 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/*
+ * An author `display` always wins over the user agent's own `[hidden] {
+ * display: none }`, whatever either rule's specificity — so a `hidden`
+ * <button>, .row or .button would otherwise still show, since this file sets
+ * `display` on all three. `!important` here is what actually makes `hidden`
+ * mean hidden anywhere in the studio.
+ */
+[hidden] {
+  display: none !important;
+}
+
 body {
   min-height: 100%;
   background: var(--frame);
@@ -99,6 +110,31 @@ a.link {
 
 .masthead {
   margin-bottom: 14px;
+}
+
+/* One compact card: "rather draw in an app?" plus its two controls, on one
+ * line where there's room and wrapping only where there isn't — Tom's note
+ * that this was buried too deep to notice. */
+.appcard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  background: var(--night);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+}
+
+.appcard p {
+  margin: 0;
+  flex: 1 1 220px;
+}
+
+.appcard .row {
+  margin: 0;
+  flex: 0 0 auto;
 }
 
 /* --- pickers --------------------------------------------------------------- */

@@ -246,6 +246,15 @@ function isTableSeparator(line) {
   return cells.length > 0 && cells.every((cell) => /^:?-+:?$/.test(cell));
 }
 
+/** A heading's text, turned into a URL fragment: lowercase, non-alphanumeric
+ *  runs collapsed to one hyphen, no leading or trailing one. */
+function slugify(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 /** Inline markdown within one block: code spans, bold, italic, images, links, and `<url>` autolinks. */
 function renderInline(text) {
   let out = escapeHtml(text);
@@ -297,7 +306,15 @@ function renderMarkdown(markdown) {
     if (heading) {
       closeList();
       const level = heading[1].length;
-      html.push(`<h${level}>${renderInline(heading[2].trim())}</h${level}>`);
+      let text = heading[2].trim();
+      // A trailing `{#id}` is an explicit anchor (studio.ts links straight to
+      // one, e.g. the recommended-apps heading) — stripped from what renders,
+      // kept as the element's id. Without one the id is the text, slugified,
+      // which is enough for a heading nothing links to by name.
+      const explicit = /\s*\{#([a-z0-9-]+)\}\s*$/.exec(text);
+      const id = explicit ? explicit[1] : slugify(text);
+      if (explicit) text = text.slice(0, explicit.index).trim();
+      html.push(`<h${level} id="${id}">${renderInline(text)}</h${level}>`);
       i++;
       continue;
     }

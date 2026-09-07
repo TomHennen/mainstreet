@@ -24,3 +24,19 @@ export function feedbackUrl(feedback: Feedback | undefined, body?: string[]): st
 
   return `mailto:${feedback.email}${query.length ? `?${query.join('&')}` : ''}`;
 }
+
+/**
+ * Whether a link the game hands a player opens their mail app rather than a
+ * page. `#say-link` (index.html) carries `target="_blank" rel="noopener"` so
+ * a page it opens — Paint it, Improve it?, a write-to-us that is a form URL —
+ * never costs the player their place in the game (Tom's playtest feedback:
+ * people lost the game tab going to paint). A mailto is a different kind of
+ * link — it hands off to the mail app rather than opening a page — and a
+ * stray blank tab is exactly what `target="_blank"` leaves behind for one of
+ * those in some browsers, so the two scenes that set `#say-link`'s href
+ * (engine/scenes/ui.ts, engine/scenes/title.ts) take it back off for a
+ * mailto and leave it in place otherwise.
+ */
+export function isMailto(url: string): boolean {
+  return url.startsWith('mailto:');
+}

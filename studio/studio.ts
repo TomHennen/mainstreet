@@ -189,11 +189,16 @@ interface MapDef {
 /**
  * Where this world's finished art goes (engine/schema.ts `Submit`). The form
  * and every field id are the world pack's, never the Studio's: a world that
- * configures one gets a send that posts straight to it, a world that doesn't
- * gets the older email route, and no address of either kind is written here.
+ * configures one gets a Send that opens that form's own page, prefilled, in a
+ * new tab; a world that doesn't gets the older email route. No address of
+ * either kind is written here.
  */
 interface SubmitArt {
+  /** The form's post address — a Google Form's own `formResponse` URL. */
   form: string;
+  /** The form's own page to open, if it isn't `form` with `/formResponse`
+   *  swapped for `/viewform` (see `viewformUrl`). */
+  page?: string;
   fields: { building: string; world: string; credit: string; code: string; notes?: string };
 }
 
@@ -230,9 +235,42 @@ function packUrl(world: string, path: string): string {
   return `${BASE}worlds/${world}/${path}`;
 }
 
-/** The contributing page lives one level up from the studio, wherever we are. */
-function contributingUrl(): string {
-  return new URL('../contributing/', new URL(BASE, location.href)).href;
+/**
+ * The contributing page lives one level up from the studio, wherever we are.
+ * `anchor`, when given, points at one heading on it by id (scripts/build-
+ * site.mjs gives every heading one) — a page and a spot on it in one link.
+ */
+function contributingUrl(anchor?: string): string {
+  const url = new URL('../contributing/', new URL(BASE, location.href));
+  if (anchor) url.hash = anchor;
+  return url.href;
+}
+
+/**
+ * The game itself, sibling to wherever the Studio is running (dev and built
+ * both serve `/<world>/` and `/studio/` side by side — see
+ * scripts/build-site.mjs and vite.config.ts's worldPacks plugin). Tom's
+ * playtest feedback: painters were leaving the game to paint and not finding
+ * their way back, so the Studio's own header now points here rather than at
+ * the building picker.
+ */
+function gameUrl(worldId: string): string {
+  return new URL(`../${worldId}/`, new URL(BASE, location.href)).href;
+}
+
+/**
+ * The Studio's header, once a world is known: `home` goes back to the game
+ * itself, and a second link keeps the picker — every building in this world —
+ * one tap away, which is what `home` used to do on its own.
+ */
+function setHeader(world: World): void {
+  home.href = gameUrl(world.id);
+  home.textContent = `Back to ${world.title}`;
+  const all = document.getElementById('allbuildings') as HTMLAnchorElement | null;
+  if (all) {
+    all.href = `?world=${encodeURIComponent(world.id)}`;
+    all.hidden = false;
+  }
 }
 
 function esc(text: string): string {
@@ -439,6 +477,7 @@ function renderWorldPicker(ids: string[]): void {
 function renderBuildingPicker(world: World, entries: Entry[]): void {
   app.classList.remove('editing');
   here.textContent = world.title;
+  setHeader(world);
 
   const card = (entry: Entry) => {
     const [w, h] = entry.placement.size;
@@ -477,6 +516,15 @@ function renderBuildingPicker(world: World, entries: Entry[]): void {
     <section class="masthead">
       <h1>Paint a building in ${esc(world.title)}</h1>
       <p class="lede">Pick one you know and paint the front of it. ${esc(GUIDANCE)}</p>
+      <p class="quiet">Rather draw in an app? Any pixel-art app works with
+        ${
+          world.paletteName
+            ? world.paletteLink
+              ? `the <a class="link" href="${esc(world.paletteLink)}" rel="noreferrer">${esc(world.paletteName)}</a> palette.`
+              : `the ${esc(world.paletteName)} palette.`
+            : 'our palette.'
+        }
+        <a class="link" href="${esc(contributingUrl('apps'))}">Which apps?</a></p>
     </section>
     ${villages}
     <footer class="how">
@@ -637,8 +685,7 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
   restoreDraft(state);
 
   here.textContent = def.name;
-  home.href = `?world=${encodeURIComponent(world.id)}`;
-  home.textContent = `← ${world.title}`;
+  setHeader(world);
 
   // Named in the world pack, never here (hard rule 1): a world that says what
   // its palette is called gets a line about it, and one that doesn't, doesn't.
@@ -684,15 +731,38 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
       </label>`
     : '';
 
+  // Shown once Send has actually gone somewhere — the game itself, one tap
+  // away, so painting a building never costs anyone their place in it (Tom's
+  // playtest note: people were leaving the game to paint and not finding
+  // their way back). The same pair appears after every kind of send.
+  const afterSend = `
+      <div class="row" id="backtogamerow" hidden>
+        <a class="button" id="backtogame" href="${esc(gameUrl(world.id))}">Back to the game</a>
+      </div>
+      <p class="quiet" id="aftersendnote" hidden>Your building will be painted in the
+        game once Tom has it; the plaque beside its door will say who painted it.</p>`;
+
   const sendStep = art
     ? `<div class="row sendrow">
         <button id="send" class="primary">Send it to the town</button>
+        <button id="copycode" hidden>Copy the code</button>
       </div>
       <p class="statusline" id="sendstatus" role="status" aria-live="polite">&nbsp;</p>
+      ${afterSend}
 
       <!--
-        A form post across origins comes back opaque: we cannot read whether it
-        arrived. So the studio never has to guess, there is one small insurance
+        The real link Send activates — a plain <a target="_blank"
+        rel="noopener">, so a pop-up blocker never eats it and there is still
+        exactly one pointer path (CLAUDE.md #4). It carries nobody anywhere
+        until Send sets its href and clicks it, in the same gesture.
+      -->
+      <a id="sendform" class="offscreen" href="#" target="_blank" rel="noopener"
+         tabindex="-1" aria-hidden="true">Open the form</a>
+
+      <!--
+        Pressing Submit on Google's own page is between the painter and
+        Google — the studio cannot see it happen, any more than it could read
+        a cross-origin post's answer. So there is still one small insurance
         policy tucked under here — the code, and an address to paste it to.
       -->
       <details class="elsewhere" id="insurance" hidden>
@@ -711,6 +781,7 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
         <button id="copy">Copy the code</button>
       </div>
       <p class="statusline" id="sendstatus" role="status" aria-live="polite">&nbsp;</p>
+      ${afterSend}
 
       <!--
         Shown after every send, never only after a failed one. A mailto: click
@@ -739,8 +810,10 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
 
   const howItWorks = art
     ? `<p><strong>How this works:</strong> your drawing becomes a short line of
-        text, and Send carries it to us with the name you would like on it. No
-        account, no email app, and nothing leaves this page until you press it.</p>`
+        text, and Send opens a short form in a new tab with it already filled
+        in, alongside the name you would like on it. You press Submit there
+        yourself, on Google's own page — no account, no email app, and
+        nothing leaves this page until you press Send.</p>`
     : `<p><strong>How this works:</strong> your drawing becomes a short line of
         text, and the studio hands it to you in a message ready to send — to
         your own email app, to your webmail, or on the clipboard if you would
@@ -864,6 +937,27 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
       ${sendStep}
     </section>
 
+    <!--
+      Tom's note: this used to be buried three "elsewhere" disclosures down.
+      One line, right above the Files row, with the two things anybody
+      reaching for a real app actually wants: a way in for the PNG they'll
+      bring back, and where to read about which app.
+    -->
+    <section class="appcard" id="appcard">
+      <p class="quiet">Rather draw in an app? Any pixel-art app works with
+        ${
+          world.paletteName
+            ? world.paletteLink
+              ? `the <a class="link" href="${esc(world.paletteLink)}" rel="noreferrer">${esc(world.paletteName)}</a> palette.`
+              : `the ${esc(world.paletteName)} palette.`
+            : 'our palette.'
+        } Then bring the PNG here.</p>
+      <div class="row">
+        <button id="appimport">Import a PNG</button>
+        <a class="link" id="whichapps" href="${esc(contributingUrl('apps'))}">Which apps?</a>
+      </div>
+    </section>
+
     <section class="files">
       <div class="row">
         <!-- A real <button> opens the picker, so a keyboard reaches Import the
@@ -907,30 +1001,12 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
           <p class="quiet">A PNG with a transparent background and no smoothing —
             pixel art likes hard, clean edges.</p>
           <p class="quiet">Only the palette colours, which you are very welcome to take away:</p>
+          <p class="quiet">The .hex file is one colour per line, which
+            Aseprite, Piskel and Lospec all read straight in.${paletteNamed}</p>
           <div class="row">
             <a class="button" id="downloadpalette" href="#" download>Download the palette PNG</a>
             <button id="downloadhex">Download the palette as .hex</button>
           </div>
-          <details class="elsewhere">
-            <summary>Painting in another app?</summary>
-            <div class="elsewhere-body">
-              <p class="quiet">The .hex file is one colour per line, which
-                Aseprite, Piskel and Lospec all read straight in.${paletteNamed}</p>
-              <p class="quiet">Not sure which app to paint in? The
-                <a class="link" href="${esc(contributingUrl())}">contributing
-                page</a> lists a few that people use, on a phone and at a desk,
-                with what each one costs and whether it can load our palette.</p>
-              <p class="quiet">The footprint sits at the very bottom of the canvas;
-                any spare rows for a roof, sign or awning go above it. The game
-                adds a small plaque low on the wall beside the door — that's
-                where it thanks you — so there's no need to paint one.</p>
-              <p class="quiet">Import a PNG afterwards and the Studio sorts out
-                the small things itself: it moves any colour that isn't quite on
-                the palette to the nearest one that is, makes up its mind about
-                soft edges, and tells you what it changed. If the size is one it
-                can't use, it says exactly which one it's after.</p>
-            </div>
-          </details>
         </div>
       </details>
     </section>
@@ -975,6 +1051,15 @@ function wireEditor(state: EditorState): void {
 
   function saySend(message: string): void {
     sendStatus.textContent = message || ' ';
+  }
+
+  /** Reveals "Back to the game" and the note beside it — once, the first time
+   *  anything actually goes out, whichever of the ways it went. */
+  function showAfterSend(): void {
+    const row = document.getElementById('backtogamerow');
+    const note = document.getElementById('aftersendnote');
+    if (row) row.hidden = false;
+    if (note) note.hidden = false;
   }
 
   /** Where style.css puts the tools beside the drawing instead of under it. */
@@ -2070,6 +2155,9 @@ function wireEditor(state: EditorState): void {
   // the Enter or Space key alike, so the keyboard path costs nothing extra and
   // nothing can fire twice (hard rule 4).
   importButton.addEventListener('click', () => importInput.click());
+  // The appcard's "Import a PNG" is the same control, one tap higher up the
+  // page — not a second importer to keep in step with the first.
+  document.getElementById('appimport')?.addEventListener('click', () => importInput.click());
 
   importInput.addEventListener('change', async () => {
     const file = importInput.files?.[0];
@@ -2554,39 +2642,92 @@ function wireEditor(state: EditorState): void {
   }
 
   /**
-   * A world that carries a `submit.art` block posts the drawing straight to
-   * the form the world pack names — no mail app, no account, nothing typed
-   * out by hand (hard rules 1 and 7: the URL and every field id are the
-   * pack's, and none of them appears in this file). The post is an ordinary
-   * form post, urlencoded exactly as a browser's own <form> would send it,
-   * with `no-cors` because we are posting across origins and cannot read the
-   * answer. That opacity is why the small note below it exists.
+   * The form's own page to open, prefilled — `art.page` when the pack gives
+   * one, or else `art.form` (a Google Form's `formResponse` address) with the
+   * trailing `/formResponse` swapped for `/viewform`, its own page for the
+   * same set of fields.
    */
-  async function postToForm(form: SubmitArt, name: string, code: string): Promise<void> {
-    const body = new URLSearchParams();
-    body.set(form.fields.building, state.entry.placement.id);
-    body.set(form.fields.world, state.world.id);
-    body.set(form.fields.credit, name);
-    body.set(form.fields.code, code);
-    const notes = document.getElementById('notes') as HTMLTextAreaElement | null;
-    if (form.fields.notes && notes?.value.trim()) body.set(form.fields.notes, notes.value.trim());
+  function viewformUrl(form: SubmitArt): string {
+    return form.page ?? form.form.replace(/\/formResponse\/?$/, '/viewform');
+  }
 
-    saySend('Sending it in…');
+  /**
+   * Above this many characters, a URL stops being something every browser and
+   * OS will open reliably from a plain click — comfortably under the roughly
+   * 8,000-character ceiling a few of them impose, and past everything but a
+   * fully painted, finished-size facade's code.
+   */
+  const PREFILL_URL_BUDGET = 7000;
+
+  /**
+   * The prefilled link Send opens: Google's own "prefilled link" convention
+   * — `usp=pp_url` plus one query parameter per field id, so the painter
+   * lands on the form itself with everything the Studio knows already
+   * written in. `code` is `null` for the one case where it is left out on
+   * purpose (see `openForm`).
+   */
+  function prefillUrl(form: SubmitArt, name: string, notes: string, code: string | null): string {
+    const params = new URLSearchParams();
+    params.set('usp', 'pp_url');
+    params.set(form.fields.building, state.entry.placement.id);
+    params.set(form.fields.world, state.world.id);
+    params.set(form.fields.credit, name);
+    if (code !== null) params.set(form.fields.code, code);
+    if (form.fields.notes && notes) params.set(form.fields.notes, notes);
+    return `${viewformUrl(form)}?${params.toString()}`;
+  }
+
+  /** The code `openForm` last opened a form without — set only on the path
+   *  where the code was left out of the link and offered to copy instead. */
+  let formCode = '';
+
+  /**
+   * A world that carries a `submit.art` block sends the painter to that
+   * form's own page instead of posting anything itself (hard rules 1 and 7:
+   * the URL and every field id are the pack's, and none of them appears in
+   * this file). The link is opened by clicking a real `<a target="_blank"
+   * rel="noopener">` in the same gesture as the button press, so no pop-up
+   * blocker gets in the way and there is still exactly one pointer path
+   * (hard rule 4). Google's own page then takes it from there: its own
+   * Submit button, its own confirmation, nothing the Studio has to guess at.
+   *
+   * A finished-size facade can make a URL too long to open reliably (see
+   * `PREFILL_URL_BUDGET`) — everything else still opens prefilled, and the
+   * code goes to the clipboard instead, to paste in by hand.
+   */
+  function openForm(form: SubmitArt, name: string, code: string): void {
+    const notes = (document.getElementById('notes') as HTMLTextAreaElement | null)?.value.trim() ?? '';
+    const anchor = document.getElementById('sendform') as HTMLAnchorElement | null;
     const insurance = el<HTMLDetailsElement>('insurance');
-    try {
-      await fetch(form.form, { method: 'POST', mode: 'no-cors', body });
-    } catch {
-      // The one failure a `no-cors` post does show us: it never left the
-      // building. The drawing is safe on this page, and the code still sends.
+    const copyCode = document.getElementById('copycode') as HTMLButtonElement | null;
+    if (!anchor) return;
+
+    const whole = prefillUrl(form, name, notes, code);
+    if (whole.length <= PREFILL_URL_BUDGET) {
+      anchor.href = whole;
+      anchor.click();
+      if (copyCode) copyCode.hidden = true;
       insurance.hidden = false;
-      insurance.open = true;
-      saySend("That didn't get out just now, and nothing is lost — the note below has the other way to send it.");
+      showAfterSend();
+      saySend("The form opened in a new tab with everything filled in. Press Submit there and you're done.");
       return;
     }
-    // Nothing comes back that we could read, so this says what we did rather
-    // than what the form did, and leaves the other way one press away.
+
+    anchor.href = prefillUrl(form, name, notes, null);
+    anchor.click();
     insurance.hidden = false;
-    saySend(`Sent. Thank you, ${name}! Your name goes on the plaque beside the door.`);
+    showAfterSend();
+    formCode = code;
+    if (copyCode) copyCode.hidden = false;
+    void (async () => {
+      const copied = await putOnClipboard(code);
+      saySend(
+        copied
+          ? 'The form opened in a new tab. Your code is copied; paste it into the box that says code, then press Submit.'
+          : 'The form opened in a new tab, but this browser would not copy the code on its own. Press ' +
+            '"Copy the code" below, then paste it into the box that says code, and press Submit.'
+      );
+    })();
   }
 
   el<HTMLButtonElement>('send').addEventListener('click', () => {
@@ -2618,7 +2759,7 @@ function wireEditor(state: EditorState): void {
 
     const form = state.world.submit?.art;
     if (form) {
-      void postToForm(form, name, code);
+      openForm(form, name, code);
       return;
     }
 
@@ -2644,6 +2785,7 @@ function wireEditor(state: EditorState): void {
       : 'This one is too detailed to fit in an email link, which is a lovely problem to have. Download the PNG ' +
         'below and attach it to a message — or copy the whole message, which carries the drawing whatever its size.';
     el<HTMLDivElement>('fallback').hidden = false;
+    showAfterSend();
     sayFallback('');
 
     if (mail.whole) el<HTMLAnchorElement>('sendmail').click();
@@ -2652,6 +2794,20 @@ function wireEditor(state: EditorState): void {
         ? 'Your email app should be opening. Thank you — this really does make the town. If nothing opened, everything you need is just below.'
         : `Everything you need to send it is just below. Thank you — this really does make the town.`
     );
+  });
+
+  // The "Copy the code" button that appears right beside Send when a
+  // finished-size drawing left its code out of the form link (see
+  // `openForm`). `formCode` is the code that link went without.
+  document.getElementById('copycode')?.addEventListener('click', () => {
+    void (async () => {
+      const copied = await putOnClipboard(formCode);
+      saySend(
+        copied
+          ? 'Copied. Paste it into the box that says code, then press Submit.'
+          : 'This browser keeps the clipboard to itself. Copy the code from "Didn\'t go through?" below instead.'
+      );
+    })();
   });
 
   document.getElementById('copymessage')?.addEventListener('click', () => {

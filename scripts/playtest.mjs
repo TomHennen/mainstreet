@@ -27,6 +27,10 @@ import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+// The codec is deliberately DOM- and Node-free (studio/codec.ts's own header),
+// so the harness can build a worst-case drawing the same way scripts/decode-
+// art.ts reads a real one — no browser needed to make a code this big.
+import { encode } from '../studio/codec.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = process.env.PLAYTEST_URL ?? 'http://localhost:5173/';
@@ -1950,6 +1954,11 @@ async function main() {
     if (!(await paint.isVisible())) fail('paint-it', `no "Paint it" link on ${bare.id}'s first page`);
     const href = (await paint.getAttribute('href')) ?? '';
     if (!href.endsWith(`&building=${bare.id}`)) fail('paint-it', `link href is "${href}"`);
+    // A page, not a mail app: it opens in a new tab, so going to paint never
+    // costs anyone their place in the game (Tom's playtest feedback).
+    if ((await paint.getAttribute('target')) !== '_blank') {
+      fail('paint-it', '"Paint it" should open in a new tab (target="_blank")');
+    }
     const paintBox = await paint.boundingBox();
     if (!paintBox || paintBox.width < 44 || paintBox.height < 24) {
       fail('paint-it', `the "Paint it" link is not a tappable size: ${JSON.stringify(paintBox)}`);
@@ -2293,55 +2302,66 @@ async function main() {
     await autoCtx.close();
 
     // --- the Studio's send step ---------------------------------------------
-    // This world pack carries a `submit.art` block, so Send posts the drawing
-    // straight to the form the pack names: no mail app, no account, and no
-    // address or field id anywhere in the studio's own code (hard rule 1). The
-    // post is intercepted here — a playtest never submits anything for real —
-    // and read back field by field, because a cross-origin form post comes
-    // back opaque and a wrong field id would otherwise look like a success.
-    log('  Studio: sending to the form the world pack names');
+    // This world pack carries a `submit.art` block, so Send no longer posts
+    // anything itself: it opens the form's own page, prefilled, in a new tab
+    // (a real `<a target="_blank">` the button clicks), and the painter
+    // presses Submit there, on Google's page. The harness never lets that
+    // real page load — it reads the link's own href, and the new tab it
+    // opened, then closes the tab without touching Google at all.
+    log('  Studio: opening the form the world pack names, prefilled');
     const send = await touchCtx.newPage();
     attach(send, 'studio-send');
 
     const FORM = WORLD.submit?.art;
-    if (!FORM) fail('studio-send', 'this world pack has no submit.art for the studio to post to');
-
-    let posted = null;
-    await send.route(FORM.form, async (route) => {
-      posted = { method: route.request().method(), body: route.request().postData() ?? '' };
-      await route.fulfill({ status: 200, contentType: 'text/plain', body: 'ok' });
-    });
-
-    /** Waits for the intercepted post, and hands back its fields. */
-    async function waitForPost(what) {
-      for (let i = 0; i < 100; i++) {
-        if (posted) {
-          const fields = new URLSearchParams(posted.body);
-          const seen = posted;
-          posted = null;
-          return { method: seen.method, fields };
-        }
-        await sleep(100);
-      }
-      fail('studio-send', `pressing Send posted nothing to the form ${what}`);
-    }
+    if (!FORM) fail('studio-send', 'this world pack has no submit.art for the studio to open');
+    const VIEWFORM = FORM.page ?? FORM.form.replace(/\/formResponse\/?$/, '/viewform');
 
     await send.goto(`${BASE}studio/?world=${WORLD_ID}&building=${bare.id}`, { waitUntil: 'load' });
     await send.waitForSelector('#markers', { timeout: 20000 });
-    if (await send.locator('#insurance').isVisible()) {
-      fail('studio-send', 'the "Didn\u2019t go through?" note was showing before anything had been sent');
+
+    // The header: "Back to <world>" now points at the game itself, sibling to
+    // the Studio, rather than at the building picker (Tom's playtest note:
+    // painters were leaving the game to paint and not finding their way
+    // back) — and the picker is still one tap away as its own link.
+    const homeHref = await send.locator('#home').getAttribute('href');
+    if (!homeHref || !new URL(homeHref, send.url()).pathname.endsWith(`/${WORLD_ID}/`)) {
+      fail('studio-send', `the header's "Back to" link is "${homeHref}", not the game`);
     }
-    // With a form configured there is no email route at all — one way to send,
-    // and it is the one that needs nothing of the painter's machine.
+    if (!(await send.locator('#home').innerText()).includes(WORLD.title)) {
+      fail('studio-send', `the header's "Back to" link should name ${WORLD.title}`);
+    }
+    if (!(await send.locator('#allbuildings').isVisible())) {
+      fail('studio-send', 'the header lost its way back to "All buildings"');
+    }
+    log(`    header: "${await send.locator('#home').innerText()}" -> ${homeHref}`);
+
+    // The "rather draw in an app?" card: prominent, with both of its controls,
+    // not three "elsewhere" disclosures deep (Tom's note that it was buried).
+    if (!(await send.locator('#appcard').isVisible())) fail('studio-send', 'the "rather draw in an app?" card is missing');
+    if (!(await send.locator('#appimport').isVisible())) fail('studio-send', 'the appcard has no "Import a PNG"');
+    if (!(await send.locator('#whichapps').isVisible())) fail('studio-send', 'the appcard has no "Which apps?" link');
+    const whichAppsHref = await send.locator('#whichapps').getAttribute('href');
+    if (!whichAppsHref || !whichAppsHref.includes('/contributing/') || !whichAppsHref.endsWith('#apps')) {
+      fail('studio-send', `"Which apps?" points at "${whichAppsHref}", not the contributing page's apps section`);
+    }
+
+    if (await send.locator('#insurance').isVisible()) {
+      fail('studio-send', 'the "Didn’t go through?" note was showing before anything had been sent');
+    }
+    if (await send.locator('#backtogamerow').isVisible()) {
+      fail('studio-send', '"Back to the game" was showing before anything had been sent');
+    }
+    // With a form configured there is no email route at all — one way to
+    // send, and it is the one that needs nothing of the painter's machine.
     for (const gone of ['#sendmail', '#gmail', '#outlook', '#fallback']) {
       if (await send.locator(gone).count()) {
-        fail('studio-send', `${gone} is still on the page, and this world posts to a form`);
+        fail('studio-send', `${gone} is still on the page, and this world opens a form`);
       }
     }
     const mailLinks = await evalIn(send, 'any mailto: link left on the page', () =>
       Array.from(document.querySelectorAll('a[href^="mailto:"]')).length
     );
-    if (mailLinks) fail('studio-send', `${mailLinks} mailto: link(s) on a page that posts to a form`);
+    if (mailLinks) fail('studio-send', `${mailLinks} mailto: link(s) on a page that opens a form`);
 
     // The drawing code is the long line that starts with the codec's magic;
     // the paste box's own placeholder is where the harness learns it.
@@ -2352,10 +2372,24 @@ async function main() {
     await send.locator('#credit').fill('A resident');
     await send.locator('#notes').fill('The awning is green in summer.');
     await send.locator('#consent').check({ timeout: 20000 });
-    await send.locator('#send').click({ timeout: 20000 });
 
-    const small = await waitForPost('for a small drawing');
-    if (small.method !== 'POST') fail('studio-send', `the studio sent a ${small.method}, not a POST`);
+    const [smallPopup] = await Promise.all([
+      touchCtx.waitForEvent('page'),
+      send.locator('#send').click({ timeout: 20000 })
+    ]);
+    // The real href the button just activated — read from the page rather
+    // than trusted from the popup, which the harness never lets finish
+    // loading the real, cross-origin form.
+    const smallHref = await send.locator('#sendform').getAttribute('href');
+    await smallPopup.close().catch(() => {});
+    if (!smallHref) fail('studio-send', 'pressing Send left the form link with no href');
+    const smallUrl = new URL(smallHref);
+    if (`${smallUrl.origin}${smallUrl.pathname}` !== VIEWFORM) {
+      fail('studio-send', `Send opened "${smallUrl.href}", not the world pack's viewform (${VIEWFORM})`);
+    }
+    if (smallUrl.searchParams.get('usp') !== 'pp_url') {
+      fail('studio-send', 'the prefilled form link is missing usp=pp_url');
+    }
     const want = [
       ['building', FORM.fields.building, bare.id],
       ['world', FORM.fields.world, WORLD_ID],
@@ -2364,42 +2398,114 @@ async function main() {
     ];
     for (const [what, id, value] of want) {
       if (!id) continue;
-      const got = small.fields.get(id);
+      const got = smallUrl.searchParams.get(id);
       if (got !== value) fail('studio-send', `the form's "${what}" field (${id}) carried "${got}", not "${value}"`);
     }
-    const smallCode = small.fields.get(FORM.fields.code) ?? '';
+    const smallCode = smallUrl.searchParams.get(FORM.fields.code) ?? '';
     if (!smallCode.startsWith(MAGIC)) {
       fail('studio-send', `the form's code field carried "${smallCode.slice(0, 40)}", which is not a drawing`);
     }
     await sleep(300);
     const said = (await send.locator('#sendstatus').innerText({ timeout: 20000 })).trim();
-    if (!said.includes('Thank you, A resident')) fail('studio-send', `after sending, the studio said "${said}"`);
-    if (!(await send.locator('#insurance').isVisible({ timeout: 20000 }))) {
-      fail('studio-send', 'the "Didn\u2019t go through?" note stayed hidden after a send');
+    if (!said.includes('opened in a new tab') || !said.includes('Press Submit there')) {
+      fail('studio-send', `after sending a small drawing, the studio said "${said}"`);
     }
-    log(`    posted ${[...small.fields.keys()].length} fields to the pack's form; it said "${said}"`);
+    if (!(await send.locator('#insurance').isVisible({ timeout: 20000 }))) {
+      fail('studio-send', 'the "Didn’t go through?" note stayed hidden after a send');
+    }
+    if (!(await send.locator('#backtogamerow').isVisible({ timeout: 20000 }))) {
+      fail('studio-send', '"Back to the game" stayed hidden after a send');
+    }
+    const backHref = await send.locator('#backtogame').getAttribute('href');
+    if (!backHref || !new URL(backHref, send.url()).pathname.endsWith(`/${WORLD_ID}/`)) {
+      fail('studio-send', `"Back to the game" points at "${backHref}", not the game`);
+    }
+    log(
+      `    small drawing: opened ${smallUrl.pathname} with ${[...smallUrl.searchParams.keys()].length}` +
+        ` fields (${smallHref.length} characters); it said "${said}"`
+    );
     await send.locator('#sendstatus').scrollIntoViewIfNeeded({ timeout: 20000 });
     await sleep(150);
     await shot(send, 'studio-send');
 
-    // A finished facade: far too long for any email link, and a non-event for
-    // a form post — which is the point of having one.
-    await send.goto(`${BASE}studio/?world=${WORLD_ID}&building=${anyPainted.id}&improve=1`, { waitUntil: 'load' });
+    // A finished-size facade: a URL too long for any browser to open
+    // reliably (studio.ts's PREFILL_URL_BUDGET), so the code is left out of
+    // the link and copied to the clipboard instead. A worst-case checkerboard
+    // of run-length-1 pixels, sized to this world's biggest footprint with
+    // every spare row above it, guarantees the budget is blown regardless of
+    // what is actually painted on any one building today — planted straight
+    // into the building's own draft in localStorage, the same place a real
+    // session's work-in-progress lives, rather than drawn by hand.
+    log('  Studio: a finished-size code gets copied instead of put in the URL');
+    const hugeBuilding = Object.values(WORLD.maps)
+      .flatMap((m) => m.buildings ?? [])
+      .filter((b) => !b.interior)
+      .reduce((a, b) => (a.size[0] * a.size[1] >= b.size[0] * b.size[1] ? a : b));
+    const STUDIO_TILE = 16;
+    const STUDIO_MAX_EXTRA_ROWS = 3; // studio.ts's MAX_EXTRA_ROWS
+    const hugeWidth = hugeBuilding.size[0] * STUDIO_TILE;
+    const hugeHeight = (hugeBuilding.size[1] + STUDIO_MAX_EXTRA_ROWS) * STUDIO_TILE;
+    const hugePixels = new Uint8Array(hugeWidth * hugeHeight);
+    for (let i = 0; i < hugePixels.length; i++) hugePixels[i] = i % 2; // every pixel its own run
+    const hugeCode = encode({
+      world: WORLD_ID,
+      building: hugeBuilding.id,
+      width: hugeWidth,
+      height: hugeHeight,
+      pixels: hugePixels
+    });
+    if (hugeCode.length < 7000) {
+      fail('studio-send', `the synthetic worst-case drawing only made a ${hugeCode.length}-character code`);
+    }
+
+    await send.addInitScript(
+      ({ key, value }) => localStorage.setItem(key, value),
+      {
+        key: `mainstreet.studio.v1.${WORLD_ID}.${hugeBuilding.id}`,
+        value: JSON.stringify({ saved: Date.now(), code: hugeCode, recent: [] })
+      }
+    );
+    await send.goto(`${BASE}studio/?world=${WORLD_ID}&building=${hugeBuilding.id}`, { waitUntil: 'load' });
     await send.waitForSelector('#markers', { timeout: 20000 });
-    await sleep(800);
+    await sleep(400);
     await send.locator('#credit').fill('A resident');
     await send.locator('#consent').check({ timeout: 20000 });
-    await send.locator('#send').click({ timeout: 20000 });
-    const big = await waitForPost('for a finished facade');
-    const bigCode = big.fields.get(FORM.fields.code) ?? '';
-    if (!bigCode.startsWith(MAGIC)) fail('studio-send', 'a finished facade did not reach the form as a drawing');
-    if (bigCode.length <= smallCode.length) {
-      fail('studio-send', `a finished facade should be the longer code, and it was ${bigCode.length} to ${smallCode.length}`);
+
+    const [hugePopup] = await Promise.all([
+      touchCtx.waitForEvent('page'),
+      send.locator('#send').click({ timeout: 20000 })
+    ]);
+    const hugeHref = await send.locator('#sendform').getAttribute('href');
+    await hugePopup.close().catch(() => {});
+    if (!hugeHref) fail('studio-send', 'a finished-size send left the form link with no href');
+    const hugeUrl = new URL(hugeHref);
+    if (hugeUrl.searchParams.has(FORM.fields.code)) {
+      fail('studio-send', 'a finished-size drawing put its code in the URL instead of staying under the budget');
     }
-    if (big.fields.get(FORM.fields.building) !== anyPainted.id) {
-      fail('studio-send', 'the form was told the wrong building for a touch-up');
+    if (hugeUrl.searchParams.get(FORM.fields.building) !== hugeBuilding.id) {
+      fail('studio-send', 'the form was told the wrong building for a finished-size drawing');
     }
-    log(`    ${anyPainted.id}: the whole facade goes in one post (${bigCode.length} characters of code)`);
+    if (hugeHref.length >= hugeCode.length) {
+      fail(
+        'studio-send',
+        `a link with the code left out (${hugeHref.length} chars) should be shorter than the code alone (${hugeCode.length})`
+      );
+    }
+    await sleep(300);
+    const saidHuge = (await send.locator('#sendstatus').innerText({ timeout: 20000 })).trim();
+    if (!saidHuge.toLowerCase().includes('copied')) {
+      fail('studio-send', `a finished-size send should say the code was copied; it said "${saidHuge}"`);
+    }
+    if (!(await send.locator('#copycode').isVisible({ timeout: 20000 }))) {
+      fail('studio-send', 'a finished-size send should leave a "Copy the code" button showing');
+    }
+    if (!(await send.locator('#backtogamerow').isVisible({ timeout: 20000 }))) {
+      fail('studio-send', '"Back to the game" stayed hidden after a finished-size send');
+    }
+    log(
+      `    ${hugeBuilding.id}: a ${hugeCode.length}-character code stayed out of the ${hugeHref.length}-character` +
+        ` link, and was copied to the clipboard instead; the studio said "${saidHuge}"`
+    );
     await shot(send, 'studio-send-finished');
 
     // Everything before this is finished with, and the phone section is the
