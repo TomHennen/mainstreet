@@ -84,3 +84,33 @@ lat/lon to tile maths are in `docs/route10-geometry.md`.
 
 No real private person appears by name without opting in (CLAUDE.md hard
 rule 5). Signs refer to "the owner" or a fictional character.
+
+## Flavor & story hooks
+
+Fun, true things about the area to draw on for episodes and ambient
+dialogue. These are raw material, not finished copy — run anything derived
+from them through hard rules 5 and 6 (no real private people without
+opt-in, everything warm and affectionate) before it reaches the player.
+
+- **The Belvedere ("the Bel").** From the outside it's the spookiest
+  building in Stamford: big, visibly leaning, a single door tucked on a side
+  wall that reads a little "sus," the kind of place that looks haunted. The
+  building across the street somehow looks even more run-down. Inside,
+  though, it's the warmest, friendliest dive bar going — karaoke, open mic
+  nights, trivia, even big-name comics passing through. The gag writes
+  itself: judge-a-book-by-its-cover, and the book is secretly lovely. Good
+  for a "first time visiting" beat where a townsperson has to talk a
+  newcomer into just opening the door.
+- **Stamford Coffee.** Feels transplanted straight out of Brooklyn — hip
+  crowd, always busy, good sandwiches and baked goods. A fun beat for a
+  visiting-the-big-city-in-miniature moment, or a character who moved up
+  from the city and feels instantly at home there.
+- **Middle Brook Cafe's lot.** Dollar General had been eyeing that land
+  before the cafe went in — locals are quietly glad DG ended up down the
+  road to the east instead. Frame this warmly (relief that the cafe is
+  there), never as a knock on the Dollar General itself, which is a real
+  business a few doors down.
+- **Small-town density.** Wherever you are on Route 10, you will run into
+  someone you know. Good recurring texture for episodes: NPCs who greet the
+  player by name away from their "home" location, or a travel-card beat
+  about running into a familiar face mid-errand.
