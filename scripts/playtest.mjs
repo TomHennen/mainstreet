@@ -1354,26 +1354,56 @@ async function main() {
       // tiles, and that a mat really does not.
       const specFile = resolve(PACK, 'rooms', `${place.interior}.json`);
       if (!existsSync(specFile)) fail(`${place.id}-solid`, `no room spec at ${specFile} to check the furniture against`);
+      const spec = readJson(specFile);
       const blocking = [];
-      for (const prop of readJson(specFile).props ?? []) {
+      for (const prop of spec.props ?? []) {
+        // An island is a loop: solid all the way round bar the one way in,
+        // and walkable inside, which is the whole point of it.
+        if (prop.kind === 'island') {
+          const [rx, ry, rw, rh] = prop.rect;
+          const mouth = [];
+          for (let j = 0; j < rh; j++) {
+            for (let i = 0; i < rw; i++) {
+              const [x, y] = [rx + i, ry + j];
+              const edge = i === 0 || j === 0 || i === rw - 1 || j === rh - 1;
+              if (edge && !isSolid(room, x, y)) mouth.push([x, y]);
+              if (edge && isSolid(room, x, y)) blocking.push(['island', x, y]);
+              if (!edge && isSolid(room, x, y)) {
+                fail(`${place.id}-solid`, `the island's walkway at ${x},${y} in ${name} is blocked`);
+              }
+            }
+          }
+          const wanted = prop.open ? (prop.gap ?? 1) : 0;
+          if (mouth.length !== wanted) {
+            fail(
+              `${place.id}-solid`,
+              `the island in ${name} is open on ${mouth.length} tile(s) (${mouth.join(' ')}), expected ${wanted}`
+            );
+          }
+          log(`    the island bar: solid all round, ${mouth.length} tile(s) of way in at ${mouth.join(' ') || 'nowhere'}`);
+          continue;
+        }
         const cells = [...(prop.at ?? [])];
         if (prop.rect) {
           const [rx, ry, rw, rh] = prop.rect;
           for (let j = 0; j < rh; j++) for (let i = 0; i < rw; i++) cells.push([rx + i, ry + j]);
         }
+        // A doormat, a corridor and a way out are floor; everything else is
+        // furniture, and furniture is walked round.
+        const walkThrough = prop.kind === 'mat' || prop.kind === 'hall' || prop.kind === 'exit';
         for (const [x, y] of cells) {
           const blocks = isSolid(room, x, y);
-          if (prop.kind === 'mat' && blocks) {
-            fail(`${place.id}-solid`, `the mat at ${x},${y} in ${name} blocks the floor`);
+          if (walkThrough && blocks) {
+            fail(`${place.id}-solid`, `the ${prop.kind} at ${x},${y} in ${name} blocks the floor`);
           }
-          if (prop.kind !== 'mat' && !blocks) {
+          if (!walkThrough && !blocks) {
             fail(`${place.id}-solid`, `the ${prop.kind} at ${x},${y} in ${name} is not solid — you would walk through it`);
           }
-          if (prop.kind === 'counter' || prop.kind === 'bar' || prop.kind === 'stage') blocking.push([prop.kind, x, y]);
+          if (['counter', 'bar', 'stage', 'foosball'].includes(prop.kind)) blocking.push([prop.kind, x, y]);
         }
       }
-      if (!blocking.length) fail(`${place.id}-solid`, `${name}'s room has no counter, bar or stage in it`);
-      log(`    ${blocking.length} tile(s) of counter/bar/stage, every one solid in the grid`);
+      if (!blocking.length) fail(`${place.id}-solid`, `${name}'s room has nothing solid enough to lean on in it`);
+      log(`    ${blocking.length} tile(s) of counter/bar/stage/foosball, every one solid in the grid`);
 
       // And solid underfoot, not only in the grid: walked straight at from two
       // tiles below, the player has to stop at its near edge. The hitbox is
@@ -1391,6 +1421,84 @@ async function main() {
         fail(`${place.id}-solid`, `the player walked into the ${push[0]} at ${push[1]},${push[2]}: stopped at y ${stopped.y.toFixed(2)}`);
       }
       log(`    walking at the ${push[0]} on ${[push[1], push[2]]} stopped at y ${stopped.y.toFixed(2)}`);
+
+      // A corridor off the room, where there is one: every tile of it has to
+      // be somewhere to walk, or the doors and the wall along it are behind a
+      // wall of their own.
+      const hall = (spec.props ?? []).find((prop) => prop.kind === 'hall');
+      if (hall) {
+        const [hx, hy, hw, hh] = hall.rect;
+        for (let j = 0; j < hh; j++) {
+          for (let i = 0; i < hw; i++) {
+            if (isSolid(room, hx + i, hy + j)) {
+              fail(`${place.id}-hall`, `the hallway tile ${hx + i},${hy + j} in ${name} is blocked`);
+            }
+          }
+        }
+        await walkTo(page, `${place.id}-hall`, [hx + hw - 1, hy]);
+        log(`    walked the ${hw}x${hh} hallway to ${[hx + hw - 1, hy]}`);
+      }
+
+      // Everything in the room that can be read where it stands: a door with
+      // a note on it, a wall people have drawn on, a board by the door
+      // (DESIGN.md §2). Each is read from beside it, which is how a player
+      // meets it.
+      for (const sign of room.signs ?? []) {
+        const [sx, sy] = sign.pos;
+        const spot = [[0, 1], [0, -1], [1, 0], [-1, 0], [0, 2], [0, -2], [2, 0], [-2, 0]]
+          .map(([dx, dy]) => [sx + dx, sy + dy])
+          .find((tile) => !isSolid(room, tile[0], tile[1]));
+        if (!spot) fail(`${place.id}-sign`, `nothing beside the sign at ${sign.pos} in ${name} to read it from`);
+        await walkTo(page, `${place.id}-sign`, spot);
+        await pressA(page);
+        const read = await waitUntil(page, (st) => st.dialogueOpen, `the sign at ${sign.pos} to open`);
+        if (read.dialogue?.text !== sign.lines[0]) {
+          fail(`${place.id}-sign`, `the sign at ${sign.pos} reads "${read.dialogue?.text}", expected "${sign.lines[0]}"`);
+        }
+        await advanceDialogue(page, `${place.id}-sign`, sign.lines.length);
+        log(`    ${sign.pos} from ${spot} — "${sign.lines[0].slice(0, 56)}…"`);
+      }
+
+      // Any further way out of the room — the Belvedere's yard — walked both
+      // ways, since a door nobody can come back through is a trap.
+      for (const onward of room.exits.slice(1)) {
+        const beyond = WORLD.maps[onward.to];
+        if (!beyond) fail(`${place.id}-onward`, `"${onward.id}" leads to "${onward.to}", which world.json has no map for`);
+        await walkTo(page, `${place.id}-onward`, [onward.at[0], onward.at[1]], { allowInterrupt: true });
+        const outside = await waitUntil(page, (st) => st.map === onward.to && !st.locked, `${beyond.name}`);
+        const arrived = here(outside);
+        if (arrived[0] !== onward.spawn[0] || arrived[1] !== onward.spawn[1]) {
+          fail(`${place.id}-onward`, `"${onward.id}" put the player on ${arrived}, not ${onward.spawn}`);
+        }
+        log(`    out to ${beyond.name} at ${arrived}, facing ${outside.facing}`);
+        await shot(page, `${onward.to}`);
+
+        // Whatever the far side has standing in it is solid there too.
+        const beyondSpec = resolve(PACK, 'rooms', `${onward.to}.json`);
+        if (existsSync(beyondSpec)) {
+          for (const prop of readJson(beyondSpec).props ?? []) {
+            for (const [x, y] of prop.at ?? []) {
+              if (prop.kind !== 'mat' && !isSolid(beyond, x, y)) {
+                fail(`${place.id}-onward`, `the ${prop.kind} at ${x},${y} in ${beyond.name} is not solid`);
+              }
+            }
+          }
+          log(`    ${beyond.name}'s furniture is solid, firepit included`);
+        }
+        for (const fixture of beyond.fixtures ?? []) {
+          log(`    a ${fixture.kind} standing at ${fixture.pos}`);
+        }
+
+        const home = beyond.exits.find((back) => back.to === place.interior);
+        if (!home) fail(`${place.id}-onward`, `${beyond.name} has no way back into ${name}`);
+        await walkTo(page, `${place.id}-onward`, [home.at[0], home.at[1]], { allowInterrupt: true });
+        const returned = await waitUntil(page, (st) => st.map === place.interior && !st.locked, `${name} again`);
+        const backIn = here(returned);
+        if (backIn[0] !== home.spawn[0] || backIn[1] !== home.spawn[1]) {
+          fail(`${place.id}-onward`, `"${home.id}" put the player on ${backIn}, not ${home.spawn}`);
+        }
+        log(`    and back into ${name} at ${backIn}, facing ${returned.facing}`);
+      }
 
       log(`  back out of ${name}`);
       const way = room.exits[0];

@@ -112,6 +112,11 @@ firepit. One wall of the bar room, on your left as you come in, is papered
 over floor to ceiling: behind it is the hotel's old swimming pool, dry for
 years.
 
+**What plays at the Belvedere (Tom, Sep 2026).** DJ nights, and sometimes a
+scrappy punk band. It is not a fiddle place — don't write one in. Karaoke,
+open mic and trivia are already on record, and a big-name comic passes
+through now and then.
+
 ## Open items — pending map work
 
 New businesses/landmarks Tom has named that aren't placed on the map yet.
@@ -186,6 +191,14 @@ lat/lon to tile maths are in `docs/route10-geometry.md`.
 
 No real private person appears by name without opting in (CLAUDE.md hard
 rule 5). Signs refer to "the owner" or a fictional character.
+
+Invented first names get checked against this file before they ship. Two
+things to look for: a name that turns out to belong to somebody real in one
+of the three villages (Tom caught "Sal" that way — it was a neighbour's
+name), and a name already in use by a different character in the pack (the
+Belvedere party's neighbour was a second "Priya" while ep002 already had
+one). Both were renamed to something clearly invented and unlikely to land
+on anybody: Wren and Thea. When in doubt, pick further from ordinary.
 
 ## Art policy
 

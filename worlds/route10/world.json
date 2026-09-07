@@ -1025,9 +1025,9 @@
           "id": "the-belvedere-yard-door",
           "at": [
             25,
-            9,
+            18,
             1,
-            2
+            1
           ],
           "to": "the-belvedere-yard",
           "spawn": [
@@ -1051,8 +1051,8 @@
         },
         {
           "pos": [
-            21,
-            8
+            19,
+            19
           ],
           "lines": [
             "Somebody drew something on this wall once, and everybody has been drawing on it ever since.",
@@ -1061,8 +1061,8 @@
         },
         {
           "pos": [
-            21,
-            11
+            22,
+            19
           ],
           "lines": [
             "A note taped to this one, in marker: OUT OF ORDER, SORRY \u2014 BACK SOON.",
@@ -1071,8 +1071,8 @@
         },
         {
           "pos": [
-            23,
-            11
+            24,
+            19
           ],
           "lines": [
             "The other one: a urinal, a stall, and no sign on the door about who it's for.",
@@ -1128,7 +1128,7 @@
           "to": "the-belvedere-interior",
           "spawn": [
             24,
-            10
+            18
           ],
           "facing": "left",
           "style": "door"

@@ -409,23 +409,23 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, px: number, py: n
       const flame = c[2] ?? c[0];
       const ember = c[3] ?? flame;
       ctx.fillStyle = 'rgba(0,0,0,.25)';
-      ctx.fillRect(px + 3, py + 11, 11, 2);
+      ctx.fillRect(px + 2, py + 12, 12, 2);
       // the ash bed, then the embers and the flame standing out of it
-      ctx.fillStyle = 'rgba(30,25,18,.85)';
-      ctx.fillRect(px + 4, py + 4, 8, 7);
+      ctx.fillStyle = '#241d16';
+      ctx.fillRect(px + 3, py + 4, 10, 8);
       ctx.fillStyle = ember;
-      ctx.fillRect(px + 5, py + 7, 6, 3);
+      ctx.fillRect(px + 5, py + 8, 6, 3);
       ctx.fillStyle = flame;
-      ctx.fillRect(px + 6, py + 4, 4, 4);
+      ctx.fillRect(px + 6, py + 4, 4, 5);
       ctx.fillRect(px + 7, py + 2, 2, 3);
-      ctx.fillStyle = 'rgba(255,255,255,.40)';
+      ctx.fillStyle = 'rgba(255,255,255,.45)';
       ctx.fillRect(px + 7, py + 4, 2, 2);
       // the stones round it, lit along the top like everything else in town
-      for (const [x, y] of [[1, 4], [2, 8], [5, 11], [9, 11], [12, 8], [12, 4], [9, 1], [5, 1]]) {
+      for (const [x, y] of [[1, 3], [1, 8], [4, 11], [9, 11], [12, 8], [12, 3], [9, 0], [4, 0]]) {
         ctx.fillStyle = stone;
-        ctx.fillRect(px + x, py + y, 3, 3);
+        ctx.fillRect(px + x, py + y, 4, 4);
         ctx.fillStyle = litStone;
-        ctx.fillRect(px + x, py + y, 3, 1);
+        ctx.fillRect(px + x, py + y, 4, 1);
       }
       break;
     }

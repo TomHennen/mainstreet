@@ -22,10 +22,10 @@
     { "kind": "foosball", "rect": [16, 6, 2, 1] },
     { "kind": "foosball", "rect": [16, 9, 2, 1] },
     { "kind": "foosball", "rect": [16, 12, 2, 1] },
-    { "kind": "hall", "rect": [19, 9, 6, 2] },
+    { "kind": "hall", "rect": [18, 18, 7, 1] },
     {
       "kind": "panel",
-      "rect": [19, 8, 5, 1],
+      "rect": [18, 19, 3, 1],
       "tiles": [51],
       "lines": [
         "Somebody drew something on this wall once, and everybody has been drawing on it ever since.",
@@ -34,7 +34,7 @@
     },
     {
       "kind": "door",
-      "at": [[21, 11]],
+      "at": [[22, 19]],
       "lines": [
         "A note taped to this one, in marker: OUT OF ORDER, SORRY — BACK SOON.",
         "Underneath, in a different hand and a different pen: it's alright, the other one's nicer anyway."
@@ -42,7 +42,7 @@
     },
     {
       "kind": "door",
-      "at": [[23, 11]],
+      "at": [[24, 19]],
       "lines": [
         "The other one: a urinal, a stall, and no sign on the door about who it's for.",
         "There's a latch on the inside if you'd like the room to yourself."
@@ -50,7 +50,7 @@
     },
     {
       "kind": "exit",
-      "rect": [25, 9, 1, 2],
+      "rect": [25, 18, 1, 1],
       "id": "the-belvedere-yard-door",
       "to": "the-belvedere-yard",
       "spawn": [1, 5],

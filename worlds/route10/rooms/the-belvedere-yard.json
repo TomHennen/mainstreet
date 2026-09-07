@@ -4,7 +4,7 @@
   "wall": 15,
   "floor": [40],
   "door": { "side": "left", "column": 5, "width": 2 },
-  "exit": { "id": "the-belvedere-yard-exit", "to": "the-belvedere-interior", "spawn": [24, 10], "facing": "left" },
+  "exit": { "id": "the-belvedere-yard-exit", "to": "the-belvedere-interior", "spawn": [24, 18], "facing": "left" },
   "props": [
     { "kind": "firepit", "at": [[8, 6]] },
     { "kind": "stool", "around": 0 },
