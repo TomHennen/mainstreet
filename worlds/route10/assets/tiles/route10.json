@@ -6,7 +6,7 @@
   "margin": 0,
   "name": "route10",
   "spacing": 0,
-  "tilecount": 38,
+  "tilecount": 40,
   "tiledversion": "1.10.2",
   "tileheight": 16,
   "tilewidth": 16,
@@ -766,14 +766,9 @@
       "type": "deck",
       "properties": [
         {
-          "name": "base",
-          "type": "string",
-          "value": "#8a6b48"
-        },
-        {
           "name": "colors",
           "type": "string",
-          "value": "#6d5138"
+          "value": "#8a6b48,#806142,#6b5237"
         },
         {
           "name": "solid",
@@ -783,7 +778,7 @@
         {
           "name": "style",
           "type": "string",
-          "value": "stripe-h"
+          "value": "planks"
         }
       ]
     },
@@ -791,11 +786,6 @@
       "id": 34,
       "type": "table",
       "properties": [
-        {
-          "name": "base",
-          "type": "string",
-          "value": "#8a6b48"
-        },
         {
           "name": "colors",
           "type": "string",
@@ -818,11 +808,6 @@
       "type": "planter",
       "properties": [
         {
-          "name": "base",
-          "type": "string",
-          "value": "#8a6b48"
-        },
-        {
           "name": "colors",
           "type": "string",
           "value": "#a94f2e,#3f7a4c"
@@ -835,7 +820,7 @@
         {
           "name": "style",
           "type": "string",
-          "value": "prop"
+          "value": "rim"
         }
       ]
     },
@@ -888,6 +873,53 @@
           "name": "style",
           "type": "string",
           "value": "stripe-v"
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "type": "deck",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#8a6b48,#806142,#6b5237"
+        },
+        {
+          "name": "edge",
+          "type": "string",
+          "value": "#4d3a27"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "planks"
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "type": "umbrella",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#a94f2e,#e8ddc6"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "umbrella"
         }
       ]
     }
