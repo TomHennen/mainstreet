@@ -5,7 +5,8 @@
  * - orthogonal, finite, 16×16 tiles, uncompressed `data` arrays;
  * - one tile layer named `ground` is required, further tile layers are drawn
  *   over it in file order and also contribute solidity;
- * - a tile is solid when its tileset entry carries `solid: true`;
+ * - a tile is solid when its tileset entry carries `solid: true`, and a vehicle
+ *   may drive along it when it carries `drive: true`;
  * - every tile a map uses carries the properties the engine needs to draw a
  *   placeholder for it (`style`, `colors`, optional `base` and `edge`) so a world is
  *   playable before its tileset PNG exists (CLAUDE.md hard rule 3);
@@ -78,6 +79,14 @@ export interface TileDef {
   edge?: string;
   colors: string[];
   solid: boolean;
+  /**
+   * A tile a vehicle may drive along (DESIGN.md §2). Like `solid` it is the
+   * engine's own vocabulary rather than the tile's `kind`, so a world says
+   * which of its surfaces are the driven ones — the paved state routes, and
+   * not the quiet side streets — without the engine ever learning what any of
+   * them are called.
+   */
+  drive: boolean;
   /** Which tileset this tile came from, and where it sits in that tileset. */
   tileset: string;
   id: number;
@@ -209,6 +218,7 @@ export function parseTileset(raw: unknown, where: string): TilesetDef {
       edge: typeof prop.edge === 'string' && prop.edge ? prop.edge : undefined,
       colors,
       solid: prop.solid === true,
+      drive: prop.drive === true,
       tileset: name,
       id,
       sx: margin + column * (TILE + spacing),
