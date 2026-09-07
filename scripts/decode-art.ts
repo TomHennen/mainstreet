@@ -9,6 +9,7 @@
  *   npm run decode-art -- <code-or-file> --credit "Their Name"
  *   npm run decode-art -- --stdin --credit "Their Name"
  *   npm run decode-art -- <code-or-file> --credit "Their Name" --force
+ *   npm run decode-art -- <code-or-file> --credit "Their Name" --door 2 --plaque 3
  *
  * `<code-or-file>` is either the MSA1 code itself, or a path to a text file
  * (e.g. a saved email) — the first line starting with "MSA1|" is pulled out
@@ -28,7 +29,15 @@
  *     overwrite an existing file unless --force is given.
  *  4. Adds or updates the credit in worlds/<world>/credits.json, creating the
  *     file if it doesn't exist yet, keeping its keys sorted.
- *  5. Runs the same checks scripts/validate-assets.ts runs, against the same
+ *  5. Moves the building's door and plaque in world.json, if the artist said
+ *     where they wanted them: a Studio code can carry the two columns (see
+ *     studio/codec.ts), and `--door <col>` / `--plaque <col>` say the same
+ *     thing for a drawing that arrived as an attached PNG. Columns are counted
+ *     from 0 at the building's left edge, so the left-most column is 0 and
+ *     "third column along" is 2. Every placement of that building is moved,
+ *     and the whole world is run past engine/validate.ts first — a door or a
+ *     plaque that would land on a solid tile is refused rather than written.
+ *  6. Runs the same checks scripts/validate-assets.ts runs, against the same
  *     world, so a mistake here is caught before it reaches a PR.
  *
  * Point it at a scratch worlds/ directory the same way validate-assets.ts
@@ -48,7 +57,10 @@ import { fileURLToPath } from 'node:url';
 import { CodeError, decode, MAGIC, TRANSPARENT } from '../studio/codec.ts';
 import type { Drawing } from '../studio/codec.ts';
 import { decodePng, encodePng } from './png.ts';
-import type { Credits, World } from '../engine/schema.ts';
+import { parseTiledMap, parseTileset, tilesetSources } from '../engine/tiled.ts';
+import type { TilesetDef } from '../engine/tiled.ts';
+import { validateWorld } from '../engine/validate.ts';
+import type { Credits, GameMap, World } from '../engine/schema.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..');
@@ -72,12 +84,24 @@ export interface DecodeArtOptions {
   force?: boolean;
   /** Run validate-assets.ts afterwards as a sanity check. Defaults to true. */
   validate?: boolean;
+  /**
+   * Tile column for the door, counting from 0 at the building's left edge, for
+   * a drawing that came as an attached PNG. A code that carries its own
+   * columns says the same thing; the two have to agree.
+   */
+  door?: number;
+  /** The same for the plaque. */
+  plaque?: number;
 }
 
 export interface DecodeArtResult {
   drawing: Drawing;
   pngPath: string;
   creditsPath: string;
+  /** world.json, when the door or the plaque moved; null when nothing changed there. */
+  worldPath: string | null;
+  /** The columns the drawing asked for, for saying so out loud. */
+  columns: { door: number | null; plaque: number | null } | null;
   /** Output of the validate-assets check, if it ran. */
   validateOutput: string;
 }
@@ -113,6 +137,103 @@ function runValidateAssets(worldsDir: string): string {
     throw new IntakeError(`The new art didn't pass validate-assets:\n${output}`);
   }
   return output;
+}
+
+/**
+ * Every map's tile grid, read the way scripts/validate-episodes.ts reads them.
+ * The grids live in Tiled files rather than in world.json, and engine/validate.ts
+ * needs them to know whether a door has somewhere to stand.
+ */
+function loadMaps(worldDir: string, world: World): Record<string, GameMap> {
+  const maps: Record<string, GameMap> = {};
+  const tilesets = new Map<string, TilesetDef>();
+  const read = (file: string): unknown => {
+    try {
+      return JSON.parse(readFileSync(file, 'utf8'));
+    } catch (error) {
+      throw new IntakeError(`Could not read ${relative(REPO_ROOT, file)}: ${describeError(error)}`);
+    }
+  };
+
+  for (const mapId of Object.keys(world.maps)) {
+    const mapFile = join(worldDir, 'maps', `${mapId}.json`);
+    const raw = read(mapFile);
+    try {
+      for (const source of tilesetSources(raw, mapFile)) {
+        const tilesetFile = resolve(dirname(mapFile), source);
+        if (!tilesets.has(tilesetFile)) tilesets.set(tilesetFile, parseTileset(read(tilesetFile), tilesetFile));
+      }
+      const grid = parseTiledMap(raw, (source) => tilesets.get(resolve(dirname(mapFile), source)), mapFile);
+      maps[mapId] = { ...world.maps[mapId], ...grid };
+    } catch (error) {
+      if (error instanceof IntakeError) throw error;
+      throw new IntakeError(`Could not read ${relative(REPO_ROOT, mapFile)}: ${describeError(error)}`);
+    }
+  }
+  return maps;
+}
+
+/**
+ * The columns the artist asked for, from the code and from the flags together.
+ * Either source may say it; if both do, they have to agree, because guessing
+ * which one the person meant is exactly the wrong thing to do here.
+ */
+function askedColumns(drawing: Drawing, options: DecodeArtOptions): { door?: number; plaque?: number } {
+  const settle = (name: 'door' | 'plaque'): number | undefined => {
+    const fromCode = drawing[name];
+    const fromFlag = options[name];
+    if (fromFlag === undefined) return fromCode;
+    if (!Number.isInteger(fromFlag) || fromFlag < 0) {
+      throw new IntakeError(`--${name} takes a tile column counting from 0 at the building's left edge, not "${fromFlag}".`);
+    }
+    if (fromCode !== undefined && fromCode !== fromFlag) {
+      throw new IntakeError(
+        `The code already says the ${name} goes in column ${fromCode}, and --${name} says ${fromFlag}. ` +
+          `Leave the flag off to go with the code, or check with them which one they meant.`
+      );
+    }
+    return fromFlag;
+  };
+  const door = settle('door');
+  const plaque = settle('plaque');
+  if (door !== undefined && door === plaque) {
+    throw new IntakeError(`The door and the plaque are both asking for column ${door}, and they need one each.`);
+  }
+  return { door, plaque };
+}
+
+/**
+ * Moves the door and the plaque of every placement of this building, in place.
+ * Both sit on the row below the footprint, which is where the doors have always
+ * been. Returns true if anything actually changed.
+ */
+function placeColumns(world: World, buildingId: string, name: string, asked: { door?: number; plaque?: number }): boolean {
+  if (asked.door === undefined && asked.plaque === undefined) return false;
+  let changed = false;
+
+  for (const map of Object.values(world.maps)) {
+    for (const placement of map.buildings) {
+      if (placement.id !== buildingId) continue;
+      const columns = placement.size[0];
+      const front = placement.pos[1] + placement.size[1];
+
+      for (const [which, col] of Object.entries(asked) as ['door' | 'plaque', number | undefined][]) {
+        if (col === undefined) continue;
+        if (col >= columns) {
+          throw new IntakeError(
+            `The ${which} is asking for column ${col}, and ${name} has columns 0 to ${columns - 1} ` +
+              `(counting from 0 at its left edge).`
+          );
+        }
+        const tile: [number, number] = [placement.pos[0] + col, front];
+        const was = which === 'door' ? placement.door : placement.plaque;
+        if (!Array.isArray(was) || was[0] !== tile[0] || was[1] !== tile[1]) changed = true;
+        if (which === 'door') placement.door = tile;
+        else placement.plaque = tile;
+      }
+    }
+  }
+  return changed;
 }
 
 /** Decodes a code, writes the facade PNG and credits.json, and validates the result. Throws CodeError or IntakeError on any problem. */
@@ -181,6 +302,31 @@ export function decodeArt(options: DecodeArtOptions): DecodeArtResult {
     throw new IntakeError(`${relative(REPO_ROOT, pngPath)} already exists — pass --force to replace it.`);
   }
 
+  // Where the artist put the door and the plaque. This is settled — and the
+  // whole world checked with it — before anything at all is written, so a
+  // drawing whose door would land in a wall leaves the pack exactly as it was.
+  const asked = askedColumns(drawing, options);
+  const moved = placeColumns(world, drawing.building, building.name, asked);
+  if (moved) {
+    const problems = validateWorld(world, loadMaps(worldDir, world));
+    if (problems.length) {
+      const mine = problems.filter((problem) => problem.includes(`"${drawing.building}"`));
+      throw new IntakeError(
+        mine.length
+          ? `That would put ${building.name}'s door or plaque somewhere the game can't use, so nothing has ` +
+            `been written:\n  ${mine.join('\n  ')}\n` +
+            `Columns count from 0 at the building's left edge, so a column either way usually does it — and it ` +
+            `is worth telling them kindly which one worked, so their next drawing lands first time.`
+          : `Moving ${building.name}'s door left this world with something else to sort out first, so nothing ` +
+            `has been written:\n  ${problems.join('\n  ')}`
+      );
+    }
+  }
+  const columns =
+    asked.door === undefined && asked.plaque === undefined
+      ? null
+      : { door: asked.door ?? null, plaque: asked.plaque ?? null };
+
   const paletteFile = join(worldDir, world.palette ?? 'palette.png');
   if (!existsSync(paletteFile)) {
     throw new IntakeError(`This world has no ${relative(REPO_ROOT, paletteFile)} to paint the drawing's colours from.`);
@@ -225,9 +371,13 @@ export function decodeArt(options: DecodeArtOptions): DecodeArtResult {
   credits.buildings = sortObject({ ...(credits.buildings ?? {}), [drawing.building]: credit });
   writeFileSync(creditsPath, `${JSON.stringify(sortObject(credits as Record<string, unknown>), null, 2)}\n`);
 
+  // world.json is pretty-printed with two spaces and a trailing newline; this
+  // writes it back the same way, so the diff is only the tiles that moved.
+  if (moved) writeFileSync(worldFile, `${JSON.stringify(world, null, 2)}\n`);
+
   const validateOutput = options.validate === false ? '' : runValidateAssets(worldsDir);
 
-  return { drawing, pngPath, creditsPath, validateOutput };
+  return { drawing, pngPath, creditsPath, worldPath: moved ? worldFile : null, columns, validateOutput };
 }
 
 // --- CLI ---------------------------------------------------------------
@@ -238,6 +388,20 @@ interface CliArgs {
   force: boolean;
   stdin: boolean;
   worldsDir?: string;
+  door?: number;
+  plaque?: number;
+}
+
+/** A `--door`/`--plaque` column: a whole number, counting from 0 at the building's left edge. */
+function readColumn(flag: string, value: string | undefined): number {
+  const column = Number(value);
+  if (value === undefined || !/^\d+$/.test(value.trim()) || !Number.isInteger(column)) {
+    throw new IntakeError(
+      `${flag} takes a tile column — a whole number counting from 0 at the building's left edge, ` +
+        `so the left-most column is 0 — and it was given "${value ?? ''}".`
+    );
+  }
+  return column;
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -256,6 +420,11 @@ function parseArgs(argv: string[]): CliArgs {
       args.worldsDir = argv[++i];
     } else if (arg.startsWith('--worlds-dir=')) {
       args.worldsDir = arg.slice('--worlds-dir='.length);
+    } else if (arg === '--door' || arg === '--plaque') {
+      args[arg.slice(2) as 'door' | 'plaque'] = readColumn(arg, argv[++i]);
+    } else if (arg.startsWith('--door=') || arg.startsWith('--plaque=')) {
+      const [flag, value] = [arg.slice(0, arg.indexOf('=')), arg.slice(arg.indexOf('=') + 1)];
+      args[flag.slice(2) as 'door' | 'plaque'] = readColumn(flag, value);
     } else if (!args.positional && !arg.startsWith('--')) {
       args.positional = arg;
     } else {
@@ -296,12 +465,32 @@ function main(): void {
   try {
     const code = resolveCode(args);
     const worldsDir = args.worldsDir ?? process.env.MAINSTREET_WORLDS_DIR ?? join(REPO_ROOT, 'worlds');
-    const result = decodeArt({ code, credit: args.credit, worldsDir, force: args.force });
+    const result = decodeArt({
+      code,
+      credit: args.credit,
+      worldsDir,
+      force: args.force,
+      door: args.door,
+      plaque: args.plaque
+    });
 
     console.log(`Wrote ${relative(REPO_ROOT, result.pngPath)}`);
     console.log(`Updated ${relative(REPO_ROOT, result.creditsPath)}`);
+    if (result.columns) {
+      const said = [
+        result.columns.door === null ? '' : `door in column ${result.columns.door}`,
+        result.columns.plaque === null ? '' : `plaque in column ${result.columns.plaque}`
+      ]
+        .filter(Boolean)
+        .join(', ');
+      console.log(
+        result.worldPath
+          ? `Updated ${relative(REPO_ROOT, result.worldPath)} — ${said} (counting from 0 at the building's left edge)`
+          : `world.json already has the ${said}, so it is unchanged.`
+      );
+    }
     if (result.validateOutput) console.log(result.validateOutput);
-    console.log('\nNext step: open a PR with those two files.');
+    console.log(`\nNext step: open a PR with ${result.worldPath ? 'those three files' : 'those two files'}.`);
   } catch (error) {
     if (error instanceof CodeError || error instanceof IntakeError) {
       console.error(error.message);

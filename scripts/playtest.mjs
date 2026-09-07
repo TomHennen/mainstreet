@@ -782,6 +782,109 @@ async function main() {
     if (await paint.isVisible()) fail('paint-it-npc', 'the "Paint it" link showed on Earl\'s dialogue');
     await advanceDialogue(tp, 'paint-it-npc', 3);
 
+    // --- the Studio's door and plaque markers -------------------------------
+    // The artist says where the door and the little plaque go, and the code
+    // carries it (studio/codec.ts). Two things matter here: the markers are
+    // reachable without dragging, and moving one never touches the drawing —
+    // the payload either side of a move has to be the same string. Run at
+    // phone width, which is where the strip has the least room.
+    log('  Studio: the door and plaque markers');
+    const sp = await touchCtx.newPage();
+    attach(sp, 'studio');
+    const scdp = await touchCtx.newCDPSession(sp);
+    const paintable = Object.values(WORLD.maps)
+      .flatMap((map) => map.buildings)
+      .find((b) => b.size[0] >= 3);
+    if (!paintable) fail('studio-markers', 'no building wide enough to place two markers on');
+    await sp.goto(`${BASE}studio/?world=${WORLD_ID}&building=${paintable.id}`, { waitUntil: 'load' });
+    await sp.waitForSelector('#markers', { timeout: 20000 });
+
+    // The Studio keeps a draft of the current code in localStorage, which is
+    // the code itself — the tidiest way to read what a move actually changed.
+    const DRAFT = `mainstreet.studio.v1.${WORLD_ID}.${paintable.id}`;
+    async function studioCode(differentFrom) {
+      for (let i = 0; i < 80; i++) {
+        const code = await sp.evaluate((key) => {
+          try {
+            return JSON.parse(localStorage.getItem(key) ?? '{}').code ?? null;
+          } catch {
+            return null;
+          }
+        }, DRAFT);
+        if (code && code !== differentFrom) return code;
+        await sleep(100);
+      }
+      fail('studio-markers', `the code never settled${differentFrom ? ' after moving a marker' : ''}`);
+    }
+
+    for (const sel of ['#doorrow', '#plaquerow', '#doorleft', '#doorright', '#doorreset', '#markers']) {
+      if (!(await sp.locator(sel).isVisible())) fail('studio-markers', `${sel} is not on the page`);
+    }
+    const doorAt = async () => (await sp.locator('#doorwhere').innerText()).trim();
+    const restingPlace = await doorAt();
+    if (!restingPlace) fail('studio-markers', 'the door marker does not say which column it is in');
+
+    const fresh = await studioCode(null);
+    if (fresh.split('|').length !== 5) {
+      fail('studio-markers', `an untouched drawing should carry no columns, and this one is "${fresh}"`);
+    }
+
+    // On a phone the marker buttons sit under the drawing, so they are scrolled
+    // to before they are tapped — a touch goes to a place on the screen, not to
+    // an element.
+    async function tapAfterScroll(selector) {
+      await sp.locator(selector).scrollIntoViewIfNeeded();
+      await sleep(150);
+      await tapEl(scdp, sp, selector);
+    }
+
+    // The button path, tapped: what a keyboard reaches too.
+    await tapAfterScroll('#doorright');
+    const stepped = await studioCode(fresh);
+    if (stepped.split('|')[4] !== fresh.split('|')[4]) {
+      fail('studio-markers', 'moving the door changed the drawing itself — a marker got painted in');
+    }
+    const columns = stepped.split('|')[5] ?? '';
+    if (!/^door=\d+(,plaque=\d+)?$/.test(columns)) {
+      fail('studio-markers', `moving the door should add "door=…" to the code, and it added "${columns}"`);
+    }
+    if ((await doorAt()) === restingPlace) fail('studio-markers', 'the ▶ button did not move the door');
+    log(`    ▶ moved the door: ${restingPlace} -> ${await doorAt()} (${columns})`);
+    await shot(sp, 'studio-markers');
+
+    // Reset puts both back where the town has them, and a code with nothing to
+    // say about the columns goes back to being five parts long.
+    await tapAfterScroll('#doorreset');
+    const reset = await studioCode(stepped);
+    if (reset !== fresh) fail('studio-markers', `Reset should give back the code we started with, and gave "${reset}"`);
+
+    // The pointer path: drag the door marker along the strip to the left-hand
+    // column. One pointer, no touch handlers (CLAUDE.md #4).
+    await sp.locator('#markers').scrollIntoViewIfNeeded();
+    await sleep(150);
+    const strip = await sp.locator('#markers').boundingBox();
+    const wide = paintable.size[0];
+    const colAt = (col) => ({ x: strip.x + (strip.width / wide) * (col + 0.5), y: strip.y + strip.height / 2 });
+    // Reset has just put the door back on the column the world has it on, so
+    // that is where the finger goes down — on the marker itself.
+    const doorHome = paintable.door[0] - paintable.pos[0];
+    const goal = doorHome === 0 ? wide - 1 : 0;
+    const from = colAt(doorHome);
+    const to = colAt(goal);
+    await touchAt(scdp, 'touchStart', from.x, from.y);
+    await touchAt(scdp, 'touchMove', (from.x + to.x) / 2, from.y);
+    await touchAt(scdp, 'touchMove', to.x, to.y);
+    await touchAt(scdp, 'touchEnd', to.x, to.y);
+    const dragged = await studioCode(reset);
+    if (!new RegExp(`\\|door=${goal}(,|$)`).test(dragged)) {
+      fail('studio-markers', `dragging the door to column ${goal} gave "${dragged.split('|')[5] ?? 'nothing'}"`);
+    }
+    if (dragged.split('|')[4] !== fresh.split('|')[4]) {
+      fail('studio-markers', 'dragging a marker changed the drawing itself');
+    }
+    log(`    dragged the door to the left-hand column (${dragged.split('|')[5]})`);
+    await shot(sp, 'studio-markers-dragged');
+
     log('\n  ep000 completed end to end.');
   } finally {
     await browser.close();

@@ -171,12 +171,66 @@ a.link {
   margin-bottom: 6px;
 }
 
+/* The canvas and the strip of door/plaque markers travel together, so the
+   markers stay lined up with their columns however the stage is scrolled. */
+.canvasstack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  margin: auto;
+}
+
 #view {
   display: block;
   image-rendering: pixelated;
   touch-action: none;
   flex: none;
-  margin: auto;
+}
+
+/* Dragged with a finger or a mouse; touch-action keeps the browser from
+   taking the gesture for a scroll halfway through. */
+#markers {
+  display: block;
+  touch-action: none;
+  flex: none;
+  cursor: grab;
+}
+
+#markers:active {
+  cursor: grabbing;
+}
+
+/* --- where the door and the plaque go -------------------------------------- */
+
+.row.marker {
+  gap: 6px;
+}
+
+.marker-key {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  display: inline-block;
+  flex: none;
+}
+
+.marker-name {
+  font-size: 12px;
+  min-width: 52px;
+}
+
+.marker-where {
+  font-size: 11px;
+  opacity: 0.85;
+  min-width: 58px;
+  text-align: center;
+}
+
+#markernote {
+  margin: -2px 0 12px;
 }
 
 .statusline {

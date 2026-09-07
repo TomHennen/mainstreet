@@ -1,7 +1,7 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, readdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, readdirSync, writeFileSync } from 'node:fs';
 import { cpSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { encode } from '../studio/codec.ts';
@@ -18,6 +18,42 @@ const HEIGHT = 48;
 
 function solidPixels(width: number, height: number, index: number): Uint8Array {
   return new Uint8Array(width * height).fill(index);
+}
+
+function readWorld(worldsDir: string): any {
+  return JSON.parse(readFileSync(join(worldsDir, 'route10', 'world.json'), 'utf8'));
+}
+
+/** Every placement of a building, across every map in the pack. */
+function placementsOf(worldsDir: string, id: string): any[] {
+  return Object.values(readWorld(worldsDir).maps).flatMap((map: any) =>
+    map.buildings.filter((b: any) => b.id === id)
+  );
+}
+
+/**
+ * Makes one tile solid in a scratch map, so the "that door has nowhere to
+ * stand" refusal can be exercised. Route 10's buildings all have walkable
+ * ground along their whole front, which is exactly as it should be.
+ */
+function makeSolid(worldsDir: string, mapId: string, x: number, y: number): void {
+  const mapFile = join(worldsDir, 'route10', 'maps', `${mapId}.json`);
+  const tiled = JSON.parse(readFileSync(mapFile, 'utf8'));
+  let gid: number | null = null;
+  for (const ref of tiled.tilesets) {
+    const tileset = JSON.parse(readFileSync(resolve(dirname(mapFile), ref.source), 'utf8'));
+    const solid = (tileset.tiles ?? []).find((tile: any) =>
+      tile.properties?.some((p: any) => p.name === 'solid' && p.value === true)
+    );
+    if (solid) {
+      gid = ref.firstgid + solid.id;
+      break;
+    }
+  }
+  if (gid === null) throw new Error('no solid tile in this world to test with');
+  const layer = tiled.layers.find((l: any) => l.type === 'tilelayer');
+  layer.data[y * tiled.width + x] = gid;
+  writeFileSync(mapFile, JSON.stringify(tiled));
 }
 
 describe('decodeArt', () => {
@@ -103,6 +139,85 @@ describe('decodeArt', () => {
     const pixels = solidPixels(16, 16, 255);
     const code = encode({ world: 'route10', building: 'no-such-building', width: 16, height: 16, pixels });
     expect(() => decodeArt({ code, credit: 'X', worldsDir })).toThrow(/doesn't have a building/);
+  });
+
+  it('leaves world.json alone, to the byte, when the code says nothing about the door', () => {
+    const before = readFileSync(join(worldsDir, 'route10', 'world.json'), 'utf8');
+    const pixels = solidPixels(WIDTH, HEIGHT, 255);
+    const code = encode({ world: 'route10', building: BUILDING, width: WIDTH, height: HEIGHT, pixels });
+
+    const result = decodeArt({ code, credit: 'Jordan R.', worldsDir });
+
+    expect(result.worldPath).toBeNull();
+    expect(result.columns).toBeNull();
+    expect(readFileSync(join(worldsDir, 'route10', 'world.json'), 'utf8')).toBe(before);
+  });
+
+  it('writes the door and the plaque a code carries into every placement of that building', () => {
+    const [was] = placementsOf(worldsDir, BUILDING);
+    const pixels = solidPixels(WIDTH, HEIGHT, 255);
+    const code = encode({ world: 'route10', building: BUILDING, width: WIDTH, height: HEIGHT, pixels, door: 0, plaque: 3 });
+
+    const result = decodeArt({ code, credit: 'Jordan R.', worldsDir });
+
+    expect(result.worldPath).toBe(join(worldsDir, 'route10', 'world.json'));
+    expect(result.columns).toEqual({ door: 0, plaque: 3 });
+    const front = was.pos[1] + was.size[1];
+    for (const placement of placementsOf(worldsDir, BUILDING)) {
+      expect(placement.door).toEqual([placement.pos[0] + 0, front]);
+      expect(placement.plaque).toEqual([placement.pos[0] + 3, front]);
+    }
+    expect(result.validateOutput).toMatch(/✓ route10/);
+  });
+
+  it('keeps world.json pretty-printed exactly the way it found it', () => {
+    const pixels = solidPixels(WIDTH, HEIGHT, 255);
+    const code = encode({ world: 'route10', building: BUILDING, width: WIDTH, height: HEIGHT, pixels, door: 0, plaque: 1 });
+    decodeArt({ code, credit: 'Jordan R.', worldsDir });
+
+    const text = readFileSync(join(worldsDir, 'route10', 'world.json'), 'utf8');
+    expect(text).toBe(`${JSON.stringify(JSON.parse(text), null, 2)}\n`);
+  });
+
+  it('takes the columns from --door and --plaque for a drawing that named them in the email', () => {
+    const pixels = solidPixels(WIDTH, HEIGHT, 255);
+    const code = encode({ world: 'route10', building: BUILDING, width: WIDTH, height: HEIGHT, pixels });
+
+    const result = decodeArt({ code, credit: 'Sam', worldsDir, door: 2, plaque: 1 });
+
+    expect(result.columns).toEqual({ door: 2, plaque: 1 });
+    for (const placement of placementsOf(worldsDir, BUILDING)) {
+      expect(placement.door[0]).toBe(placement.pos[0] + 2);
+      expect(placement.plaque[0]).toBe(placement.pos[0] + 1);
+    }
+  });
+
+  it('asks rather than guesses when the code and the flags disagree', () => {
+    const pixels = solidPixels(WIDTH, HEIGHT, 255);
+    const code = encode({ world: 'route10', building: BUILDING, width: WIDTH, height: HEIGHT, pixels, door: 1, plaque: 2 });
+    expect(() => decodeArt({ code, credit: 'Sam', worldsDir, door: 3 })).toThrow(/which one they meant/);
+  });
+
+  it('refuses a column the building has not got', () => {
+    const pixels = solidPixels(WIDTH, HEIGHT, 255);
+    const code = encode({ world: 'route10', building: BUILDING, width: WIDTH, height: HEIGHT, pixels });
+    // mac-a-doodles is four tiles across: columns 0 to 3.
+    expect(() => decodeArt({ code, credit: 'Sam', worldsDir, door: 7 })).toThrow(/columns 0 to 3/);
+  });
+
+  it('refuses a door with nowhere to stand, and writes nothing at all', () => {
+    const [placement] = placementsOf(worldsDir, BUILDING);
+    makeSolid(worldsDir, 'stamford', placement.pos[0], placement.pos[1] + placement.size[1]);
+    const before = readFileSync(join(worldsDir, 'route10', 'world.json'), 'utf8');
+
+    const pixels = solidPixels(WIDTH, HEIGHT, 255);
+    const code = encode({ world: 'route10', building: BUILDING, width: WIDTH, height: HEIGHT, pixels, door: 0, plaque: 1 });
+
+    expect(() => decodeArt({ code, credit: 'Sam', worldsDir })).toThrow(IntakeError);
+    expect(() => decodeArt({ code, credit: 'Sam', worldsDir })).toThrow(/door on a solid tile/);
+    expect(readFileSync(join(worldsDir, 'route10', 'world.json'), 'utf8')).toBe(before);
+    expect(existsSync(join(worldsDir, 'route10', 'assets', 'buildings', `${BUILDING}.png`))).toBe(false);
+    expect(existsSync(join(worldsDir, 'route10', 'credits.json'))).toBe(false);
   });
 
   it('refuses to overwrite an existing PNG without --force, but allows it with --force', () => {

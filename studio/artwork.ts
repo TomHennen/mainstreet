@@ -47,6 +47,13 @@ export function plural(n: number, one: string, many: string): string {
   return `${inWords(n)} ${n === 1 ? one : many}`;
 }
 
+/** "1st", "2nd", "3rd" — for counting columns across the front of a building. */
+export function ordinal(n: number): string {
+  const rest = n % 100;
+  if (rest >= 11 && rest <= 13) return `${n}th`;
+  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
+}
+
 /** Pixel counts run into the thousands, so they stay as digits. */
 function tally(n: number, noun: string): string {
   return `${n} ${noun}${n === 1 ? '' : 's'}`;

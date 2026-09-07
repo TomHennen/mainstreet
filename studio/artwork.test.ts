@@ -17,6 +17,7 @@ import {
   fitImport,
   nearestIn,
   paletteRgb,
+  ordinal,
   plural,
   rgbOf,
   settleCode,
@@ -306,6 +307,23 @@ describe('describeImport', () => {
     const message = describeImport({ ...base, scale: 4, extraRows: 3, nudged: 900, firmed: 12, cleared: 7 }, 1);
     expect(message.startsWith('Imported.')).toBe(true);
     expect(message).not.toMatch(/error|invalid|fail|bad|wrong|sorry/i);
+  });
+});
+
+describe('ordinal', () => {
+  it('counts columns the way a person would say them', () => {
+    expect([1, 2, 3, 4, 5, 11, 12, 13, 21, 22].map(ordinal)).toEqual([
+      '1st',
+      '2nd',
+      '3rd',
+      '4th',
+      '5th',
+      '11th',
+      '12th',
+      '13th',
+      '21st',
+      '22nd'
+    ]);
   });
 });
 

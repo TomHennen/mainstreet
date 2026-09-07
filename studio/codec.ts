@@ -10,7 +10,7 @@
  * FORMAT
  * ---------------------------------------------------------------------------
  *
- *   MSA1|<world>|<building>|<w>x<h>|<payload>
+ *   MSA1|<world>|<building>|<w>x<h>|<payload>[|<columns>]
  *
  *   MSA1        magic + version. Bump the digit if the payload changes shape.
  *   <world>     world pack id, e.g. "route10". No "|".
@@ -21,6 +21,15 @@
  *               artist added above it.
  *   <payload>   base64url (A-Z a-z 0-9 - _, no padding) of the byte stream
  *               below.
+ *   <columns>   optional, and left off far more often than not: where the
+ *               artist put the door and the little plaque, as
+ *               "door=2,plaque=3". Both are tile columns across the front of
+ *               the building, counting from 0 at its left edge, and the two
+ *               are never the same column. Either key may appear on its own,
+ *               in either order. A code without this part means "leave them
+ *               where the world already has them", which is what every code
+ *               written before this part existed means too — so old codes and
+ *               new ones read the same way.
  *
  * The byte stream is the pixels, row-major, left to right then top to bottom,
  * run-length encoded as a flat sequence of (value, run) pairs:
@@ -32,9 +41,9 @@
  *           per byte, little-endian, high bit set on every byte but the last.
  *           A run is at least 1 and never crosses the end of the image.
  *
- * The runs must add up to exactly w * h. Nothing else is stored: no colour
- * table (the palette is the world's), no alpha (a pixel is either a palette
- * colour or transparent), no metadata.
+ * The runs must add up to exactly w * h. Nothing else is stored in the
+ * payload: no colour table (the palette is the world's), no alpha (a pixel is
+ * either a palette colour or transparent), no metadata.
  *
  * ---------------------------------------------------------------------------
  * NOTES FOR ANYTHING THAT READS THIS
@@ -59,6 +68,9 @@ export const MAX_INDEX = 254;
 /** Magic + version at the head of every code. */
 export const MAGIC = 'MSA1';
 
+/** Pixels to a tile, the one number the whole project is built on (DESIGN.md §4). */
+const TILE = 16;
+
 export interface Drawing {
   /** World pack id, e.g. "route10". */
   world: string;
@@ -70,6 +82,13 @@ export interface Drawing {
   height: number;
   /** width * height bytes, row-major: 0-254 palette index, 255 transparent. */
   pixels: Uint8Array;
+  /**
+   * Tile column the door goes in, counting from 0 at the building's left
+   * edge. Left off when the drawing keeps the door where the world has it.
+   */
+  door?: number;
+  /** Tile column the plaque goes in, the same way. Never the door's column. */
+  plaque?: number;
 }
 
 const B64URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
@@ -142,6 +161,55 @@ function writeVarint(into: number[], value: number): void {
   into.push(rest);
 }
 
+/**
+ * Checks a door or plaque column and hands it back. Columns are counted across
+ * the front of the building, so the only ones that mean anything are the ones
+ * the drawing itself covers.
+ */
+function column(name: string, value: number, width: number): number {
+  const columns = Math.max(1, Math.floor(width / TILE));
+  if (!Number.isInteger(value) || value < 0 || value >= columns) {
+    throw new CodeError(
+      `The ${name} is asking for column ${value}, and this building has columns 0 to ${columns - 1}.`
+    );
+  }
+  return value;
+}
+
+/** The optional last part of a code: "door=2,plaque=3", or "" when there is nothing to say. */
+function writeColumns(drawing: Drawing): string {
+  const { door, plaque, width } = drawing;
+  if (door === undefined && plaque === undefined) return '';
+  if (door !== undefined && door === plaque) {
+    throw new CodeError(`The door and the plaque are both asking for column ${door}, and they need one each.`);
+  }
+  const bits: string[] = [];
+  if (door !== undefined) bits.push(`door=${column('door', door, width)}`);
+  if (plaque !== undefined) bits.push(`plaque=${column('plaque', plaque, width)}`);
+  return bits.join(',');
+}
+
+/** Reads that same part back. Either key may appear on its own, in either order. */
+function readColumns(text: string, width: number): { door?: number; plaque?: number } {
+  const out: { door?: number; plaque?: number } = {};
+  for (const bit of text.split(',')) {
+    const match = /^(door|plaque)=(\d+)$/.exec(bit);
+    if (!match) {
+      throw new CodeError(
+        `The end of this code says where the door and the plaque go, like "door=2,plaque=3", ` +
+          `and this one reads "${bit}". Copying the whole code again usually sorts it out.`
+      );
+    }
+    const name = match[1] as 'door' | 'plaque';
+    if (out[name] !== undefined) throw new CodeError(`This code names the ${name}'s column twice.`);
+    out[name] = column(name, Number(match[2]), width);
+  }
+  if (out.door !== undefined && out.door === out.plaque) {
+    throw new CodeError(`This code puts the door and the plaque both in column ${out.door}, and they need one each.`);
+  }
+  return out;
+}
+
 /** Turns a drawing into its MSA1 code. */
 export function encode(drawing: Drawing): string {
   const { world, building, width, height, pixels } = drawing;
@@ -171,7 +239,9 @@ export function encode(drawing: Drawing): string {
   }
 
   const payload = toBase64Url(Uint8Array.from(bytes));
-  return `${MAGIC}|${world}|${building}|${width}x${height}|${payload}`;
+  const columns = writeColumns(drawing);
+  const head = `${MAGIC}|${world}|${building}|${width}x${height}|${payload}`;
+  return columns ? `${head}|${columns}` : head;
 }
 
 /** Reads an MSA1 code back into a drawing. Throws a CodeError worth showing. */
@@ -185,14 +255,14 @@ export function decode(code: string): Drawing {
         'It may just be that a line got left behind in the copying.'
     );
   }
-  if (parts.length !== 5) {
+  if (parts.length < 5 || parts.length > 6) {
     throw new CodeError(
-      `A mainstreet art code has five parts separated by "|", and this one has ${parts.length}. ` +
-        'Copying it again from the Studio usually puts it right.'
+      `A mainstreet art code has five parts separated by "|" — six when it also says where the door goes — ` +
+        `and this one has ${parts.length}. Copying it again from the Studio usually puts it right.`
     );
   }
 
-  const [, world, building, size, payload] = parts;
+  const [, world, building, size, payload, columns] = parts;
   const dimensions = /^(\d+)x(\d+)$/.exec(size);
   if (!dimensions) throw new CodeError(`"${size}" isn't a size this code can read; it should look like "96x112".`);
 
@@ -238,5 +308,9 @@ export function decode(code: string): Drawing {
     );
   }
 
-  return { world, building, width, height, pixels };
+  // Read last, so a code whose pixels are wrong says so first: the pixels are
+  // the drawing, and the columns are a note pinned to it.
+  const placed = columns === undefined ? {} : readColumns(columns, width);
+
+  return { world, building, width, height, pixels, ...placed };
 }
