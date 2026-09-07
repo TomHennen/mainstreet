@@ -213,11 +213,13 @@ export class MapScene extends Phaser.Scene {
 
     this.unbindAction = onAction(() => this.interact());
     this.unbindTap = onTap((x, y) => this.tap(x, y));
+    if (import.meta.env.DEV) this.events.on(Phaser.Scenes.Events.RENDER, this.publishState, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unbindAction?.();
       this.unbindAction = null;
       this.unbindTap?.();
       this.unbindTap = null;
+      this.events.off(Phaser.Scenes.Events.RENDER, this.publishState, this);
       this.scale.off(Phaser.Scale.Events.RESIZE, this.applyCamera, this);
     });
 
@@ -228,23 +230,32 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Dev-only snapshot for the playtest harness. It hangs off the render event
+   * rather than off update() on purpose: the camera recalculates its scroll
+   * and its worldView while the frame is being drawn, so this is the frame the
+   * player is looking at — and a tap the harness aims with it lands on the
+   * tile it looks like it lands on, however slow the machine is.
+   */
+  private publishState(): void {
+    const state = session();
+    const view = this.cameras.main.worldView;
+    publishDebug({
+      map: this.mapId,
+      x: this.px / TILE,
+      y: this.py / TILE,
+      facing: this.facing,
+      dialogueOpen: state.dialogueOpen,
+      locked: state.locked,
+      walkTo: this.walkGoal ? [this.walkGoal[0], this.walkGoal[1]] : null,
+      view: { x: view.x, y: view.y, width: view.width, height: view.height, tile: TILE },
+      flags: state.flags.snapshot()
+    });
+  }
+
   update(_time: number, delta: number): void {
     const state = session();
     this.armEnters();
-    if (import.meta.env.DEV) {
-      const view = this.cameras.main.worldView;
-      publishDebug({
-        map: this.mapId,
-        x: this.px / TILE,
-        y: this.py / TILE,
-        facing: this.facing,
-        dialogueOpen: state.dialogueOpen,
-        locked: state.locked,
-        walkTo: this.walkGoal ? [this.walkGoal[0], this.walkGoal[1]] : null,
-        view: { x: view.x, y: view.y, width: view.width, height: view.height, tile: TILE },
-        flags: state.flags.snapshot()
-      });
-    }
     if (state.locked || state.dialogueOpen) {
       // A card or a box means the trip is over: the walk does not pick itself
       // back up behind the player's back once they have read the line.
