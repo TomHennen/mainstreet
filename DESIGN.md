@@ -464,6 +464,83 @@ Future (not v1): `"date"` conditions for calendar-reactive content;
 `"choice"` nodes; cross-episode flag imports (global flags already cover
 most continuity needs).
 
+### 3a. Vignette scenes (proposed — not yet built)
+
+A **vignette** is a short, mostly non-interactive scripted scene laid over
+an existing map: a memory, a flashback, an event unfolding in miniature.
+First use case: the Route 10 fire-department-open-house epic, where an
+NPC's retrospective needs to actually *show* the night the M&M fire
+started — people leaving a fundraiser dinner mid-course, firefighters
+running for the trucks, the water tanker relaying to the pond west of
+Route 10 and back, smoke rising in the distance. It must never depict the
+fire itself or anyone in danger (hard rule 6) — the trick that makes this
+safe is that the blaze stays off-map to the east; the vignette shows only
+the response (people, trucks, smoke), never flames or the burning
+building.
+
+This depends on the map-overlay work in progress elsewhere in the repo —
+a tint and smoke are themselves overlays, and moving vehicles want the
+same sprite/route machinery overlays need for moving pieces on a map.
+Coordinate with that work before building either; do not stand up a
+parallel system.
+
+**Trigger.** An episode declares vignettes by id and fires one from a
+dialogue effect, the same way `done` gets set today:
+
+```jsonc
+"effects": [{ "vignette": "mm-fire-memory" }]
+```
+
+**Shape**, sketched:
+
+```jsonc
+"vignettes": {
+  "mm-fire-memory": {
+    "map": "stamford",                 // plays on the current map, in place
+    "tint": "#2a2440cc",               // dusk overlay for the duration
+    "lockPlayer": true,                // observer mode: no movement/interact
+    "actors": [
+      { "sprite": "diner", "count": 6, "from": [/* half-acre door tile */],
+        "route": [/* door -> street -> off-map east, staggered start */] },
+      { "sprite": "firefighter", "count": 4, "from": [/* fire-station tile */],
+        "route": [/* station -> trucks -> off-map east */] },
+      { "sprite": "tanker-truck",
+        "route": [/* pond (west, off-map) <-> off-map east */], "loop": 3 }
+    ],
+    "effects": [
+      { "smoke": { "at": [/* off-map-east edge tile */], "rises": true, "grows": true } }
+    ],
+    "onEnd": [{ "set": "sawTheNight" }]   // ordinary episode flag, once the scene finishes
+  }
+}
+```
+
+**Ending.** A vignette ends when its actors finish their routes (or after
+a declared max duration as a backstop), fades the tint, clears the
+scene-only actors, and hands control back — functionally like returning
+from a menu, not a map transition. `onEnd` sets ordinary declared flags so
+the rest of the episode can react normally.
+
+**Constraints, deliberately:**
+- Vignette actors are scene-scoped only — never persistent NPCs, never
+  saved, gone the moment the scene ends.
+- No new node type for combat/peril; a vignette can depict people moving
+  urgently, never anyone in danger on-screen.
+- `smoke` is the only fire-adjacent visual this schema permits — no
+  `flames` primitive or equivalent. If a future episode wants to push
+  further than smoke, that's a deliberate schema extension and a fresh
+  hard-rule-6 conversation, not a default anyone reaches for.
+- Reuses NPC route mechanics (§2/§3) rather than inventing new pathing —
+  actors are just NPCs the player can't talk to, for the scene's duration.
+
+**Open questions before implementation:** how `tint`/`smoke` compose with
+whatever the overlay work lands (ideally vignettes call the same
+primitives, not a parallel system); whether `lockPlayer` is a true full
+lock or a bounded walk area; how the pond (currently off-map, west of
+Route 10) gets added to the Stamford map ahead of this; asset needs
+(diner/firefighter/tanker sprites, a smoke effect) sized realistically for
+the M2/M3 art pipeline.
+
 ## 4. Asset spec (give this to artists verbatim)
 
 - Pixel art. Grid: **16×16 px tiles**. PNG, transparency, **no anti-aliasing**.

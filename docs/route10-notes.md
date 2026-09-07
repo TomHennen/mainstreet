@@ -479,3 +479,20 @@ opt-in, everything warm and affectionate) before it reaches the player.
   photo mechanism (a generic "story image" asset type, distinct from
   portraits) would be a real feature worth scoping on its own if it ever
   comes up again, not something to fold into this episode.
+- **Second homes, Airbnb, and the housing crunch.** Real and current
+  tension worth facing eventually, not avoiding — people from the city
+  buying up houses as vacation homes or short-term rentals is a genuine
+  point of contention locally, and pretending Route 10 has no housing
+  pressure would ring false. But this is the one topic on this list where
+  "handle with care" isn't enough on its own: it has real people on both
+  sides who might play this game (locals priced out, and second-home
+  owners who love these towns too), so it needs Tom's explicit sign-off on
+  tone and scope before any copy gets written, not just the usual
+  hard-rule-6 pass. If it's ever taken on, the shape to aim for is "the
+  town facing a real problem together," closer to the flower-farm-hearing
+  note above (the system/community working through something hard) than a
+  grievance narrative — and never framed as a swipe at anyone who owns a
+  second home here. Parked for now; flagged so it isn't forgotten. Came up
+  alongside the Stamford fire-department-open-house epic (see DESIGN.md
+  §3a) as a candidate for a later, separate episode — not bundled into
+  that one.
