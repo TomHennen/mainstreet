@@ -114,10 +114,12 @@ export interface BuildingDef {
   /**
    * The building's standing sign: what is chalked up, posted or going on at
    * the door on an ordinary day, one array entry per dialogue page. It is the
-   * place's own copy rather than any one story's, so it shows whenever the
-   * current episode has nothing to say about this building — an episode sign
-   * whose `requires` are met always wins (DESIGN.md §3). With neither, the
-   * door falls back to `copy.ui.unpainted`.
+   * place's own copy rather than any one story's, so it stays on the door
+   * while a story runs: an episode sign whose `requires` are met reads first
+   * and this follows it, the way a flyer taped to the window sits on top of
+   * the place without erasing it. An episode that wants the door entirely to
+   * itself sets `replace` on its sign (DESIGN.md §3). With neither kind of
+   * sign, the door falls back to `copy.ui.unpainted`.
    */
   sign?: string[];
 }
@@ -279,6 +281,14 @@ export interface EpisodeSign {
   pos?: Vec2;
   requires: string[];
   lines: string[];
+  /**
+   * Building signs only. By default these lines are read first and the
+   * building's standing sign in `world.json` follows them, so a story never
+   * costs the player the colour of the place it is set in (DESIGN.md §3).
+   * `true` drops the standing sign for as long as this sign is the one
+   * showing — for the rare week when the door is entirely the story's.
+   */
+  replace?: boolean;
 }
 
 export interface Episode {

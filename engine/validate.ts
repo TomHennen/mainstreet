@@ -211,6 +211,16 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
     } else {
       checkPos(sign.map, sign.pos, context);
     }
+    // `replace` decides whether the building's standing sign still reads after
+    // this one (DESIGN.md §3), so it means nothing on a prop, which has no
+    // standing sign behind it.
+    if (sign.replace !== undefined) {
+      if (typeof sign.replace !== 'boolean') {
+        problems.push(`${where}: ${context} has a "replace" that isn't a boolean`);
+      } else if (!onBuilding) {
+        problems.push(`${where}: ${context} sets "replace", which only building signs have`);
+      }
+    }
   });
 
   return problems;
