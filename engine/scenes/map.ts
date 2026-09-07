@@ -9,6 +9,7 @@ import {
   itemTexture,
   mapTexture,
   namePlateArt,
+  plateLift,
   plaqueArt,
   promptTexture,
   TILE
@@ -19,6 +20,7 @@ import { paintUrl } from '../paint';
 import { creditFor, dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signFor } from '../session';
 import { isSolid } from '../validate';
 import { plaqueTile } from '../schema';
+import type { PlateBox } from '../art';
 import type { BuildingPlacement, EpisodeItem, EpisodeSign, Facing, GameMap, Vec2 } from '../schema';
 
 const SPEED = 102; // px/s — the prototype's 1.7px/frame at 60fps
@@ -96,10 +98,15 @@ export class MapScene extends Phaser.Scene {
 
     this.add.image(0, 0, mapTexture(this, this.mapId, this.map, assets.tilesets)).setOrigin(0, 0).setDepth(-100);
 
+    // Name plates are stacked rather than allowed to overlap, so two
+    // storefronts that touch never read as one sign. The list is per map and
+    // filled in placement order, which is what makes the stacking stable.
+    const plates: PlateBox[] = [];
     for (const placement of this.map.buildings) {
       const def = world.buildings[placement.id];
       const paintedKey = assets.buildings.has(placement.id) ? `art:building:${placement.id}` : null;
-      const art = buildingArt(this, placement, def, paintedKey);
+      const lift = plateLift(this, placement, def, paintedKey, plates);
+      const art = buildingArt(this, placement, def, paintedKey, lift);
       const depth = (placement.pos[1] + placement.size[1]) * TILE;
       this.add.image(art.x, art.y, art.key).setOrigin(0, 0).setDepth(depth);
 
@@ -116,7 +123,7 @@ export class MapScene extends Phaser.Scene {
         // a painted PNG has nothing to bake it into, so it gets a plate of its
         // own here (issue #32), unless the placement opts out.
         if (placement.label !== false) {
-          const plate = namePlateArt(this, placement, def, art.y);
+          const plate = namePlateArt(this, placement, def, art.y, lift);
           this.add.image(plate.x, plate.y, plate.key).setOrigin(0, 0).setDepth(depth + 1);
         }
       } else {

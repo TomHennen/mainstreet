@@ -445,16 +445,73 @@ function signWidth(name: string): number {
   return Math.ceil((probe?.measureText(name).width ?? name.length * 5) + 8);
 }
 
+/** The rectangle a name plate occupies, in world pixels. */
+export interface PlateBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * How far a building's name plate has to be raised to clear the plates already
+ * placed on this map, in pixels — 0 for the usual case of a plate with the sky
+ * to itself.
+ *
+ * Storefronts on a main street touch, and a long name makes a plate wider than
+ * the shop front under it, so two neighbours can land their plates on the same
+ * strip and read as one sign. Rather than making the map author space
+ * buildings out, the second plate stacks above the first. `placed` is the
+ * caller's running list of plates on this map, appended to here, so the answer
+ * depends only on the order the placements are drawn in — first come, lowest
+ * plate.
+ */
+export function plateLift(
+  scene: Phaser.Scene,
+  placement: BuildingPlacement,
+  def: BuildingDef,
+  paintedKey: string | null,
+  placed: PlateBox[]
+): number {
+  if (placement.label === false) return 0;
+  const bodyW = placement.size[0] * TILE;
+  const bodyH = placement.size[1] * TILE;
+  const footprintTop = placement.pos[1] * TILE;
+  const w = signWidth(def.name);
+
+  // The same two rules namePlateArt and buildingArt place a plate by: OVERHEAD
+  // above the footprint, or clear of a painted facade that is taller than it.
+  let y = footprintTop - OVERHEAD;
+  if (paintedKey && scene.textures.exists(paintedKey)) {
+    const artTop = footprintTop + bodyH - scene.textures.get(paintedKey).getSourceImage().height;
+    if (artTop < footprintTop) y = artTop - SIGN_H - SIGN_GAP;
+  }
+  const x = placement.pos[0] * TILE + (bodyW - w) / 2;
+
+  const step = SIGN_H + SIGN_GAP;
+  let lift = 0;
+  const clashes = (top: number) =>
+    placed.some((p) => p.x < x + w && x < p.x + p.w && p.y < top + SIGN_H && top < p.y + p.h);
+  // A handful of storeys is a stack; past that something else is wrong, and a
+  // plate marching off the top of the screen helps nobody.
+  while (lift < step * 4 && clashes(y - lift)) lift += step;
+
+  placed.push({ x, y: y - lift, w, h: SIGN_H });
+  return lift;
+}
+
 /**
  * Unpainted building: flat facade, roof band, door, and a sign with the real
  * name. Content ships before art, so this has to look deliberate rather than
- * broken.
+ * broken. `lift` raises the sign clear of a neighbour's (see plateLift); the
+ * facade itself never moves.
  */
 export function buildingArt(
   scene: Phaser.Scene,
   placement: BuildingPlacement,
   def: BuildingDef,
-  paintedKey: string | null
+  paintedKey: string | null,
+  lift = 0
 ): BuildingArt {
   const bodyW = placement.size[0] * TILE;
   const bodyH = placement.size[1] * TILE;
@@ -472,33 +529,36 @@ export function buildingArt(
     };
   }
 
-  const key = `unpainted:${placement.id}`;
+  const key = lift ? `unpainted:${placement.id}:${lift}` : `unpainted:${placement.id}`;
   if (!scene.textures.exists(key)) {
     const label = placement.label !== false;
     const signW = label ? signWidth(def.name) : 0;
 
     const texW = Math.max(bodyW, signW);
-    const texH = bodyH + OVERHEAD;
+    const texH = bodyH + OVERHEAD + lift;
     const left = Math.floor((texW - bodyW) / 2);
+    // The sign stays at the top of the texture and the facade drops by `lift`,
+    // so raising the sign leaves the building exactly where it was.
+    const head = OVERHEAD + lift;
     const { texture, ctx } = canvas(scene, key, texW, texH);
 
     // roof band, overhanging the wall top
     ctx.fillStyle = def.roof;
-    ctx.fillRect(left - 2, OVERHEAD - 8, bodyW + 4, 12);
+    ctx.fillRect(left - 2, head - 8, bodyW + 4, 12);
 
     ctx.fillStyle = def.wall;
-    ctx.fillRect(left, OVERHEAD + 4, bodyW, bodyH - 4);
+    ctx.fillRect(left, head + 4, bodyW, bodyH - 4);
     ctx.fillStyle = 'rgba(0,0,0,.25)';
-    ctx.fillRect(left, OVERHEAD + bodyH - 3, bodyW, 3);
+    ctx.fillRect(left, head + bodyH - 3, bodyW, 3);
 
     ctx.fillStyle = '#f5e6b8';
     for (let i = 0; i < placement.size[0] - 1; i += 2) {
-      ctx.fillRect(left + 8 + i * TILE, OVERHEAD + 12, 8, 8);
+      ctx.fillRect(left + 8 + i * TILE, head + 12, 8, 8);
     }
 
     const doorX = left + (placement.door[0] - placement.pos[0]) * TILE;
     ctx.fillStyle = '#3a2c1e';
-    ctx.fillRect(doorX + 3, OVERHEAD + bodyH - 14, 10, 14);
+    ctx.fillRect(doorX + 3, head + bodyH - 14, 10, 14);
 
     if (label) drawSign(ctx, def.name, texW / 2, signW);
 
@@ -510,7 +570,7 @@ export function buildingArt(
   return {
     key,
     x: placement.pos[0] * TILE - left,
-    y: placement.pos[1] * TILE - OVERHEAD,
+    y: placement.pos[1] * TILE - OVERHEAD - lift,
     painted: false
   };
 }
@@ -530,9 +590,16 @@ export interface NamePlateArt {
  * which case it moves up to clear the art's top edge instead, so a tall
  * facade never gets its roofline covered (CLAUDE.md hard rule 3, DESIGN.md §2).
  * `placement.label === false` opts a building out of the plate entirely;
- * callers should skip calling this at all in that case.
+ * callers should skip calling this at all in that case. `lift` raises the
+ * plate clear of a neighbour's (see plateLift).
  */
-export function namePlateArt(scene: Phaser.Scene, placement: BuildingPlacement, def: BuildingDef, artTop: number): NamePlateArt {
+export function namePlateArt(
+  scene: Phaser.Scene,
+  placement: BuildingPlacement,
+  def: BuildingDef,
+  artTop: number,
+  lift = 0
+): NamePlateArt {
   const key = `nameplate:${placement.id}`;
   if (!scene.textures.exists(key)) {
     const signW = signWidth(def.name);
@@ -548,7 +615,7 @@ export function namePlateArt(scene: Phaser.Scene, placement: BuildingPlacement, 
   const defaultTop = footprintTop - OVERHEAD;
   const top = artTop < footprintTop ? artTop - SIGN_H - SIGN_GAP : defaultTop;
 
-  return { key, x: footprintLeft + (bodyW - width) / 2, y: top };
+  return { key, x: footprintLeft + (bodyW - width) / 2, y: top - lift };
 }
 
 // --- the plaque beside the door ----------------------------------------------
