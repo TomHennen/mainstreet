@@ -19,7 +19,10 @@ Street east of it; Route 10 is Lake Street north of the corner and Hobart Road
 south of it. Stamford Coffee is on the south side of Main Street. The
 Belvedere is up Academy Street, a long walk uphill from Main Street, and
 Academy Street is west of Stamford Coffee. Mount Utsayantha and its lake are
-north-east up Lake Street.
+north-east up Lake Street. Across Main Street from Stamford Coffee is a full
+empty lot: two buildings there burned down a couple of years ago, and the
+wreckage sat for years before it was finally bulldozed. It should be mapped
+as one of the reserved full-size open lots (map rule 4), not filler scenery.
 
 **Jefferson.** Main Street is the spine and reads as a main street (paved).
 Mill Pond Inn and Middle Brook Cafe are on the south side of Main Street.
@@ -114,6 +117,14 @@ opt-in, everything warm and affectionate) before it reaches the player.
   someone you know. Good recurring texture for episodes: NPCs who greet the
   player by name away from their "home" location, or a travel-card beat
   about running into a familiar face mid-errand.
+- **The empty lot across from Stamford Coffee.** Two buildings burned down
+  there a couple of years back, and the wreckage sat for a long time before
+  it finally got cleared. Handle with care per hard rule 6 — never dwell on
+  the fire itself. The lot as it stands now (bare, waiting, prime real
+  estate everyone has an opinion about) is good material: a "what should go
+  here" debate among townspeople, a pop-up farmers market or community
+  garden using the space in the meantime, or a hopeful beat about something
+  finally being planned for it.
 - **Jefferson Town Hall.** Dog licensing happens there, though hardly
   anyone actually goes and does it. Town court sits about once a month.
   Metal recycling drop-off is the first Saturday of the month. Good
