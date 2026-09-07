@@ -441,12 +441,148 @@ about while the story waits. `pos` stays the tile they start on and the one an
 author places them by; they are simply not always standing on it, and they
 stop as soon as the player is close enough to talk to them.
 
+### Scenes
+
+A **scene** is a staged moment: the lights going up at the Belvedere, three
+neighbours coming in through the door, a line of welcome. It is a named list of
+`steps` run in order when a flag is set or when the player arrives somewhere.
+Every step is data — there is no step that runs code (hard rule 2).
+
+```jsonc
+"scenes": [
+  {
+    "id": "lights-up",
+    "on": { "enter": "the-belvedere-interior" },   // or { "flag": "damBuilt" }
+    "once": true,                                   // default; see below
+    "steps": [
+      { "light": { "mode": "party", "colours": ["#d9a441", "#b5542a"],
+                   "at": [[17, 3], [8, 7]], "period": 10 } },
+      { "camera": { "to": [17, 3], "speed": 12 } },
+      { "wait": 1 },
+      { "camera": { "to": "player" } },
+      { "move": { "who": "bel-guest-cook", "to": [6, 10], "speed": 3.5 } },
+      { "move": { "who": "bel-guest-fiddle", "path": [[14, 8], [14, 5]] } },
+      { "say": { "who": "bel-host", "lines": ["Come in, come in."] } },
+      { "set": "chalkedUp" },
+      { "toast": "The Belvedere, lit up for the evening." },
+      { "end": true }                               // optional: stop here
+    ]
+  }
+]
+```
+
+The steps, one per entry, exactly one field each:
+
+| step | what it does | the scene waits for |
+| --- | --- | --- |
+| `move` | `who` walks to `to`, or along `path` waypoint by waypoint. `who` is an episode NPC's id, `"player"`, or `"vehicle:<id>"`. `speed` is tiles/second. | arrival |
+| `say` | one dialogue box. `who` is an episode NPC; leave it out and the world's narrator speaks. | the box being dismissed |
+| `toast` | the little banner | nothing |
+| `wait` | a beat, at most 3 seconds | the beat, or A |
+| `camera` | look at a tile, or `"player"` to hand the camera back. `speed` is tiles/second. | the pan |
+| `set` | sets a declared flag — also how a scene turns an overlay on | nothing |
+| `light` | see below | nothing |
+| `end` | stops the scene, whatever follows | — |
+
+The player keeps the controls between steps: townspeople crossing the room, the
+lights coming up and a toast all happen around somebody still free to walk
+about. The two exceptions are a `say` and a `move` of the player themselves.
+**A** cuts a `wait` short, and is swallowed while the scene has the controls, so
+a press meant to hurry a line along never strikes up a conversation with
+whoever happens to be standing there.
+
+`once` (default `true`) means the scene runs once ever: finishing it sets a flag
+called `scene:<id>`, which the engine declares on the episode's behalf and the
+save persists like any other. `"once": false` lets it play again — an `enter`
+scene every time the player comes back through the door.
+
+A scene triggered `on: { enter }` starts on arriving at that map, once any
+`requires` flags are all true, and waits for whatever box is already open (the
+opening card, say) rather than talking over it. One triggered `on: { flag }`
+starts the moment that flag is set, wherever the player is standing.
+
+### Lighting
+
+`{ "light": { … } }` asks the engine for a mood. Nothing is an asset: the
+engine draws all of it (hard rule 3), over the town and under the HUD.
+
+```jsonc
+{ "light": { "mode": "dim", "keep": true } }
+{ "light": { "mode": "party", "colours": ["#d9a441", "#9a7bb5"],
+             "at": [[17, 3], [8, 7]], "period": 10 } }
+{ "light": { "mode": "off" } }
+```
+
+- `dim` — one warm translucent wash over the map: the sun off behind the ridge,
+  everything underneath still perfectly readable. The same step gives evening
+  outdoors.
+- `party` — a deeper, cooler wash, a soft coloured light disc hanging over each
+  tile in `at`, and a gentle wash of the same colours across the floor. The
+  discs drift from one colour to the next over one `period` (default 12s), each
+  a little further round the set than the last.
+- `off` — plain daylight.
+
+**There is no strobe and no flash, by Tom's call.** Colours cross-fade over a
+whole period and the only other movement is a slow breath in the discs'
+brightness; a device asking for `prefers-reduced-motion` slows the lot by eight
+and it is still a party. Lighting is cleared by a map change unless the step
+sets `"keep": true`, which is what carries an evening out through a door. It is
+never saved: an episode relights what it wants lit, so no save can strand
+somebody in the dark.
+
+### Map overlays
+
+There is **one canonical map per village, and no per-episode copies.** An
+episode that changes what is standing on it paints tiles over the top while its
+flags hold:
+
+```jsonc
+"overlays": [
+  { "id": "chalkboard", "map": "stamford",
+    "requires": ["chalkedUp"], "unless": [],
+    "tiles": [{ "pos": [79, 5], "tile": 45 }],
+    "props": [{ "pos": [79, 5], "lines": ["A chalkboard on the walk: PARTY TONIGHT."] }],
+    "fixtures": [] }
+]
+```
+
+- `requires: []` is on for the whole episode (a festival on the green, a road
+  closed for a parade); `requires: ["damBuilt"]` appears the moment a scene or
+  a line sets that flag and stays while it holds.
+- `unless` is `requires`' opposite, so the before and after of the same place
+  never both apply: flood is `requires: ["damBuilt"], unless: ["damBroken"]`,
+  drained is `requires: ["damBroken"]`.
+- `tile` is a tile in the world's tileset — its id on its own, or
+  `"<tileset>:<id>"` where a map draws on more than one.
+- `props` are readable flavour on a tile, exactly like an episode prop sign;
+  `fixtures` are the engine's own street furniture (§2). Both arrive and leave
+  with the overlay, gated by its `requires`/`unless`.
+
+Overlays apply on map load and on every flag change, in the order the episode
+lists them; where two paint the same tile, the later one shows. An overlay
+resolves to one more tile layer on the map, so collision, routing and `isSolid`
+follow it without being told, and only the tiles that changed are repainted.
+**Nothing about an overlay is saved** — it derives from flags, so Start over
+undoes it. There is no `overlay`/`clear` step: a scene turns one on with
+`{ "set": "<flag>" }`, which keeps the save as the only record of what is
+standing where.
+
 Engine responsibilities: declare-before-use flag validation, first-match
-dialogue resolution, effect application, sign lookup, item visibility.
+dialogue resolution, effect application, sign lookup, item visibility, scene
+sequencing, lighting, overlay application.
 `validate-episodes` enforces: unknown flags, unreachable dialogue entries,
 missing maps/buildings/positions, effects on undeclared flags, a standing
 sign on every building a map places, and routes and wanders that can actually
-be walked.
+be walked. For scenes: exactly one trigger, one action per step, everybody a
+`move` or a `say` names on that map, every tile anybody is sent to one they
+could stand on, lights with a real mode and hex colours, and a `wait` no longer
+than a beat. For overlays: tiles that exist in a tileset that map uses, and —
+the one that matters — that every door, plaque, fixture and way out stays
+reachable from wherever the player can arrive, under **every combination of
+overlays that could be on together**, since two patches that are each fine
+alone can still take the last way to a door between them. Two co-occurring
+overlays that paint the same tile are printed as a note rather than refused:
+the later one wins, and the point is that it be a decision somebody made.
 
 A world's shipped episodes are `world.episodes`, in order; the title screen
 lists exactly those, and puts the cursor on the first unfinished one. A `?episode=<id>` URL parameter plays any episode file under

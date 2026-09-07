@@ -28,17 +28,22 @@ const DEFAULT_PERIOD = 12;
 /** How much slower everything drifts for somebody who asked for less motion. */
 const SLOW_FACTOR = 8;
 
-/** The warm evening wash, and how much of it each mood uses. */
-const DUSK = 0x3a2418;
-const DUSK_ALPHA = { off: 0, dim: 0.34, party: 0.44 };
+/**
+ * The wash each mood lays over the map, and how much of it. Evening outdoors
+ * is warm — the sun off behind the ridge; a room with the party lights on goes
+ * a shade cooler and deeper, which is what lets the colours in it read as
+ * colours rather than as more of the same brown.
+ */
+const WASH = { off: 0x000000, dim: 0x3a2418, party: 0x1e1233 };
+const WASH_OPACITY = { off: 0, dim: 0.4, party: 0.5 };
 
 /** How wide a light disc spreads, in tiles, and how bright its middle sits. */
-const DISC_TILES = 7;
-const DISC_ALPHA = 0.5;
+const DISC_TILES = 6;
+const DISC_ALPHA = 0.8;
 /** How far the breath moves that brightness either way. Gentle, never a blink. */
-const BREATH = 0.09;
+const BREATH = 0.08;
 /** The floor wash under a party: broad, low, and the same colours. */
-const WASH_ALPHA = 0.11;
+const FLOOR_ALPHA = 0.1;
 
 /** Colours to cycle when an episode names none — warm first, and kind. */
 const DEFAULT_COLOURS = ['#d9a441', '#b5542a', '#9a7bb5', '#4a7f96'];
@@ -59,8 +64,10 @@ function discTexture(scene: Phaser.Scene): string {
   const ctx = texture.getContext();
   const r = size / 2;
   const gradient = ctx.createRadialGradient(r, r, 0, r, r, r);
-  gradient.addColorStop(0, 'rgba(255,255,255,1)');
-  gradient.addColorStop(0.45, 'rgba(255,255,255,0.55)');
+  // Softer in the middle than a plain white core, so the tint on it reads as
+  // a colour rather than blowing out to white.
+  gradient.addColorStop(0, 'rgba(255,255,255,0.95)');
+  gradient.addColorStop(0.3, 'rgba(255,255,255,0.6)');
   gradient.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
@@ -122,7 +129,7 @@ export class Lighting {
     // The evening itself: one warm wash over the whole map, and everything
     // underneath still perfectly readable.
     this.wash = this.scene.add
-      .rectangle(0, 0, w, h, DUSK, DUSK_ALPHA[mode])
+      .rectangle(0, 0, w, h, WASH[mode], WASH_OPACITY[mode])
       .setOrigin(0, 0)
       .setDepth(DEPTH)
       .setScrollFactor(1);
@@ -131,11 +138,13 @@ export class Lighting {
 
     // A low wash of colour across the floor, so the room is in on it and not
     // only the few tiles with a lamp over them.
+    // Colour laid over the dusk rather than added to the floor: the ground in
+    // this world is pale, and anything additive on pale ground goes white
+    // before it goes colourful. A gel over an evening reads as light.
     this.floor = this.scene.add
-      .rectangle(0, 0, w, h, this.colours[0], WASH_ALPHA)
+      .rectangle(0, 0, w, h, this.colours[0], FLOOR_ALPHA)
       .setOrigin(0, 0)
-      .setDepth(DEPTH + 1)
-      .setBlendMode(Phaser.BlendModes.ADD);
+      .setDepth(DEPTH + 1);
 
     const key = discTexture(this.scene);
     const size = DISC_TILES * TILE;
@@ -144,7 +153,6 @@ export class Lighting {
         .image((at[0] + 0.5) * TILE - size / 2, (at[1] + 0.5) * TILE - size / 2, key)
         .setOrigin(0, 0)
         .setDepth(DEPTH + 2)
-        .setBlendMode(Phaser.BlendModes.ADD)
         .setAlpha(DISC_ALPHA);
       this.discs.push(spot);
     }
@@ -171,7 +179,7 @@ export class Lighting {
       return Phaser.Display.Color.GetColor(mixed.r, mixed.g, mixed.b);
     };
 
-    this.floor?.setFillStyle(at(0.5), WASH_ALPHA);
+    this.floor?.setFillStyle(at(0.5), FLOOR_ALPHA);
     this.discs.forEach((disc, index) => {
       const offset = index / Math.max(1, this.discs.length);
       disc.setTint(at(offset));
