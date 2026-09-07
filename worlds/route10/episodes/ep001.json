@@ -29,7 +29,7 @@
         {
           "requires": ["sawHobart"],
           "lines": [
-            "Renata had him, then — good. Try Dot next, outside Middle Brook Cafe in Jefferson; she misses nothing.",
+            "So Renata saw him Wednesday — he's working his way north, then. Try Dot, outside Middle Brook Cafe in Jefferson.",
             "And Nora's waiting on the patio at Stamford Coffee, right here in the village, whenever you find him."
           ]
         },
@@ -71,8 +71,8 @@
         {
           "requires": ["metEarl"],
           "lines": [
-            "Oh, Scout! Grey muzzle, one ear straight up — he came up onto the patio yesterday and sat by the bench like a customer.",
-            "Then out the door and off north. Ask Dot, outside Middle Brook Cafe in Jefferson — nothing on that street gets past her."
+            "Oh, Scout! Grey muzzle, one ear straight up — he came up onto the patio Wednesday and sat by the bench like a customer.",
+            "Then he trotted off up Route 10, heading north. Ask Dot, outside Middle Brook Cafe in Jefferson — nothing gets past her."
           ],
           "effects": [{ "set": "sawHobart" }]
         },
@@ -105,7 +105,7 @@
         {
           "requires": ["sawHobart"],
           "lines": [
-            "Scout! He was right outside our window yesterday, ear straight up, gone before anyone could set down a cup.",
+            "Scout! He was right outside our window yesterday, ear straight up, gone up Main Street before anyone could set down a cup.",
             "Try the mill pond, past the Mill Pond Inn, at the west end of Main Street. There's shade by the water there."
           ],
           "effects": [{ "set": "sawJefferson" }]
