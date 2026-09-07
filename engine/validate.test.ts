@@ -557,6 +557,35 @@ describe('validateWorld', () => {
     expect(runWorld(onSpawn).join('\n')).toContain('is on the tile exit "town-away" spawns onto');
   });
 
+  // A sign that belongs to the map rather than to a story: a door with a
+  // note on it, a wall worth stopping at (DESIGN.md §2). Unlike a fixture it
+  // may sit on something solid — that is usually the point — but it has to be
+  // readable from somewhere.
+  it('accepts a map sign on a wall with floor beside it', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({ signs: [{ pos: [2, 1], lines: ['A note, in a careful hand.'] }] }, ['....', '..#.', '....', '....'])
+      }
+    });
+    expect(runWorld(world)).toEqual([]);
+  });
+
+  it('flags a map sign outside the map, and one with nothing on it', () => {
+    const away = makeWorld({ maps: { town: makeMap({ signs: [{ pos: [9, 1], lines: ['x'] }] }) } });
+    expect(runWorld(away).join('\n')).toContain('sign at 9,1 is outside the map');
+    const blank = makeWorld({ maps: { town: makeMap({ signs: [{ pos: [2, 2], lines: ['  '] }] }) } });
+    expect(runWorld(blank).join('\n')).toContain('has nothing to read on it');
+  });
+
+  it('flags a map sign walled in on every side', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({ signs: [{ pos: [2, 1], lines: ['Nobody can get to this.'] }] }, ['..#.', '.###', '..#.', '....'])
+      }
+    });
+    expect(runWorld(world).join('\n')).toContain('nowhere beside it to read it from');
+  });
+
   it('flags a fixture kind the engine has no shape for', () => {
     const world = makeWorld({
       maps: {

@@ -1,12 +1,12 @@
 {
   "columns": 5,
   "image": "route10.png",
-  "imageheight": 160,
+  "imageheight": 176,
   "imagewidth": 80,
   "margin": 0,
   "name": "route10",
   "spacing": 0,
-  "tilecount": 46,
+  "tilecount": 52,
   "tiledversion": "1.10.2",
   "tileheight": 16,
   "tilewidth": 16,
@@ -1076,6 +1076,132 @@
           "name": "style",
           "type": "string",
           "value": "stele"
+        }
+      ]
+    },
+    {
+      "id": 46,
+      "type": "stool",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#6d5138,#95704c"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "stool"
+        }
+      ]
+    },
+    {
+      "id": 47,
+      "type": "foosball",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#6d5138,#2f5d3a,#c9c4b8"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "foosball"
+        }
+      ]
+    },
+    {
+      "id": 48,
+      "type": "door",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#4a3826,#8a6b48,#d8b268"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "door"
+        }
+      ]
+    },
+    {
+      "id": 49,
+      "type": "firepit",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#5f5952,#8d867d,#d9a441,#b5542a"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "firepit"
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "type": "panel",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#cbbfa8,#b0a48c"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "paper"
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "type": "panel",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#cbbfa8,#4a3826,#3f6d7d,#a94f2e"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "scrawl"
         }
       ]
     }

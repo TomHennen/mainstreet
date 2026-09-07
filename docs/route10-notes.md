@@ -98,6 +98,25 @@ should be a bench, not a deck full of tables.
 **Stewart's interior.** The clerk is enclosed behind the counter; the player
 talks across it and cannot walk round.
 
+**The Belvedere, inside and out (Tom, Sep 2026).** The building is huge — it
+used to be a hotel, and the bar is the only part of it operating now. Inside
+there is a single bar, accessible on three sides, with stools all the way
+around it. Coming in the door you are facing down the length of the space with
+the bar's right side to your left. Foosball tables are to your right, and
+there are a couple of tables. Down a hallway, again to the right, are two
+bathrooms: one is out of order, the other has a urinal and a stall, is not
+gendered, and anyone can latch the door if they want privacy. The same hallway
+has a wall everybody has drawn on in sharpie, every hand in town on it, and it
+carries on out to the outdoor area and the firepit. One wall of the bar room,
+on your left as you come in, is papered over, and it looks like there are
+glass doors behind the paper: behind those is the hotel's old swimming pool,
+dry for years.
+
+**What plays at the Belvedere (Tom, Sep 2026).** DJ nights, and sometimes a
+scrappy punk band. It is not a fiddle place — don't write one in. Karaoke,
+open mic and trivia are already on record, and a big-name comic passes
+through now and then.
+
 ## Open items — pending map work
 
 New businesses/landmarks Tom has named that aren't placed on the map yet.
@@ -108,6 +127,13 @@ than a notes-file guess:
 - **Mountain Dog Cafe** is deliberately *not* named on the map yet. Its
   building is on Stamford's Main Street block, west of Tops, as an unnamed
   filler; naming it waits on Tom.
+
+- **The Belvedere's outdoor area and firepit.** Mapped in a first pass as
+  `the-belvedere-yard` (a small paved yard off the end of the bathroom
+  hallway, with a firepit and a woodpile). It wants a proper pass of its own
+  once someone has eyes on the real thing: how big the yard is, where the
+  seating goes, what it looks over. The woodpile is scenery for now — see
+  Flavor & story hooks for the beat it is waiting for.
 
 - **Hobart's bookshop lots.** Hobart is under-built relative to Stamford
   and Jefferson right now. Next time Hobart's map gets attention, reserve
@@ -165,6 +191,14 @@ lat/lon to tile maths are in `docs/route10-geometry.md`.
 
 No real private person appears by name without opting in (CLAUDE.md hard
 rule 5). Signs refer to "the owner" or a fictional character.
+
+Invented first names get checked against this file before they ship. Two
+things to look for: a name that turns out to belong to somebody real in one
+of the three villages (Tom caught "Sal" that way — it was a neighbour's
+name), and a name already in use by a different character in the pack (the
+Belvedere party's neighbour was a second "Priya" while ep002 already had
+one). Both were renamed to something clearly invented and unlikely to land
+on anybody: Wren and Thea. When in doubt, pick further from ordinary.
 
 ## Art policy
 
@@ -571,3 +605,20 @@ opt-in, everything warm and affectionate) before it reaches the player.
   reveal, no speculation about why any one person doesn't; per hard rule
   6, that stays generic texture, not a puzzle about a real guarded
   person's inner life.
+- **A piece of wood on the fire.** The Belvedere's yard has a firepit and a
+  stack of wood beside it. The beat Tom wants: pick up a piece of wood, put it
+  on the fire. Small, warm, no puzzle — the kind of thing a player does once
+  and remembers. It needs a carry-and-place verb the engine does not have yet
+  (items today are picked up, not put down), so it is parked as an episode
+  idea rather than a map job. The woodpile is already standing in the yard,
+  waiting for it.
+- **The mayor and the pool.** Years ago, when the Belvedere was being shown
+  to its owner, the mayor — who is also the realtor — walked out across the
+  plywood laid over the hotel's old swimming pool and went straight through
+  it. The pool was dry and nobody was hurt. He isn't named, but "the mayor,
+  who's also the realtor" identifies him locally, so hard rule 6 governs
+  every word of this: if it is ever told in copy it is the town's fond
+  story, the kind he would tell on himself, with the mayor as the one
+  laughing hardest — never a punchline at his expense, and never a warning
+  story. Keep it out of the room's own copy for now: the papered wall in
+  `the-belvedere-interior` says only that the pool is behind it.

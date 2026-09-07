@@ -28,10 +28,15 @@ const PALETTE: RoomPalette = {
   bar: 6,
   shelf: [7, 8],
   table: 9,
+  stool: 14,
+  foosball: 15,
   stage: 10,
   stageFront: 11,
   planter: 12,
-  sign: 13
+  sign: 13,
+  firepit: 16,
+  door: 17,
+  panel: 18
 };
 
 const BASE: RoomSpec = {
@@ -42,7 +47,10 @@ const BASE: RoomSpec = {
 };
 
 const room = (spec: Partial<RoomSpec> = {}) => buildRoom({ ...BASE, ...spec }, PALETTE);
-const tileAt = (r: ReturnType<typeof room>, x: number, y: number) => r.tiles[y * r.width + x];
+/** The topmost tile at a cell: what stands there, or the floor if nothing does. */
+const tileAt = (r: ReturnType<typeof room>, x: number, y: number) =>
+  r.props[y * r.width + x] ?? r.tiles[y * r.width + x];
+const groundAt = (r: ReturnType<typeof room>, x: number, y: number) => r.tiles[y * r.width + x];
 
 describe('buildRoom: the shell', () => {
   it('rings the room in wall and fills the rest with floor', () => {
@@ -168,7 +176,7 @@ describe('buildRoom: props', () => {
   });
 
   it('rejects a prop with nowhere to go, and an unknown kind', () => {
-    expect(() => room({ props: [{ kind: 'table' }] })).toThrow(/needs a "rect" or an "at"/);
+    expect(() => room({ props: [{ kind: 'table' }] })).toThrow(/needs a "rect", an "at" or an "around"/);
     expect(() => room({ props: [{ kind: 'wardrobe', at: [[3, 3]] } as unknown as RoomProp] })).toThrow(/unknown kind/);
   });
 
@@ -191,6 +199,172 @@ describe('buildRoom: props', () => {
   });
 });
 
+describe('buildRoom: an island bar', () => {
+  it('draws the loop, leaves the walkway inside it and seals it', () => {
+    const r = room({ props: [{ kind: 'island', rect: [3, 2, 4, 4] }] });
+    for (const [x, y] of [[3, 2], [6, 2], [3, 5], [6, 5], [4, 2], [5, 5], [3, 3], [6, 4]]) {
+      expect(tileAt(r, x, y), `${x},${y}`).toBe(PALETTE.bar);
+    }
+    // the walkway is floor: somebody has to be able to stand in it
+    for (const [x, y] of [[4, 3], [5, 3], [4, 4], [5, 4]]) {
+      expect(PALETTE.floor, `${x},${y}`).toContain(tileAt(r, x, y));
+    }
+  });
+
+  it('opens a way in on the side the spec names, as wide as it says', () => {
+    const r = room({ props: [{ kind: 'island', rect: [3, 2, 4, 4], open: 'bottom' }] });
+    expect(PALETTE.floor).toContain(tileAt(r, 4, 5));
+    expect(tileAt(r, 3, 5)).toBe(PALETTE.bar);
+    expect(tileAt(r, 6, 5)).toBe(PALETTE.bar);
+    const wide = room({ props: [{ kind: 'island', rect: [3, 2, 4, 4], open: 'top', gap: 2 }] });
+    expect(PALETTE.floor).toContain(tileAt(wide, 4, 2));
+    expect(PALETTE.floor).toContain(tileAt(wide, 5, 2));
+    expect(tileAt(wide, 3, 2)).toBe(PALETTE.bar);
+  });
+
+  it('refuses an island with no inside, a way in that cuts a corner, or no rect', () => {
+    expect(() => room({ props: [{ kind: 'island', rect: [3, 2, 2, 4] }] })).toThrow(/at least 3×3/);
+    expect(() => room({ props: [{ kind: 'island', rect: [3, 2, 4, 4], open: 'top', gap: 3 }] })).toThrow(
+      /without cutting a corner/
+    );
+    expect(() => room({ props: [{ kind: 'island', at: [[3, 3]] }] })).toThrow(/needs a "rect"/);
+  });
+});
+
+describe('buildRoom: stools around something', () => {
+  it('rings whatever is solid, skipping the corners and the way in', () => {
+    const r = buildRoom(
+      {
+        ...BASE,
+        size: [14, 10],
+        props: [
+          { kind: 'island', rect: [4, 3, 4, 4], open: 'bottom' },
+          { kind: 'stool', around: 0 }
+        ]
+      },
+      PALETTE
+    );
+    // along each run of counter
+    for (const [x, y] of [[3, 3], [3, 6], [8, 4], [4, 2], [7, 7]]) {
+      expect(tileAt(r, x, y), `${x},${y}`).toBe(PALETTE.stool);
+    }
+    // never on a corner, and never outside the way in
+    expect(PALETTE.floor).toContain(tileAt(r, 3, 2));
+    expect(PALETTE.floor).toContain(tileAt(r, 5, 7));
+  });
+
+  it('takes a rectangle as readily as a prop, and keeps the floor under them', () => {
+    const r = room({ props: [{ kind: 'table', at: [[4, 3]] }, { kind: 'stool', around: [4, 3, 1, 1] }] });
+    expect(tileAt(r, 3, 3)).toBe(PALETTE.stool);
+    expect(tileAt(r, 5, 3)).toBe(PALETTE.stool);
+    expect(tileAt(r, 4, 2)).toBe(PALETTE.stool);
+    // both are furniture standing on the floor, so the floor is still under them
+    expect(PALETTE.floor).toContain(groundAt(r, 3, 3));
+    expect(PALETTE.floor).toContain(groundAt(r, 4, 3));
+  });
+
+  it('will not go around a prop that has not been placed yet', () => {
+    expect(() => room({ props: [{ kind: 'stool', around: 1 }, { kind: 'table', at: [[4, 3]] }] })).toThrow(
+      /not one of the props before it/
+    );
+  });
+});
+
+describe('buildRoom: halls, doors, panels and a second way out', () => {
+  const long = (props: RoomProp[]) =>
+    buildRoom({ ...BASE, size: [14, 10], door: { side: 'bottom', column: 4, width: 2 }, props }, PALETTE);
+
+  it('cuts a corridor with a wall down each long side', () => {
+    const r = long([{ kind: 'hall', rect: [8, 4, 5, 2] }]);
+    for (let x = 8; x < 13; x++) {
+      expect(PALETTE.floor, `${x},4`).toContain(tileAt(r, x, 4));
+      expect(tileAt(r, x, 3), `${x},3`).toBe(PALETTE.wall);
+      expect(tileAt(r, x, 6), `${x},6`).toBe(PALETTE.wall);
+    }
+  });
+
+  it('hangs a door and a panel on a wall, and reads them where they stand', () => {
+    const r = long([
+      { kind: 'hall', rect: [8, 4, 5, 2] },
+      { kind: 'door', at: [[10, 6]], lines: ['Out of order, sorry.'] },
+      { kind: 'panel', rect: [8, 3, 3, 1], lines: ['A wall people have drawn on.', 'Every hand in town.'] }
+    ]);
+    expect(tileAt(r, 10, 6)).toBe(PALETTE.door);
+    expect(tileAt(r, 9, 3)).toBe(PALETTE.panel);
+    expect(r.meta.signs).toEqual([
+      { pos: [10, 6], lines: ['Out of order, sorry.'] },
+      { pos: [9, 3], lines: ['A wall people have drawn on.', 'Every hand in town.'] }
+    ]);
+  });
+
+  it('will not hang a door on the floor, or cut a way out through an inside wall', () => {
+    expect(() => long([{ kind: 'door', at: [[5, 5]] }])).toThrow(/not a wall/);
+    expect(() =>
+      long([
+        { kind: 'hall', rect: [8, 4, 5, 2] },
+        { kind: 'exit', at: [[10, 3]], id: 'x', to: 'somewhere', spawn: [1, 1], facing: 'up' }
+      ])
+    ).toThrow(/an inside wall/);
+  });
+
+  it('cuts a second way out through the outside wall and states it like the first', () => {
+    const r = long([
+      { kind: 'hall', rect: [8, 4, 5, 2] },
+      { kind: 'exit', rect: [13, 4, 1, 2], id: 'a-room-yard', to: 'yard', spawn: [1, 5], facing: 'right' }
+    ]);
+    expect(tileAt(r, 13, 4)).toBe(PALETTE.mat);
+    expect(r.meta.exits).toHaveLength(2);
+    expect(r.meta.exits[0].id).toBe('a-room-exit');
+    expect(r.meta.exits[1]).toEqual({
+      id: 'a-room-yard',
+      at: [13, 4, 1, 2],
+      to: 'yard',
+      spawn: [1, 5],
+      facing: 'right',
+      style: 'door'
+    });
+  });
+
+  it('asks a way out for everything world.json would', () => {
+    expect(() => long([{ kind: 'exit', at: [[13, 4]] }])).toThrow(/needs an "id", a "to", a "spawn" and a "facing"/);
+  });
+});
+
+describe('buildRoom: people and fixtures', () => {
+  it('passes them through to the stanza', () => {
+    const r = room({
+      people: [{ id: 'barman', pos: [3, 3], lines: ['Evening.'] }],
+      fixtures: [{ kind: 'woodpile', pos: [6, 4] }]
+    });
+    expect(r.meta.people).toEqual([{ id: 'barman', pos: [3, 3], lines: ['Evening.'] }]);
+    expect(r.meta.fixtures).toEqual([{ kind: 'woodpile', pos: [6, 4] }]);
+  });
+
+  it('will not stand somebody in the furniture', () => {
+    expect(() =>
+      room({ props: [{ kind: 'table', at: [[3, 3]] }], people: [{ id: 'barman', pos: [3, 3] }] })
+    ).toThrow(/where nobody can stand/);
+    expect(() =>
+      room({ props: [{ kind: 'table', at: [[3, 3]] }], fixtures: [{ kind: 'woodpile', pos: [3, 3] }] })
+    ).toThrow(/in the wall, the furniture/);
+  });
+});
+
+describe('tiledMap', () => {
+  it('keeps furniture that stands on the floor on a layer of its own', () => {
+    const file = JSON.parse(tiledMap(room({ props: [{ kind: 'table', at: [[3, 3]] }] }), 'tiles.json'));
+    expect(file.layers.map((layer: { name: string }) => layer.name)).toEqual(['ground', 'props']);
+    expect(file.nextlayerid).toBe(3);
+    const [ground, props] = file.layers;
+    expect(props.data[3 * 10 + 3]).toBe(PALETTE.table + 1);
+    expect(ground.data[3 * 10 + 3]).not.toBe(PALETTE.table + 1);
+    // a room with nothing standing on its floor is the one-layer file it was
+    const plain = JSON.parse(tiledMap(room({ props: [{ kind: 'shelf', rect: [1, 1, 2, 1] }] }), 'tiles.json'));
+    expect(plain.layers).toHaveLength(1);
+    expect(plain.nextlayerid).toBe(2);
+  });
+});
+
 describe('paletteOf', () => {
   it('finds route10 furniture by tile kind, and the raised near row by its front face', () => {
     const tileset = parseTileset(readJson(join(PACK, 'assets', 'tiles', 'route10.json')), 'route10');
@@ -209,7 +383,7 @@ describe('paletteOf', () => {
 describe('the rooms route10 ships', () => {
   const tileset = () => parseTileset(readJson(join(PACK, 'assets', 'tiles', 'route10.json')), 'route10');
 
-  for (const id of ['stamford-coffee-interior', 'the-belvedere-interior']) {
+  for (const id of ['stamford-coffee-interior', 'the-belvedere-interior', 'the-belvedere-yard']) {
     it(`${id} on disk is what its spec builds`, () => {
       const spec: RoomSpec = readJson(join(PACK, 'rooms', `${id}.json`));
       const built = buildRoom(spec, paletteOf(tileset()));
@@ -222,14 +396,31 @@ describe('the rooms route10 ships', () => {
       const world = readJson(join(PACK, 'world.json'));
       const spec: RoomSpec = readJson(join(PACK, 'rooms', `${id}.json`));
       const built = buildRoom(spec, paletteOf(tileset()));
-      // A room's cast (DESIGN.md §2) is hand-placed straight into world.json —
-      // the spec has no say in who works there — so it's the one field world's
-      // stanza is allowed to carry that make-room never generates.
-      const { people: _people, ...generated } = world.maps[id];
-      expect(generated).toEqual(built.meta);
-      const placement = world.maps[spec.exit.to].buildings.find((b: { interior?: string }) => b.interior === id);
-      expect(placement.enter).toEqual(built.enter);
-      expect(built.meta.exits[0].spawn).toEqual(placement.door);
+      // A room's cast (DESIGN.md §2) may be hand-placed straight into
+      // world.json instead of declared in the spec, so `people` is the one
+      // field the stanza is allowed to carry that the spec need not — and
+      // where the spec does declare it, it has to come through unchanged.
+      const { people: shipped, ...generated } = world.maps[id];
+      const { people: declared, ...expected } = built.meta;
+      expect(generated).toEqual(expected);
+      if (spec.people) expect(shipped).toEqual(declared);
+      // A room behind a building's door is checked against that placement. A
+      // room behind another room's door — the Belvedere's yard — has none, and
+      // is checked against the exit that leads to it instead.
+      const placement = world.maps[spec.exit.to].buildings?.find((b: { interior?: string }) => b.interior === id);
+      if (placement) {
+        expect(placement.enter).toEqual(built.enter);
+        expect(built.meta.exits[0].spawn).toEqual(placement.door);
+      } else {
+        const there = world.maps[spec.exit.to].exits.find((e: { to: string }) => e.to === id);
+        const back = built.meta.exits[0];
+        // in through their door onto our own doorstep, and back out onto a
+        // tile of the corridor their door is cut through
+        expect(there.spawn).toEqual(built.enter);
+        expect(back.to).toBe(spec.exit.to);
+        const [ax, ay, aw, ah] = there.at;
+        expect(Math.abs(back.spawn[0] - ax) + Math.abs(back.spawn[1] - ay)).toBeLessThanOrEqual(aw + ah);
+      }
     });
   }
 });

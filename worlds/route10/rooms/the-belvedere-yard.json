@@ -1,0 +1,15 @@
+{
+  "name": "The Belvedere Yard",
+  "size": [16, 12],
+  "wall": 15,
+  "floor": [40],
+  "door": { "side": "left", "column": 5, "width": 2 },
+  "exit": { "id": "the-belvedere-yard-exit", "to": "the-belvedere-interior", "spawn": [24, 18], "facing": "left" },
+  "props": [
+    { "kind": "firepit", "at": [[8, 6]] },
+    { "kind": "stool", "around": 0 },
+    { "kind": "stool", "at": [[12, 3], [13, 4], [3, 3]] },
+    { "kind": "planter", "at": [[2, 2], [13, 9]] }
+  ],
+  "fixtures": [{ "kind": "woodpile", "pos": [4, 8] }]
+}
