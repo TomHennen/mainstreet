@@ -479,3 +479,69 @@ opt-in, everything warm and affectionate) before it reaches the player.
   photo mechanism (a generic "story image" asset type, distinct from
   portraits) would be a real feature worth scoping on its own if it ever
   comes up again, not something to fold into this episode.
+- **The M&M fire and the fire-department open house epic.** Real
+  inspiration, being scoped as a full epic (DESIGN.md §3a/§3b) rather than
+  a single episode. The story, as told so far: the empty lot across from
+  Stamford Coffee noted above once held Half Acre, a high-end restaurant
+  four new-to-town locals opened together. The apartments upstairs weren't
+  the owners' own — they were rented out to other people, likely renters
+  who couldn't easily afford a house of their own, which is part of what
+  makes their later displacement bite so much harder against the housing
+  crunch. The year before Half Acre's own fire, the four hosted a
+  local-business fundraiser dinner — the whole town there — when a wave of
+  pagers went off mid-meal: M&M's auto shop, further east than the current
+  map runs, was on fire, and it was a big one. The volunteer firefighters
+  in the room (see the fire-department note above) left mid-course; Half
+  Acre sent burgers out to the crew working the blaze. Trucks had to relay
+  water from a pond west of Route 10 (not currently on the map) all the
+  way to the fire. The town turned out for M&M, which is rebuilt now and
+  looking great. Some time later, Half Acre itself burned down, and the
+  renters living in the apartments above it lost their homes; the
+  community helped, but it landed in the middle of an already-tight local
+  housing market (see the second-homes/Airbnb note below, kept as a
+  separate, later topic).
+
+  Proposed shape: an **open house** framing (a real fire-department open
+  house day, present-day) rather than a literal flashback the player plays
+  through start to finish — the player experiences the M&M night as a
+  vignette scene (DESIGN.md §3a) triggered by a narrating NPC, alongside
+  real present-day tasks (help set up, walk the hose route to the newly
+  mapped pond, deliver food, end at the rebuilt M&M — good fit for the
+  task-checklist idea at DESIGN.md §3c). The volunteer-firefighter
+  archetype from the note above is a natural narrator. Half Acre's own fire
+  and the displaced tenants stay almost entirely off-screen in this
+  episode — at most one warm, oblique line — with the empty-lot note above
+  as the natural home for that story later, once there's a reason to tell
+  it (a "what should go here" episode, DESIGN.md §3b's second chapter).
+
+  Hard-rule-6 guardrails, restated for whoever picks this up: never depict
+  either fire on-screen (the vignette schema's smoke-not-flames rule
+  exists for this), never put the player or any NPC in on-screen danger,
+  and land the whole thing on the town coming together, not on loss. Tom's
+  read (Sep 2026): these are real facts and fine to have written down here
+  — it's public knowledge — but the game itself needs more care than the
+  notes do. The displaced renters specifically are the part to be most
+  careful with in-game copy: real private people, not business owners who
+  chose public visibility, so no in-game dialogue should identify or
+  describe them concretely — an oblique, unnamed reference at most, if
+  even that. At least two episodes' worth of material — the open house
+  epic first, a Half-Acre-lot / housing-adjacent follow-up later and
+  separately, with Tom's explicit sign-off before that second one gets
+  written.
+- **Second homes, Airbnb, and the housing crunch.** Real and current
+  tension worth facing eventually, not avoiding — people from the city
+  buying up houses as vacation homes or short-term rentals is a genuine
+  point of contention locally, and pretending Route 10 has no housing
+  pressure would ring false. But this is the one topic on this list where
+  "handle with care" isn't enough on its own: it has real people on both
+  sides who might play this game (locals priced out, and second-home
+  owners who love these towns too), so it needs Tom's explicit sign-off on
+  tone and scope before any copy gets written, not just the usual
+  hard-rule-6 pass. If it's ever taken on, the shape to aim for is "the
+  town facing a real problem together," closer to the flower-farm-hearing
+  note above (the system/community working through something hard) than a
+  grievance narrative — and never framed as a swipe at anyone who owns a
+  second home here. Parked for now; flagged so it isn't forgotten. Came up
+  alongside the Stamford fire-department-open-house epic (see DESIGN.md
+  §3a) as a candidate for a later, separate episode — not bundled into
+  that one.
