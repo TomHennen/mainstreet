@@ -574,7 +574,21 @@ export interface WorldCopy {
       back?: string;
     };
   };
-  intro?: { speaker: string; lines: string[] };
+  intro?: {
+    speaker: string;
+    lines: string[];
+    /**
+     * Lets the intro's first line follow the real calendar (DESIGN.md §2/§3):
+     * each entry names a "MM-DD" `from`/`to` range (inclusive, and a range may
+     * wrap the year end, e.g. "12-01" to "02-28" for deep winter) and the
+     * line to use in it. `engine/season.ts`'s `introLineFor` picks the first
+     * range containing the device's local date at boot — never saved
+     * (CLAUDE.md hard rule 7) — and falls back to `lines[0]` when none match,
+     * or when this is left out entirely. Optional; a world with no ranges
+     * simply always shows `lines[0]`.
+     */
+    byDate?: { from: string; to: string; line: string }[];
+  };
   /**
    * Keyed by `MapExit.id`, or by `enter:<building id>` when stepping through a
    * door into an interior.

@@ -543,6 +543,15 @@ particular week is about, in the same voice, added onto the same opening card
 rather than a separate one. Optional; an episode with nothing to add here
 simply adds nothing.
 
+The world intro's first line follows the real calendar: `intro.byDate` (§2) is
+an ordered list of `{ from, to, line }` ranges, each a "MM-DD" pair (inclusive,
+and a range may wrap the year end, e.g. "12-01" to "02-28" for deep winter).
+The first range containing the device's local date at boot wins; none
+matching, or no `byDate` at all, falls back to `intro.lines[0]`. This is
+picked fresh every boot and never saved (hard rule 7) — `engine/season.ts`'s
+`introLineFor` is the picker, used by both `engine/scenes/map.ts` and
+`scripts/playtest.mjs`.
+
 An episode may also carry `smallTalk`, an array of lines that take the place
 of `copy.json`'s `ui.passerby` for the length of that episode: a world person
 with no dialogue of their own ordinarily says one of `ui.passerby`'s lines,
