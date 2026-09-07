@@ -108,6 +108,21 @@ function plaqueOf(placement) {
   return [placement.door[0] + (placement.door[0] >= rightMost ? -1 : 1), placement.door[1]];
 }
 
+/**
+ * What a door reads, mirroring engine/session.ts's `signLinesFor` the way
+ * isSolid() and plaqueOf() mirror their engine counterparts: the episode's
+ * first matching sign for the building, then the building's standing sign in
+ * world.json underneath it — unless that episode sign sets `replace`, which
+ * takes the door for the story alone (DESIGN.md §3). The harness plays from a
+ * clean save, so "matching" here means the signs with no `requires`.
+ */
+function signLinesOf(buildingId) {
+  const standing = WORLD.buildings[buildingId]?.sign ?? [];
+  const sign = (EPISODE.signs ?? []).find((s) => s.building === buildingId && (s.requires ?? []).length === 0);
+  if (!sign) return [...standing];
+  return sign.replace ? [...sign.lines] : [...sign.lines, ...standing];
+}
+
 /** NPCs are episode data, so MapScene.solidTile() blocks on them separately. */
 function npcAt(mapId, x, y) {
   return EPISODE.npcs.some((n) => n.map === mapId && n.pos[0] === x && n.pos[1] === y);
@@ -695,8 +710,8 @@ async function main() {
       log(`    ${painted.id}: plaque thanks its painter and offers "${improveLabel}" -> ${improveHref}`);
 
       log('  read a painted building: its sign');
-      const paintedSign = (EPISODE.signs ?? []).find((s) => s.building === painted.id);
-      const paintedLines = paintedSign?.lines.length ?? 0;
+      const paintedWant = signLinesOf(painted.id);
+      const paintedLines = paintedWant.length;
       if (paintedLines === 0) fail('painted-sign', `ep000 gives painted ${painted.id} no sign copy to read`);
       await walkTo(page, 'painted-sign', painted.door);
       await pressA(page);
@@ -705,10 +720,10 @@ async function main() {
       await shot(page, 'painted-sign');
       const read = await readDialogue(page, 'painted-sign', paintedLines, async (i) => {
         const on = (await snap(page)).dialogue;
-        if (on?.text !== paintedSign.lines[i]) {
+        if (on?.text !== paintedWant[i]) {
           fail(
             'painted-sign',
-            `${painted.id} page ${i + 1} reads "${on?.text}", expected the episode's "${paintedSign.lines[i]}"`
+            `${painted.id} page ${i + 1} reads "${on?.text}", expected "${paintedWant[i]}"`
           );
         }
       });
@@ -1373,11 +1388,10 @@ async function main() {
     // And the sign a tile away is the story only: same unpainted building, no
     // link anywhere near it (DESIGN.md §2/§4).
     log('  no "Paint it" on the same building\'s sign');
-    const bareSign = (EPISODE.signs ?? []).find((s) => s.building === bare.id);
-    // With no sign copy this episode the door falls back to the building's own
-    // standing sign, and failing that to one stand-in line instead of an empty
-    // box — so there is always at least one page.
-    const bareSignLines = bareSign?.lines.length ?? WORLD.buildings[bare.id].sign?.length ?? 1;
+    // The episode's sign and the building's standing sign both read here, and
+    // with neither one stand-in line stands in for an empty box — so there is
+    // always at least one page.
+    const bareSignLines = signLinesOf(bare.id).length || 1;
     await walkTo(tp, 'paint-it-sign', bare.door);
     await pressA(tp);
     await expectDialogue(tp, 'paint-it-sign', `${bare.id}'s sign`);
@@ -1390,6 +1404,14 @@ async function main() {
       fail('paint-it-sign', `${bare.id}'s sign read ${signRead} page(s) for ${bareSignLines} line(s) of copy`);
     }
     log(`    sign: ${signRead} page(s), no link`);
+
+    // A person is not a building waiting for paint: no link on their dialogue.
+    log('  no "Paint it" on a person');
+    await walkTo(tp, 'paint-it-npc', [earl.pos[0], earl.pos[1] + 1]);
+    await pressA(tp);
+    await expectDialogue(tp, 'paint-it-npc', 'Earl');
+    if (await paint.isVisible()) fail('paint-it-npc', 'the "Paint it" link showed on Earl\'s dialogue');
+    await advanceDialogue(tp, 'paint-it-npc', 3);
 
     // --- a standing sign from world.json ------------------------------------
     // A building the episode says nothing about is not silent: its own sign in
@@ -1428,13 +1450,42 @@ async function main() {
     }
     log(`    ${standing.id}: ${standingRead} page(s) of its own copy, no episode sign in sight`);
 
-    // A person is not a building waiting for paint: no link on their dialogue.
-    log('  no "Paint it" on a person');
-    await walkTo(tp, 'paint-it-npc', [earl.pos[0], earl.pos[1] + 1]);
+    // --- both kinds of sign, in order ---------------------------------------
+    // A story goes on top of a place, not in place of it: where the episode
+    // has a sign for a building that also has a standing sign, the door reads
+    // the episode's pages first and the building's own after them, so a week
+    // of story never costs the player the colour of where it sent them
+    // (DESIGN.md §3).
+    log('  a building with both signs reads the episode first, then its own');
+    const both = WORLD.maps.stamford.buildings.find(
+      (b) =>
+        !b.interior &&
+        (WORLD.buildings[b.id].sign ?? []).length > 0 &&
+        (EPISODE.signs ?? []).some((sg) => sg.building === b.id && (sg.requires ?? []).length === 0 && !sg.replace)
+    );
+    if (!both) fail('both-signs', 'no Stamford building carries an episode sign and a standing sign at once');
+    const bothWant = signLinesOf(both.id);
+    const bothStanding = WORLD.buildings[both.id].sign;
+    await walkTo(tp, 'both-signs', both.door);
     await pressA(tp);
-    await expectDialogue(tp, 'paint-it-npc', 'Earl');
-    if (await paint.isVisible()) fail('paint-it-npc', 'the "Paint it" link showed on Earl\'s dialogue');
-    await advanceDialogue(tp, 'paint-it-npc', 3);
+    await expectDialogue(tp, 'both-signs', `${both.id}'s sign`);
+    await shot(tp, 'both-signs');
+    const bothRead = await readDialogue(tp, 'both-signs', bothWant.length, async (i) => {
+      const on = (await snap(tp)).dialogue;
+      if (on?.text !== bothWant[i]) {
+        fail('both-signs', `${both.id} page ${i + 1} reads "${on?.text}", expected "${bothWant[i]}"`);
+      }
+    });
+    if (bothRead !== bothWant.length) {
+      fail(
+        'both-signs',
+        `${both.id} read ${bothRead} page(s) for ${bothWant.length} line(s) — the standing sign is being dropped`
+      );
+    }
+    log(
+      `    ${both.id}: ${bothWant.length - bothStanding.length} episode page(s), ` +
+        `then ${bothStanding.length} of its own`
+    );
 
     // --- the Studio's door and plaque markers -------------------------------
     // The artist says where the door and the little plaque go, and the code

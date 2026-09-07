@@ -675,10 +675,25 @@ describe('validateEpisode', () => {
     expect(problems.join('\n')).toContain('is outside map "town"');
   });
 
+  it('flags a "replace" that isn\'t a boolean', () => {
+    const episode = makeEpisode({
+      signs: [{ building: 'shop', requires: [], lines: ['a'], replace: 'yes' as unknown as boolean }]
+    });
+    expect(runEpisode(episode, world).join('\n')).toContain('has a "replace" that isn\'t a boolean');
+  });
+
+  it('flags "replace" on a prop sign, which has no standing sign behind it', () => {
+    const episode = makeEpisode({
+      signs: [{ map: 'town', pos: [0, 0], requires: [], lines: ['a'], replace: true }]
+    });
+    expect(runEpisode(episode, world).join('\n')).toContain('only building signs have');
+  });
+
   it('accepts a well-formed building sign and a well-formed prop sign', () => {
     const episode = makeEpisode({
       signs: [
         { building: 'shop', requires: [], lines: ['a'] },
+        { building: 'shop', requires: [], lines: ['c'], replace: true },
         { map: 'town', pos: [0, 0], requires: [], lines: ['b'] }
       ]
     });

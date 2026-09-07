@@ -249,6 +249,7 @@ and `effects` (applied when the node is shown/consumed). No code in content.
   ],
   "signs": [                                         // flavor, may vary by flags
     { "building": "mill-pond-inn", "requires": [],   // read at the door, with a prompt
+      "replace": false,                              // default: the standing sign reads after it
       "lines": ["Chalkboard: pizza night Monday and Wednesday. Underlined twice: RIBS SOLD OUT."] },
     { "map": "stewarts-interior", "pos": [11, 4], "requires": [],   // a prop: no prompt
       "lines": ["The ice cream case hums along beside the shelves."] }
@@ -269,11 +270,14 @@ one array entry per page:
                "sign": ["Brisket sandwiches Saturday, and they do sell out."] }
 ```
 
-Episodes override it: an episode sign for that building whose `requires` are
-met always wins, so a story can take over a door for a week and the ordinary
-day comes back afterwards. A building with neither falls back to
-`copy.ui.unpainted`, which is now only ever seen at a door nobody has written
-anything for yet.
+Episodes add to it: an episode sign for that building whose `requires` are met
+reads first, and the standing sign follows on the next page — a flyer taped in
+the window sits on top of the place without erasing it, so a week of story
+never costs the player the colour of the places it sends them to. An episode
+that wants the whole door for itself sets `"replace": true` on its sign, and
+the standing sign steps aside for as long as that sign is the one showing. A
+building with neither kind of sign falls back to `copy.ui.unpainted`, which is
+now only ever seen at a door nobody has written anything for yet.
 
 Engine responsibilities: declare-before-use flag validation, first-match
 dialogue resolution, effect application, sign lookup, item visibility.

@@ -38,9 +38,14 @@ const world: World = {
   player: { id: 'player', accent: '#fff' },
   start: { map: 'town', pos: [0, 0], facing: 'down' },
   buildings: {
-    shop: { name: 'Shop', wall: '#fff', roof: '#000' },
+    // A standing sign of its own, and episode signs on top of it.
+    shop: { name: 'Shop', wall: '#fff', roof: '#000', sign: ['standing shop line'] },
     // A standing sign of its own, and no episode sign anywhere for it.
     bakery: { name: 'Bakery', wall: '#fff', roof: '#000', sign: ['standing bakery line'] },
+    // A standing sign the episode deliberately takes the door away from.
+    post: { name: 'Post Office', wall: '#fff', roof: '#000', sign: ['standing post line'] },
+    // An episode sign but nothing standing behind it.
+    depot: { name: 'Depot', wall: '#fff', roof: '#000' },
     // Neither: nothing to read at this door at all.
     barn: { name: 'Barn', wall: '#fff', roof: '#000' }
   },
@@ -98,6 +103,10 @@ const episode: Episode = {
     { building: 'shop', requires: [], lines: ['sign fallback'] },
     // Only shows for a VIP, so the bakery's standing sign covers everyone else.
     { building: 'bakery', requires: ['vip'], lines: ['bakery this week'] },
+    // This week the post office door is the story's and nothing else.
+    { building: 'post', requires: [], lines: ['post closed for the story'], replace: true },
+    // Nothing standing behind this one, so the episode is all there is.
+    { building: 'depot', requires: [], lines: ['depot this week'] },
     { map: 'town', pos: [5, 5], requires: [], lines: ['prop a — first, wins'] },
     { map: 'town', pos: [5, 5], requires: [], lines: ['prop b — same tile, should be deduped'] },
     { map: 'other', pos: [5, 5], requires: [], lines: ['prop on a different map'] }
@@ -210,17 +219,26 @@ describe('session helpers', () => {
     });
   });
 
-  describe('signLinesFor — the episode overrides the standing sign', () => {
-    it('reads the episode sign when there is one for this building', () => {
-      expect(signLinesFor('shop')).toEqual(['sign fallback']);
+  describe('signLinesFor — the episode reads on top of the standing sign', () => {
+    it('reads the episode sign first and the standing sign after it', () => {
+      expect(signLinesFor('shop')).toEqual(['sign fallback', 'standing shop line']);
     });
 
-    it('still prefers the episode over world.json once a flag-gated sign matches', () => {
+    it('adds a flag-gated episode sign to the standing sign the same way', () => {
       boot(fakeFlags(['vip']));
-      expect(signLinesFor('bakery')).toEqual(['bakery this week']);
+      expect(signLinesFor('bakery')).toEqual(['bakery this week', 'standing bakery line']);
+      expect(signLinesFor('shop')).toEqual(['sign vip', 'standing shop line']);
     });
 
-    it('reads the standing sign when the episode has none for this building', () => {
+    it('drops the standing sign when the episode sign sets replace', () => {
+      expect(signLinesFor('post')).toEqual(['post closed for the story']);
+    });
+
+    it('reads the episode sign alone when the building has no standing sign', () => {
+      expect(signLinesFor('depot')).toEqual(['depot this week']);
+    });
+
+    it('reads the standing sign alone when the episode has none for this building', () => {
       expect(signLinesFor('bakery')).toEqual(['standing bakery line']);
     });
 

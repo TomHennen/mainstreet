@@ -62,7 +62,11 @@
     "the-belvedere": {
       "name": "The Belvedere",
       "wall": "#93a86f",
-      "roof": "#5c6b41"
+      "roof": "#5c6b41",
+      "sign": [
+        "Up the hill and lit early, and it sounds like everybody in there knows everybody.",
+        "A taped-up flyer teases a big-name comedian, headed this way one of these days. DATE TBA. Guess you'll just have to keep checking back."
+      ]
     },
     "cellar-door-wines": {
       "name": "Cellar Door Wines",
@@ -144,7 +148,11 @@
     "jh-gas-station": {
       "name": "J&H",
       "wall": "#d6d2c4",
-      "roof": "#8f3b2b"
+      "roof": "#8f3b2b",
+      "sign": [
+        "Pumps out front, and a deli counter inside that has most of the village's mornings covered: coffee, egg sandwiches, and the first news of the day.",
+        "Half the trucks in the lot belong to somebody's contractor. If you have been trying to reach one, this is where they all are at seven in the morning."
+      ]
     }
   },
   "maps": {

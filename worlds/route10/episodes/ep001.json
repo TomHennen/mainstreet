@@ -13,30 +13,36 @@
       "dialogue": [
         {
           "requires": ["done"],
-          "lines": ["Route 10's back to its regular amount of chaos. Best kind."]
+          "lines": ["Scout's home and Route 10 is back to its regular amount of chaos. Best kind there is."]
         },
         {
           "requires": ["gotDog"],
-          "lines": ["Well, would you look at that. Go find his person before he changes his mind about the whole arrangement."]
+          "lines": ["Well, would you look at that. Get Scout along to Nora — she's on the patio at Stamford Coffee, up Main."]
         },
         {
           "requires": ["sawJefferson"],
-          "lines": ["Sounds like you're closing in. My money's always been on the mill pond — every dog in this county ends up there eventually."]
+          "lines": [
+            "Sounds like you're closing in on Scout. My money's on the mill pond in Jefferson — every dog ends up there.",
+            "Bring him back to Nora when you have him. She's on the patio at Stamford Coffee, along Main here."
+          ]
         },
         {
           "requires": ["sawHobart"],
-          "lines": ["Down at Cellar Door too? That dog's putting on some miles. Try Middle Brook next — Dot doesn't miss much."]
+          "lines": [
+            "So Renata saw him Wednesday — he's working his way north, then. Try Dot, outside Middle Brook Cafe in Jefferson.",
+            "And Nora's waiting on the patio at Stamford Coffee, right here in the village, whenever you find him."
+          ]
         },
         {
           "requires": ["metEarl"],
-          "lines": ["Head down toward Hobart first — I heard Cellar Door had a sighting."]
+          "lines": ["Start with Renata at Cellar Door Wines, down in Hobart. She's the one who saw Scout last."]
         },
         {
           "requires": [],
           "lines": [
-            "Have you seen the flyers? Somebody's dog got loose a few days back — sweet thing, fast as anything.",
-            "Half the county's spotted him by now and nobody's caught him yet.",
-            "If you're headed out today, keep an eye open — every sighting helps."
+            "See the flyers? Scout's been loose since Tuesday — grey muzzle, and one ear that stands straight up.",
+            "Half the county has spotted Scout by now, and not one of us has managed to get a hand on him.",
+            "Start with Renata at Cellar Door Wines, down in Hobart. He was in her shop yesterday, bold as you like."
           ],
           "effects": [{ "set": "metEarl" }]
         }
@@ -52,27 +58,27 @@
       "dialogue": [
         {
           "requires": ["done"],
-          "lines": ["Glad that one has a happy ending. Come back for a tasting sometime, once things settle down."]
+          "lines": ["Glad Scout's story ends the way it should. Come back to Cellar Door for a tasting once things settle."]
         },
         {
           "requires": ["gotDog"],
-          "lines": ["There he is! Knew he'd turn up looking pleased with himself."]
+          "lines": ["There's Scout! I knew he'd turn up looking pleased with himself. Give Nora my love when you see her."]
         },
         {
           "requires": ["sawHobart"],
-          "lines": ["Told you — trotted right through here like he owned the patio. Middle Brook's your next stop."]
+          "lines": ["Told you — Scout had that bench to himself a good ten minutes. Next is Dot, outside Middle Brook Cafe in Jefferson."]
         },
         {
           "requires": ["metEarl"],
           "lines": [
-            "Oh, the escape artist! He came through the patio yesterday like he owned the place,",
-            "then vanished off toward the scenic trail before anyone could grab a leash."
+            "Oh, Scout! Grey muzzle, one ear straight up — he came up onto the patio Wednesday and sat by the bench like a customer.",
+            "Then he trotted off up Route 10, heading north. Ask Dot, outside Middle Brook Cafe in Jefferson — nothing gets past her."
           ],
           "effects": [{ "set": "sawHobart" }]
         },
         {
           "requires": [],
-          "lines": ["Welcome — pull up a seat on the patio anytime."]
+          "lines": ["Welcome to Cellar Door — take your time. If it's news you're after, Earl holds court outside Stewart's in Stamford."]
         }
       ]
     },
@@ -86,51 +92,51 @@
       "dialogue": [
         {
           "requires": ["done"],
-          "lines": ["Bet he's back home causing a whole new kind of trouble. Good."]
+          "lines": ["I'll bet Scout is home by now, causing a whole new kind of trouble, and Nora couldn't be happier about it."]
         },
         {
           "requires": ["gotDog"],
-          "lines": ["You got him?! Bring him by — everyone in here's been rooting for you all week."]
+          "lines": ["You found Scout?! Get him to Nora — she's on the patio at Stamford Coffee, down in Stamford. Go on, quick."]
         },
         {
           "requires": ["sawJefferson"],
-          "lines": ["Try the mill pond, past the inn. Dogs love that shade by the water."]
+          "lines": ["The mill pond, past the Mill Pond Inn at the west end of Main Street. Scout loves that shade by the water."]
         },
         {
           "requires": ["sawHobart"],
           "lines": [
-            "Oh, the dog! He was right outside our window yesterday, plain as day, gone before anyone could grab him.",
-            "If I were you, I'd try the mill pond — there's shade by the water and dogs love that spot on a warm day."
+            "Scout! He was right outside our window yesterday, ear straight up, gone up Main Street before anyone could set down a cup.",
+            "Try the mill pond, past the Mill Pond Inn, at the west end of Main Street. There's shade by the water there."
           ],
           "effects": [{ "set": "sawJefferson" }]
         },
         {
           "requires": ["metEarl"],
-          "lines": ["Heard Cellar Door had a sighting too — small world. Try there if you haven't yet."]
+          "lines": ["You're after Scout too? Renata at Cellar Door Wines, down in Hobart, saw him before I did. Start there."]
         },
         {
           "requires": [],
-          "lines": ["Big week around here — ask Earl down at Stewart's in Stamford, he'll fill you in."]
+          "lines": ["Big week in Jefferson. Ask Earl — he's outside Stewart's up in Stamford, and he'll tell it better than I would."]
         }
       ]
     },
     {
       "id": "nora",
       "name": "Nora",
-      "map": "jefferson",
-      "pos": [17, 20],
+      "map": "stamford",
+      "pos": [88, 25],
       "facing": "down",
       "accent": "#6b7fa3",
       "dialogue": [
         {
           "requires": ["done"],
-          "lines": ["Still can't believe it. Thank you again — I mean it about the coffee."]
+          "lines": ["Scout hasn't left my side since. Thank you again — and that offer of a coffee does not expire."]
         },
         {
           "requires": ["gotDog"],
           "lines": [
-            "Scout?! Oh — oh, thank you, I've been up and down this road for two days.",
-            "Come by Stamford Coffee sometime — coffee's on me. I mean that."
+            "Scout! Oh — oh, thank you. I have sat on this patio all week asking everybody who walked past.",
+            "Sit down a minute, would you — anything you like from the counter is on me. I mean that, truly."
           ],
           "effects": [
             { "set": "done" },
@@ -138,10 +144,17 @@
           ]
         },
         {
+          "requires": ["metEarl"],
+          "lines": [
+            "Still no Scout. He slipped out of the yard on Tuesday and I have asked everyone up and down Route 10 since.",
+            "Somebody has seen him, I know it. Scout has never once passed a village quietly in his life."
+          ]
+        },
+        {
           "requires": [],
           "lines": [
-            "Have you seen a scruffy little guy, answers to Scout — well, doesn't answer to Scout, that's rather the problem?",
-            "I'm starting to think he's doing this on purpose."
+            "Have you seen a scruffy dog, grey muzzle, one ear straight up? That's Scout. He slipped the yard on Tuesday.",
+            "I have been asking up and down Route 10 all week. Try Earl, outside Stewart's — he hears every sighting first."
           ]
         }
       ]
@@ -158,8 +171,8 @@
         { "toast": "Got him — good boy, Scout" }
       ],
       "lines": [
-        "A scruffy dog is sprawled in the shade by the mill pond, thoroughly pleased with himself.",
-        "He trots straight over like he'd been expecting you the whole time."
+        "A scruffy dog is stretched out in the shade by the mill pond: grey muzzle, one ear straight up, thoroughly content.",
+        "Scout trots over like he had been expecting you all along, and falls in beside you as though it were his idea."
       ]
     }
   ],
@@ -168,21 +181,21 @@
       "building": "stewarts",
       "requires": [],
       "lines": [
-        "A hand-drawn flyer taped inside the window: LOST DOG — SCOUT. ANSWERS TO NOTHING. LAST SEEN EVERYWHERE."
+        "A hand-drawn flyer taped inside the window: LOST DOG — SCOUT. GREY MUZZLE, ONE EAR UP. ANSWERS WHEN IT SUITS HIM."
       ]
     },
     {
       "building": "middle-brook-cafe",
       "requires": [],
       "lines": [
-        "A flyer on the corkboard by the register, same dog, a new hand-written line underneath: \"still out here having the time of his life.\""
+        "The same flyer on the corkboard by the register, with a line added underneath: \"still out here having the time of his life.\""
       ]
     },
     {
       "building": "cellar-door-wines",
       "requires": [],
       "lines": [
-        "Taped to the door: the same LOST DOG flyer, with a little pencil sketch someone's added of a dog wearing sunglasses."
+        "Taped to the door: the same LOST DOG flyer, and a little pencil sketch someone has added of Scout in sunglasses, ear up."
       ]
     },
     {

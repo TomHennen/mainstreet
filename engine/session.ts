@@ -62,16 +62,21 @@ export function signFor(buildingId: string): EpisodeSign | undefined {
 }
 
 /**
- * What a building's door actually says: the episode's sign when it has one for
- * this building and its `requires` are met, otherwise the standing sign the
- * world pack gives the building (DESIGN.md §3). A story always wins over the
- * ordinary day, and a building with neither returns nothing at all — the scene
- * decides what to do with a door that has nothing to say.
+ * What a building's door actually says: the episode's sign for this building,
+ * when it has one whose `requires` are met, followed by the standing sign the
+ * world pack gives the building (DESIGN.md §3). The story goes on top of the
+ * ordinary day rather than in place of it — a flyer in the window does not
+ * take the window with it — unless the episode's sign sets `replace`, which
+ * gives the door over to the story entirely. A building with neither kind of
+ * sign returns nothing at all, and the scene decides what to do with a door
+ * that has nothing to say.
  */
 export function signLinesFor(buildingId: string): string[] {
+  const standing = session().world.buildings[buildingId]?.sign ?? [];
   const sign = signFor(buildingId);
-  if (sign) return [...sign.lines];
-  return [...(session().world.buildings[buildingId]?.sign ?? [])];
+  if (!sign) return [...standing];
+  if (sign.replace) return [...sign.lines];
+  return [...sign.lines, ...standing];
 }
 
 /**
