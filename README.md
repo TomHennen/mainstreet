@@ -45,7 +45,18 @@ failure. It starts a dev server itself if one is not already on :5173.
 npm test               # Vitest: engine logic only, plain Node, no jsdom
 npm run validate-episodes   # every worlds/*/ pack, engine/validate.ts's rules
 npm run validate-assets     # every worlds/*/ pack's PNGs and credits.json
+npm run make-room      # a first-cut interior from a room spec (DESIGN.md §2)
 ```
+
+`npm run make-room -- <world> <map id> --spec <file.json>` writes
+`worlds/<world>/maps/<map id>.json` from a short spec — room size, the wall the
+door is in, and the counters, shelves, tables, bar, stage, mats and planters in
+it — and prints the `maps.<map id>` stanza to paste into `world.json`. The
+specs route10's own interiors were built from are in `worlds/route10/rooms/`;
+re-running one is a no-op, so an edit shows up as a real diff. It only places
+tiles the world's tileset already has, and refuses a room you could not play
+(furniture in the doorway, floor walled off from the door, a counter somebody
+could walk round the back of). Rooms are ordinary Tiled maps afterwards.
 
 `npm test` covers `engine/validate.ts` (every rule it enforces, plus the real
 `worlds/route10/` pack), `engine/save.ts` (the save shape, and every way a
@@ -121,8 +132,9 @@ engine/          Phaser 4 + TS. World-agnostic. The only code.
   save.ts          per-world localStorage saves (DESIGN.md §2)
   progress.ts      autosave, and putting a saved episode back
   scenes/          boot, title, map (villages and interiors), ui, travel
-worlds/route10/  world.json, copy.json, maps/ (Tiled JSON), episodes/, assets/,
-                 palette.png, credits.json — data and PNGs only, no code
+worlds/route10/  world.json, copy.json, maps/ (Tiled JSON), rooms/ (interior
+                 specs), episodes/, assets/, palette.png, credits.json —
+                 data and PNGs only, no code
 prototype/       route10-v3.html — behavioural reference, not code to reuse
 ```
 

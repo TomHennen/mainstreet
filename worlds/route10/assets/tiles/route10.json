@@ -1,12 +1,12 @@
 {
   "columns": 5,
   "image": "route10.png",
-  "imageheight": 144,
+  "imageheight": 160,
   "imagewidth": 80,
   "margin": 0,
   "name": "route10",
   "spacing": 0,
-  "tilecount": 43,
+  "tilecount": 46,
   "tiledversion": "1.10.2",
   "tileheight": 16,
   "tilewidth": 16,
@@ -993,6 +993,79 @@
           "name": "colors",
           "type": "string",
           "value": "#9b978c,#c9c4b8"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "stele"
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "type": "stage",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#6b5237,#5b4632,#4a3826"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "planks"
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "type": "stage",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#6b5237,#5b4632,#4a3826"
+        },
+        {
+          "name": "edge",
+          "type": "string",
+          "value": "#4d3a27"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "planks"
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "type": "board",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#cbc1b0"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#4a3826,#2f5d3a"
         },
         {
           "name": "solid",

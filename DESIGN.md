@@ -29,6 +29,7 @@ mainstreet/
     route10/
       world.json     # title, palette ref, building registry, map metadata, travel graph
       maps/          # Tiled JSON, one map per village + one per interior
+      rooms/         # <interior>.json — the room spec each interior was built from
       episodes/      # ep000.json, ep001.json ... (pure data)
       assets/
         tiles/       # <tileset>.json (Tiled tileset) + <tileset>.png
@@ -37,7 +38,7 @@ mainstreet/
         portraits/   # <npc-id>.png 96x96 dialogue busts
       copy.json      # UI strings: title screen, travel-screen text per edge
   prototype/         # route10-v3.html — behavioral reference only
-  scripts/           # validate-assets, validate-episodes
+  scripts/           # validate-assets, validate-episodes, make-room
 ```
 
 **Maps are Tiled JSON.** Every map id in `world.json` has a file at
@@ -135,6 +136,30 @@ follows the player exactly as it does outdoors, and a room that happens to
 fit the screen simply sits centred. Zoom is the same whole number inside and
 out so the player stays the same size; the engine only steps zoom up when a
 whole map fits at the larger step.
+
+A first-cut room does not have to be drawn tile by tile. `scripts/make-room`
+takes a short spec — size, which wall the door is in and where along it, the
+wall and floor tiles, and a list of props placed by rectangle or by tile
+(`counter`, `bar`, `shelf`, `table`, `stage`, `mat`, `planter`, `sign`) — and
+writes the Tiled file plus the `maps.<id>` stanza to paste into `world.json`:
+
+```sh
+npm run make-room -- route10 stamford-coffee-interior \
+  --spec worlds/route10/rooms/stamford-coffee-interior.json
+```
+
+The spec lives in the world pack at `rooms/<map id>.json` — data, like
+everything else in a pack, and read by nothing at run time — so a room can be
+regenerated after an edit and the diff is the change. The script only ever
+places tile ids the world's own tileset already has, found by tile kind, and
+it refuses a room that would not play: furniture in the wall or the doorway, a
+spawn tile with something standing on it, floor walled off from the door, or a
+counter whose staff strip is open to the room. That strip is the point of the
+`counter`/`bar` props: the run of counter tiles gets a one-tile pocket behind
+it, closed at the ends with short returns, so somebody serving from it stays
+behind it (Stewart's register counter, drawn for you). Interiors are still
+ordinary Tiled maps afterwards — an artist opens one in Tiled and refines it,
+and the script is not the owner of the file.
 
 **Saves:** localStorage, one key per world — `mainstreet.<worldId>` — holding a
 versioned file:

@@ -3,9 +3,9 @@ route10.json is the Tiled tileset: the tile ids, their kinds and their
 
 route10.png is the sheet it names, and it does not exist yet — until it does,
 the engine draws each tile from the `style`/`colors` properties in the JSON.
-Drop in a 80x144 PNG (5 columns x 9 rows of 16x16, tile ids left to right, top
+Drop in a 80x160 PNG (5 columns x 10 rows of 16x16, tile ids left to right, top
 to bottom, matching the JSON's order) and it replaces those placeholders. Only
-the first 42 slots are used; the last three are spare.
+the first 46 slots are used; the last four are spare.
 
 The tiles, in id order: three grasses, two flower patches, sandy road plain and
 worn, water plain and rippled, a tree, a bench, two interior floors, a doormat,
@@ -18,6 +18,14 @@ near row (same planks, plus the front face of the deck along the bottom of the
 tile), a sun umbrella, and a stone patio in warm grey flagstones: the pavers
 plain, and the pavers again for the near row (same stones, plus the front face
 of the patio along the bottom of the tile).
+
+Then the indoor set (ids 43-45), for the rooms `scripts/make-room` builds: a
+stage floor in dark planks, the same planks again for the stage's near row
+(plus the front face of the riser along the bottom of the tile), and a standing
+board — a wooden frame round a dark green face, for a chalkboard or a menu
+propped by the door. All three are solid: they are furniture, walked round
+rather than over. A bar top is the wooden counter (id 16) over again, which is
+what a bar is.
 
 Anything raised above the ground plane is lit from the top left and keeps its
 art in the top 12 pixels of its cell, so a deck's front face still shows below

@@ -269,6 +269,44 @@ function within(ms, label, work) {
 /** page.evaluate() with a ceiling on it. */
 const evalIn = (page, label, fn, arg, ms = 20000) => within(ms, label, page.evaluate(fn, arg));
 
+/**
+ * The camera rides along with the player, so a tile is only briefly at any one
+ * place on the canvas: at zoom 2 the view slides a whole tile every ~160ms of
+ * walking. Everything a tap needs — the camera's view and the canvas box — is
+ * therefore read in one round trip, and the aim is the exact centre of the
+ * tile, which leaves half a tile of slack for whatever the machine spends
+ * getting the touch back down the wire.
+ */
+async function pointOfTile(page, tile, milestone = 'tap-walk') {
+  const p = await page.evaluate(([tx, ty]) => {
+    const s = window.__mainstreet;
+    const canvas = document.querySelector('#stage canvas');
+    if (!s?.view || !canvas) return null;
+    const r = canvas.getBoundingClientRect();
+    const v = s.view;
+    return {
+      x: r.left + ((tx * v.tile + v.tile / 2 - v.x) / v.width) * r.width,
+      y: r.top + ((ty * v.tile + v.tile / 2 - v.y) / v.height) * r.height,
+      box: { x: r.left, y: r.top, width: r.width, height: r.height }
+    };
+  }, tile);
+  if (!p) fail(milestone, 'the page has no camera view to tap into');
+  if (p.x < p.box.x || p.y < p.box.y || p.x > p.box.x + p.box.width || p.y > p.box.y + p.box.height) {
+    fail(milestone, `tile ${tile} is off screen (${JSON.stringify(p)})`);
+  }
+  return p;
+}
+
+/**
+ * A click on a tile. Mouse and finger come down the one pointer path
+ * (CLAUDE.md hard rule 4, engine/input.ts), so this is the same tap the touch
+ * pages make — it is only aimed with a mouse, on a page that has no touch.
+ */
+async function clickTile(page, tile, milestone) {
+  const p = await pointOfTile(page, tile, milestone);
+  await page.mouse.click(p.x, p.y);
+}
+
 async function shot(page, slug) {
   shotIndex += 1;
   const name = `${String(shotIndex).padStart(2, '0')}-${slug}.png`;
@@ -874,6 +912,102 @@ async function main() {
     await waitUntil(page, (s) => s.map === 'stamford' && !s.locked, 'Main Street again');
     await shot(page, 'back-on-main');
 
+    // --- the rooms behind the other doors ------------------------------------
+    // Stewart's was hand-drawn; the rest of route10's interiors come out of
+    // `npm run make-room` (DESIGN.md §2). They are ordinary maps, so each one
+    // is asked the same three things: does its door let you in where the
+    // placement says, is its furniture something you walk round rather than
+    // through, and does the way out put you back on the doorstep facing the
+    // street. Entered with a tap on the door, which is how the game is meant
+    // to be played (CLAUDE.md hard rule 4).
+    for (const place of WORLD.maps.stamford.buildings.filter((b) => b.interior && b.enter && b.id !== stewarts.id)) {
+      const name = WORLD.buildings[place.id].name;
+      const room = WORLD.maps[place.interior];
+      const doorstep = [[0, 2], [0, 3], [-2, 0], [2, 0], [0, 1]]
+        .map(([dx, dy]) => [place.door[0] + dx, place.door[1] + dy])
+        .find(
+          (tile) =>
+            !isSolid(WORLD.maps.stamford, tile[0], tile[1]) &&
+            !WORLD.maps.stamford.buildings.some((b) => {
+              const plaque = plaqueOf(b);
+              return (
+                (b.door[0] === tile[0] && b.door[1] === tile[1]) ||
+                (plaque && plaque[0] === tile[0] && plaque[1] === tile[1])
+              );
+            })
+        );
+      if (!doorstep) fail(`${place.id}-enter`, `nowhere to stand outside ${name} to tap its door from`);
+
+      log(`  into ${name}, on a tap`);
+      await walkTo(page, `${place.id}-enter`, doorstep);
+      await clickTile(page, place.door, `${place.id}-enter`);
+      const inside = await waitUntil(page, (s) => s.map === place.interior && !s.locked, `${name}'s room`);
+      const landed = here(inside);
+      if (landed[0] !== place.enter[0] || landed[1] !== place.enter[1]) {
+        fail(`${place.id}-enter`, `${name} put the player down on ${landed}, not its "enter" tile ${place.enter}`);
+      }
+      await shot(page, `${place.id}-interior`);
+      log(`    tapped ${place.door} from ${doorstep} -> in at ${landed}, ${room.width}x${room.height} tiles`);
+
+      // The furniture. The room's spec — worlds/<world>/rooms/<map>.json, the
+      // very thing `make-room` was handed — says what was put where, so the
+      // harness can insist a counter, a bar or a stage really does block its
+      // tiles, and that a mat really does not.
+      const specFile = resolve(PACK, 'rooms', `${place.interior}.json`);
+      if (!existsSync(specFile)) fail(`${place.id}-solid`, `no room spec at ${specFile} to check the furniture against`);
+      const blocking = [];
+      for (const prop of readJson(specFile).props ?? []) {
+        const cells = [...(prop.at ?? [])];
+        if (prop.rect) {
+          const [rx, ry, rw, rh] = prop.rect;
+          for (let j = 0; j < rh; j++) for (let i = 0; i < rw; i++) cells.push([rx + i, ry + j]);
+        }
+        for (const [x, y] of cells) {
+          const blocks = isSolid(room, x, y);
+          if (prop.kind === 'mat' && blocks) {
+            fail(`${place.id}-solid`, `the mat at ${x},${y} in ${name} blocks the floor`);
+          }
+          if (prop.kind !== 'mat' && !blocks) {
+            fail(`${place.id}-solid`, `the ${prop.kind} at ${x},${y} in ${name} is not solid — you would walk through it`);
+          }
+          if (prop.kind === 'counter' || prop.kind === 'bar' || prop.kind === 'stage') blocking.push([prop.kind, x, y]);
+        }
+      }
+      if (!blocking.length) fail(`${place.id}-solid`, `${name}'s room has no counter, bar or stage in it`);
+      log(`    ${blocking.length} tile(s) of counter/bar/stage, every one solid in the grid`);
+
+      // And solid underfoot, not only in the grid: walked straight at from two
+      // tiles below, the player has to stop at its near edge. The hitbox is
+      // inset 4px, so a quarter tile of overlap is as far in as anything solid
+      // ever lets them get.
+      const push = blocking.find(([, x, y]) => !isSolid(room, x, y + 1) && !isSolid(room, x, y + 2));
+      if (!push) fail(`${place.id}-solid`, `nothing in ${name} can be walked into from below`);
+      await walkTo(page, `${place.id}-solid`, [push[1], push[2] + 2]);
+      await page.keyboard.down(KEY.up);
+      await sleep(700);
+      await page.keyboard.up(KEY.up);
+      await sleep(200);
+      const stopped = await snap(page);
+      if (stopped.y < push[2] + 0.6) {
+        fail(`${place.id}-solid`, `the player walked into the ${push[0]} at ${push[1]},${push[2]}: stopped at y ${stopped.y.toFixed(2)}`);
+      }
+      log(`    walking at the ${push[0]} on ${[push[1], push[2]]} stopped at y ${stopped.y.toFixed(2)}`);
+
+      log(`  back out of ${name}`);
+      const way = room.exits[0];
+      if (!way) fail(`${place.id}-exit`, `${place.interior} has no way out`);
+      await walkTo(page, `${place.id}-exit`, [way.at[0], way.at[1]], { allowInterrupt: true });
+      const out = await waitUntil(page, (s) => s.map === way.to && !s.locked, `${WORLD.maps[way.to].name} again`);
+      const back = here(out);
+      if (back[0] !== place.door[0] || back[1] !== place.door[1]) {
+        fail(`${place.id}-exit`, `leaving ${name} put the player on ${back}, not its door ${place.door}`);
+      }
+      if (out.facing !== way.facing) {
+        fail(`${place.id}-exit`, `leaving ${name} left the player facing "${out.facing}", not "${way.facing}"`);
+      }
+      log(`    out at ${back}, facing ${out.facing}`);
+    }
+
     // --- Jefferson ----------------------------------------------------------
     log('  travel to Jefferson');
     const toJefferson = WORLD.maps.stamford.exits.find((e) => e.to === 'jefferson');
@@ -1183,34 +1317,6 @@ async function main() {
       await sleep(320);
     }
     if ((await snap(wp)).dialogueOpen) fail('tap-walk', 'the intro never closed on the tap page');
-
-    /**
-     * The camera rides along with the player, so a tile is only briefly at any
-     * one place on the canvas: at zoom 2 the view slides a whole tile every
-     * ~160ms of walking. Everything a tap needs — the camera's view and the
-     * canvas box — is therefore read in one round trip, and the aim is the
-     * exact centre of the tile, which leaves half a tile of slack for whatever
-     * the machine spends getting the touch back down the wire.
-     */
-    async function pointOfTile(page, tile) {
-      const p = await page.evaluate(([tx, ty]) => {
-        const s = window.__mainstreet;
-        const canvas = document.querySelector('#stage canvas');
-        if (!s?.view || !canvas) return null;
-        const r = canvas.getBoundingClientRect();
-        const v = s.view;
-        return {
-          x: r.left + ((tx * v.tile + v.tile / 2 - v.x) / v.width) * r.width,
-          y: r.top + ((ty * v.tile + v.tile / 2 - v.y) / v.height) * r.height,
-          box: { x: r.left, y: r.top, width: r.width, height: r.height }
-        };
-      }, tile);
-      if (!p) fail('tap-walk', 'the page has no camera view to tap into');
-      if (p.x < p.box.x || p.y < p.box.y || p.x > p.box.x + p.box.width || p.y > p.box.y + p.box.height) {
-        fail('tap-walk', `tile ${tile} is off screen (${JSON.stringify(p)})`);
-      }
-      return p;
-    }
 
     /**
      * Records the tile each tap actually landed on, from inside the page, at

@@ -90,6 +90,7 @@
       "roof": "#4a3c55",
       "sign": [
         "The patio out front is half the building: tables full, a dog asleep under one, and somebody ordering a Maple Smoke latte.",
+        "Inside, the pastry case is lit up beside the register and every table has somebody's afternoon on it.",
         "This is where the week gets talked over. Through the side doorway, 80 Main's shelves are calling."
       ]
     },
@@ -99,6 +100,7 @@
       "roof": "#5c6b41",
       "sign": [
         "Up the hill and lit early, and it sounds like everybody in there knows everybody.",
+        "Inside there is a long bar, a little corner stage, and a board with tonight's plan chalked on it.",
         "A taped-up flyer teases a big-name comedian, headed this way one of these days. DATE TBA. Guess you'll just have to keep checking back."
       ]
     },
@@ -553,6 +555,11 @@
           "door": [
             89,
             23
+          ],
+          "interior": "stamford-coffee-interior",
+          "enter": [
+            9,
+            10
           ]
         },
         {
@@ -598,6 +605,11 @@
           "door": [
             80,
             5
+          ],
+          "interior": "the-belvedere-interior",
+          "enter": [
+            10,
+            12
           ]
         }
       ],
@@ -930,6 +942,54 @@
           "spawn": [
             16,
             14
+          ],
+          "facing": "down",
+          "style": "door"
+        }
+      ]
+    },
+    "stamford-coffee-interior": {
+      "name": "Stamford Coffee",
+      "kind": "interior",
+      "buildings": [],
+      "labels": [],
+      "exits": [
+        {
+          "id": "stamford-coffee-exit",
+          "at": [
+            9,
+            11,
+            2,
+            1
+          ],
+          "to": "stamford",
+          "spawn": [
+            89,
+            23
+          ],
+          "facing": "down",
+          "style": "door"
+        }
+      ]
+    },
+    "the-belvedere-interior": {
+      "name": "The Belvedere",
+      "kind": "interior",
+      "buildings": [],
+      "labels": [],
+      "exits": [
+        {
+          "id": "the-belvedere-exit",
+          "at": [
+            10,
+            13,
+            2,
+            1
+          ],
+          "to": "stamford",
+          "spawn": [
+            80,
+            5
           ],
           "facing": "down",
           "style": "door"
