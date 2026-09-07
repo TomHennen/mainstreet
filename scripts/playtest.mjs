@@ -3564,6 +3564,163 @@ async function main() {
     await dp.goto(pathToFileURL(landingFile).href, { waitUntil: 'load' });
     await shot(dp, 'landing-desktop', { fullPage: true });
     await deskCtx.close();
+    // --- ambient cars --------------------------------------------------------
+    // A village's paved routes carry traffic (DESIGN.md §2, issue #72). A car
+    // drives on its own, gives way to somebody standing in its lane, picks
+    // its trip back up when they step off, and is never a hazard: one that
+    // goes by leaves the player exactly where they were, with the same flags.
+    // Like the strollers, which car the harness follows is found in world.json.
+    const carMap = WORLD.start.map;
+    const carData = (WORLD.maps[carMap].vehicles ?? []).find((v) => (v.path ?? []).length >= 2);
+    if (!carData) {
+      log('  (no traffic on the start map — skipping the cars)');
+    } else {
+      const lane = carData.path[0][1] === carData.path[1][1] ? 'row' : 'column';
+      log(`  a car on ${carMap}: "${carData.id}", first leg along one ${lane}`);
+      // A window big enough for the engine to spend its third zoom step,
+      // which is where a car on a state route reads properly.
+      const cctx = await browser.newContext({ viewport: { width: 1000, height: 900 }, deviceScaleFactor: 1 });
+      const cp = await cctx.newPage();
+      attach(cp, 'cars');
+      await cp.goto(GAME_URL, { waitUntil: 'load' });
+      await waitUntil(cp, (s) => s.map === carMap, 'the start map, with the traffic on it');
+      for (let i = 0; i < 6 && (await snap(cp)).dialogueOpen; i++) await pressA(cp);
+      if ((await snap(cp)).dialogueOpen) fail('cars', 'the intro never closed on the cars page');
+      const zoom = await evalIn(cp, 'the zoom the cars page is drawn at', () => {
+        const canvas = document.querySelector('#stage canvas');
+        return Math.round(canvas.width / window.__mainstreet.view.width);
+      });
+      if (zoom !== 3) fail('cars', `the cars page came up at zoom ${zoom}, not the 3 the shots are meant to be at`);
+      log(`    drawn at zoom ${zoom}`);
+
+      const whereIsCar = async (id) => {
+        const state = await snap(cp);
+        const found = (state.vehicles ?? []).find((v) => v.id === id);
+        if (!found) fail('cars', `the engine published no car called "${id}" on "${state.map}"`);
+        return found;
+      };
+
+      // It drives on its own, with the player nowhere near it.
+      const from = await whereIsCar(carData.id);
+      await sleep(2000);
+      const to = await whereIsCar(carData.id);
+      const covered = Math.hypot(to.x - from.x, to.y - from.y);
+      if (covered < 1) {
+        fail(
+          'cars',
+          `"${carData.id}" covered ${covered.toFixed(2)} tiles in two seconds — ` +
+            `${[from.x, from.y]} to ${[to.x, to.y]}`
+        );
+      }
+      log(`    covered ${covered.toFixed(1)} tiles in 2s with nobody near it`);
+
+      // Two places to stand, both found from the car's own first leg rather
+      // than written down: one *in* its lane, and one beside it on the next
+      // line over, which the car has no reason to stop for.
+      const [a, b] = carData.path;
+      const alongX = a[1] === b[1];
+      const exits = exitTiles(WORLD.maps[carMap]);
+      const readable = readableTiles(carMap);
+      const standing = here(await snap(cp));
+      // The other lane of the same route: one tile the way the car turns at
+      // the end of its leg, which is where the centre line is.
+      const over = alongX ? [0, carData.path[2] ? Math.sign(carData.path[2][1] - a[1]) : -1] : [carData.path[2] ? Math.sign(carData.path[2][0] - a[0]) : -1, 0];
+      const usable = (tile) => {
+        if (isSolid(WORLD.maps[carMap], tile[0], tile[1])) return false;
+        if (fixtureAt(carMap, tile[0], tile[1])) return false;
+        if (exits.has(`${tile[0]},${tile[1]}`) || readable.has(`${tile[0]},${tile[1]}`)) return false;
+        // Clear of any other car's route, so only the car being watched is in play.
+        for (const other of WORLD.maps[carMap].vehicles ?? []) {
+          if (other.id === carData.id) continue;
+          for (const point of other.path ?? []) {
+            if (Math.abs(point[0] - tile[0]) <= 3 && Math.abs(point[1] - tile[1]) <= 3) return false;
+          }
+        }
+        return Boolean(findPath(carMap, standing, tile));
+      };
+
+      let inLane = null;
+      let beside = null;
+      const span = alongX ? [a[0], b[0]] : [a[1], b[1]];
+      const step = span[1] > span[0] ? 1 : -1;
+      // Well inside the leg, so the car is at speed rather than turning.
+      for (let n = Math.round(Math.abs(span[1] - span[0]) * 0.45); n > 3 && !inLane; n--) {
+        const at = span[0] + n * step;
+        const tile = alongX ? [at, a[1]] : [a[0], at];
+        const next = [tile[0] + over[0], tile[1] + over[1]];
+        if (usable(tile) && usable(next)) {
+          inLane = tile;
+          beside = next;
+        }
+      }
+      if (!inLane) fail('cars', `nowhere on "${carData.id}"'s first leg to stand and watch it`);
+
+      // Beside the lane, on the line the car does not drive on: it goes past
+      // without stopping, and nothing about the player changes when it does.
+      await walkTo(cp, 'cars', beside);
+      const before = await snap(cp);
+      const wasAt = here(before);
+      const wasFlags = JSON.stringify(before.flags);
+      log(`    standing at ${wasAt}, one line over from the lane`);
+      const passing = await waitUntil(
+        cp,
+        (state) => {
+          const v = (state.vehicles ?? []).find((q) => q.id === carData.id);
+          return Boolean(v) && Math.abs(v.x - state.x) <= 1 && Math.abs(v.y - state.y) <= 1;
+        },
+        `"${carData.id}" to come past the watching spot`,
+        90000
+      );
+      await shot(cp, 'car-passing');
+      const went = (passing.vehicles ?? []).find((v) => v.id === carData.id);
+      if (went.stopped) fail('cars', `"${carData.id}" stopped for somebody who was not even in its lane`);
+      if (JSON.stringify(passing.flags) !== wasFlags) {
+        fail('cars', `a car going by set a flag: ${wasFlags} -> ${JSON.stringify(passing.flags)}`);
+      }
+      const nudged = Math.hypot(passing.x - before.x, passing.y - before.y);
+      if (nudged > 0.01 || String(here(passing)) !== String(wasAt)) {
+        fail('cars', `a car going by moved the player ${nudged.toFixed(2)} tiles, ${wasAt} -> ${here(passing)}`);
+      }
+      log('    it went by without stopping, and left the player and the flags alone');
+
+      // In the lane: it sees the player, coasts to a stop and waits.
+      await walkTo(cp, 'cars', inLane);
+      log(`    standing in the lane at ${inLane}`);
+      const held = await waitUntil(
+        cp,
+        (state) => {
+          const v = (state.vehicles ?? []).find((q) => q.id === carData.id);
+          return Boolean(v) && v.stopped && v.yielding;
+        },
+        `"${carData.id}" to give way to the player standing in its lane`,
+        90000
+      );
+      const waiting = (held.vehicles ?? []).find((v) => v.id === carData.id);
+      const gap = Math.hypot(waiting.x - held.x, waiting.y - held.y);
+      log(`    it stopped ${gap.toFixed(1)} tiles short of the player and waited`);
+      await shot(cp, 'car-stopped');
+      if (gap < 0.5) fail('cars', `"${carData.id}" stopped on top of the player rather than behind them`);
+
+      // And it stays stopped for as long as they stand there.
+      await sleep(1500);
+      const stillWaiting = await whereIsCar(carData.id);
+      const crept = Math.hypot(stillWaiting.x - waiting.x, stillWaiting.y - waiting.y);
+      if (crept > 0.05) {
+        fail('cars', `"${carData.id}" crept ${crept.toFixed(2)} tiles with the player still standing in front of it`);
+      }
+      log('    stayed put while the player stood in front of it');
+
+      // Step off the road and it carries on.
+      await walkTo(cp, 'cars', beside);
+      const resumeFrom = await whereIsCar(carData.id);
+      await sleep(2000);
+      const resumeTo = await whereIsCar(carData.id);
+      const resumed = Math.hypot(resumeTo.x - resumeFrom.x, resumeTo.y - resumeFrom.y);
+      if (resumed < 1) {
+        fail('cars', `"${carData.id}" never pulled away again: ${resumed.toFixed(2)} tiles in two seconds`);
+      }
+      log(`    pulled away again once the player stepped off (${resumed.toFixed(1)} tiles in 2s)`);
+    }
 
     log(`\n  ${PLAYTEST_EPISODE} completed end to end.`);
   } finally {
