@@ -1,0 +1,17 @@
+{
+  "name": "The Belvedere",
+  "size": [22, 14],
+  "wall": 15,
+  "floor": [12, 11],
+  "door": { "side": "bottom", "column": 10, "width": 2 },
+  "exit": { "id": "the-belvedere-exit", "to": "stamford", "spawn": [80, 5], "facing": "down" },
+  "props": [
+    { "kind": "bar", "rect": [2, 3, 1, 8], "behind": "left" },
+    { "kind": "stage", "rect": [15, 2, 5, 3], "front": "bottom" },
+    { "kind": "sign", "at": [[5, 1]] },
+    { "kind": "shelf", "rect": [20, 6, 1, 5], "tiles": [20] },
+    { "kind": "table", "at": [[5, 4], [8, 4], [5, 7], [8, 7], [5, 10], [8, 10], [12, 4], [12, 10], [15, 10], [18, 10]] },
+    { "kind": "planter", "at": [[3, 12], [19, 12]] },
+    { "kind": "mat", "rect": [10, 12, 2, 1] }
+  ]
+}

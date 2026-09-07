@@ -13,7 +13,8 @@
     "test": "vitest run",
     "validate-episodes": "node scripts/validate-episodes.ts",
     "validate-assets": "node scripts/validate-assets.ts",
-    "decode-art": "node scripts/decode-art.ts"
+    "decode-art": "node scripts/decode-art.ts",
+    "make-room": "node scripts/make-room.ts"
   },
   "dependencies": {
     "phaser": "^4.2.1"

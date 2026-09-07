@@ -387,3 +387,36 @@ east, each with its door on the wrap-around sidewalk at y23:
   reserved lot for whatever goes there.
 - **Mountain Dog Cafe is not named.** The unnamed filler at x30–33 is its
   building; it is closed and Tom's word is to wait.
+
+## 10. Two more interiors (Sep 2026)
+
+Stamford Coffee and The Belvedere have rooms behind their doors, built with
+`scripts/make-room` from the specs in `worlds/route10/rooms/` (DESIGN.md §2).
+They keep Stewart's scale — a 6 × 4 footprint bought a 28 × 16 room there,
+about four and a half tiles of room per tile of frontage — so Stamford
+Coffee's 5 × 3 front bought 20 × 12 and the Belvedere's the same front bought
+22 × 14. The Bel is the bigger of the two on purpose: from outside it is the
+big leaning building on Academy Street, and inside it is a room with a stage
+in it.
+
+Both doorways are two tiles wide in the bottom wall, matted, with the exit
+trigger on the mat and the spawn tile the mat just inside it — the way out of
+Stewart's, and the reason a room's door reads as a door.
+
+- **Stamford Coffee** (20 × 12, exposed brick, light floor): the counter runs
+  along the back wall with the pastry case at its right-hand end and the
+  drinks coolers along the wall past it; tables in two clusters either side of
+  the aisle from the door; and, down the west wall, the shelves of **80 Main**
+  with a matted threshold between two bays of them. 80 Main really does touch
+  Coffee's west wall and share its patio, so its shelves are the right thing to
+  see through that side doorway.
+- **The Belvedere** (22 × 14, dark panelling): the bar runs down the west side
+  with a sealed strip behind it, the stage sits in the north-east corner with
+  the floor in front of it left clear, a chalkboard stands by the north wall
+  for whatever is on tonight, coolers line the east wall, and the tables are
+  scattered rather than ranked. Nobody is placed in either room yet; both are
+  ready for one.
+
+The tileset gained three tiles for these (ids 43-45): a stage floor, the same
+planks again for the stage's near row with the riser's front face on it, and a
+standing board. A bar top is the wooden counter tile over again.
