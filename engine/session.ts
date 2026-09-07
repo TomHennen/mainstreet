@@ -153,8 +153,21 @@ export function smallTalkFor(person: { id: string }, random: () => number = Math
 export const overlaysOn = (mapId: string): MapOverlay[] =>
   activeOverlays(session().episode.overlays, mapId, session().flags);
 
-/** The ambient traffic on a map (DESIGN.md §2). Village data, never an episode's. */
-export const vehiclesOn = (mapId: string): Vehicle[] => session().world.maps[mapId]?.vehicles ?? [];
+/**
+ * The traffic on a map (DESIGN.md §2/§3): the village's own ambient cars
+ * first, then any the running episode parks or drives here.
+ *
+ * The two lists are merged in exactly one place — here — so everything
+ * downstream (the scene that draws them, the scene runner that can send one
+ * somewhere) sees one list and never learns which of them a car came off. A
+ * village's cars are there every week; an episode's stand only while that
+ * episode is the one being played, which is what lets a story park somebody's
+ * pickup outside for a morning without the village gaining a pickup for ever.
+ */
+export const vehiclesOn = (mapId: string): Vehicle[] => [
+  ...(session().world.maps[mapId]?.vehicles ?? []),
+  ...(session().episode.vehicles ?? []).filter((vehicle) => vehicle.map === mapId)
+];
 
 export const itemsOn = (mapId: string): EpisodeItem[] =>
   (session().episode.items ?? []).filter((item) => item.map === mapId);

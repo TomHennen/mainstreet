@@ -27,7 +27,9 @@
  *   either of them. There is no collision to have.
  * - **Parked cars.** A car with no waypoints at all is one somebody has left
  *   in a lot. It is the same object, drawn the same way and just as
- *   un-solid — it simply never sets off.
+ *   un-solid — it simply never sets off, until a scene sends it somewhere
+ *   (`sendTo`), which is how an episode's pickup pulls out of the forecourt
+ *   and heads off down the road (DESIGN.md §3).
  *
  * Phaser is nowhere in here, so all of the above is testable under plain Node
  * (engine/vehicle.test.ts). The scene owns only the sprite.
@@ -138,9 +140,31 @@ export class Driver {
     return this.parked || this.throttle < STILL;
   }
 
-  /** True for a car that was never given anywhere to go. */
+  /**
+   * True for a car that is not going anywhere: one that was never given a
+   * route, and is not on an errand a scene sent it on either.
+   */
   get parked(): boolean {
-    return !this.mover.walks;
+    return !this.mover.walks && !this.mover.onErrand;
+  }
+
+  /** True while a scene has this car on its way somewhere (`sendTo`). */
+  get driving(): boolean {
+    return this.mover.onErrand;
+  }
+
+  /**
+   * Drive to one tile, now — the scene runner's `move` step for a
+   * `"vehicle:<id>"` (engine/scene.ts, DESIGN.md §3). It is the mover's own
+   * `sendTo`, with one thing deliberately left out: no "and nobody standing
+   * in it" walkability. A car does not thread its way round somebody in the
+   * road, it slows down and waits for them, which is the throttle's business
+   * in `update` and nothing to do with the route. Returns false when there is
+   * no paved way there, so the scene carries on rather than waiting on a car
+   * that is never going to arrive.
+   */
+  sendTo(goal: Vec2, speed?: number): boolean {
+    return this.mover.sendTo(goal, speed);
   }
 
   /** True on the frames a car is giving way to somebody in the road. */

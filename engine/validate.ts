@@ -400,6 +400,33 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
   checkLines(episode.intro, '"intro"');
   checkLines(episode.smallTalk, '"smallTalk"');
 
+  // The cars this week brings with it (DESIGN.md §3). They are the map's own
+  // vehicles in every respect but one — they stand only while this episode
+  // plays — so they are checked by exactly the same rules, against the map
+  // they name.
+  const episodeVehicles = episode.vehicles ?? [];
+  const seenVehicles = new Set<string>();
+  for (const vehicle of episodeVehicles) {
+    const which = `${where}: vehicle "${vehicle.id ?? '(unnamed)'}"`;
+    if (typeof vehicle.id !== 'string' || vehicle.id.trim() === '') {
+      problems.push(`${where}: every vehicle needs an id`);
+      continue;
+    }
+    if (seenVehicles.has(vehicle.id)) problems.push(`${which} is listed twice`);
+    seenVehicles.add(vehicle.id);
+    if (!world.maps[vehicle.map]) {
+      problems.push(`${which} is on unknown map "${vehicle.map}"`);
+      continue;
+    }
+    // One id per map, or "vehicle:<id>" in a scene would name two cars.
+    if ((world.maps[vehicle.map].vehicles ?? []).some((one) => one.id === vehicle.id)) {
+      problems.push(`${which} has the same id as a car already on map "${vehicle.map}"`);
+    }
+    const map = maps[vehicle.map];
+    if (!map) continue; // the missing grid is already reported by validateWorld
+    checkVehicle(vehicle, map, which, problems);
+  }
+
   checkOverlays(episode, world, maps, declared, problems);
   checkScenes(episode, world, maps, declared, problems);
 
@@ -486,6 +513,14 @@ function sceneMap(episode: Episode, scene: EpisodeScene): string | undefined {
   for (const step of scene.steps ?? []) {
     const who = step.move?.who;
     if (!who || who === SCENE_PLAYER) continue;
+    if (who.startsWith(SCENE_VEHICLE)) {
+      // A car the episode brought with it says which map it is on; a
+      // village's own is found by whoever else the scene moves.
+      const id = who.slice(SCENE_VEHICLE.length);
+      const vehicle = (episode.vehicles ?? []).find((one) => one.id === id);
+      if (vehicle) return vehicle.map;
+      continue;
+    }
     const npc = episode.npcs.find((one) => one.id === who);
     if (npc) return npc.map;
   }
@@ -529,7 +564,7 @@ function checkStep(step: SceneStep, at: string, ctx: StepContext): void {
         // Vehicles are a map's own, like its townspeople. A world with none
         // simply has nothing for this to name (CLAUDE.md hard rule 3).
         const id = who.slice(SCENE_VEHICLE.length);
-        const vehicles = mapId ? vehiclesOn(world, mapId) : [];
+        const vehicles = mapId ? vehiclesOn(world, episode, mapId) : [];
         if (!vehicles.includes(id)) {
           problems.push(`${at} moves "${who}", which is not a vehicle on map "${mapId ?? '?'}"`);
         }
@@ -555,22 +590,61 @@ function checkStep(step: SceneStep, at: string, ctx: StepContext): void {
     }
     if (!map) return;
     // The player may stand on a doorstep or a plaque tile; nobody else may,
-    // because those are read by standing exactly there (moverWalkable).
-    const canStand = who === SCENE_PLAYER ? (x: number, y: number) => !isSolid(map, x, y) : moverWalkable(map);
+    // because those are read by standing exactly there (moverWalkable). A car
+    // stands on none of them: it keeps to the paved routes, all the way out of
+    // town if that is where the scene sends it, so it is measured against
+    // `driveable` instead (DESIGN.md §2).
+    // A map with no paved tiles at all — an interior — has nowhere a car
+    // could go by that rule, so there anywhere it would fit will do, exactly
+    // as `checkVehicle` reads a map with no roads on it (hard rule 3).
+    const drives = who.startsWith(SCENE_VEHICLE);
+    const paved = drives && anyDrivable(map);
+    const canStand =
+      drives && paved
+        ? driveable(map)
+        : drives || who === SCENE_PLAYER
+          ? (x: number, y: number) => !isSolid(map, x, y)
+          : moverWalkable(map);
+    let ok = true;
     tiles.forEach((tile, index) => {
       const label = move.path ? `${at} path ${index}` : `${at} target`;
       if (!Array.isArray(tile) || tile.length !== 2 || !tile.every((n) => Number.isInteger(n))) {
         problems.push(`${label} is not a tile like [12, 4]`);
+        ok = false;
         return;
       }
       if (tile[0] < 0 || tile[1] < 0 || tile[0] >= map.width || tile[1] >= map.height) {
         problems.push(`${label} at ${tile.join(',')} is outside the map`);
+        ok = false;
         return;
       }
       if (!canStand(tile[0], tile[1])) {
-        problems.push(`${label} at ${tile.join(',')} is somewhere "${who}" cannot stand`);
+        problems.push(
+          drives && paved
+            ? `${label} at ${tile.join(',')} is not a tile a vehicle can drive on — cars keep to the paved routes`
+            : `${label} at ${tile.join(',')} is somewhere "${who}" cannot stand`
+        );
+        ok = false;
       }
     });
+    // And that there is paved road between the legs, starting from wherever
+    // the episode parked the car: a scene that cannot drive its truck out of
+    // the lot is a week of story where nothing happens (as `checkVehicle`).
+    if (ok && drives && paved) {
+      const parked = (episode.vehicles ?? []).find(
+        (vehicle) => vehicle.id === who.slice(SCENE_VEHICLE.length) && vehicle.map === mapId
+      );
+      const drive = driveable(map);
+      const legs = [...(parked?.pos ? [parked.pos] : []), ...(tiles as Vec2[])];
+      for (let i = 1; i < legs.length; i++) {
+        const from = legs[i - 1];
+        const to = legs[i];
+        if (from[0] === to[0] && from[1] === to[1]) continue;
+        if (!findPath(from, (x, y) => x === to[0] && y === to[1], drive)) {
+          problems.push(`${at} cannot drive from ${from.join(',')} to ${to.join(',')} — no paved way through`);
+        }
+      }
+    }
     return;
   }
 
@@ -663,12 +737,15 @@ function checkLight(light: LightSpec, at: string, map: GameMap | undefined, prob
 }
 
 /**
- * A map's own vehicles, read defensively: they arrive with their own issue and
- * a world without them simply has none for a scene to name.
+ * Every car a scene on this map could name: the map's own, and the running
+ * episode's (DESIGN.md §3). Read defensively — they arrive with their own
+ * issues, and a world or an episode without any simply has none for a scene
+ * to name.
  */
-function vehiclesOn(world: World, mapId: string): string[] {
+function vehiclesOn(world: World, episode: Episode, mapId: string): string[] {
   const meta = world.maps[mapId] as { vehicles?: { id?: string }[] } | undefined;
-  return (meta?.vehicles ?? []).map((vehicle) => vehicle?.id ?? '').filter(Boolean);
+  const own = (episode.vehicles ?? []).filter((vehicle) => vehicle?.map === mapId);
+  return [...(meta?.vehicles ?? []), ...own].map((vehicle) => vehicle?.id ?? '').filter(Boolean);
 }
 
 // --- map overlays (DESIGN.md §3) ---------------------------------------------
