@@ -156,7 +156,13 @@ opt-in, everything warm and affectionate) before it reaches the player.
 - **Stamford Coffee.** Feels transplanted straight out of Brooklyn — hip
   crowd, always busy, good sandwiches and baked goods. A fun beat for a
   visiting-the-big-city-in-miniature moment, or a character who moved up
-  from the city and feels instantly at home there.
+  from the city and feels instantly at home there. A prior owner once said
+  he hadn't realized running a coffee shop meant really being in the milk
+  business — a genuinely funny, true line about the unglamorous logistics
+  behind a nice cup of coffee. Don't attribute it to a real named person
+  (hard rule 5, and no name was given anyway); it works as something the
+  current fictional owner or a longtime regular says, retelling it as
+  local lore ("the old owner used to say...").
 - **Middle Brook Cafe's lot.** Dollar General had been eyeing that land
   before the cafe went in — locals are quietly glad DG ended up down the
   road to the east instead. Frame this warmly (relief that the cafe is
