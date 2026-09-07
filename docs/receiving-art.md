@@ -7,12 +7,18 @@ it and its branch is `agent/27/<building>`.
 
 ## Where submissions arrive
 
-Pressing **Send it to the town** in the Studio posts the drawing to the Google
-Form named in the world pack (`submit.art` in `world.json`), so submissions
-land as rows in that form's responses sheet: building id, world id, the credit
-name, the `MSA1|…` code, and anything the painter wanted to say. Tom pastes the
-row's code here exactly as he used to paste an email. Nothing else changes —
-the code is the same code, and `decode-art` reads it the same way.
+Pressing **Send it to the town** in the Studio opens the Google Form named in
+the world pack (`submit.art` in `world.json`), in a new tab, prefilled — the
+painter presses Submit there themselves, on Google's own page, so submissions
+appear as rows in that form's responses sheet: building id, world id, the
+credit name, the `MSA1|…` code, and anything the painter wanted to say. Tom
+pastes the row's code here exactly as he used to paste an email. Nothing else
+changes — the code is the same code, and `decode-art` reads it the same way.
+
+A large, finished-size drawing makes too long a link to prefill reliably, so
+the Studio leaves the code out of it and has the painter copy it instead —
+those arrive as a code pasted into the form's own "code" box by the artist,
+rather than one the link carried in for them. They read exactly the same way.
 
 Email still arrives too, and is just as welcome: the Studio offers the address
 under "Didn't go through?", anyone painting in another app emails their PNG,
