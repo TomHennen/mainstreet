@@ -105,15 +105,14 @@ quickly; it's the invitation this whole project runs on.
 
 ## Buildings waiting for an artist
 
-None of Route 10's buildings are painted yet — every one below is still a
-placeholder box, and any of them is up for grabs:
+Middle Brook Cafe has its first coat (thank you, Tom and Lana). Every
+building below is still a placeholder box, and any of them is up for grabs:
 
 | Building | Village | Size (pixels) |
 | --- | --- | --- |
 | Jefferson Town Hall (`jefferson-town-hall`) | Jefferson | 80 × 48 |
 | Mill Pond Inn (`mill-pond-inn`) | Jefferson | 80 × 48 |
 | Heartbreak Hotel (`heartbreak-hotel`) | Jefferson | 80 × 48 |
-| Middle Brook Cafe (`middle-brook-cafe`) | Jefferson | 80 × 48 |
 | Stewart's (`stewarts`) | Stamford | 96 × 64 |
 | Mac-A-Doodles (`mac-a-doodles`) | Stamford | 64 × 48 |
 | Stamford Coffee (`stamford-coffee`) | Stamford | 80 × 48 |
