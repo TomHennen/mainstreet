@@ -525,6 +525,59 @@ async function expectDialogue(page, milestone, what) {
   return s;
 }
 
+/**
+ * Plays out whatever scene an episode stages on the map the player is standing
+ * on right now — the evening coming on outside a lit room, say (DESIGN.md §3).
+ * Which scene that is comes from the episode's own data and the flags that are
+ * actually set, so the harness never has to be told one exists.
+ *
+ * A scene's `say` waits for the box to be read, and the box does not open on
+ * the frame the map appears: it opens once the threshold card is down and the
+ * scene has had a turn. So this waits for the line the step names, checks it
+ * is that line, reads it, and waits for the scene to finish — which is what
+ * keeps a walk started afterwards from being interrupted by it.
+ */
+async function playStagedScene(page, episode, mapId, except) {
+  const now = await snap(page);
+  const staged = (episode.scenes ?? []).find(
+    (sc) =>
+      sc.on?.enter === mapId &&
+      sc.id !== except &&
+      (sc.on.requires ?? []).every((f) => now.flags[f]) &&
+      now.flags[`scene:${sc.id}`] !== true
+  );
+  if (!staged) return null;
+
+  log(`    a scene staged out here too: "${staged.id}"`);
+  const say = staged.steps.find((st) => st.say)?.say;
+  if (say) {
+    const line = await waitUntil(page, (st) => st.dialogueOpen, `"${staged.id}" to say its line`, 25000);
+    const speaker = say.who ? episode.npcs.find((n) => n.id === say.who)?.name : COPY.ui.narrator;
+    if (line.dialogue?.speaker !== speaker) {
+      fail('scene-staged', `"${staged.id}" named "${line.dialogue?.speaker}", expected "${speaker}"`);
+    }
+    if (line.dialogue?.text !== say.lines[0]) {
+      fail('scene-staged', `"${staged.id}" reads "${line.dialogue?.text}", expected "${say.lines[0]}"`);
+    }
+    log(`    ${speaker} — "${line.dialogue.text}"`);
+    await advanceDialogue(page, 'scene-staged', say.lines.length);
+  }
+
+  // A `once` scene records itself; one that may run again simply ends.
+  const done = await waitUntil(
+    page,
+    (st) => st.scene === null && (staged.once === false || st.flags[`scene:${staged.id}`] === true),
+    `"${staged.id}" to finish`,
+    30000
+  );
+  const lit = staged.steps.find((st) => st.light)?.light;
+  if (lit && done.light?.mode !== lit.mode) {
+    fail('scene-staged', `"${staged.id}" left the lights "${done.light?.mode}", expected "${lit.mode}"`);
+  }
+  if (lit) log(`    and it left the lights "${done.light.mode}"${lit.keep ? ', which a map change keeps' : ''}`);
+  return staged;
+}
+
 function expectFlag(state, milestone, name, want = true) {
   if (state.flags[name] !== want) {
     fail(milestone, `flag "${name}" is ${state.flags[name]}, expected ${want}. flags=${JSON.stringify(state.flags)}`);
@@ -2875,6 +2928,12 @@ async function main() {
       if (outsideMap !== WORLD.start.map) {
         fail('scene', `"${scene.id}" is behind a door on "${outsideMap}", which is not the start map`);
       }
+      // Anything this episode stages on the start map itself plays out before
+      // the walk to the door does. Nothing in the demo does — the scene out
+      // here waits on a flag the party sets — but a scene that fired on the
+      // opening spawn would otherwise take the controls mid-walk, and that is
+      // worth finding here rather than as a walk mysteriously interrupted.
+      await playStagedScene(cp, sceneEp, outsideMap, scene.id);
       await walkTo(cp, 'scene', building.door, { episode: sceneEp });
       await pressA(cp);
       const inside = await waitUntil(cp, (st) => st.map === scene.on.enter, `the door into "${scene.on.enter}"`, 25000);
@@ -2975,10 +3034,14 @@ async function main() {
           }
         }
       );
-      // The threshold card is still up on the frame the map changes, and a
-      // scene staged out here may have a line of its own to say first.
+      // The threshold card is still up on the frame the map changes, and it is
+      // the card, not the scene, that clears first: a scene staged out here
+      // only starts once the card is down, and its box opens a frame or two
+      // after that. Polling for "is a box open yet" right here would find
+      // nothing and walk straight into the line as it arrived, so what is
+      // waited for is the scene the episode actually stages, by name.
       await waitUntil(cp, (st) => !st.locked, 'the threshold card to clear', 20000);
-      for (let i = 0; i < 8 && (await snap(cp)).dialogueOpen; i++) await pressA(cp);
+      await playStagedScene(cp, sceneEp, outsideMap, scene.id);
       const outside = await snap(cp);
       const expectOverlays = (sceneEp.overlays ?? [])
         .filter((o) => o.map === outsideMap && (o.requires ?? []).every((f) => outside.flags[f]))
