@@ -132,6 +132,13 @@ describe('Driver', () => {
     expect(car.x).toBeLessThan(4);
   });
 
+  it('already points along its first leg before it sets off', () => {
+    const car = new Driver({ path: [[0, 1], [19, 1]], loop: false, speed: 6, pause: 5, drivable: ROAD });
+    expect(car.facing).toBe('right');
+    const back = new Driver({ path: [[19, 1], [0, 1]], loop: false, speed: 6, pause: 5, drivable: ROAD });
+    expect(back.facing).toBe('left');
+  });
+
   it('holds still for ever when it is parked', () => {
     const car = new Driver({ pos: [4, 1], speed: 6, drivable: ROAD, facing: 'left' });
     expect(car.parked).toBe(true);

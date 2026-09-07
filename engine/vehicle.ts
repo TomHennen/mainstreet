@@ -69,6 +69,15 @@ export interface DriveStep {
   blocked: (x: number, y: number) => boolean;
 }
 
+/** Which way something at `from` is pointing if it is off to `to`. */
+function headingTo(from: Vec2, to: Vec2 | undefined): Facing | undefined {
+  if (!to) return undefined;
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  if (dx === 0 && dy === 0) return undefined;
+  return Math.abs(dx) >= Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
+}
+
 export class Driver {
   readonly mover: Mover;
   /** 0 stopped, 1 at full speed; everything between is the brake or the pull-away. */
@@ -87,7 +96,10 @@ export class Driver {
     const start = options.pos ?? path[0] ?? [0, 0];
     this.mover = new Mover({
       home: [start[0], start[1]],
-      facing: options.facing,
+      // A car with somewhere to go already points that way on the frame it is
+      // first drawn, rather than sitting across the road for a moment while
+      // it works out which way it is going.
+      facing: options.facing ?? headingTo(start, path.find((point) => point[0] !== start[0] || point[1] !== start[1])),
       route: path.length
         ? {
             path,
