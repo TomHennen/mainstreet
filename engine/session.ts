@@ -75,15 +75,32 @@ export function signLinesFor(buildingId: string): string[] {
 }
 
 /**
+ * Joins painter names the way the plaque reads them out loud, no Oxford
+ * comma: one name alone, two joined by "and", three or more comma-separated
+ * with "and" before the last — "Tom", "Tom and Lana", "Tom, Lana and Alice".
+ * Shared by `creditFor` and by whatever else turns a `credits.json` entry
+ * (a single name today, or an array in order of contribution) into copy.
+ */
+export function joinCredits(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/**
  * A building's art credit, if it has one and is actually painted (DESIGN.md
  * §2/§4: "painted ones carry an art credit" — an unpainted building has
  * nothing to credit yet, even if credits.json names it ahead of time). Read
- * by the plaque beside the door, which is where the painter is thanked.
+ * by the plaque beside the door, which is where the painter — or painters —
+ * are thanked. A `credits.json` entry may be one name or an array of names,
+ * in order of contribution; either way this returns one joined line.
  */
 export function creditFor(buildingId: string): string | undefined {
   const { assets, credits } = session();
   if (!assets.buildings.has(buildingId)) return undefined;
-  return credits.buildings?.[buildingId];
+  const entry = credits.buildings?.[buildingId];
+  if (entry === undefined) return undefined;
+  return joinCredits(Array.isArray(entry) ? entry : [entry]);
 }
 
 /**

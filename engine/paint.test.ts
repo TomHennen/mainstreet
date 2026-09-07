@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { paintUrl } from './paint';
+import { improveUrl, paintUrl } from './paint';
 
 describe('paintUrl', () => {
   it('appends the building to a base that already has a query', () => {
@@ -23,5 +23,24 @@ describe('paintUrl', () => {
   it('offers no link when the world has no contribution page (CLAUDE.md #3)', () => {
     expect(paintUrl(undefined, 'stewarts')).toBeUndefined();
     expect(paintUrl('', 'stewarts')).toBeUndefined();
+  });
+});
+
+describe('improveUrl', () => {
+  it('appends the building and improve=1 to a base that already has a query', () => {
+    expect(improveUrl('https://example.test/studio/?world=route10', 'middle-brook-cafe')).toBe(
+      'https://example.test/studio/?world=route10&building=middle-brook-cafe&improve=1'
+    );
+  });
+
+  it('starts the query when the base has none, then adds improve=1', () => {
+    expect(improveUrl('https://example.test/studio/', 'middle-brook-cafe')).toBe(
+      'https://example.test/studio/?building=middle-brook-cafe&improve=1'
+    );
+  });
+
+  it('offers no link when the world has no contribution page, same as paintUrl', () => {
+    expect(improveUrl(undefined, 'middle-brook-cafe')).toBeUndefined();
+    expect(improveUrl('', 'middle-brook-cafe')).toBeUndefined();
   });
 });

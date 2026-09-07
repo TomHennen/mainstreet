@@ -57,6 +57,17 @@ function readJson<T>(file: string): T {
   return JSON.parse(readFileSync(file, 'utf8')) as T;
 }
 
+/**
+ * A `credits.json` entry is a name or an array of names, in order of
+ * contribution (engine/schema.ts `Credits`) — either way, every name has to
+ * be a real, non-empty string, and an array has to name at least one person.
+ */
+function isValidCredit(value: unknown): boolean {
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0 && value.every((name) => typeof name === 'string' && name.trim().length > 0);
+  return false;
+}
+
 /** Every file under `root`, as paths relative to it, forward-slashed. */
 function relFiles(root: string): string[] {
   const abs: string[] = [];
@@ -274,8 +285,12 @@ function validateWorldAssets(dir: string, worldId: string): void {
           fail(worldId, creditsFile, `credits.${section}.${id} — ${path}/${id}.png does not exist yet, nothing to credit`);
           continue;
         }
-        if (typeof text !== 'string' || !text.trim()) {
-          fail(worldId, creditsFile, `credits.${section}.${id} must be a non-empty string`);
+        if (!isValidCredit(text)) {
+          fail(
+            worldId,
+            creditsFile,
+            `credits.${section}.${id} must be a non-empty string, or a non-empty array of non-empty strings`
+          );
         }
       }
     }

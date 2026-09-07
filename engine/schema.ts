@@ -156,14 +156,18 @@ export interface World {
 /**
  * Art credits, loaded by convention from `worlds/<id>/credits.json` with
  * graceful fallback (no file = no credits, DESIGN.md §2/§4). Every field is
- * optional; keys are asset ids (building/npc/tileset ids), values are the
- * credit text shown in-game.
+ * optional; keys are asset ids (building/npc/tileset ids). A value is either
+ * a single name (as it has always been) or an array of names, in order of
+ * contribution, for something more than one person worked on — a repaint or
+ * a touch-up credits everyone who painted it. `engine/session.ts`'s
+ * `creditFor` (and the landing page's build step) turn either shape into one
+ * line to read: "Tom", "Tom and Lana", "Tom, Lana and Alice".
  */
 export interface Credits {
-  buildings?: Record<string, string>;
-  chars?: Record<string, string>;
-  portraits?: Record<string, string>;
-  tiles?: Record<string, string>;
+  buildings?: Record<string, string | string[]>;
+  chars?: Record<string, string | string[]>;
+  portraits?: Record<string, string | string[]>;
+  tiles?: Record<string, string | string[]>;
 }
 
 /** UI strings. Anything the player reads that is not episode dialogue. */
@@ -186,12 +190,23 @@ export interface WorldCopy {
      */
     paint?: string;
     /**
+     * Label on the link to the Studio, offered on a painted building's plaque
+     * so touching up the art is as close at hand as painting it the first
+     * time (DESIGN.md §2). No label means no link — the plaque still reads
+     * fine on its own. The engine points it at the same building, with
+     * `improve=1` added so the Studio opens with the shipped painting
+     * already on the canvas (`engine/paint.ts` `improveUrl`).
+     */
+    improve?: string;
+    /**
      * What the little plaque beside a building's door says (DESIGN.md §2/§4).
      * It is the one place in the game where art is talked about, so the sign
      * box can stay entirely story: `painted` thanks the painter named in
      * `credits.json`, `anonymous` covers a painted building with no credit on
      * file, and `unpainted` is the invitation, shown beside the "Paint it"
-     * link. `{building}` and `{credit}` are substituted.
+     * link. `{building}` and `{credit}` are substituted; `{credit}` reads as
+     * one or more names joined in a list ("Tom, Lana and Alice") when
+     * `credits.json` names more than one painter.
      */
     plaque: {
       painted: string;

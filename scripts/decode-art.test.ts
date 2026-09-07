@@ -227,8 +227,47 @@ describe('decodeArt', () => {
 
     expect(() => decodeArt({ code, credit: 'Second', worldsDir })).toThrow(/already exists/);
 
+    // A --force repaint of an already-credited building appends the new
+    // painter rather than dropping the first one — see the tests below.
     const result = decodeArt({ code, credit: 'Second', worldsDir, force: true });
     const credits = JSON.parse(readFileSync(result.creditsPath, 'utf8'));
-    expect(credits.buildings[BUILDING]).toBe('Second');
+    expect(credits.buildings[BUILDING]).toEqual(['First', 'Second']);
+    expect(result.creditText).toBe('First and Second');
+  });
+
+  it('appends a new name to the credit when --force repaints a building that already has one', () => {
+    const pixels = solidPixels(WIDTH, HEIGHT, 255);
+    const code = encode({ world: 'route10', building: BUILDING, width: WIDTH, height: HEIGHT, pixels });
+    decodeArt({ code, credit: 'Tom', worldsDir });
+    decodeArt({ code, credit: 'Lana', worldsDir, force: true });
+    const result = decodeArt({ code, credit: 'Alice', worldsDir, force: true });
+
+    const credits = JSON.parse(readFileSync(result.creditsPath, 'utf8'));
+    expect(credits.buildings[BUILDING]).toEqual(['Tom', 'Lana', 'Alice']);
+    expect(result.creditText).toBe('Tom, Lana and Alice');
+  });
+
+  it('does not duplicate a name that is already on the credit', () => {
+    const pixels = solidPixels(WIDTH, HEIGHT, 255);
+    const code = encode({ world: 'route10', building: BUILDING, width: WIDTH, height: HEIGHT, pixels });
+    decodeArt({ code, credit: 'Tom', worldsDir });
+    decodeArt({ code, credit: 'Lana', worldsDir, force: true });
+    const result = decodeArt({ code, credit: 'Tom', worldsDir, force: true });
+
+    const credits = JSON.parse(readFileSync(result.creditsPath, 'utf8'));
+    expect(credits.buildings[BUILDING]).toEqual(['Tom', 'Lana']);
+    expect(result.creditText).toBe('Tom and Lana');
+  });
+
+  it('replaces the credit instead of appending when --replace-credit is given', () => {
+    const pixels = solidPixels(WIDTH, HEIGHT, 255);
+    const code = encode({ world: 'route10', building: BUILDING, width: WIDTH, height: HEIGHT, pixels });
+    decodeArt({ code, credit: 'Tom', worldsDir });
+    decodeArt({ code, credit: 'Lana', worldsDir, force: true });
+    const result = decodeArt({ code, credit: 'Alice', worldsDir, force: true, replaceCredit: true });
+
+    const credits = JSON.parse(readFileSync(result.creditsPath, 'utf8'));
+    expect(credits.buildings[BUILDING]).toBe('Alice');
+    expect(result.creditText).toBe('Alice');
   });
 });

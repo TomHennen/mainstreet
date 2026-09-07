@@ -5,6 +5,7 @@ import {
   itemsOn,
   itemTaken,
   itemVisible,
+  joinCredits,
   npcsOn,
   propSignsOn,
   signFor,
@@ -261,6 +262,49 @@ describe('session helpers', () => {
     it('returns undefined for a painted building with no credit', () => {
       boot(fakeFlags([]), { assets: { ...assets, buildings: new Set(['shop']) } });
       expect(creditFor('shop')).toBeUndefined();
+    });
+
+    it('joins an array credit into one line, in the order given', () => {
+      boot(fakeFlags([]), {
+        assets: { ...assets, buildings: new Set(['shop']) },
+        credits: { buildings: { shop: ['Tom', 'Lana', 'Alice'] } }
+      });
+      expect(creditFor('shop')).toBe('Tom, Lana and Alice');
+    });
+
+    it('joins a two-name array credit with "and" and no comma', () => {
+      boot(fakeFlags([]), {
+        assets: { ...assets, buildings: new Set(['shop']) },
+        credits: { buildings: { shop: ['Tom', 'Lana'] } }
+      });
+      expect(creditFor('shop')).toBe('Tom and Lana');
+    });
+
+    it('treats a single-element array credit the same as a plain string', () => {
+      boot(fakeFlags([]), {
+        assets: { ...assets, buildings: new Set(['shop']) },
+        credits: { buildings: { shop: ['Tom'] } }
+      });
+      expect(creditFor('shop')).toBe('Tom');
+    });
+  });
+
+  describe('joinCredits', () => {
+    it('returns an empty string for no names', () => {
+      expect(joinCredits([])).toBe('');
+    });
+
+    it('returns the name itself for one name', () => {
+      expect(joinCredits(['Tom'])).toBe('Tom');
+    });
+
+    it('joins two names with "and"', () => {
+      expect(joinCredits(['Tom', 'Lana'])).toBe('Tom and Lana');
+    });
+
+    it('joins three or more names with commas and "and" before the last, no Oxford comma', () => {
+      expect(joinCredits(['Tom', 'Lana', 'Alice'])).toBe('Tom, Lana and Alice');
+      expect(joinCredits(['Tom', 'Lana', 'Alice', 'Sam'])).toBe('Tom, Lana, Alice and Sam');
     });
   });
 

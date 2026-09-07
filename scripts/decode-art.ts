@@ -9,6 +9,7 @@
  *   npm run decode-art -- <code-or-file> --credit "Their Name"
  *   npm run decode-art -- --stdin --credit "Their Name"
  *   npm run decode-art -- <code-or-file> --credit "Their Name" --force
+ *   npm run decode-art -- <code-or-file> --credit "Their Name" --force --replace-credit
  *   npm run decode-art -- <code-or-file> --credit "Their Name" --door 2 --plaque 3
  *
  * `<code-or-file>` is either the MSA1 code itself, or a path to a text file
@@ -28,7 +29,13 @@
  *     writes worlds/<world>/assets/buildings/<building>.png. Refuses to
  *     overwrite an existing file unless --force is given.
  *  4. Adds or updates the credit in worlds/<world>/credits.json, creating the
- *     file if it doesn't exist yet, keeping its keys sorted.
+ *     file if it doesn't exist yet, keeping its keys sorted. A first painting
+ *     writes the one name given. Repainting an already-credited building with
+ *     --force *appends* --credit's name to the list (a touch-up thanks
+ *     everyone who worked on it, in order) unless that name is on the list
+ *     already, or --replace-credit says to replace the list instead of
+ *     growing it. Either way the credit as it now reads is printed, so it is
+ *     obvious at a glance whether it grew or was replaced.
  *  5. Moves the building's door and plaque in world.json, if the artist said
  *     where they wanted them: a Studio code can carry the two columns (see
  *     studio/codec.ts), and `--door <col>` / `--plaque <col>` say the same
@@ -60,6 +67,7 @@ import { decodePng, encodePng } from './png.ts';
 import { parseTiledMap, parseTileset, tilesetSources } from '../engine/tiled.ts';
 import type { TilesetDef } from '../engine/tiled.ts';
 import { validateWorld } from '../engine/validate.ts';
+import { joinCredits } from '../engine/session.ts';
 import type { Credits, GameMap, World } from '../engine/schema.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -82,6 +90,13 @@ export interface DecodeArtOptions {
   worldsDir?: string;
   /** Overwrite an existing PNG. Defaults to false. */
   force?: boolean;
+  /**
+   * When `force` repaints a building that already has a credit, replace that
+   * credit with just this one name instead of appending to it. Defaults to
+   * false (append). Ignored on a building's first painting, or repainted by
+   * whoever is already the only credited name — see decodeArt's docstring.
+   */
+  replaceCredit?: boolean;
   /** Run validate-assets.ts afterwards as a sanity check. Defaults to true. */
   validate?: boolean;
   /**
@@ -102,6 +117,12 @@ export interface DecodeArtResult {
   worldPath: string | null;
   /** The columns the drawing asked for, for saying so out loud. */
   columns: { door: number | null; plaque: number | null } | null;
+  /**
+   * The building's credit as it now reads, joined the way the plaque reads
+   * it — "Jordan R." or "Tom, Lana and Alice" — worth printing so an append
+   * or a replace is visible immediately.
+   */
+  creditText: string;
   /** Output of the validate-assets check, if it ran. */
   validateOutput: string;
 }
@@ -368,7 +389,21 @@ export function decodeArt(options: DecodeArtOptions): DecodeArtResult {
       throw new IntakeError(`Could not read ${creditsPath}: ${describeError(error)}`);
     }
   }
-  credits.buildings = sortObject({ ...(credits.buildings ?? {}), [drawing.building]: credit });
+  // A first painting simply names its painter. Repainting an already-
+  // credited building with --force names everyone who worked on it, in
+  // order — this credit joins the list rather than replacing it, unless the
+  // name is on the list already (nothing to add) or --replace-credit says to
+  // start the list over with just this one name.
+  const priorCredit = credits.buildings?.[drawing.building];
+  const priorNames = priorCredit === undefined ? [] : Array.isArray(priorCredit) ? priorCredit : [priorCredit];
+  const names =
+    options.force && priorNames.length > 0 && !options.replaceCredit
+      ? priorNames.includes(credit)
+        ? priorNames
+        : [...priorNames, credit]
+      : [credit];
+  const creditText = joinCredits(names);
+  credits.buildings = sortObject({ ...(credits.buildings ?? {}), [drawing.building]: names.length === 1 ? names[0] : names });
   writeFileSync(creditsPath, `${JSON.stringify(sortObject(credits as Record<string, unknown>), null, 2)}\n`);
 
   // world.json is pretty-printed with two spaces and a trailing newline; this
@@ -377,7 +412,7 @@ export function decodeArt(options: DecodeArtOptions): DecodeArtResult {
 
   const validateOutput = options.validate === false ? '' : runValidateAssets(worldsDir);
 
-  return { drawing, pngPath, creditsPath, worldPath: moved ? worldFile : null, columns, validateOutput };
+  return { drawing, pngPath, creditsPath, worldPath: moved ? worldFile : null, columns, creditText, validateOutput };
 }
 
 // --- CLI ---------------------------------------------------------------
@@ -386,6 +421,7 @@ interface CliArgs {
   positional?: string;
   credit?: string;
   force: boolean;
+  replaceCredit: boolean;
   stdin: boolean;
   worldsDir?: string;
   door?: number;
@@ -405,7 +441,7 @@ function readColumn(flag: string, value: string | undefined): number {
 }
 
 function parseArgs(argv: string[]): CliArgs {
-  const args: CliArgs = { force: false, stdin: false };
+  const args: CliArgs = { force: false, replaceCredit: false, stdin: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--credit') {
@@ -414,6 +450,8 @@ function parseArgs(argv: string[]): CliArgs {
       args.credit = arg.slice('--credit='.length);
     } else if (arg === '--force') {
       args.force = true;
+    } else if (arg === '--replace-credit') {
+      args.replaceCredit = true;
     } else if (arg === '--stdin') {
       args.stdin = true;
     } else if (arg === '--worlds-dir') {
@@ -470,12 +508,13 @@ function main(): void {
       credit: args.credit,
       worldsDir,
       force: args.force,
+      replaceCredit: args.replaceCredit,
       door: args.door,
       plaque: args.plaque
     });
 
     console.log(`Wrote ${relative(REPO_ROOT, result.pngPath)}`);
-    console.log(`Updated ${relative(REPO_ROOT, result.creditsPath)}`);
+    console.log(`Updated ${relative(REPO_ROOT, result.creditsPath)} — credit now reads "${result.creditText}"`);
     if (result.columns) {
       const said = [
         result.columns.door === null ? '' : `door in column ${result.columns.door}`,
