@@ -685,7 +685,7 @@ ${cards}
 
     <section>
       <h2>The buildings are painted by people</h2>
-      <p>Every painted building in the game was drawn by a person, usually someone who lives there or loves the place. The buildings nobody has painted yet stand as plain placeholder boxes on purpose, waiting for whoever knows what they look like. The code, the maps and the tools are built with help from AI. No AI-made art goes into the towns.</p>
+      <p>Every painted building in the game was drawn by a person, usually someone who lives there or loves the place. The buildings nobody has painted yet stand as plain placeholder boxes on purpose, waiting for whoever knows what they look like. The code, the maps and the tools are built with help from AI, and that includes the plain placeholder look itself &mdash; the boxes, the tiles, the simple townspeople &mdash; before anyone paints over it. But the finished art you see once a building, a face or a portrait is actually painted is never AI-made.</p>
 ${painted}
       <p class="do"><a href="${escapeHtml(studioHref)}">Paint a building &rarr;</a></p>
       <p class="note">No account, nothing to install. Every painter is thanked on a small plaque beside that building&rsquo;s door.</p>
