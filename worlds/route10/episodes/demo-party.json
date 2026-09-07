@@ -1,6 +1,9 @@
 {
   "id": "demo-party",
   "title": "A Night at the Belvedere",
+  "intro": [
+    "Up Academy Street, the Belvedere has its lights on early tonight."
+  ],
   "flags": ["chalkedUp", "done"],
   "npcs": [
     {

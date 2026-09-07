@@ -1226,7 +1226,20 @@ async function main() {
     const booted = await waitUntil(page, (s) => s.dialogueOpen, 'the intro dialogue to open');
     await shot(page, 'boot-intro');
     if (booted.map !== WORLD.start.map) fail('boot', `started on "${booted.map}"`);
-    await advanceDialogue(page, 'boot', 3);
+    // The opening card is the world's own intro (copy.json, episode-neutral)
+    // followed by this episode's own `intro` (DESIGN.md §3) — one card, the
+    // world's scene-setting first and then this week's opening line(s).
+    const introLines = [...(COPY.intro?.lines ?? []), ...(EPISODE.intro ?? [])];
+    const introPages = await readDialogue(page, 'boot', introLines.length, async (i) => {
+      const on = (await snap(page)).dialogue;
+      if (on?.text !== introLines[i]) {
+        fail('boot', `intro page ${i + 1} reads "${on?.text}", expected "${introLines[i]}"`);
+      }
+    });
+    if (introPages !== introLines.length) {
+      fail('boot', `intro read ${introPages} page(s) for ${introLines.length} line(s) (world intro + "${PLAYTEST_EPISODE}".intro)`);
+    }
+    log(`    intro: ${introPages} page(s), ending on "${introLines[introLines.length - 1]}"`);
     await shot(page, 'boot-dismissed');
 
     // --- Earl ---------------------------------------------------------------
@@ -3192,6 +3205,42 @@ async function main() {
       // Back to the plain map for whatever runs after this.
       overlaySolid.clear();
       await cctx.close();
+    }
+
+    // --- an episode's own opening card (issue #37) ---------------------------
+    // The world's intro (copy.json) is episode-neutral; each episode may add
+    // its own `intro` lines after it (DESIGN.md §3), shown on the same card.
+    // The boot section above already checked this for PLAYTEST_EPISODE (ep000
+    // by default) — its own line, not some other episode's leftover. This
+    // checks a second, different episode by id, so a hard-coded line that
+    // happened to still be right for ep000 would not slip through unnoticed.
+    {
+      const otherId = PLAYTEST_EPISODE === 'ep001' ? 'ep000' : 'ep001';
+      const otherFile = resolve(PACK, 'episodes', `${otherId}.json`);
+      if (existsSync(otherFile)) {
+        log(`  the opening card for "${otherId}"`);
+        const other = readJson(otherFile);
+        const octx = await browser.newContext({ viewport: { width: 620, height: 900 }, deviceScaleFactor: 1 });
+        const op = await octx.newPage();
+        attach(op, 'other-intro');
+        try {
+          await op.goto(`${BASE}?episode=${encodeURIComponent(otherId)}`, { waitUntil: 'load' });
+          await waitUntil(op, (s) => s.dialogueOpen, `"${otherId}"'s intro to open`);
+          const otherLines = [...(COPY.intro?.lines ?? []), ...(other.intro ?? [])];
+          const otherPages = await readDialogue(op, 'other-intro', otherLines.length, async (i) => {
+            const on = (await snap(op)).dialogue;
+            if (on?.text !== otherLines[i]) {
+              fail('other-intro', `"${otherId}" intro page ${i + 1} reads "${on?.text}", expected "${otherLines[i]}"`);
+            }
+          });
+          if (otherPages !== otherLines.length) {
+            fail('other-intro', `"${otherId}" intro read ${otherPages} page(s) for ${otherLines.length} line(s)`);
+          }
+          log(`    "${otherId}"'s own line: "${(other.intro ?? []).at(-1) ?? '(none)'}"`);
+        } finally {
+          await octx.close();
+        }
+      }
     }
 
     // --- townspeople who walk -----------------------------------------------

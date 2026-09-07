@@ -471,6 +471,23 @@ about while the story waits. `pos` stays the tile they start on and the one an
 author places them by; they are simply not always standing on it, and they
 stop as soon as the player is close enough to talk to them.
 
+An episode may carry its own `intro`, an array of lines shown right after
+`copy.json`'s world `intro` on a fresh start of that episode — never on
+Continue, since that is exactly when the world intro is skipped too. The world
+intro is episode-neutral: it sets the place and the controls, once, and never
+mentions any one week's story. An episode's `intro` is what says what this
+particular week is about, in the same voice, added onto the same opening card
+rather than a separate one. Optional; an episode with nothing to add here
+simply adds nothing.
+
+An episode may also carry `smallTalk`, an array of lines that take the place
+of `copy.json`'s `ui.passerby` for the length of that episode: a world person
+with no dialogue of their own ordinarily says one of `ui.passerby`'s lines,
+picked by their id so the same person always says the same thing, and
+`smallTalk` is the same mechanism with the running episode's own list, so what
+the village is chatting about can change with the week's story. Optional;
+without it, `ui.passerby` keeps standing.
+
 ### Scenes
 
 A **scene** is a staged moment: the lights going up at the Belvedere, three

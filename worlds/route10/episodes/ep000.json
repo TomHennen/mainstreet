@@ -1,6 +1,9 @@
 {
   "id": "ep000",
   "title": "The Crossword Pen",
+  "intro": [
+    "The fellow out front looks like he's lost something."
+  ],
   "flags": [
     "metEarl",
     "hasPen",

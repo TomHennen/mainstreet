@@ -1,6 +1,15 @@
 {
   "id": "ep001",
   "title": "The Dog Who Got Around",
+  "intro": [
+    "There are lost-dog flyers in every window on Main Street. Earl, out front of Stewart's, will know the story."
+  ],
+  "smallTalk": [
+    "Has anybody actually caught that dog yet, or is he still just enjoying himself?",
+    "Another wet one. The pond's never looked so full.",
+    "My tomatoes don't know what month it is.",
+    "I heard he turned up on somebody's porch and then just left again, like he had somewhere to be."
+  ],
   "flags": ["metEarl", "sawHobart", "sawJefferson", "gotDog", "done"],
   "npcs": [
     {

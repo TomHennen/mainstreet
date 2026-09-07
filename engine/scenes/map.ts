@@ -416,7 +416,11 @@ export class MapScene extends Phaser.Scene {
     const state = session();
     if (data.intro && !state.introShown && state.copy.intro) {
       state.introShown = true;
-      bus.emit(EV.say, { speaker: state.copy.intro.speaker, lines: state.copy.intro.lines });
+      // The world intro sets the place and the controls; an episode's own
+      // `intro` (DESIGN.md §3) follows it in the same card, in the same
+      // voice, with this week's opening line or two.
+      const lines = [...state.copy.intro.lines, ...(state.episode.intro ?? [])];
+      bus.emit(EV.say, { speaker: state.copy.intro.speaker, lines });
     }
 
     // Anything this episode stages on arriving here (DESIGN.md §3). It queues
