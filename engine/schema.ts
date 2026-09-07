@@ -153,10 +153,25 @@ export interface Wander {
 /**
  * A townsperson who belongs to the village rather than to any one story
  * (DESIGN.md §2): somebody on the street when no episode is running, so a map
- * is not empty between weeks. They have a look and somewhere to be, and no
- * dialogue at all — pressing A gets one kind passing line from `copy.json`
- * `ui.passerby`, picked from the list by their id so the same person always
- * says the same thing. Anybody with something to say is an episode NPC.
+ * is not empty between weeks. They have a look and somewhere to be, and by
+ * default no dialogue at all — pressing A gets one kind passing line from
+ * `copy.json` `ui.passerby`, picked from the list by their id so the same
+ * person always says the same thing.
+ *
+ * `lines`, when given, is that person's own standing line instead — one or
+ * two pages, in their own voice, the same every time (a barista behind a
+ * counter, say). It shows with `name` (or `copy.json`'s `ui.passerbyName`) as
+ * the speaker, exactly like an episode NPC's dialogue, but it is still not a
+ * story: it never branches on a flag and never sets one. Anybody whose line
+ * needs to change with the story is an episode NPC instead.
+ *
+ * A person with neither `route` nor `wander` simply stands still on `pos` —
+ * useful for someone posted behind a counter. The validator only checks that
+ * `pos` itself is stand-able ground, never that a player could actually walk
+ * there, so a spot in a staff strip sealed off from the rest of the room
+ * (see `engine/validate.ts`, and `scripts/make-room.ts`'s `sealStrip`) is
+ * fine: the player talks to them across the counter, within an interior's
+ * talking reach, not by walking up to them (engine/scenes/map.ts).
  */
 export interface Person {
   id: string;
@@ -169,6 +184,8 @@ export interface Person {
   look?: Look;
   route?: Route;
   wander?: Wander;
+  /** This person's own standing line(s), in place of `ui.passerby`. See above. */
+  lines?: string[];
 }
 
 export interface MapExit {

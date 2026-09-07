@@ -1309,6 +1309,32 @@ async function main() {
       await shot(page, `${place.id}-interior`);
       log(`    tapped ${place.door} from ${doorstep} -> in at ${landed}, ${room.width}x${room.height} tiles`);
 
+      // Anybody posted behind the counter (DESIGN.md §2): a world person with
+      // their own `lines`, standing in a staff strip the player can never walk
+      // into, talked to across the counter at an interior's talking reach
+      // (2.3 tiles). The approach tile is two tiles the way they are facing,
+      // the same offset Hannah is talked to across Stewart's counter with.
+      const APPROACH_STEP = { down: [0, 2], up: [0, -2], left: [-2, 0], right: [2, 0] };
+      for (const person of room.people ?? []) {
+        const who = `${place.id}-${person.id}`;
+        const [dx, dy] = APPROACH_STEP[person.facing ?? 'down'];
+        log(`  talk to ${person.name ?? person.id} behind the counter in ${name}`);
+        await walkTo(page, who, [person.pos[0] + dx, person.pos[1] + dy]);
+        await pressA(page);
+        await expectDialogue(page, who, person.name ?? person.id);
+        await shot(page, who);
+        const said = await snap(page);
+        const expectedSpeaker = person.name || COPY.ui.passerbyName || '';
+        if (said.dialogue?.speaker !== expectedSpeaker) {
+          fail(who, `speaker was "${said.dialogue?.speaker}", expected "${expectedSpeaker}"`);
+        }
+        if (said.dialogue?.text !== person.lines[0]) {
+          fail(who, `first line was "${said.dialogue?.text}", expected "${person.lines[0]}"`);
+        }
+        await advanceDialogue(page, who, person.lines.length);
+        log(`    ${expectedSpeaker || '(no name)'}: "${person.lines[0]}"`);
+      }
+
       // The furniture. The room's spec — worlds/<world>/rooms/<map>.json, the
       // very thing `make-room` was handed — says what was put where, so the
       // harness can insist a counter, a bar or a stage really does block its

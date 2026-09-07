@@ -120,6 +120,8 @@ interface Walker {
   name: string;
   /** The episode entry, when this person is part of the story. */
   npc?: EpisodeNpc;
+  /** The world pack entry, when this is a townsperson rather than an episode NPC. */
+  person?: Person;
   mover: Mover;
   sprite: Phaser.GameObjects.Sprite;
 }
@@ -624,7 +626,7 @@ export class MapScene extends Phaser.Scene {
       walkable: (x, y) => this.ground(x, y),
       seed: hashId(who.id)
     });
-    this.walkers.push({ id: who.id, name: who.name, npc: who.npc, mover, sprite });
+    this.walkers.push({ id: who.id, name: who.name, npc: who.npc, person: who.person, mover, sprite });
   }
 
   /**
@@ -663,11 +665,13 @@ export class MapScene extends Phaser.Scene {
 
   /**
    * Whether pressing A on this person does anything. An episode NPC always has
-   * something to say; a village's own townsperson only where the world pack
-   * wrote a passing line for them to say (hard rule 3).
+   * something to say; a village's own townsperson only where they carry their
+   * own `lines`, or the world pack wrote a passing line for them to say
+   * (hard rule 3).
    */
   private canTalkTo(walker: Walker): boolean {
     if (walker.npc) return true;
+    if (walker.person?.lines?.length) return true;
     return (session().copy.ui.passerby ?? []).length > 0;
   }
 
@@ -1365,15 +1369,19 @@ export class MapScene extends Phaser.Scene {
 
       const npc = walker.npc;
       if (!npc) {
-        // A townsperson with no story to tell: one kind line from the world's
-        // own copy, the same one every time (DESIGN.md §2).
-        const line = this.passerbyLine(walker.id);
-        if (!line) return;
+        // A townsperson with no story to tell: their own standing line, when
+        // the world pack gave them one (a barista behind a counter, say), and
+        // otherwise one kind passing line from the world's own copy, the same
+        // one every time (DESIGN.md §2).
+        const own = walker.person?.lines;
+        const passing = own?.length ? undefined : this.passerbyLine(walker.id);
+        const lines = own?.length ? own : passing ? [passing] : undefined;
+        if (!lines) return;
         bus.emit(EV.say, {
           // Their own name if the world pack gave them one, and otherwise the
           // world's word for somebody the player is passing in the street.
           speaker: walker.name || (state.copy.ui.passerbyName ?? ''),
-          lines: [line],
+          lines,
           portrait: state.assets.portraits.has(walker.id) ? `art:portrait:${walker.id}` : undefined
         });
         return;

@@ -168,8 +168,26 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
       }
       seen.add(person.id);
       checkLook(person.look, who, problems);
+      // "Stand-able" is per-tile only — solid, a doorstep, a plaque, an exit
+      // (moverWalkable) — never whether the tile connects to the door on
+      // foot, so somebody posted behind a counter in a staff strip sealed off
+      // from the room (unreachable on foot, same as Hannah's spot behind
+      // Stewart's counter) still validates fine: they are talked to across
+      // it, at an interior's talking reach (engine/scenes/map.ts), never
+      // walked up to.
       checkStand(map, person.pos, `${who}'s "pos"`, problems);
       checkMovement(person, map, who, problems);
+      if (person.lines !== undefined) {
+        if (!Array.isArray(person.lines) || person.lines.length === 0) {
+          problems.push(`${who} has "lines" that isn't a non-empty array`);
+        } else {
+          person.lines.forEach((line, index) => {
+            if (typeof line !== 'string' || line.trim() === '') {
+              problems.push(`${who} lines[${index}] is empty`);
+            }
+          });
+        }
+      }
     }
 
     for (const exit of map.exits) {
@@ -796,8 +814,8 @@ export function moverWalkable(map: GameMap): (x: number, y: number) => boolean {
   };
 }
 
-/** A tile somebody may be placed on, or walk to, with the reason if not. */
-function checkStand(map: GameMap, pos: Vec2 | undefined, context: string, problems: string[]): boolean {
+/** A tile that is at least on the map and shaped like one, with the reason if not. */
+function checkTile(map: GameMap, pos: Vec2 | undefined, context: string, problems: string[]): boolean {
   if (!Array.isArray(pos) || pos.length !== 2 || !pos.every((n) => Number.isInteger(n))) {
     problems.push(`${context} is not a tile like [12, 4]`);
     return false;
@@ -807,6 +825,13 @@ function checkStand(map: GameMap, pos: Vec2 | undefined, context: string, proble
     problems.push(`${context} is outside the map`);
     return false;
   }
+  return true;
+}
+
+/** A tile somebody may be placed on, or walk to, with the reason if not. */
+function checkStand(map: GameMap, pos: Vec2 | undefined, context: string, problems: string[]): boolean {
+  if (!checkTile(map, pos, context, problems)) return false;
+  const [x, y] = pos as Vec2;
   if (!moverWalkable(map)(x, y)) {
     problems.push(`${context} at ${x},${y} is somewhere nobody can stand — a wall, a doorstep, a plaque, a fixture or a way out of town`);
     return false;
