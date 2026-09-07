@@ -30,6 +30,7 @@ import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { joinCredits } from '../engine/session.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WORLDS_DIR = resolve(ROOT, 'worlds');
@@ -148,7 +149,12 @@ function paintedSoFar(id) {
   const world = JSON.parse(readFileSync(resolve(dir, 'world.json'), 'utf-8'));
   return Object.entries(buildings)
     .filter(([buildingId]) => existsSync(resolve(dir, 'assets', 'buildings', `${buildingId}.png`)))
-    .map(([buildingId, painter]) => ({ name: world.buildings?.[buildingId]?.name ?? buildingId, painter }))
+    .map(([buildingId, painter]) => ({
+      name: world.buildings?.[buildingId]?.name ?? buildingId,
+      // A credit is one name or an array of names in order of contribution
+      // (engine/schema.ts Credits) — joined the same way the plaque reads it.
+      painter: joinCredits(Array.isArray(painter) ? painter : [painter])
+    }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 

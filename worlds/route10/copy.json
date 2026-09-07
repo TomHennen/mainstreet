@@ -4,6 +4,7 @@
     "advance": "▼ tap / A",
     "unpainted": "Unpainted, for now. Somebody's going to draw this one.",
     "paint": "Paint it",
+    "improve": "Improve it?",
     "plaque": {
       "painted": "A little plaque by the door: {building}, painted by {credit}. Thank you, {credit}!",
       "anonymous": "A little plaque by the door: somebody painted {building} for everyone to enjoy. Thank you, whoever you are.",

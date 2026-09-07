@@ -88,10 +88,12 @@ one, it goes on top of your art — but where it hangs is yours to choose.
 Want to touch up a building that's already painted? Open it in the Studio
 and look for **Improve it?** — it brings in the painting as it stands in the
 game today, as real pixels you can change, rather than starting you over
-from the placeholder guide. Send it in the same way as anything else. A
-touch-up of someone else's painting gets credited to both of you, in the
-order you painted, unless the original painter has asked otherwise — just
-say so in the email if that's what's happening.
+from the placeholder guide. The building's own plaque, right there beside
+its door in the game, carries the same **Improve it?** link, so you don't
+have to go hunting for the Studio by hand. Send it in the same way as
+anything else. A touch-up of someone else's painting gets credited to both
+of you, in the order you painted, unless the original painter has asked
+otherwise — just say so in the email if that's what's happening.
 
 ## The kindness rule
 

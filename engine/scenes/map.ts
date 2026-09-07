@@ -19,7 +19,7 @@ import {
 import { currentDialogue, publishDebug } from '../debug';
 import { isHeld, onAction, onTap } from '../input';
 import { feedbackUrl } from '../feedback';
-import { paintUrl } from '../paint';
+import { improveUrl, paintUrl } from '../paint';
 import { findPath, pathToTile } from '../path';
 import { creditFor, dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signLinesFor } from '../session';
 import { isSolid } from '../validate';
@@ -706,10 +706,14 @@ export class MapScene extends Phaser.Scene {
 
       // The one place in the game that talks about the art, so the sign box
       // can stay entirely story (DESIGN.md §2/§4). A painted building thanks
-      // whoever painted it; an unpainted one asks, with the way in riding
-      // alongside every page rather than taking a line of its own.
+      // whoever painted it and offers a way to touch it up; an unpainted one
+      // asks, with the way in riding alongside every page rather than taking
+      // a line of its own.
       let template = painted ? (credit ? plaque?.painted : plaque?.anonymous) : plaque?.unpainted;
-      if (!painted) {
+      if (painted) {
+        const url = improveUrl(state.world.contribute, building.id);
+        if (url && state.copy.ui.improve) link = { url, label: state.copy.ui.improve };
+      } else {
         const url = paintUrl(state.world.contribute, building.id);
         if (url && state.copy.ui.paint) link = { url, label: state.copy.ui.paint };
       }

@@ -11,3 +11,15 @@ export function paintUrl(contribute: string | undefined, buildingId: string): st
   const separator = contribute.includes('?') ? '&' : '?';
   return `${contribute}${separator}building=${encodeURIComponent(buildingId)}`;
 }
+
+/**
+ * Where a painted building's plaque sends a player who would like to touch up
+ * the painting — the same Studio link `paintUrl` builds, with `improve=1`
+ * added so the Studio runs its "Improve it?" load on open instead of
+ * starting from a blank canvas (studio/studio.ts `main()`, DESIGN.md §2). No
+ * `contribute` means no link, exactly as `paintUrl`.
+ */
+export function improveUrl(contribute: string | undefined, buildingId: string): string | undefined {
+  const url = paintUrl(contribute, buildingId);
+  return url ? `${url}&improve=1` : undefined;
+}

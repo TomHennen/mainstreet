@@ -54,7 +54,9 @@ the name given, spelled as given. First name only is fine.
 
    For an attached PNG instead of a code: copy it to the same path, add the
    credit to `credits.json` by hand (`"buildings": { "<building>": "Their
-   Name" }`), and run `npm run validate-assets`. If they asked for the door
+   Name" }` for a first painting; an array of names in order of contribution,
+   e.g. `["Tom", "Lana"]`, for a repaint that already has one), and run
+   `npm run validate-assets`. If they asked for the door
    somewhere in particular, set `door` and `plaque` on every placement of that
    building in `world.json` by hand — both tiles are `[pos[0] + column,
    pos[1] + size[1]]`, the row just below the footprint — and run
@@ -81,17 +83,24 @@ the name given, spelled as given. First name only is fine.
 ## Repaints, removals and credit changes
 
 - A better version of an already painted building: same steps with
-  `--force`; keep the earlier painter in the PR body so the history shows
-  both, and ask Tom which credit line to show if the painters differ.
-- A touch-up made from the Studio's "Improve it?" button — which loads the
-  shipped painting back onto the canvas as real pixels to edit, rather than
-  starting from the placeholder guide — arrives exactly like any other
-  submission: a full facade code (or PNG), same steps with `--force`. There
-  is nothing in the code or the email that marks it as a touch-up rather
-  than a repaint from scratch. If it reads as the same painting with changes
-  rather than a new one, credit both the original painter and whoever
-  touched it up, in the order they painted, unless the original painter has
-  said otherwise; ask Tom if it's unclear which this is.
+  `--force`. `decode-art` handles the credit itself: `--credit "Their Name"`
+  is *appended* to whoever is already on the plaque, in the order they
+  painted ("Tom" becomes "Tom and Lana", then "Tom, Lana and Alice"), unless
+  that name is on the list already — nothing to add, so nothing changes — and
+  it prints the credit as it now reads, so check that line before opening the
+  PR. Ask Tom which credit to show only if the touch-up genuinely replaces
+  the earlier painting rather than building on it; pass `--replace-credit`
+  alongside `--force` to start the credit over with just the new name instead
+  of growing the list.
+- A touch-up made from the Studio's "Improve it?" — offered both on a
+  painted building's plaque in the game and as a button in the Studio itself,
+  and either way loads the shipped painting back onto the canvas as real
+  pixels to edit, rather than starting from the placeholder guide — arrives
+  exactly like any other submission: a full facade code (or PNG), same steps
+  with `--force`. There is nothing in the code or the email that marks it as
+  a touch-up rather than a repaint from scratch, but the append-by-default
+  behavior above means the ordinary case (crediting everyone who worked on
+  it) needs nothing extra from you.
 - Someone asks to change or remove their credit or their art: do it in one
   PR, no questions asked, and say so in the PR body.
 

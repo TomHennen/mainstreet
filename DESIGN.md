@@ -143,16 +143,20 @@ tile, given by a placement's `plaque` in `world.json`: by default the tile
 immediately right of the door, or immediately left when the door is already in
 the building's right-most column; `"plaque": false` opts a building out. The
 plaque is the one place in the game that talks about the art. Painted, it
-thanks whoever painted it, by name from `credits.json` (`copy.json`
-`ui.plaque.painted`, or `ui.plaque.anonymous` when no name is on file).
-Unpainted, it carries the invitation (`ui.plaque.unpainted`) alongside a
-"Paint it" link to the contribution page (`world.json` `contribute` is that
-URL; the engine appends `&building=<id>`), which sits beside the dialogue box
-for every page of it rather than taking a line of copy. That leaves the
-building's *sign* entirely to the story: no link, no credit, because meta text
-in the middle of the words gets in the way of reading. If the episode gives an
-unpainted building no sign copy at all, the box would open empty, so
-`copy.json` `ui.unpainted` supplies one short line instead.
+thanks whoever painted it, by name from `credits.json` — one name, or several
+joined in a list ("Tom, Lana and Alice") when more than one person worked on
+it — (`copy.json` `ui.plaque.painted`, or `ui.plaque.anonymous` when no name
+is on file), and offers **Improve it?**, which opens the Studio with that
+painting already loaded onto the canvas (`ui.improve`, `engine/paint.ts`
+`improveUrl`), for a touch-up rather than starting over. Unpainted, it
+carries the invitation (`ui.plaque.unpainted`) alongside a "Paint it" link to
+the contribution page (`world.json` `contribute` is that URL; the engine
+appends `&building=<id>`), which sits beside the dialogue box for every page
+of it rather than taking a line of copy. That leaves the building's *sign*
+entirely to the story: no link, no credit, because meta text in the middle of
+the words gets in the way of reading. If the episode gives an unpainted
+building no sign copy at all, the box would open empty, so `copy.json`
+`ui.unpainted` supplies one short line instead.
 
 **Street fixtures, and the suggestion box.** A map may list engine-drawn
 furniture that belongs to no building and no episode:
@@ -304,11 +308,14 @@ most continuity needs).
   constrained editor (locked canvas + palette + submit) — out of scope now,
   but nothing in the pipeline may preclude it.
 - Credits live in `worlds/<id>/credits.json` (optional, graceful fallback —
-  no file means no credits), validated by `validate-assets`. A painter is
-  thanked in-game on the little plaque beside that building's door (§2), and
-  listed on the site's front page under each world ("Painted so far"). A
-  credit is never appended to a building's sign dialogue: that box is for the
-  episode's copy.
+  no file means no credits), validated by `validate-assets`. Each entry is one
+  name, or an array of names in order of contribution when more than one
+  person painted or touched up the same building; `engine/session.ts`
+  `creditFor` joins either shape into one line ("Tom", "Tom and Lana", "Tom,
+  Lana and Alice"). A painter is thanked in-game on the little plaque beside
+  that building's door (§2), and listed on the site's front page under each
+  world ("Painted so far"). A credit is never appended to a building's sign
+  dialogue: that box is for the episode's copy.
 - Intake now: files land in the repo by PR/commit with credit in the commit
   message → surfaced as "painted by ___" on the site. Later: Cloudflare Worker
   accepts uploads from Studio, validates, and opens a PR automatically.

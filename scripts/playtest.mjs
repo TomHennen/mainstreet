@@ -651,9 +651,10 @@ async function main() {
     // --- a painted building: thanks on the plaque, story on the sign ---------
     // The painter is thanked on the plaque beside the door and named on the
     // site's front page — never in the sign, where it would interrupt the copy
-    // the player is reading (DESIGN.md §2/§4). So the plaque is one page of
-    // thanks with no studio link, and the sign is the episode's lines and
-    // nothing else.
+    // the player is reading (DESIGN.md §2/§4). The plaque also offers
+    // "Improve it?" (`ui.improve`, `engine/paint.ts` improveUrl), deep-linked
+    // to the Studio for a touch-up; the sign stays the episode's lines and
+    // nothing else, with no link at all.
     const painted = WORLD.maps.jefferson.buildings.find(
       (b) => !b.interior && existsSync(resolve(PACK, 'assets', 'buildings', `${b.id}.png`))
     );
@@ -666,13 +667,21 @@ async function main() {
       await walkTo(page, 'painted-plaque', paintedPlaque);
       await pressA(page);
       await expectDialogue(page, 'painted-plaque', `${painted.id}'s plaque`);
-      if (await deskLink.isVisible()) {
-        fail('painted-plaque', `a "Paint it" link showed on painted ${painted.id}'s plaque`);
+      if (!(await deskLink.isVisible())) {
+        fail('painted-plaque', `no "${COPY.ui.improve}" link showed on painted ${painted.id}'s plaque`);
+      }
+      const improveLabel = (await deskLink.innerText()).trim();
+      if (improveLabel !== COPY.ui.improve) {
+        fail('painted-plaque', `the plaque's link reads "${improveLabel}", expected "${COPY.ui.improve}"`);
+      }
+      const improveHref = (await deskLink.getAttribute('href')) ?? '';
+      if (!improveHref.includes(`building=${painted.id}`) || !improveHref.includes('improve=1')) {
+        fail('painted-plaque', `the plaque's link href "${improveHref}" is missing building=${painted.id} or improve=1`);
       }
       await shot(page, 'painted-plaque');
       const plaquePages = await readDialogue(page, 'painted-plaque', 1);
       if (plaquePages !== 1) fail('painted-plaque', `${painted.id}'s plaque read ${plaquePages} page(s), expected 1`);
-      log(`    ${painted.id}: plaque thanks its painter in one page, no link`);
+      log(`    ${painted.id}: plaque thanks its painter and offers "${improveLabel}" -> ${improveHref}`);
 
       log('  read a painted building: its sign');
       const paintedSign = (EPISODE.signs ?? []).find((s) => s.building === painted.id);
@@ -1383,6 +1392,38 @@ async function main() {
     await ip.locator('#stage').scrollIntoViewIfNeeded();
     await sleep(150);
     await shot(ip, 'improve-it');
+
+    // The plaque's "Improve it?" link (checked above) carries `&improve=1`,
+    // so opening the Studio that way should run the same fetch on its own,
+    // with no click needed — a fresh context, so there is no earlier draft
+    // in localStorage to make a stale pass either way.
+    log('  Studio: &improve=1 loads the painting on open, with no click');
+    const autoCtx = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      isMobile: false,
+      deviceScaleFactor: 1
+    });
+    const auto = await autoCtx.newPage();
+    attach(auto, 'studio-improve-auto');
+    await auto.goto(`${BASE}studio/?world=${WORLD_ID}&building=${anyPainted.id}&improve=1`, { waitUntil: 'load' });
+    await auto.waitForSelector('#markers', { timeout: 20000 });
+    const AUTO_DRAFT = `mainstreet.studio.v1.${WORLD_ID}.${anyPainted.id}`;
+    let autoCode = null;
+    for (let i = 0; i < 80; i++) {
+      autoCode = await auto.evaluate((key) => {
+        try {
+          return JSON.parse(localStorage.getItem(key) ?? '{}').code ?? null;
+        } catch {
+          return null;
+        }
+      }, AUTO_DRAFT);
+      if (autoCode) break;
+      await sleep(100);
+    }
+    if (!autoCode) fail('studio-improve-auto', '&improve=1 did not load a payload onto the canvas on open');
+    log(`    "${anyPainted.id}": opening with &improve=1 filled the canvas without a click`);
+    await autoCtx.close();
 
     log(`\n  ${PLAYTEST_EPISODE} completed end to end.`);
   } finally {

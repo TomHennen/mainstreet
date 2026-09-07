@@ -375,6 +375,12 @@ interface EditorState {
   defaultPlaqueCol: number | null;
   undo: Uint8Array[];
   redo: Uint8Array[];
+  /**
+   * The URL asked for `?improve=1` (or bare `?improve`) — run the same load
+   * "Improve it?" does, once, right after `wireEditor` finishes setting up.
+   * Ignored on a building with no shipped facade (DESIGN.md §2).
+   */
+  autoImprove: boolean;
 }
 
 /**
@@ -442,7 +448,7 @@ function blankPixels(width: number, height: number): Uint8Array {
   return pixels;
 }
 
-function renderEditor(world: World, entry: Entry, palette: (string | null)[]): void {
+function renderEditor(world: World, entry: Entry, palette: (string | null)[], autoImprove: boolean): void {
   const { placement, def } = entry;
   const footW = placement.size[0] * TILE;
   const footH = placement.size[1] * TILE;
@@ -480,7 +486,8 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
     defaultDoorCol: doorCol,
     defaultPlaqueCol: plaqueDefault,
     undo: [],
-    redo: []
+    redo: [],
+    autoImprove
   };
   if (state.colour < 0) state.colour = 0;
 
@@ -2147,7 +2154,18 @@ function wireEditor(state: EditorState): void {
 
   state.zoom = fitZoom();
   changed();
-  say(`${plural(state.palette.filter((c) => c !== null).length, 'colour', 'colours')} to paint with. Take your time.`);
+
+  // A painted building's plaque links here with `?improve=1` (engine/paint.ts
+  // improveUrl, DESIGN.md §2): run the same load "Improve it?" does, right on
+  // open, so the canvas starts from the shipped painting instead of a blank
+  // one. An unpainted building has nothing to fetch, so the parameter is
+  // simply ignored and the usual greeting stands.
+  if (state.autoImprove && state.entry.painted) {
+    say('Fetching the painting as it is in the game…');
+    void improvePicture();
+  } else {
+    say(`${plural(state.palette.filter((c) => c !== null).length, 'colour', 'colours')} to paint with. Take your time.`);
+  }
 }
 
 // --- drafts ------------------------------------------------------------------
@@ -2194,6 +2212,9 @@ function restoreDraft(state: EditorState): void {
 async function main(): Promise<void> {
   const params = new URLSearchParams(location.search);
   const worldId = params.get('world');
+  // `improve=1` or bare `improve` both count — the plaque's link only ever
+  // sends `improve=1`, but presence is what matters, per improveUrl.
+  const autoImprove = params.has('improve');
 
   if (!worldId) {
     try {
@@ -2273,7 +2294,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  renderEditor(world, entry, palette);
+  renderEditor(world, entry, palette, autoImprove);
 }
 
 void main().catch((error: unknown) => {
