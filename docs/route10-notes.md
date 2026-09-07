@@ -479,6 +479,45 @@ opt-in, everything warm and affectionate) before it reaches the player.
   photo mechanism (a generic "story image" asset type, distinct from
   portraits) would be a real feature worth scoping on its own if it ever
   comes up again, not something to fold into this episode.
+- **The M&M fire and the fire-department open house epic.** Real
+  inspiration, being scoped as a full epic (DESIGN.md §3a/§3b) rather than
+  a single episode. The story, as told so far: the empty lot across from
+  Stamford Coffee noted above once held Half Acre, a high-end restaurant
+  four new-to-town locals opened together, with their own apartments
+  upstairs. The year before Half Acre's own fire, they hosted a
+  local-business fundraiser dinner — the whole town there — when a wave of
+  pagers went off mid-meal: M&M's auto shop, further east than the current
+  map runs, was on fire, and it was a big one. The volunteer firefighters
+  in the room (see the fire-department note above) left mid-course; Half
+  Acre sent burgers out to the crew working the blaze. Trucks had to relay
+  water from a pond west of Route 10 (not currently on the map) all the
+  way to the fire. The town turned out for M&M, which is rebuilt now and
+  looking great. Some time later, Half Acre itself burned down, and the
+  people living in the apartments above it lost their homes; the community
+  helped, but it landed in the middle of an already-tight local housing
+  market (see the second-homes/Airbnb note below, kept as a separate,
+  later topic).
+
+  Proposed shape: an **open house** framing (a real fire-department open
+  house day, present-day) rather than a literal flashback the player plays
+  through start to finish — the player experiences the M&M night as a
+  vignette scene (DESIGN.md §3a) triggered by a narrating NPC, alongside
+  real present-day tasks (help set up, walk the hose route to the newly
+  mapped pond, deliver food, end at the rebuilt M&M — good fit for the
+  task-checklist idea at DESIGN.md §3c). The volunteer-firefighter
+  archetype from the note above is a natural narrator. Half Acre's own fire
+  and the displaced tenants stay almost entirely off-screen in this
+  episode — at most one warm, oblique line — with the empty-lot note above
+  as the natural home for that story later, once there's a reason to tell
+  it (a "what should go here" episode, DESIGN.md §3b's second chapter).
+
+  Hard-rule-6 guardrails, restated for whoever picks this up: never depict
+  either fire on-screen (the vignette schema's smoke-not-flames rule
+  exists for this), never put the player or any NPC in on-screen danger,
+  and land the whole thing on the town coming together, not on loss. At
+  least two episodes' worth of material — the open house epic first, a
+  Half-Acre-lot / housing-adjacent follow-up later and separately, with
+  Tom's explicit sign-off before that second one gets written.
 - **Second homes, Airbnb, and the housing crunch.** Real and current
   tension worth facing eventually, not avoiding — people from the city
   buying up houses as vacation homes or short-term rentals is a genuine

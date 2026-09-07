@@ -541,6 +541,52 @@ Route 10) gets added to the Stamford map ahead of this; asset needs
 (diner/firefighter/tanker sprites, a smoke effect) sized realistically for
 the M2/M3 art pipeline.
 
+### 3b. Episode arcs ("epics") (proposed — not yet built)
+
+Some stories are bigger than one ~10-minute episode. The Stamford
+fire-department epic is the motivating case: a present-day "Open House"
+episode (where the vignette scene above plays), and a plausible later
+episode revisiting the empty lot across from Stamford Coffee once Half
+Acre's own history can be told (`route10-notes.md` already earmarks that
+lot for a "what should go here" beat). Right now the schema and title
+screen only know "episode," one at a time.
+
+Proposed: an **epic** is a small, ordered group of episode ids, declared
+in `world.json` alongside (not instead of) the flat `episodes` list:
+
+```jsonc
+"epics": {
+  "mm-fire": { "title": "The Night Everything Changed", "episodes": ["ep004", "ep007"] }
+}
+```
+
+Continuity between an epic's episodes already has a mechanism: §3's global
+flags. An epic mostly needs a place on the title screen to say "chapter 1
+of 2" and to gate chapter 2 until chapter 1's `done` flag is set — a
+title-screen and `world.json` schema change, not new flag or dialogue
+mechanics.
+
+Deliberately not: forcing every multi-part story into this shape. A future
+episode can always just say "last week, so-and-so..." in a line of
+dialogue, the way the engine already handles continuity. `epics` is for
+when a story is big enough to want its own banner and a reserved
+multi-week slot, not a default every arc must use.
+
+### 3c. Task checklist (proposed — not yet built)
+
+Event-day episodes — the open house is the first one — read poorly as a
+straight chain of "talk to person, get sent to the next person" the way
+ep001's dog chase does, because the player isn't following one lead, they're
+helping with several unrelated things at once (set up bunting, walk the
+hose route to the pond, run food over, hear out the vignette). A small
+checklist HUD — "Open House: 2 of 4 ready" — would read that shape
+correctly without inventing a scoring or failure state (no timers, no
+combat; the hard rules still apply). Proposed shape: an episode marks a
+subset of its declared flags as checklist items with a label, and the
+engine shows a small, dismissible list ticking off as those flags flip.
+Generalizable to any future "help out with an event" episode, not
+fire-specific.
+
 ## 4. Asset spec (give this to artists verbatim)
 
 - Pixel art. Grid: **16×16 px tiles**. PNG, transparency, **no anti-aliasing**.
