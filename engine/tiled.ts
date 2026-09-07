@@ -32,6 +32,7 @@ export type TileStyle =
   | 'tree'
   | 'flower'
   | 'prop'
+  | 'disc'
   | 'block'
   | 'shelf'
   | 'mat'
@@ -45,6 +46,7 @@ const STYLES: readonly string[] = [
   'tree',
   'flower',
   'prop',
+  'disc',
   'block',
   'shelf',
   'mat',

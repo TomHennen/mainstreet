@@ -18,13 +18,16 @@ south-east corner). Route 23 is Harper Street west of the corner and Main
 Street east of it; Route 10 is Lake Street north of the corner and Hobart Road
 south of it. Stamford Coffee is on the south side of Main Street. The
 Belvedere is up Academy Street, a long walk uphill from Main Street, and
-Academy Street is west of Stamford Coffee. Mount Utsayantha and its lake are
+Academy Street is west of Stamford Coffee. Stamford Coffee has a big outdoor
+patio directly attached to the front of the building, and a huge parking
+lot. Mount Utsayantha and its lake are
 north-east up Lake Street.
 
 **Jefferson.** Main Street is the spine and reads as a main street (paved).
 Mill Pond Inn and Middle Brook Cafe are on the south side of Main Street.
 There is a gas station on the north side across from Middle Brook Cafe; a lot
-is reserved for it. The village green with its gazebo is on the south side.
+is reserved for it. Middle Brook Cafe has a big outdoor patio in front, next
+to its parking lot, and an herb garden round the back. The village green with its gazebo is on the south side.
 Route 10 leaves the junction north and east; the east arm is the road to
 Stamford.
 

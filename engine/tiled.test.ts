@@ -114,7 +114,7 @@ describe('parseTileset', () => {
   });
 
   it('accepts every style the engine can draw', () => {
-    const styles = ['flat', 'speck', 'ripple', 'tree', 'flower', 'prop', 'block', 'shelf', 'mat', 'stripe-h', 'stripe-v'];
+    const styles = ['flat', 'speck', 'ripple', 'tree', 'flower', 'prop', 'disc', 'block', 'shelf', 'mat', 'stripe-h', 'stripe-v'];
     for (const style of styles) {
       const raw = tilesetJson();
       raw.tiles[0].properties = [

@@ -1,12 +1,12 @@
 {
   "columns": 5,
   "image": "route10.png",
-  "imageheight": 112,
+  "imageheight": 128,
   "imagewidth": 80,
   "margin": 0,
   "name": "route10",
   "spacing": 0,
-  "tilecount": 33,
+  "tilecount": 38,
   "tiledversion": "1.10.2",
   "tileheight": 16,
   "tilewidth": 16,
@@ -758,6 +758,136 @@
           "name": "style",
           "type": "string",
           "value": "speck"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "type": "deck",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#8a6b48"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#6d5138"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "stripe-h"
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "type": "table",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#8a6b48"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#e2ddd0,#a94f2e"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "disc"
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "type": "planter",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#8a6b48"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#a94f2e,#3f7a4c"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "prop"
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "type": "herbs",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#436b3d"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#9a7bb5"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "flower"
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "type": "asphalt",
+      "properties": [
+        {
+          "name": "base",
+          "type": "string",
+          "value": "#52525b"
+        },
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#d8cfc0"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "stripe-v"
         }
       ]
     }
