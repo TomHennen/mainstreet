@@ -114,3 +114,10 @@ opt-in, everything warm and affectionate) before it reaches the player.
   someone you know. Good recurring texture for episodes: NPCs who greet the
   player by name away from their "home" location, or a travel-card beat
   about running into a familiar face mid-errand.
+- **Jefferson Town Hall.** Dog licensing happens there, though hardly
+  anyone actually goes and does it. Town court sits about once a month.
+  Metal recycling drop-off is the first Saturday of the month. Good
+  low-stakes bureaucratic-comedy texture for signs and board-agenda jokes
+  (ep000's "the goat situation (continued)" is already in that vein) — a
+  posted notice, a bored clerk, a "did you know" beat rather than a full
+  episode on its own.
