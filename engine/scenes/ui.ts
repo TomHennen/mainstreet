@@ -3,6 +3,7 @@ import { bus, EV } from '../bus';
 import { noteDialogue } from '../debug';
 import type { SayRequest } from '../bus';
 import { onAction } from '../input';
+import { autosave } from '../progress';
 import { session } from '../session';
 import type { Effect } from '../schema';
 
@@ -28,6 +29,7 @@ export class UiScene extends Phaser.Scene {
   private lines: string[] = [];
   private index = 0;
   private pendingEffects: Effect[] | undefined;
+  private pendingItem: string | undefined;
   private open = false;
   /**
    * The one DOM control drawn over the canvas: a real anchor, so it is
@@ -79,6 +81,7 @@ export class UiScene extends Phaser.Scene {
     this.lines = request.lines;
     this.index = 0;
     this.pendingEffects = request.effects;
+    this.pendingItem = request.item;
     this.link = request.link;
     this.speaker.setText(request.speaker);
 
@@ -102,9 +105,16 @@ export class UiScene extends Phaser.Scene {
     }
     // Effects land when the whole entry has been read (DESIGN.md §3).
     const effects = this.pendingEffects;
+    const item = this.pendingItem;
     this.pendingEffects = undefined;
+    this.pendingItem = undefined;
     this.setOpen(false);
+    if (item) session().taken.add(item);
     session().flags.apply(effects);
+    // Anything that changed the state of the story is worth remembering: a
+    // flag set, a thing picked up, the line that finishes the episode
+    // (DESIGN.md §2). One write, on the beat the box closes.
+    if (effects?.length || item) autosave();
   }
 
   private setOpen(open: boolean): void {
@@ -165,6 +175,10 @@ export class UiScene extends Phaser.Scene {
     }
     el.href = link.url;
     el.textContent = link.label;
+    // The title screen positions this same anchor from the top left; a stale
+    // left/top alongside a right/bottom would stretch it across the stage.
+    el.style.left = 'auto';
+    el.style.top = 'auto';
     el.style.right = `${Math.round(boxRight)}px`;
     el.style.bottom = `${Math.round(stageHeight - boxTop + 6)}px`;
     el.hidden = false;

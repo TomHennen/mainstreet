@@ -10,6 +10,13 @@
       "anonymous": "A little plaque by the door: somebody painted {building} for everyone to enjoy. Thank you, whoever you are.",
       "unpainted": "A little plaque by the door, waiting for a name. Nobody has painted {building} yet — it could be you."
     },
+    "title": {
+      "play": "Play",
+      "continue": "Continue",
+      "again": "Play again",
+      "done": "Done",
+      "write": "Write to us"
+    },
     "suggest": {
       "lines": [
         "Jefferson Town Hall keeps a suggestion box by the door, with a slot worn smooth by years of good ideas.",

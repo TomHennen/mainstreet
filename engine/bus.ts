@@ -8,6 +8,12 @@ export interface SayRequest {
   /** Applied once the last line is dismissed. */
   effects?: Effect[];
   /**
+   * The id of an episode item this entry is the picking-up of, if it is one.
+   * Recorded with the effects when the entry is read to the end, so a save can
+   * say plainly what has been taken (DESIGN.md §2).
+   */
+  item?: string;
+  /**
    * A DOM link offered alongside the entry. With `line` set it shows only
    * while that line (by index) is on screen; without it, it stays up for the
    * whole entry, every page. Its URL and label are composed by the caller

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { bindControls } from './input';
 import { BootScene } from './scenes/boot';
 import { MapScene } from './scenes/map';
+import { TitleScene } from './scenes/title';
 import { TravelScene } from './scenes/travel';
 import { UiScene } from './scenes/ui';
 
@@ -17,6 +18,7 @@ new Phaser.Game({
   pixelArt: true,
   roundPixels: true,
   scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.NO_CENTER },
-  // Order is display order: the map, then the interstitial, then dialogue.
-  scene: [BootScene, MapScene, TravelScene, UiScene]
+  // Order is display order: the title, the map, then the interstitial, then
+  // dialogue over any of them.
+  scene: [BootScene, TitleScene, MapScene, TravelScene, UiScene]
 });

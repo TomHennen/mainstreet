@@ -15,6 +15,10 @@
  * world.json actually ships, so it keeps exercising ep000 even as new
  * episodes are added. Override with PLAYTEST_EPISODE if ever needed.
  *
+ * One section runs with no parameters at all, on the title screen the game
+ * really opens on (DESIGN.md §2): it starts the *shipped* episode from the
+ * list, sets a flag, reloads, and carries on where the save left off.
+ *
  * Usage:  npx playwright install chromium   # once
  *         npm run playtest
  */
@@ -123,9 +127,13 @@ function signLinesOf(buildingId) {
   return sign.replace ? [...sign.lines] : [...sign.lines, ...standing];
 }
 
-/** NPCs are episode data, so MapScene.solidTile() blocks on them separately. */
-function npcAt(mapId, x, y) {
-  return EPISODE.npcs.some((n) => n.map === mapId && n.pos[0] === x && n.pos[1] === y);
+/**
+ * NPCs are episode data, so MapScene.solidTile() blocks on them separately.
+ * Which episode is playing matters — the title-screen section plays the
+ * shipped one rather than the harness's ep000 — so the caller may say.
+ */
+function npcAt(mapId, x, y, episode = EPISODE) {
+  return episode.npcs.some((n) => n.map === mapId && n.pos[0] === x && n.pos[1] === y);
 }
 
 /**
@@ -148,7 +156,7 @@ function exitTiles(map) {
 }
 
 /** BFS over walkable tiles. Exits are avoided unless one is the goal. */
-function findPath(mapId, from, to) {
+function findPath(mapId, from, to, episode = EPISODE) {
   const map = WORLD.maps[mapId];
   const avoid = exitTiles(map);
   avoid.delete(`${to[0]},${to[1]}`);
@@ -165,7 +173,7 @@ function findPath(mapId, from, to) {
       const ny = cur[1] + dy;
       const k = `${nx},${ny}`;
       if (prev.has(k)) continue;
-      if (isSolid(map, nx, ny) || npcAt(mapId, nx, ny) || fixtureAt(mapId, nx, ny)) continue;
+      if (isSolid(map, nx, ny) || npcAt(mapId, nx, ny, episode) || fixtureAt(mapId, nx, ny)) continue;
       if (avoid.has(k) && k !== goal) continue;
       prev.set(k, cur);
       if (k === goal) {
@@ -256,6 +264,8 @@ async function shot(page, slug) {
 }
 
 const snap = (page) => page.evaluate(() => window.__mainstreet ?? null);
+/** The title screen's list, published the same dev-only way (engine/debug.ts). */
+const titleSnap = (page) => page.evaluate(() => window.__mainstreetTitle ?? null);
 
 async function waitUntil(page, predicate, label, timeout = 20000) {
   const t0 = Date.now();
@@ -317,13 +327,13 @@ async function hold(page, dir, axis, target, sign) {
  * Walks to a tile. `allowInterrupt` is for tiles that are exit triggers: the
  * engine locks input the instant the player steps on one.
  */
-async function walkTo(page, milestone, goal, { allowInterrupt = false } = {}) {
+async function walkTo(page, milestone, goal, { allowInterrupt = false, episode = EPISODE } = {}) {
   for (let attempt = 0; attempt < 4; attempt++) {
     const s = await snap(page);
     if (!s) fail(milestone, 'window.__mainstreet is missing');
     const from = here(s);
     if (from[0] === goal[0] && from[1] === goal[1]) return;
-    const path = findPath(s.map, from, goal);
+    const path = findPath(s.map, from, goal, episode);
     if (!path) fail(milestone, `no walkable path on "${s.map}" from ${from} to ${goal}`);
 
     for (let i = 1; i < path.length; i++) {
@@ -547,38 +557,220 @@ async function main() {
     const page = await context.newPage();
     attach(page, 'desktop');
 
-    // --- no ?episode= plays the shipped episode -----------------------------
-    // A quick, separate check that the default (no parameter at all) is what
-    // world.json actually ships — WORLD.episodes[0], route10's ep001 — before
-    // the rest of this run switches to ep000 via GAME_URL (DESIGN.md §3).
+    // --- the title screen ---------------------------------------------------
+    // With no parameters at all the game opens on the title screen (DESIGN.md
+    // §2): the world's name, the episodes it ships, and the world's "write to
+    // us" link. This section plays the shipped episode through it — start it,
+    // set a flag, reload, carry on where it left off — which is the save doing
+    // its job (engine/save.ts). Run at phone size, because that is where a
+    // list of things to tap has the least room (CLAUDE.md #4).
     {
-      log('  boot with no ?episode= (should play the shipped episode)');
+      log('  the title screen (no ?episode=)');
       const shippedId = WORLD.episodes[0];
       const shipped = readJson(resolve(PACK, 'episodes', `${shippedId}.json`));
-      const defaultCtx = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 1 });
-      const dp = await defaultCtx.newPage();
-      attach(dp, 'default-episode');
-      try {
-        await dp.goto(BASE, { waitUntil: 'load' });
+      const words = COPY.ui?.title ?? {};
+      const SAVE_KEY = `mainstreet.${WORLD_ID}`; // engine/save.ts's key, mirrored deliberately
+
+      const titleCtx = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+        isMobile: false,
+        deviceScaleFactor: 1
+      });
+      const tip = await titleCtx.newPage();
+      attach(tip, 'title');
+      const tcdp = await titleCtx.newCDPSession(tip);
+
+      const listNow = async (what) => {
         try {
-          await dp.waitForFunction(
-            () => (document.querySelector('[data-hud="episode"]')?.textContent ?? '').trim().length > 0,
-            null,
-            { timeout: 20000 }
-          );
+          await tip.waitForFunction(() => window.__mainstreetTitle, null, { timeout: 20000 });
         } catch {
-          fail('default-episode', 'HUD episode title was never filled in with no ?episode= parameter');
+          await shot(tip, 'no-title');
+          fail('title', `the title screen never appeared ${what}`);
         }
-        const hudEpisode = (await dp.locator('[data-hud="episode"]').innerText()).trim();
+        return titleSnap(tip);
+      };
+      const rowFor = (list, id) => list.items.find((item) => item.id === id);
+      const tapRow = (row) => tapPoint(tcdp, { x: row.rect.x + row.rect.w / 2, y: row.rect.y + row.rect.h / 2 });
+
+      try {
+        await tip.goto(BASE, { waitUntil: 'load' });
+        let list = await listNow('on a first visit');
+
+        if (!list.world.includes(WORLD.title.toUpperCase())) {
+          fail('title', `the title screen reads "${list.world}", expected the world's name "${WORLD.title}"`);
+        }
+        let row = rowFor(list, shippedId);
+        if (!row) fail('title', `the shipped episode "${shippedId}" is not on the list: ${JSON.stringify(list.items)}`);
+        if (!row.label.includes(shipped.title)) {
+          fail('title', `the list reads "${row.label}", expected the shipped episode's title "${shipped.title}"`);
+        }
+        if (words.play && row.action !== words.play) {
+          fail('title', `a fresh episode offers "${row.action}", expected "${words.play}"`);
+        }
+        if (!row.selected) fail('title', 'the cursor is not on the first unfinished episode');
+        log(`    "${list.world}" — "${row.label}" [${row.action}]`);
+
+        // The world's "write to us", last on the list and a real DOM link, so
+        // touch, Tab and Enter are the browser's (DESIGN.md §2).
+        const writeLabel = words.write ?? COPY.ui?.suggest?.link;
+        if (WORLD.feedback && writeLabel) {
+          const last = list.items[list.items.length - 1];
+          if (last.kind !== 'write') fail('title', 'the "write to us" row is not the last item on the list');
+          const write = tip.locator('a[data-overlay="link"]');
+          if (!(await write.isVisible())) fail('title', 'no "write to us" link on the title screen');
+          if ((await write.innerText()).trim() !== writeLabel) {
+            fail('title', `the link reads "${(await write.innerText()).trim()}", expected "${writeLabel}"`);
+          }
+          const href = (await write.getAttribute('href')) ?? '';
+          if (!href.startsWith('mailto:') && !href.startsWith('http')) {
+            fail('title', `the "write to us" link href is "${href}"`);
+          }
+          const box = await write.boundingBox();
+          if (!box || box.width < 44 || box.height < 24) {
+            fail('title', `the "write to us" link is not a tappable size: ${JSON.stringify(box)}`);
+          }
+          log(`    "${writeLabel}" -> ${href.slice(0, 40)}…`);
+        }
+
+        // The cursor moves on the d-pad and on the arrow keys, one step per
+        // press on either (CLAUDE.md #4).
+        if (list.items.length > 1) {
+          await tapEl(tcdp, tip, '[data-dpad=down]');
+          await sleep(200);
+          let moved = await titleSnap(tip);
+          if (!moved.items[1].selected) fail('title', '▼ on the d-pad did not move the cursor down a row');
+          await tip.keyboard.press('ArrowUp');
+          await sleep(200);
+          moved = await titleSnap(tip);
+          if (!moved.items[0].selected) fail('title', 'the up arrow did not move the cursor back');
+          log('    the cursor moves on the d-pad and on the arrow keys');
+        }
+        await shot(tip, 'title');
+
+        // Tapping an entry starts it, and the HUD says which episode is on.
+        await tapRow(rowFor(await titleSnap(tip), shippedId));
+        await waitUntil(tip, (s) => s.map === WORLD.start.map, 'the shipped episode to start from the title', 20000);
+        const hudEpisode = (await tip.locator('[data-hud="episode"]').innerText()).trim();
         if (!hudEpisode.includes(shipped.title)) {
-          fail(
-            'default-episode',
-            `HUD showed "${hudEpisode}" with no ?episode=; expected the shipped "${shippedId}" ("${shipped.title}")`
-          );
+          fail('title-play', `the HUD reads "${hudEpisode}" after tapping "${shipped.title}"`);
         }
-        log(`    HUD: "${hudEpisode}" (no ?episode= -> shipped ${shippedId})`);
+        log(`    tapped it: HUD "${hudEpisode}"`);
+        for (let i = 0; i < 6 && (await snap(tip)).dialogueOpen; i++) await pressA(tip);
+
+        // Somebody with something to say who sets a flag by saying it: the
+        // shipped episode's opening conversation, found in its data rather
+        // than written down here.
+        const talker = shipped.npcs.find(
+          (n) =>
+            n.map === WORLD.start.map &&
+            n.dialogue.some((d) => (d.requires ?? []).length === 0 && (d.effects ?? []).some((e) => e.set))
+        );
+        if (!talker) fail('title-play', `no opening conversation on "${WORLD.start.map}" in ${shippedId} sets a flag`);
+        const opener = talker.dialogue.find((d) => (d.requires ?? []).length === 0 && (d.effects ?? []).some((e) => e.set));
+        const flag = opener.effects.find((e) => e.set).set;
+
+        await walkTo(tip, 'title-play', [talker.pos[0], talker.pos[1] + 1], { episode: shipped });
+        await pressA(tip);
+        await expectDialogue(tip, 'title-play', talker.name);
+        await advanceDialogue(tip, 'title-play', opener.lines.length);
+        expectFlag(await snap(tip), 'title-play', flag);
+
+        const saved = JSON.parse((await tip.evaluate((key) => localStorage.getItem(key), SAVE_KEY)) ?? 'null');
+        const entry = saved?.episodes?.[shippedId];
+        if (!entry) fail('title-save', `nothing was saved under "${SAVE_KEY}": ${JSON.stringify(saved)}`);
+        if (!entry.flags.includes(flag)) {
+          fail('title-save', `the save does not remember "${flag}": ${JSON.stringify(entry)}`);
+        }
+        log(`    saved: ${JSON.stringify(entry)}`);
+
+        // Come back later: the same list, offering to carry on.
+        await tip.reload({ waitUntil: 'load' });
+        list = await listNow('after a reload');
+        row = rowFor(list, shippedId);
+        if (words.continue && row.action !== words.continue) {
+          fail('title-continue', `an episode with a save offers "${row.action}", expected "${words.continue}"`);
+        }
+        await shot(tip, 'title-continue');
+        log(`    after a reload: "${row.label}" [${row.action}]`);
+
+        await tapRow(row);
+        const back = await waitUntil(tip, (s) => s.map === entry.map && !s.locked, 'the episode to carry on', 20000);
+        if (here(back)[0] !== entry.pos[0] || here(back)[1] !== entry.pos[1]) {
+          fail('title-continue', `carried on at ${here(back)}, expected the saved tile ${entry.pos}`);
+        }
+        expectFlag(back, 'title-continue', flag);
+        if (back.dialogueOpen) fail('title-continue', 'carrying on replayed the opening card');
+        log(`    carried on at ${here(back)} on "${back.map}", with "${flag}" remembered`);
+
+        // And the conversation has moved on with it: the line for somebody who
+        // has already been asked, not the one for a stranger.
+        const followUp = talker.dialogue.find((d) => (d.requires ?? []).every((r) => back.flags[r]));
+        // The dialogue overlay swallows an A press for a beat after it closes
+        // — and it counts itself as having just closed the moment it opens the
+        // scene — so this waits that beat out, as a thumb would anyway.
+        await sleep(320);
+        await pressA(tip);
+        const said = await expectDialogue(tip, 'title-continue', `${talker.name}, remembering`);
+        if (said.dialogue?.text !== followUp.lines[0]) {
+          fail('title-continue', `${talker.name} said "${said.dialogue?.text}", expected "${followUp.lines[0]}"`);
+        }
+        log(`    ${talker.name}: "${followUp.lines[0].slice(0, 46)}…"`);
+        await advanceDialogue(tip, 'title-continue', followUp.lines.length);
+        await shot(tip, 'title-continued');
+
+        // A finished episode wears its done mark and offers to be played
+        // again. Finishing this one properly takes the whole story, so the
+        // save is marked the way the engine marks it — its `completed` list —
+        // and the title is asked what it makes of that.
+        await tip.evaluate(
+          ({ key, id }) => {
+            const save = JSON.parse(localStorage.getItem(key));
+            save.completed.push(id);
+            localStorage.setItem(key, JSON.stringify(save));
+          },
+          { key: SAVE_KEY, id: shippedId }
+        );
+        await tip.reload({ waitUntil: 'load' });
+        list = await listNow('with a completed episode');
+        row = rowFor(list, shippedId);
+        if (!row.done) fail('title-done', `"${shippedId}" is in the completed list and the title screen disagrees`);
+        if (words.done && row.doneMark !== words.done) {
+          fail('title-done', `the done mark reads "${row.doneMark}", expected "${words.done}"`);
+        }
+        if (words.again && row.action !== words.again) {
+          fail('title-done', `a finished episode offers "${row.action}", expected "${words.again}"`);
+        }
+        await shot(tip, 'title-done');
+        log(`    finished: "${row.doneMark}" / "${row.action}"`);
+
+        // Playing it again starts the story over without forgetting that it
+        // has been played (DESIGN.md §2).
+        await tapRow(row);
+        const fresh = await waitUntil(tip, (s) => s.map === WORLD.start.map, 'the episode to start over', 20000);
+        expectFlag(fresh, 'title-again', flag, false);
+        if (here(fresh)[0] !== WORLD.start.pos[0] || here(fresh)[1] !== WORLD.start.pos[1]) {
+          fail('title-again', `playing again started at ${here(fresh)}, expected the world start ${WORLD.start.pos}`);
+        }
+        const after = JSON.parse((await tip.evaluate((key) => localStorage.getItem(key), SAVE_KEY)) ?? 'null');
+        if (!after?.completed?.includes(shippedId)) {
+          fail('title-again', `playing again forgot that "${shippedId}" was finished: ${JSON.stringify(after)}`);
+        }
+        log(`    played again from ${here(fresh)}, still on the finished list`);
       } finally {
-        await defaultCtx.close();
+        await titleCtx.close();
+      }
+
+      // The same screen at the run's desktop viewport, for the record.
+      const deskTitleCtx = await browser.newContext({ viewport: { width: vw, height: vh }, deviceScaleFactor: 1 });
+      const deskTitle = await deskTitleCtx.newPage();
+      attach(deskTitle, 'title-desktop');
+      try {
+        await deskTitle.goto(BASE, { waitUntil: 'load' });
+        await deskTitle.waitForFunction(() => window.__mainstreetTitle, null, { timeout: 20000 });
+        await shot(deskTitle, 'title-desktop');
+      } finally {
+        await deskTitleCtx.close();
       }
     }
 
