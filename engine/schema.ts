@@ -111,6 +111,15 @@ export interface BuildingDef {
   name: string;
   wall: string;
   roof: string;
+  /**
+   * The building's standing sign: what is chalked up, posted or going on at
+   * the door on an ordinary day, one array entry per dialogue page. It is the
+   * place's own copy rather than any one story's, so it shows whenever the
+   * current episode has nothing to say about this building — an episode sign
+   * whose `requires` are met always wins (DESIGN.md §3). With neither, the
+   * door falls back to `copy.ui.unpainted`.
+   */
+  sign?: string[];
 }
 
 /**
@@ -163,9 +172,10 @@ export interface WorldCopy {
     narrator: string;
     advance: string;
     /**
-     * The stand-in for an unpainted building that has no sign copy at all this
-     * episode — without it the box would open empty. Keep it short and kind:
-     * a building with sign copy never shows this. `{building}` and
+     * The stand-in for an unpainted building with no sign copy at all — none
+     * this episode, and none standing in `world.json` either — since without
+     * it the box would open empty. Keep it short and kind: a building with
+     * sign copy of either kind never shows this. `{building}` and
      * `{contribute}` are substituted.
      */
     unpainted: string;

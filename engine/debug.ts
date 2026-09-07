@@ -6,6 +6,15 @@ import type { Facing } from './schema';
  * world-specific — and it is stripped from production builds by the
  * `import.meta.env.DEV` guard at the call site.
  */
+/** The dialogue page on screen, so the harness can read the copy back. */
+export interface DebugDialogue {
+  speaker: string;
+  /** Zero-based page within the entry being read. */
+  page: number;
+  pages: number;
+  text: string;
+}
+
 export interface DebugSnapshot {
   map: string;
   /** Tile coordinates, as floats. */
@@ -23,6 +32,24 @@ export interface DebugSnapshot {
    */
   view: { x: number; y: number; width: number; height: number; tile: number };
   flags: Record<string, boolean>;
+  /** The page of dialogue on screen, or null when no box is open. */
+  dialogue: DebugDialogue | null;
+}
+
+/**
+ * The dialogue box draws to the canvas, where nothing outside the game can
+ * read it, so the UI scene leaves the page it just laid out here for the
+ * snapshot to carry. Recorded behind the same `import.meta.env.DEV` guard as
+ * the snapshot itself.
+ */
+let dialogue: DebugDialogue | null = null;
+
+export function noteDialogue(page: DebugDialogue | null): void {
+  dialogue = page;
+}
+
+export function currentDialogue(): DebugDialogue | null {
+  return dialogue;
 }
 
 declare global {

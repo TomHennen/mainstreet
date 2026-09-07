@@ -683,7 +683,15 @@ async function main() {
       await expectDialogue(page, 'painted-sign', painted.id);
       if (await deskLink.isVisible()) fail('painted-sign', `a "Paint it" link showed on painted ${painted.id}`);
       await shot(page, 'painted-sign');
-      const read = await readDialogue(page, 'painted-sign', paintedLines);
+      const read = await readDialogue(page, 'painted-sign', paintedLines, async (i) => {
+        const on = (await snap(page)).dialogue;
+        if (on?.text !== paintedSign.lines[i]) {
+          fail(
+            'painted-sign',
+            `${painted.id} page ${i + 1} reads "${on?.text}", expected the episode's "${paintedSign.lines[i]}"`
+          );
+        }
+      });
       if (read !== paintedLines) {
         fail(
           'painted-sign',
@@ -1152,9 +1160,10 @@ async function main() {
     // link anywhere near it (DESIGN.md §2/§4).
     log('  no "Paint it" on the same building\'s sign');
     const bareSign = (EPISODE.signs ?? []).find((s) => s.building === bare.id);
-    // With no sign copy this episode the engine shows one stand-in line
-    // instead of an empty box, so there is always at least one page.
-    const bareSignLines = bareSign?.lines.length ?? 1;
+    // With no sign copy this episode the door falls back to the building's own
+    // standing sign, and failing that to one stand-in line instead of an empty
+    // box — so there is always at least one page.
+    const bareSignLines = bareSign?.lines.length ?? WORLD.buildings[bare.id].sign?.length ?? 1;
     await walkTo(tp, 'paint-it-sign', bare.door);
     await pressA(tp);
     await expectDialogue(tp, 'paint-it-sign', `${bare.id}'s sign`);
@@ -1167,6 +1176,43 @@ async function main() {
       fail('paint-it-sign', `${bare.id}'s sign read ${signRead} page(s) for ${bareSignLines} line(s) of copy`);
     }
     log(`    sign: ${signRead} page(s), no link`);
+
+    // --- a standing sign from world.json ------------------------------------
+    // A building the episode says nothing about is not silent: its own sign in
+    // the buildings registry is what the door reads, and only a building with
+    // neither falls back to the "unpainted" stand-in (DESIGN.md §3).
+    log("  a building's standing sign, where the episode has none");
+    const standing = WORLD.maps.stamford.buildings.find(
+      (b) =>
+        !b.interior &&
+        (WORLD.buildings[b.id].sign ?? []).length > 0 &&
+        !(EPISODE.signs ?? []).some((sg) => sg.building === b.id)
+    );
+    if (!standing) fail('standing-sign', 'no Stamford building has a standing sign the episode leaves alone');
+    const standingLines = WORLD.buildings[standing.id].sign;
+    await walkTo(tp, 'standing-sign', standing.door);
+    await pressA(tp);
+    const standingState = await expectDialogue(tp, 'standing-sign', `${standing.id}'s sign`);
+    if (standingState.dialogue?.text !== standingLines[0]) {
+      fail(
+        'standing-sign',
+        `${standing.id} reads "${standingState.dialogue?.text}" — expected its world.json sign, "${standingLines[0]}"`
+      );
+    }
+    if (standingState.dialogue?.text === COPY.ui.unpainted.replace('{building}', WORLD.buildings[standing.id].name)) {
+      fail('standing-sign', `${standing.id} is still showing the "unpainted" stand-in`);
+    }
+    await shot(tp, 'standing-sign');
+    const standingRead = await readDialogue(tp, 'standing-sign', standingLines.length, async (i) => {
+      const on = (await snap(tp)).dialogue;
+      if (on?.text !== standingLines[i]) {
+        fail('standing-sign', `${standing.id} page ${i + 1} reads "${on?.text}", expected "${standingLines[i]}"`);
+      }
+    });
+    if (standingRead !== standingLines.length) {
+      fail('standing-sign', `${standing.id} read ${standingRead} page(s) for ${standingLines.length} line(s)`);
+    }
+    log(`    ${standing.id}: ${standingRead} page(s) of its own copy, no episode sign in sight`);
 
     // A person is not a building waiting for paint: no link on their dialogue.
     log('  no "Paint it" on a person');

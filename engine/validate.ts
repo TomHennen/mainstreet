@@ -20,6 +20,22 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
 
   if (!mapIds.length) problems.push('world has no maps');
 
+  // A building's standing sign is the copy its door shows on an ordinary day
+  // (DESIGN.md §3). It is optional, but an empty one — or an empty page in the
+  // middle of one — would open a dialogue box with nothing in it.
+  for (const [id, def] of Object.entries(world.buildings)) {
+    if (def.sign === undefined) continue;
+    if (!Array.isArray(def.sign) || def.sign.length === 0) {
+      problems.push(`building "${id}" has a "sign" that isn't a non-empty array of lines`);
+      continue;
+    }
+    def.sign.forEach((line, index) => {
+      if (typeof line !== 'string' || line.trim() === '') {
+        problems.push(`building "${id}" sign line ${index} is empty`);
+      }
+    });
+  }
+
   for (const mapId of mapIds) {
     const map = maps[mapId];
     if (!map) {
