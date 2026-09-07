@@ -167,7 +167,7 @@ export function combinations(overlays: MapOverlay[]): MapOverlay[][] {
  * layering two patches on one tile is allowed, and the later one wins, but it
  * has to be somebody's decision rather than an accident.
  */
-export function overlapsIn(map: GameMap, overlays: MapOverlay[]): { pos: Vec2; ids: string[] }[] {
+export function overlapsIn(overlays: MapOverlay[]): { pos: Vec2; ids: string[] }[] {
   const painters = new Map<string, string[]>();
   for (const overlay of overlays) {
     for (const paint of overlay.tiles ?? []) {

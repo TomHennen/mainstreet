@@ -196,10 +196,9 @@ describe('deconfliction', () => {
   });
 
   it('reports the tiles two overlays both paint', () => {
-    const map = makeMap(OPEN);
     const a = overlay({ id: 'a', tiles: [{ pos: [1, 1], tile: 1 }, { pos: [2, 2], tile: 1 }] });
     const b = overlay({ id: 'b', tiles: [{ pos: [2, 2], tile: 0 }] });
-    expect(overlapsIn(map, [a, b])).toEqual([{ pos: [2, 2], ids: ['a', 'b'] }]);
-    expect(overlapsIn(map, [a])).toEqual([]);
+    expect(overlapsIn([a, b])).toEqual([{ pos: [2, 2], ids: ['a', 'b'] }]);
+    expect(overlapsIn([a])).toEqual([]);
   });
 });

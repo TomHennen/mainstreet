@@ -193,7 +193,8 @@ export class SceneRunner {
           return true;
         }
         this.nextLeg();
-        return this.phase === 'run';
+        // nextLeg may have started the next leg, or run the move out.
+        return (this.phase as Phase) === 'run';
       }
       case 'say': {
         if (this.driver.talking()) return false;

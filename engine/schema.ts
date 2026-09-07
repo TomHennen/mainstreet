@@ -577,9 +577,18 @@ export interface LightSpec {
 /** `move.who` for the player themselves, as opposed to an episode NPC. */
 export const SCENE_PLAYER = 'player';
 
+/**
+ * `move.who` prefix for something that moves but is nobody: a car on a map's
+ * `vehicles` list, addressed as `"vehicle:<id>"`. The scene runner treats
+ * every `who` as an opaque id and hands it to whatever is driving the scene,
+ * so a new kind of thing that can be given a path and says when it has
+ * arrived needs no change to the runner at all.
+ */
+export const SCENE_VEHICLE = 'vehicle:';
+
 /** Somebody walks somewhere: to one tile, or along a list of them. */
 export interface MoveStep {
-  /** An episode NPC's id, or `"player"`. */
+  /** An episode NPC's id, `"player"`, or `"vehicle:<id>"`. */
   who: string;
   /** Exactly one of `to` or `path`. */
   to?: Vec2;
