@@ -5,3 +5,6 @@ dist/
 
 # Headless playtest screenshots and log (scripts/playtest.mjs)
 playtest-out/
+
+# dev-server pid files from playtest runs
+*.pid
