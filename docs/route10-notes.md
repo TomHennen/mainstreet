@@ -34,6 +34,13 @@ winters weren't cold enough for them). Across Main Street from Stamford Coffee i
 empty lot: two buildings there burned down a couple of years ago, and the
 wreckage sat for years before it was finally bulldozed. It should be mapped
 as one of the reserved full-size open lots (map rule 4), not filler scenery.
+Stamford also has **Tops**, a grocery store — position along Main/Route 10
+not yet confirmed, TODO once Tom pins it down. It's the only grocery store
+within about 30 minutes, so locals lean on it even though it's rough around
+the edges (produce that's a little iffy, regular items — jalapeños, say —
+often out of stock). The genuine local feeling is gratitude that it's there
+at all, not the gripe about what it's missing; see Flavor & story hooks for
+how that has to land in-game.
 
 **Jefferson.** Main Street is the spine and reads as a main street (paved).
 Mill Pond Inn and Middle Brook Cafe are on the south side of Main Street.
@@ -142,6 +149,25 @@ opt-in, everything warm and affectionate) before it reaches the player.
   funny closure rather than a sad one; good for an affectionate aside from
   a local ("last I heard from them, they were shoveling snow in July and
   loving it") rather than a story about the business itself.
+- **Tops (Stamford's grocery store).** Handle with extra care — hard rule 6
+  is not optional here. The real local feeling is genuine gratitude: it's
+  the only grocery store within about 30 minutes, and without it a lot of
+  people would be driving 30-40 minutes each way for everything. Yes, the
+  produce can be a little iffy and it doesn't always stock the basics
+  (jalapeños have come up as an example) — but any copy drawn from that has
+  to land as "we're so glad we have this place," with the quirks as
+  endearing texture at most, never as a complaint about the store. A good
+  test: would the person working the register smile reading it? If a line
+  reads like a Yelp gripe, cut it. Good material for an NPC who's just
+  relieved to grab dinner on the way home, not for a "the produce is bad"
+  joke on its own.
+- **NYC commuter culture.** A fair number of locals commute back and forth
+  to New York City for work — train out of Albany is one route people use.
+  Some do their "real" grocery run in the city or along the way home (a
+  Friday Whole Foods stop, say) rather than at Tops. Good texture for a
+  fictional commuter-archetype NPC (tired Friday-evening energy, a cooler
+  bag from a city store, catching up on local news they missed all week) —
+  not tied to any specific real person.
 - **Jefferson Town Hall.** Dog licensing happens there, though hardly
   anyone actually goes and does it. Town court sits about once a month.
   Metal recycling drop-off is the first Saturday of the month. Good
