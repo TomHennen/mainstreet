@@ -1,6 +1,9 @@
 {
   "buildings": {
     "heartbreak-hotel": "Tom",
-    "middle-brook-cafe": "Tom and Lana"
+    "middle-brook-cafe": [
+      "Tom",
+      "Lana"
+    ]
   }
 }
