@@ -189,7 +189,8 @@ place.
 
 Have a story idea, a bit of local lore, someone who should be in it, or
 something we should fix?
-[Write to us](mailto:tom.hennen+mainstreet@gmail.com?subject=A%20story%20idea%20for%20Route%2010)
+[Write to us](https://docs.google.com/forms/d/e/1FAIpQLScY6-dCqsC-8P0fByGCjSoAdKlZmgREMh_E-Uf7ge0CO0wV1Q/viewform?usp=pp_url&entry.61283833=route10)
+(a short form, no account needed; or email tom.hennen+mainstreet@gmail.com)
 — there's a suggestion box by the Town Hall door in Jefferson that opens the
 same note. Ideas are as welcome as paint, and a used one gets a "story by"
 credit on the front page, just like a painted building gets its painter.

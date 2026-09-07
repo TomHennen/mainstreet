@@ -898,10 +898,16 @@ async function main() {
       const write = page.locator('a[data-overlay="link"]');
       if (!(await write.isVisible())) fail('suggestion-box', 'no link beside the suggestion box');
       const writeHref = (await write.getAttribute('href')) ?? '';
-      if (!writeHref.startsWith('mailto:')) fail('suggestion-box', `the link href is "${writeHref}"`);
-      const subject = WORLD.feedback?.subject;
-      if (subject && !writeHref.includes(encodeURIComponent(subject))) {
-        fail('suggestion-box', `the link carries no "${subject}" subject: "${writeHref}"`);
+      // A world may point the box at a page (a form) or at the player's own
+      // mail app; either way the link must be the one the world configured.
+      if (WORLD.feedback?.url) {
+        if (writeHref !== WORLD.feedback.url) fail('suggestion-box', `the link href is "${writeHref}", not the world's feedback url`);
+      } else {
+        if (!writeHref.startsWith('mailto:')) fail('suggestion-box', `the link href is "${writeHref}"`);
+        const subject = WORLD.feedback?.subject;
+        if (subject && !writeHref.includes(encodeURIComponent(subject))) {
+          fail('suggestion-box', `the link carries no "${subject}" subject: "${writeHref}"`);
+        }
       }
       const writeBox = await write.boundingBox();
       if (!writeBox || writeBox.width < 44 || writeBox.height < 24) {
