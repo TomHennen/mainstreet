@@ -128,13 +128,25 @@ function copyStudioWorlds(studioDir, ids) {
   writeFileSync(resolve(root, 'index.json'), JSON.stringify(ids));
 }
 
-/** A world card: what it calls itself, where it is, and how many stories it ships. */
+/**
+ * A world card: what the world calls itself, where it is, the towns in it, and
+ * how far along it says it is. The towns are its village maps in the order the
+ * pack lists them (interiors are inside those, so they are not places to name),
+ * joined the way a credit line is. A world with nothing to say about how far
+ * along it is gets the gentlest true thing instead.
+ */
 function worldTitle(id) {
   const world = JSON.parse(readFileSync(resolve(WORLDS_DIR, id, 'world.json'), 'utf-8'));
+  const villages = Object.values(world.maps ?? {})
+    .filter((map) => map.kind === 'village')
+    .map((map) => map.name)
+    .filter(Boolean);
   return {
     title: world.title ?? id,
     subtitle: world.subtitle ?? '',
-    episodes: (world.episodes ?? []).length
+    towns: joinCredits(villages),
+    status: world.status ?? 'Just getting started',
+    tagline: world.tagline ?? ''
   };
 }
 
@@ -489,6 +501,16 @@ ${bodyHtml}
 `;
 }
 
+/**
+ * Whatever the worlds would like said at the foot of the page — where they are
+ * made, or who by (`tagline` in world.json, engine/schema.ts). Named once
+ * each, and nothing at all if no world asks for one.
+ */
+function taglines(ids) {
+  const said = ids.map((id) => worldTitle(id).tagline).filter(Boolean);
+  return [...new Set(said)];
+}
+
 /** The palettes the worlds paint with, named once each, for the footer. */
 function palettes(ids) {
   const seen = new Map();
@@ -507,17 +529,17 @@ function palettes(ids) {
 function renderLanding(ids, studioHref, contributeHref, writeHref) {
   const cards = ids
     .map((id) => {
-      const { title, subtitle, episodes } = worldTitle(id);
+      const { title, subtitle, towns, status } = worldTitle(id);
       const href = `${SITE_BASE}/${id}/`;
       const sub = subtitle ? `<p class="where">${escapeHtml(subtitle)}</p>` : '';
-      const count = episodes
-        ? `<p class="count">${episodes} ${episodes === 1 ? 'story' : 'stories'} so far</p>`
-        : '';
+      const where = towns ? `<p class="where">${escapeHtml(towns)}</p>` : '';
+      const count = `<p class="count">${escapeHtml(status)}</p>`;
       return `
         <li>
           <a href="${escapeHtml(href)}">
             <h3>${escapeHtml(title)}</h3>
             ${sub}
+            ${where}
             ${count}
             <span class="go">Play &rarr;</span>
           </a>
@@ -537,6 +559,10 @@ ${world.credits.map((p) => `          <li>${escapeHtml(p.name)} &mdash; ${escape
         </ul>
       </div>`
     )
+    .join('\n');
+
+  const said = taglines(ids)
+    .map((line) => `      <p>${escapeHtml(line)}</p>`)
     .join('\n');
 
   const paletteCredits = palettes(ids)
@@ -671,6 +697,7 @@ ${writeHref ? `
     </section>` : ''}
 
     <footer>
+${said}
 ${paletteCredits ? `      <p>Painted with the ${paletteCredits} palette.</p>` : ''}
     </footer>
   </main>

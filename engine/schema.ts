@@ -283,6 +283,19 @@ export interface World {
    *  painting outside the Studio. Both optional; the engine never reads them. */
   paletteName?: string;
   paletteLink?: string;
+  /**
+   * A line for the foot of the site's front page, in the world's own words —
+   * where it is made, or who by, e.g. "Made in the Catskills". Optional, and
+   * the engine never reads it: it is there so the site can say something true
+   * about a world without the build knowing anything about that world.
+   */
+  tagline?: string;
+  /**
+   * How far along the world is, for its card on the front page — a short
+   * phrase, e.g. "Just getting started" or "A story a week". Optional; with
+   * none, the site prints "Just getting started". The engine never reads it.
+   */
+  status?: string;
   episodes: string[];
   /** The player's own placeholder look; `accent` is `look.shirt`'s older name. */
   player: { id: string; accent?: string; look?: Look };
