@@ -8,12 +8,12 @@ export interface SayRequest {
   /** Applied once the last line is dismissed. */
   effects?: Effect[];
   /**
-   * A DOM link offered alongside one line of the entry (`line` is its index).
-   * The UI scene shows it only while that line is on screen. Its URL and label
-   * are composed by the caller from world data — the bus carries no world
-   * knowledge of its own.
+   * A DOM link offered alongside the entry. With `line` set it shows only
+   * while that line (by index) is on screen; without it, it stays up for the
+   * whole entry, every page. Its URL and label are composed by the caller
+   * from world data — the bus carries no world knowledge of its own.
    */
-  link?: { url: string; label: string; line: number };
+  link?: { url: string; label: string; line?: number };
 }
 
 type Listener = (...args: any[]) => void;

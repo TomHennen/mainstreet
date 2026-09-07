@@ -39,3 +39,12 @@ What the rein sandbox lets an agent session do in this repo. Updated 2026-09-06.
   scratchpad path changes every run. `node_modules` and anything under
   `playtest-out/` (gitignored) live in the working tree and persist, which
   is where map previews, reference imagery and the map generator are kept.
+
+## Parallel agents share ports
+
+`npm run playtest` reuses any Vite already listening on 5173. When two
+agents work in separate worktrees at the same time, the second one silently
+playtests the first one's code. Give each parallel agent its own port
+(start Vite by hand on 5199, 5200, ... and point the harness at it with
+`PLAYTEST_URL`) and confirm the server it hit belongs to its own tree before
+trusting a pass or a failure.

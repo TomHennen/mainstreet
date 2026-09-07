@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, readdirSync } from 'node:fs';
 import { cpSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -28,6 +28,15 @@ describe('decodeArt', () => {
     scratchRoot = mkdtempSync(join(tmpdir(), 'mainstreet-decode-art-'));
     worldsDir = join(scratchRoot, 'worlds');
     cpSync(REAL_WORLDS_DIR, worldsDir, { recursive: true });
+    // Start from an unpainted world so the tests do not depend on which
+    // buildings have been painted for real.
+    for (const world of readdirSync(worldsDir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)) {
+      rmSync(join(worldsDir, world, 'credits.json'), { force: true });
+      const buildings = join(worldsDir, world, 'assets', 'buildings');
+      if (existsSync(buildings)) {
+        for (const f of readdirSync(buildings)) if (f.endsWith('.png')) rmSync(join(buildings, f));
+      }
+    }
   });
 
   afterEach(() => {

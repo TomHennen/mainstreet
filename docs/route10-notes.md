@@ -32,7 +32,9 @@ south-east corner). Route 23 is Harper Street west of the corner and Main
 Street east of it; Route 10 is Lake Street north of the corner and Hobart Road
 south of it. Stamford Coffee is on the south side of Main Street. The
 Belvedere is up Academy Street, a long walk uphill from Main Street, and
-Academy Street is west of Stamford Coffee. Mount Utsayantha and its lake are
+Academy Street is west of Stamford Coffee. Stamford Coffee has a big outdoor
+patio directly attached to the front of the building, and a huge parking
+lot. Mount Utsayantha and its lake are
 north-east up Lake Street. The south-west corner of the 10/23 junction was
 Hillhaven Farms, now closed — the owners retired to Alaska (upstate New York
 winters weren't cold enough for them). Across Main Street from Stamford Coffee is a full
@@ -50,12 +52,13 @@ not the gripe about what it's missing; see Flavor & story hooks for how
 that has to land in-game. West of Tops was **Mountain Dog Cafe**, now
 closed — see Flavor & story hooks for its story alongside Stamford Coffee.
 **80 Main** is attached directly to Stamford Coffee, its own storefront
-right next door, and the two share a patio.
+right next door, sharing that same front patio.
 
 **Jefferson.** Main Street is the spine and reads as a main street (paved).
 Mill Pond Inn and Middle Brook Cafe are on the south side of Main Street.
 There is a gas station on the north side across from Middle Brook Cafe; a lot
-is reserved for it. The village green with its gazebo is on the south side.
+is reserved for it. Middle Brook Cafe has a big outdoor patio in front, next
+to its parking lot, and an herb garden round the back. The village green with its gazebo is on the south side.
 Route 10 leaves the junction north and east; the east arm is the road to
 Stamford.
 
@@ -162,6 +165,15 @@ lat/lon to tile maths are in `docs/route10-geometry.md`.
 
 No real private person appears by name without opting in (CLAUDE.md hard
 rule 5). Signs refer to "the owner" or a fictional character.
+
+## Art policy
+
+Code, maps, tools, and checks are built with AI help. The art that ships in
+`worlds/route10/` — facades, characters, portraits — is painted by people;
+no model-generated art goes in. AI can help a contributor behind the scenes
+(turning a photo into a plan they paint themselves), and if it did, their
+credit says so in their own words. Unpainted buildings stay placeholder
+boxes until someone paints them — that's the invitation, not a gap.
 
 ## Flavor & story hooks
 

@@ -9,6 +9,7 @@ import {
   itemTexture,
   mapTexture,
   namePlateArt,
+  plaqueArt,
   promptTexture,
   TILE
 } from '../art';
@@ -17,6 +18,7 @@ import { isHeld, onAction } from '../input';
 import { paintUrl } from '../paint';
 import { creditFor, dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signFor } from '../session';
 import { isSolid } from '../validate';
+import { plaqueTile } from '../schema';
 import type { BuildingPlacement, EpisodeItem, EpisodeSign, Facing, GameMap, Vec2 } from '../schema';
 
 const SPEED = 102; // px/s — the prototype's 1.7px/frame at 60fps
@@ -26,7 +28,9 @@ const MARGIN = 4;
 const MAX_ZOOM = 4;
 
 // Reach in tiles. Interiors are tight, so an NPC behind a counter needs more.
-const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 2.1 };
+// The plaque is the exception: it is read standing at it, on its own tile, so
+// the building's sign keeps the rest of the front to itself.
+const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 2.1, plaque: 0.75 };
 /** How long the travel card holds, by what we are walking through. */
 const HOLD = { road: 900, enter: 500, exit: 400 };
 const WALK_FRAME_MS = 133;
@@ -39,7 +43,7 @@ export interface MapSceneData {
 }
 
 interface Target {
-  kind: 'npc' | 'item' | 'prop' | 'enter' | 'sign';
+  kind: 'npc' | 'item' | 'prop' | 'enter' | 'sign' | 'plaque';
   at: Vec2;
   npcIndex?: number;
   item?: EpisodeItem;
@@ -98,6 +102,14 @@ export class MapScene extends Phaser.Scene {
       const art = buildingArt(this, placement, def, paintedKey);
       const depth = (placement.pos[1] + placement.size[1]) * TILE;
       this.add.image(art.x, art.y, art.key).setOrigin(0, 0).setDepth(depth);
+
+      // Every building carries its plaque, painted or not: it is the engine's
+      // own little fixture, sitting over the facade so no artist has to paint
+      // one (DESIGN.md §2/§4).
+      const plaque = plaqueArt(this, placement);
+      if (plaque) {
+        this.add.image(plaque.x, plaque.y, plaque.key).setOrigin(0, 0).setDepth(depth + 2);
+      }
 
       if (art.painted) {
         // The placeholder bakes its name plate into the facade texture itself;
@@ -315,6 +327,14 @@ export class MapScene extends Phaser.Scene {
       if (sign.pos) consider({ kind: 'prop', at: sign.pos, sign }, REACH.prop, 2);
     }
     for (const building of this.map.buildings) {
+      // The plaque is considered first so that standing exactly on the line
+      // between it and the door still reads the plaque, as it looks like it
+      // should. A building with an interior has one too: its door opens, and
+      // the plaque beside it is still where its painter is thanked.
+      const plaque = plaqueTile(building);
+      if (plaque) {
+        consider({ kind: 'plaque', at: [plaque[0], plaque[1] - 1], building }, REACH.plaque, 3, plaque);
+      }
       const kind: Target['kind'] = building.interior ? 'enter' : 'sign';
       if (kind === 'enter' && !this.enterArmed) continue;
       consider({ kind, at: [building.door[0], building.door[1] - 1], building }, REACH.door, 3, building.door);
@@ -380,29 +400,49 @@ export class MapScene extends Phaser.Scene {
       return;
     }
 
+    if (target.kind === 'plaque' && target.building) {
+      const building = target.building;
+      const name = state.world.buildings[building.id].name;
+      const painted = state.assets.buildings.has(building.id);
+      const credit = creditFor(building.id);
+      const plaque = state.copy.ui.plaque;
+      let link: SayRequest['link'];
+
+      // The one place in the game that talks about the art, so the sign box
+      // can stay entirely story (DESIGN.md §2/§4). A painted building thanks
+      // whoever painted it; an unpainted one asks, with the way in riding
+      // alongside every page rather than taking a line of its own.
+      let template = painted ? (credit ? plaque?.painted : plaque?.anonymous) : plaque?.unpainted;
+      if (!painted) {
+        const url = paintUrl(state.world.contribute, building.id);
+        if (url && state.copy.ui.paint) link = { url, label: state.copy.ui.paint };
+      }
+      if (!template) return;
+
+      template = template.replace(/\{building\}/g, name).replace(/\{credit\}/g, credit ?? '');
+      bus.emit(EV.say, { speaker: name, lines: [template], link });
+      return;
+    }
+
     if (target.kind === 'sign' && target.building) {
       const building = target.building;
       const sign = signFor(building.id);
       const name = state.world.buildings[building.id].name;
       const lines = sign ? [...sign.lines] : [];
-      let link: SayRequest['link'];
 
-      if (state.assets.buildings.has(building.id)) {
-        // Painted ones carry an art credit (DESIGN.md §2/§4): an extra line
-        // after whatever flavor text the episode has for the building's sign.
-        const credit = creditFor(building.id);
-        if (credit) lines.push(state.copy.ui.credit.replace('{credit}', credit));
-      } else {
-        // Unpainted ones carry the invitation to draw them instead, with a
-        // link to the world's contribution page (DESIGN.md §2).
-        const url = paintUrl(state.world.contribute, building.id);
+      // Nothing about the art joins the words: a sign says what is going on at
+      // a place, and meta text in the middle of it gets in the way of reading
+      // (DESIGN.md §2/§4). Thanks and invitation both live on the plaque
+      // beside the door, so the sign carries no link at all.
+      if (!lines.length && !state.assets.buildings.has(building.id)) {
+        // With no sign copy this episode the box would open empty, so one
+        // short, kind line stands in for it.
         lines.push(
           state.copy.ui.unpainted.replace('{building}', name).replace('{contribute}', state.world.contribute ?? '')
         );
-        if (url && state.copy.ui.paint) link = { url, label: state.copy.ui.paint, line: lines.length - 1 };
       }
 
-      if (lines.length) bus.emit(EV.say, { speaker: name, lines, link });
+      if (lines.length) bus.emit(EV.say, { speaker: name, lines });
       return;
     }
 

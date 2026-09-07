@@ -284,3 +284,41 @@ have had.
 Inside Stewart's, the counter's open end is closed with a short return so the
 player cannot walk behind the register; Hannah stands in the last gap and
 serves across the counter (interior NPC reach is 2.3 tiles).
+
+## 8. The cafe patios (Sep 2026)
+
+Both cafes have an outdoor patio, a parking lot, and — at Middle Brook — an
+herb garden, and Tom's notes say where each one is. They are drawn as map
+tiles and props rather than baked into a building PNG, so an artist painting a
+facade never has to paint the ground it stands on. Five tiles were appended to
+the tileset for them (ids 33-37): a wooden patio deck, a cafe table, a
+planter, an herb bed, and asphalt with a white parking-stall stripe. The
+table needed one new engine drawing recipe, `disc` — a round top on an inner
+square, generic enough for a table, a stool or a barrel; everything else
+reuses a recipe that was already there.
+
+**Stamford Coffee** (`stamford`, footprint x44-48 y20-22, door 46,23). The
+patio is the 5x3 deck at x44-48, y23-25, attached to the facade, with three
+tables and two planters at its front corners. Main Street's south-side
+sidewalk runs *through* its top row rather than round it: a patio the pavement
+crosses is what "directly attached to the front" looks like from above. The
+lot is x49-54, y20-22 with a two-tile drive at (49-50, 19) onto Main Street —
+the old sandy drive, paved and widened. The narrow drive matters: a six-tile
+mouth would have read as a junction, and the centre-line dash runs straight
+past this one, which says it is not. The reserved 5x3 lot that stood at
+(52, 20) moved east to (55, 20), and the row-23 sidewalk was run out to x59 to
+serve its block face.
+
+**Middle Brook Cafe** (`jefferson`) **moved three tiles south**, from y16 to
+y19 — door (45, 19) to (45, 22). The real cafe fronts Main Street, so this is
+a deliberate bend, and it buys the herb garden: the painted facade is a tile
+taller than its footprint and the floating name plate sits a tile above that,
+so anything drawn in the two rows behind the building is invisible. Three rows
+back, the garden shows. It is the bed at x42-48, y16-18, between the cafe and
+Main Street — which is "round the back" in the player's terms, since the
+engine puts every door on the south face. In front: the parking lot at
+x42-44, y22-25, opening straight onto Creamery Street so it needs no lane of
+its own; the concrete walk down column x45 from the door; and the patio, a 5x4
+deck at x46-50, y22-25 with four tables and two planters. The old sandy
+"south-side lot" — twelve tiles by two of undifferentiated sand at y19-20,
+serving nothing — is gone.

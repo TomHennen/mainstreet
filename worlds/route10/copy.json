@@ -2,9 +2,13 @@
   "ui": {
     "narrator": "You",
     "advance": "▼ tap / A",
-    "unpainted": "{building} is here, unpainted: just a color and a name on a sign, waiting for somebody to draw it. If you would like to be that somebody, the studio is one tap away.",
+    "unpainted": "Unpainted, for now. Somebody's going to draw this one.",
     "paint": "Paint it",
-    "credit": "Painted by {credit}."
+    "plaque": {
+      "painted": "A little plaque by the door: {building}, painted by {credit}. Thank you, {credit}!",
+      "anonymous": "A little plaque by the door: somebody painted {building} for everyone to enjoy. Thank you, whoever you are.",
+      "unpainted": "A little plaque by the door, waiting for a name. Nobody has painted {building} yet — it could be you."
+    }
   },
   "intro": {
     "speaker": "Route 10",

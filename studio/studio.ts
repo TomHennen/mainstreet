@@ -18,7 +18,18 @@
  * leaves marks on it. The ordinary controls are <button>s on `click`, which is
  * one path too and is the one a keyboard can reach.
  */
-import { CodeError, TRANSPARENT, decode, encode } from './codec';
+import { CodeError, MAGIC, TRANSPARENT, decode, encode } from './codec';
+import {
+  describeImport,
+  fitCode,
+  fitImport,
+  nearestIn,
+  paletteRgb,
+  plural,
+  rgbOf,
+  settleCode,
+  snapToPalette
+} from './artwork';
 
 // --- constants ---------------------------------------------------------------
 
@@ -26,6 +37,10 @@ const BASE = import.meta.env.BASE_URL;
 const TILE = 16;
 /** Head-room the engine's placeholder facade draws above the footprint. */
 const OVERHEAD = 20;
+/** The plaque the engine draws beside every door (engine/art.ts plaqueArt). */
+const PLAQUE_W = 6;
+const PLAQUE_H = 5;
+const PLAQUE_LIFT = 4;
 /** Most spare rows of 16px an artist may add above the footprint. */
 const MAX_EXTRA_ROWS = 3;
 const DEFAULT_EXTRA_ROWS = 1;
@@ -44,6 +59,11 @@ const CONSENT =
 
 const GUIDANCE = "Draw the storefront as you remember it; please don't paste a logo.";
 
+const CANNOT_READ =
+  "That file would not open here as a picture, and it may well be nothing you did. " +
+  'A PNG saved straight out of a pixel editor usually goes in first time — and if this one ' +
+  'stays stubborn, emailing it to us works just as well.';
+
 type Tool = 'pencil' | 'fill' | 'eraser' | 'eyedropper' | 'line' | 'rect';
 type BrushSize = 1 | 2 | 3;
 
@@ -60,6 +80,20 @@ interface Placement {
   pos: [number, number];
   size: [number, number];
   door: [number, number];
+  plaque?: [number, number] | false;
+}
+
+/**
+ * Where the engine hangs this building's plaque — a small copy of
+ * engine/schema.ts's rule, because the Studio reads world packs rather than
+ * importing the engine. Right of the door, or left of it when the door is
+ * already in the building's right-most column; `false` means no plaque.
+ */
+function plaqueTile(placement: Placement): [number, number] | null {
+  if (placement.plaque === false) return null;
+  if (placement.plaque) return placement.plaque;
+  const rightMost = placement.pos[0] + placement.size[0] - 1;
+  return [placement.door[0] + (placement.door[0] >= rightMost ? -1 : 1), placement.door[1]];
 }
 
 interface MapDef {
@@ -102,16 +136,6 @@ function esc(text: string): string {
   return String(text).replace(/[&<>"']/g, (ch) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch] as string
   );
-}
-
-const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
-
-function inWords(n: number): string {
-  return n >= 0 && n < WORDS.length ? WORDS[n] : String(n);
-}
-
-function plural(n: number, one: string, many: string): string {
-  return `${inWords(n)} ${n === 1 ? one : many}`;
 }
 
 function el<T extends HTMLElement>(id: string): T {
@@ -180,20 +204,13 @@ async function loadPalette(world: World): Promise<(string | null)[]> {
   return colours.slice(0, TRANSPARENT);
 }
 
-function rgbOf(hex: string): [number, number, number] {
-  return [
-    parseInt(hex.slice(1, 3), 16),
-    parseInt(hex.slice(3, 5), 16),
-    parseInt(hex.slice(5, 7), 16)
-  ];
-}
-
 // --- the placeholder facade, as a faint reference ----------------------------
 
 /**
  * A rough redrawing of the engine's unpainted facade (engine/art.ts) at the
  * same scale, so an artist can see where the door and the sign sit today. It
- * is a reference, not a template: nobody has to keep any of it.
+ * is a reference, not a template: nobody has to keep any of it — except the
+ * plaque, which the engine draws over the finished art either way.
  */
 function referenceCanvas(placement: Placement, def: BuildingDef, width: number, height: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
@@ -226,6 +243,18 @@ function referenceCanvas(placement: Placement, def: BuildingDef, width: number, 
   const doorX = (placement.door[0] - placement.pos[0]) * TILE;
   ctx.fillStyle = '#3a2c1e';
   ctx.fillRect(doorX + 3, top + OVERHEAD + bodyH - 14, 10, 14);
+
+  // The engine hangs its own little plaque here, over whatever is painted
+  // beneath it, so nobody has to draw one.
+  const plaque = plaqueTile(placement);
+  if (plaque) {
+    const plaqueX = (plaque[0] - placement.pos[0]) * TILE + (TILE - PLAQUE_W) / 2;
+    const plaqueY = height - PLAQUE_LIFT - PLAQUE_H;
+    ctx.fillStyle = '#8a6a35';
+    ctx.fillRect(plaqueX, plaqueY, PLAQUE_W, PLAQUE_H);
+    ctx.fillStyle = '#d8b268';
+    ctx.fillRect(plaqueX, plaqueY, PLAQUE_W, 1);
+  }
 
   ctx.font = '8px ui-monospace, Menlo, Consolas, monospace';
   ctx.textAlign = 'center';
@@ -418,15 +447,38 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
     <section class="files">
       <h2>Files</h2>
       <div class="row">
-        <label class="button" for="import">Import a PNG</label>
-        <input id="import" type="file" accept="image/png,image/*" hidden />
+        <!-- A real <button> opens the picker, so a keyboard reaches Import the
+             same way it reaches every other control here. The input itself is
+             hidden off to one side rather than with display:none, which some
+             browsers take as a reason not to open a file picker at all. -->
+        <button id="importbutton">Import a PNG</button>
+        <input id="import" type="file" accept="image/png,image/*" class="offscreen"
+               tabindex="-1" aria-hidden="true" />
+        <button id="pastecode" aria-expanded="false" aria-controls="pastepanel">Paste a code</button>
         <button id="export">Export a PNG</button>
         <button id="fromguide">Start from the guide</button>
         <button id="clear">Start again</button>
       </div>
       <p class="quiet">Painting in Aseprite or Piskel instead? Lovely — export a
-        PNG the exact size above and import it here to send it in.</p>
+        PNG at the width above, any of the heights it lists, and import it here
+        to send it in.</p>
       <p class="quiet">Turns the guide into real pixels you can edit and send.</p>
+      <p class="quiet">Sent a drawing in already and want to carry on with it?
+        The code is in your sent email — paste it back and it picks up right
+        where it left off.</p>
+
+      <div class="paste" id="pastepanel" hidden>
+        <label class="field" for="codebox">
+          <span>Paste the code from your email — line breaks and all, they don't matter</span>
+          <textarea id="codebox" rows="3" spellcheck="false" autocomplete="off"
+            autocapitalize="off" placeholder="${esc(MAGIC)}|…"></textarea>
+        </label>
+        <div class="row">
+          <button id="codeload" class="primary">Bring it back</button>
+          <button id="codecancel">Never mind</button>
+        </div>
+        <p class="statusline" id="codestatus" role="status" aria-live="polite">&nbsp;</p>
+      </div>
 
       <details class="elsewhere">
         <summary>Painting somewhere else?</summary>
@@ -435,16 +487,20 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[]): v
           <p class="quiet">Export a PNG with a transparent background — no
             anti-aliasing or smoothing — using only the palette colours below.
             The footprint sits at the very bottom of the canvas; any spare
-            rows for a roof, sign or awning go above it.</p>
+            rows for a roof, sign or awning go above it. The game adds a small
+            plaque low on the wall beside the door — that's where it thanks
+            you — so there's no need to paint one.</p>
           <div class="row">
             <a class="button" id="downloadpalette" href="#" download>Download the palette PNG</a>
             <button id="downloadhex">Download the palette as .hex</button>
           </div>
           <p class="quiet">The .hex file is one colour per line, which
             Aseprite, Piskel and Lospec all read straight in.</p>
-          <p class="quiet">Import a PNG above afterwards and Studio checks its
-            size and colours for you, and says exactly what to fix if
-            anything's off.</p>
+          <p class="quiet">Import a PNG above afterwards and the Studio sorts
+            out the small things itself: it moves any colour that isn't quite
+            on the palette to the nearest one that is, makes up its mind about
+            soft edges, and tells you what it changed. If the size is one it
+            can't use, it says exactly which one it's after.</p>
         </div>
       </details>
     </section>
@@ -640,9 +696,10 @@ function wireEditor(state: EditorState): void {
     const minH = footH;
     const maxH = footH + MAX_EXTRA_ROWS * TILE;
     el<HTMLElement>('elsewheresize').textContent =
-      `Right now this canvas needs to be ${state.width} pixels wide and ${state.height} pixels tall. ` +
+      `Right now this canvas is ${state.width} pixels wide and ${state.height} pixels tall. ` +
       `The width is fixed at ${state.width}; the height can be any multiple of 16 from ${minH} up to ${maxH}, ` +
-      'depending on how many spare rows you leave for a roof, sign or awning.';
+      'depending on how many spare rows you leave for a roof, sign or awning — import one at any of those ' +
+      'heights and the canvas follows it.';
   }
 
   function refreshChrome(): void {
@@ -1112,89 +1169,126 @@ function wireEditor(state: EditorState): void {
   });
 
   const importInput = el<HTMLInputElement>('import');
+  const importButton = el<HTMLButtonElement>('importbutton');
+
+  // One control, one handler: a <button> fires `click` for a tap, a mouse and
+  // the Enter or Space key alike, so the keyboard path costs nothing extra and
+  // nothing can fire twice (hard rule 4).
+  importButton.addEventListener('click', () => importInput.click());
+
   importInput.addEventListener('change', async () => {
     const file = importInput.files?.[0];
+    // Cleared straight away so choosing the same file twice still counts as a
+    // change; the File itself is already in hand.
     importInput.value = '';
     if (!file) return;
+    say('Reading that picture…');
     try {
-      await importPng(file);
+      await importPicture(file);
     } catch (error) {
-      say(error instanceof Error ? error.message : 'That file would not open here, sorry.');
+      say(error instanceof Error ? error.message : CANNOT_READ);
     }
   });
 
+  const paletteRgbs = paletteRgb(state.palette);
+
   /** The palette index whose colour sits closest to this RGB triple. */
   function nearestPaletteIndex(r: number, g: number, b: number): number {
-    let best = 0;
-    let bestDistance = Infinity;
-    state.palette.forEach((colour, index) => {
-      if (!colour) return;
-      const [pr, pg, pb] = rgbOf(colour);
-      const distance = (pr - r) ** 2 + (pg - g) ** 2 + (pb - b) ** 2;
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = index;
-      }
-    });
-    return best;
+    return Math.max(0, nearestIn(paletteRgbs, r, g, b));
   }
 
-  async function importPng(file: File): Promise<void> {
-    const bitmap = await createImageBitmap(file);
-    if (bitmap.width !== state.width || bitmap.height !== state.height) {
-      const rowsFor = (bitmap.height - state.entry.placement.size[1] * TILE) / TILE;
-      const hint =
-        bitmap.width === state.width && Number.isInteger(rowsFor) && rowsFor >= 0 && rowsFor <= MAX_EXTRA_ROWS
-          ? ` Set the rows above to ${inWords(rowsFor)} and it will drop straight in.`
-          : '';
-      bitmap.close();
-      throw new Error(
-        `That PNG is ${bitmap.width}×${bitmap.height}, and this canvas is ${state.width}×${state.height}. ` +
-          `Resize it to match and it is very welcome.${hint}`
-      );
-    }
+  interface Picture {
+    source: CanvasImageSource;
+    width: number;
+    height: number;
+    release: () => void;
+  }
 
-    const scratch = document.createElement('canvas');
-    scratch.width = bitmap.width;
-    scratch.height = bitmap.height;
-    const ctx = scratch.getContext('2d', { willReadFrequently: true });
-    if (!ctx) throw new Error('This browser would not give the studio a canvas to read the PNG with.');
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(bitmap, 0, 0);
-    bitmap.close();
-
-    const { data } = ctx.getImageData(0, 0, scratch.width, scratch.height);
-    const exact = new Map<string, number>();
-    state.palette.forEach((colour, index) => {
-      if (colour) exact.set(colour.toLowerCase(), index);
-    });
-
-    pushUndo();
-    const pixels = blankPixels(state.width, state.height);
-    let nudged = 0;
-    for (let i = 0; i < pixels.length; i++) {
-      const a = data[i * 4 + 3];
-      if (a < 128) continue;
-      const r = data[i * 4];
-      const g = data[i * 4 + 1];
-      const b = data[i * 4 + 2];
-      const hex = `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
-      const found = exact.get(hex);
-      if (found !== undefined) {
-        pixels[i] = found;
-        continue;
+  /**
+   * Hands the file to the browser's own image decoder and takes back something
+   * `drawImage` will accept. Nothing here reads PNG bytes by hand, so an
+   * indexed PNG, a 16-bit one, an interlaced one and a JPEG a phone offered
+   * from its camera roll all arrive the same way.
+   *
+   * `colorSpaceConversion: 'none'` is the load-bearing option. By default a
+   * browser colour-manages the picture using whatever gAMA or ICC profile the
+   * exporter wrote into it, which quietly shifts every pixel off the palette
+   * it was painted with — the drawing still imports, it just comes out the
+   * wrong colours. `premultiplyAlpha: 'none'` keeps a soft edge's colour exact
+   * rather than rounding it through its own alpha.
+   */
+  async function openPicture(file: File): Promise<Picture> {
+    if (typeof createImageBitmap === 'function') {
+      try {
+        const bitmap = await createImageBitmap(file, {
+          colorSpaceConversion: 'none',
+          premultiplyAlpha: 'none'
+        });
+        return { source: bitmap, width: bitmap.width, height: bitmap.height, release: () => bitmap.close() };
+      } catch {
+        // An older browser may not take a File here, or may not know those
+        // options. An <img> reads the same picture; it is only colour-managed,
+        // and snapping to the palette takes care of that.
       }
-      nudged++;
-      pixels[i] = nearestPaletteIndex(r, g, b);
     }
-    state.pixels = pixels;
+
+    const url = URL.createObjectURL(file);
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('undecodable'));
+        img.src = url;
+      });
+      return {
+        source: image,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        release: () => URL.revokeObjectURL(url)
+      };
+    } catch {
+      URL.revokeObjectURL(url);
+      throw new Error(CANNOT_READ);
+    }
+  }
+
+  /** The picture's pixels, straight, with no smoothing anywhere near them. */
+  function pixelsOf(picture: Picture): Uint8ClampedArray {
+    const scratch = document.createElement('canvas');
+    scratch.width = picture.width;
+    scratch.height = picture.height;
+    const ctx = scratch.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new Error('This browser would not lend the studio a canvas to read the picture with.');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(picture.source, 0, 0);
+    return ctx.getImageData(0, 0, picture.width, picture.height).data;
+  }
+
+  async function importPicture(file: File): Promise<void> {
+    const picture = await openPicture(file);
+    let report;
+    try {
+      if (!picture.width || !picture.height) throw new Error(CANNOT_READ);
+      const outcome = fitImport(picture.width, picture.height, {
+        width: state.entry.placement.size[0] * TILE,
+        height: state.entry.placement.size[1] * TILE,
+        tile: TILE,
+        maxExtraRows: MAX_EXTRA_ROWS
+      });
+      if (!outcome.ok) throw new Error(outcome.message);
+      report = snapToPalette(pixelsOf(picture), picture.width, outcome.fit, paletteRgbs);
+    } finally {
+      picture.release();
+    }
+
+    // Nothing above this line has touched the drawing, so a picture that could
+    // not be used leaves the canvas — and the undo history — exactly as it was.
+    const rowsBefore = state.extraRows;
+    pushUndo();
+    state.pixels = report.pixels;
+    fixHeight();
     changed();
-    say(
-      nudged === 0
-        ? 'Imported, every colour already on the palette. Lovely.'
-        : `Imported. ${nudged} pixel${nudged === 1 ? '' : 's'} sat just off the palette and moved to the nearest ` +
-          'colour on it, which usually looks the same.'
-    );
+    say(describeImport(report, rowsBefore));
   }
 
   /** The faint reference facade, matched to the nearest palette colours. */
@@ -1222,6 +1316,139 @@ function wireEditor(state: EditorState): void {
     changed();
     say('The guide is now real pixels of your own — paint over any of it you like.');
   });
+
+  // --- bringing a code back ----------------------------------------------
+
+  /**
+   * Someone sent a drawing in last week and would like to carry on with it.
+   * The code is sitting in their sent mail, so pasting it back here is the
+   * whole of the round trip — no account, nothing kept on our side.
+   */
+  const pastePanel = el<HTMLDivElement>('pastepanel');
+  const pasteToggle = el<HTMLButtonElement>('pastecode');
+  const codeBox = el<HTMLTextAreaElement>('codebox');
+  const codeStatus = el<HTMLParagraphElement>('codestatus');
+
+  function sayCode(message: string, offer?: { href: string; label: string }): void {
+    codeStatus.innerHTML = offer
+      ? `${esc(message)} <a class="link" href="${esc(offer.href)}">${esc(offer.label)}</a>`
+      : esc(message || ' ');
+  }
+
+  function showPaste(open: boolean): void {
+    pastePanel.hidden = !open;
+    pasteToggle.classList.toggle('on', open);
+    pasteToggle.setAttribute('aria-expanded', String(open));
+    if (open) {
+      sayCode('');
+      codeBox.focus();
+    }
+  }
+
+  pasteToggle.addEventListener('click', () => showPaste(pastePanel.hidden));
+  el<HTMLButtonElement>('codecancel').addEventListener('click', () => {
+    codeBox.value = '';
+    showPaste(false);
+    pasteToggle.focus();
+  });
+
+  /** Where a building lives in the studio, for offering someone the right one. */
+  function studioLink(worldId: string, buildingId: string): string {
+    return `?world=${encodeURIComponent(worldId)}&building=${encodeURIComponent(buildingId)}`;
+  }
+
+  function loadCode(text: string): void {
+    if (!text.trim()) {
+      sayCode(`Paste the code in first — it is the long line that starts with ${MAGIC}.`);
+      return;
+    }
+
+    let drawing;
+    try {
+      drawing = decode(text);
+    } catch (error) {
+      sayCode(
+        error instanceof CodeError
+          ? error.message
+          : 'That code would not read here. Copying the whole of it again usually sorts it out.'
+      );
+      return;
+    }
+
+    if (drawing.world !== state.world.id) {
+      // We can't know from here whether that town is on this site, so the offer
+      // is a link rather than a promise; the studio greets it kindly either way.
+      sayCode(
+        `That code was painted in a different town (${drawing.world}), so it belongs over there rather ` +
+          'than here. Nothing is wrong with it.',
+        { href: studioLink(drawing.world, drawing.building), label: 'Open it in that town' }
+      );
+      return;
+    }
+
+    if (drawing.building !== state.entry.placement.id) {
+      const other = state.world.buildings[drawing.building];
+      if (other) {
+        sayCode(
+          `That code is for ${other.name}, not ${state.entry.def.name} — an easy pair to mix up in a sent-mail folder.`,
+          { href: studioLink(drawing.world, drawing.building), label: `Open ${other.name} instead` }
+        );
+      } else {
+        sayCode(
+          `That code is for a building ${state.world.title} doesn't list any more (${drawing.building}). ` +
+            'The code is still perfectly good; there is just nowhere here to put it.'
+        );
+      }
+      return;
+    }
+
+    const fit = fitCode(drawing.width, drawing.height, {
+      width: state.entry.placement.size[0] * TILE,
+      height: state.entry.placement.size[1] * TILE,
+      tile: TILE,
+      maxExtraRows: MAX_EXTRA_ROWS
+    });
+    if (!fit.ok) {
+      sayCode(fit.message);
+      return;
+    }
+
+    // A code can carry an index this world's palette has no colour for — from
+    // another world, or from before a palette was tidied. Those pixels would
+    // draw as nothing at all, so they are made properly clear and counted.
+    const settled = settleCode(drawing.pixels, paletteRgbs);
+
+    const rowsBefore = state.extraRows;
+    pushUndo();
+    state.pixels = settled.pixels;
+    fixHeight();
+    changed();
+
+    codeBox.value = '';
+    showPaste(false);
+    pasteToggle.focus();
+
+    const notes: string[] = [];
+    if (fit.extraRows !== rowsBefore) {
+      notes.push(
+        fit.extraRows === 0
+          ? 'It stops at the roofline, so the canvas came down to meet it.'
+          : `It has ${plural(fit.extraRows, 'row', 'rows')} above the footprint, so the canvas made room.`
+      );
+    }
+    if (settled.stray > 0) {
+      notes.push(
+        `${settled.stray} pixel${settled.stray === 1 ? '' : 's'} asked for a colour this palette hasn't got, ` +
+          `so ${settled.stray === 1 ? 'it is' : 'they are'} clear now.`
+      );
+    }
+    say(
+      `Back on the canvas, just as the code left it.${notes.length ? ` ${notes.join(' ')}` : ''} ` +
+        'Carry on wherever you like — and undo puts it back if you would rather.'
+    );
+  }
+
+  el<HTMLButtonElement>('codeload').addEventListener('click', () => loadCode(codeBox.value));
 
   // --- sending -----------------------------------------------------------
 

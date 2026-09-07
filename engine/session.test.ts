@@ -40,7 +40,12 @@ const world: World = {
 };
 
 const copy: WorldCopy = {
-  ui: { narrator: 'You', advance: '▼', unpainted: '', credit: 'Painted by {credit}.' },
+  ui: {
+    narrator: 'You',
+    advance: '▼',
+    unpainted: '',
+    plaque: { painted: '', anonymous: '', unpainted: '' }
+  },
   transitions: {}
 };
 

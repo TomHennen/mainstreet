@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { FACINGS } from './schema';
+import { FACINGS, plaqueTile } from './schema';
 import { TILE } from './tiled';
 import type { BuildingDef, BuildingPlacement, Facing, GameMap } from './schema';
 import type { TileDef, TilesetDef } from './tiled';
@@ -30,10 +30,24 @@ function canvas(scene: Phaser.Scene, key: string, width: number, height: number)
 // --- tiles -------------------------------------------------------------------
 
 /**
+ * How far down a cell the styles that stand on a raised surface — `disc`,
+ * `rim`, `umbrella` — draw, shadows included. Below it is where a tile's
+ * `edge` paints the front face of whatever they are standing on, so a table
+ * on the near row of a deck keeps the deck's lip in front of it.
+ */
+const PROP_FLOOR = 12;
+
+/**
  * One tile of the fallback tileset, drawn from the recipe its Tiled entry
  * carries. `style` is a shape, not a meaning: the meaning is the tile's class.
  * Every shape stays inside its own 16x16 cell so a tile looks the same whether
  * it is drawn here or blitted out of the tileset image.
+ *
+ * The town is lit from the top left, which is why anything meant to stand
+ * above the ground plane gets the same three cues: a lighter top face, a
+ * darker face towards the viewer, and a short cast shadow down and to the
+ * right. Shading is painted as translucent black or white over the tile's own
+ * colours, so one recipe works for every palette a world hands it.
  */
 function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, px: number, py: number): void {
   const c = def.colors;
@@ -68,20 +82,139 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, px: number, py: n
       ctx.fillRect(px + 4, py + 2, 8, 5);
       break;
 
+    // Two blooms on short stems. Sparse on purpose: a patch is a run of these.
     case 'flower':
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.fillRect(px + 6, py + 8, 1, 3);
+      ctx.fillRect(px + 10, py + 11, 1, 2);
       ctx.fillStyle = c[0];
       ctx.fillRect(px + 5, py + 5, 3, 3);
       ctx.fillRect(px + 10, py + 9, 2, 2);
+      ctx.fillStyle = 'rgba(255,255,255,.28)';
+      ctx.fillRect(px + 5, py + 5, 2, 1);
+      ctx.fillRect(px + 10, py + 9, 1, 1);
       break;
 
+    // A low box on legs: a bench, a chest cooler, a crate.
     case 'prop':
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.fillRect(px + 3, py + 14, 13, 2);
       ctx.fillStyle = c[0];
       ctx.fillRect(px + 1, py + 6, 14, 5);
       ctx.fillRect(px + 2, py + 11, 2, 4);
       ctx.fillRect(px + 12, py + 11, 2, 4);
+      ctx.fillStyle = 'rgba(0,0,0,.28)';
+      ctx.fillRect(px + 1, py + 9, 14, 2);
       ctx.fillStyle = c[1] ?? c[0];
       ctx.fillRect(px + 1, py + 6, 14, 2);
+      ctx.fillStyle = 'rgba(255,255,255,.14)';
+      ctx.fillRect(px + 1, py + 6, 14, 1);
       break;
+
+    // A round top on a pedestal with something small set on it: a cafe table,
+    // a stool, a barrel.
+    case 'disc':
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.fillRect(px + 4, py + 9, 10, 3);
+      ctx.fillRect(px + 3, py + 10, 12, 1);
+      // pedestal and foot, a darkened cut of the top's own colour
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px + 7, py + 7, 2, 4);
+      ctx.fillRect(px + 5, py + 10, 6, 1);
+      ctx.fillStyle = 'rgba(0,0,0,.45)';
+      ctx.fillRect(px + 7, py + 7, 2, 4);
+      ctx.fillRect(px + 5, py + 10, 6, 1);
+      // the top, foreshortened: wider than it is deep
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px + 3, py + 1, 10, 7);
+      ctx.fillRect(px + 2, py + 2, 12, 5);
+      ctx.fillStyle = 'rgba(255,255,255,.16)';
+      ctx.fillRect(px + 4, py + 2, 8, 2);
+      ctx.fillStyle = 'rgba(0,0,0,.18)';
+      ctx.fillRect(px + 2, py + 6, 12, 1);
+      ctx.fillRect(px + 3, py + 7, 10, 1);
+      // whatever is set on it, with a saucer's worth of contact shadow
+      ctx.fillStyle = 'rgba(0,0,0,.16)';
+      ctx.fillRect(px + 5, py + 5, 6, 1);
+      ctx.fillStyle = c[1] ?? c[0];
+      ctx.fillRect(px + 6, py + 2, 3, 3);
+      ctx.fillRect(px + 9, py + 3, 1, 1);
+      ctx.fillStyle = 'rgba(255,255,255,.45)';
+      ctx.fillRect(px + 6, py + 2, 3, 1);
+      break;
+
+    // A container of soil with something growing out of it: a planter, a tub,
+    // a window box. The planting breaks the rim, which is what makes it read
+    // as a box rather than a bench.
+    case 'rim': {
+      const leaf = c[1] ?? c[0];
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.fillRect(px + 3, py + 10, 12, 2);
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px + 2, py + 3, 12, 7);
+      ctx.fillStyle = 'rgba(0,0,0,.28)';
+      ctx.fillRect(px + 2, py + 8, 12, 2);
+      ctx.fillStyle = 'rgba(255,255,255,.20)';
+      ctx.fillRect(px + 2, py + 3, 12, 1);
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.fillRect(px + 3, py + 4, 10, 2);
+      // Sprigs, not a cushion: a ragged top edge is what says "growing".
+      ctx.fillStyle = leaf;
+      ctx.fillRect(px + 4, py, 2, 3);
+      ctx.fillRect(px + 9, py, 2, 4);
+      ctx.fillRect(px + 6, py + 1, 2, 2);
+      ctx.fillRect(px + 3, py + 2, 10, 4);
+      ctx.fillStyle = 'rgba(255,255,255,.20)';
+      ctx.fillRect(px + 4, py, 2, 2);
+      ctx.fillRect(px + 4, py + 3, 3, 1);
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.fillRect(px + 9, py + 2, 1, 4);
+      ctx.fillRect(px + 4, py + 5, 8, 1);
+      break;
+    }
+
+    // A canopy on a pole: a sun umbrella, a parasol, a market awning. A round
+    // canopy in four panels that alternate the two colours, lit from the top
+    // left, with the pole and its shadow showing below.
+    case 'umbrella': {
+      const alt = c[1] ?? c[0];
+      ctx.fillStyle = 'rgba(0,0,0,.22)';
+      ctx.fillRect(px + 5, py + 9, 9, 3);
+      ctx.fillRect(px + 4, py + 10, 11, 1);
+      // Row spans make the canopy round without an arc call.
+      const span = [
+        [5, 6],
+        [3, 10],
+        [2, 12],
+        [1, 14],
+        [1, 14],
+        [1, 14],
+        [2, 12],
+        [3, 10],
+        [5, 6]
+      ];
+      span.forEach(([x, w], y) => {
+        ctx.fillStyle = c[0];
+        ctx.fillRect(px + x, py + y, w, 1);
+        // opposite quadrants in the second colour: far-left and near-right
+        ctx.fillStyle = alt;
+        if (y < 4) ctx.fillRect(px + x, py + y, Math.min(w, 8 - x), 1);
+        if (y > 4) ctx.fillRect(px + Math.max(x, 8), py + y, x + w - Math.max(x, 8), 1);
+      });
+      // the rib across the canopy, the lit crown, and the shaded near rim
+      ctx.fillStyle = 'rgba(0,0,0,.16)';
+      ctx.fillRect(px + 1, py + 4, 14, 1);
+      ctx.fillStyle = 'rgba(255,255,255,.28)';
+      ctx.fillRect(px + 4, py + 1, 3, 1);
+      ctx.fillRect(px + 3, py + 2, 2, 1);
+      ctx.fillStyle = 'rgba(0,0,0,.28)';
+      ctx.fillRect(px + 3, py + 7, 10, 1);
+      ctx.fillRect(px + 5, py + 8, 6, 1);
+      // the pole, below the canopy's near edge
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.fillRect(px + 7, py + 9, 2, 3);
+      break;
+    }
 
     case 'block':
       ctx.fillStyle = c[0];
@@ -106,6 +239,22 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, px: number, py: n
       ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
       break;
 
+    // Four boards across the cell, alternating two values and closed with a
+    // seam, so a run of them reads as decking rather than as one flat fill.
+    // The pattern repeats every cell, which keeps the boards continuous.
+    case 'planks': {
+      const alt = c[1] ?? c[0];
+      const seam = c[2] ?? c[0];
+      ctx.fillStyle = c[0];
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = alt;
+      ctx.fillRect(px, py + 4, TILE, 3);
+      ctx.fillRect(px, py + 12, TILE, 3);
+      ctx.fillStyle = seam;
+      for (let y = 3; y < TILE; y += 4) ctx.fillRect(px, py + y, TILE, 1);
+      break;
+    }
+
     // A short bar along one axis, drawn over `base`. Tiling it leaves a gap
     // between bars, so a run of them reads as a dashed line.
     case 'stripe-h':
@@ -117,6 +266,19 @@ function drawTile(ctx: CanvasRenderingContext2D, def: TileDef, px: number, py: n
       ctx.fillStyle = c[0];
       ctx.fillRect(px + 7, py + 3, 2, 10);
       break;
+  }
+
+  // The front face of a raised surface, last so it stays in front of anything
+  // standing on the tile — including a prop the map put on a layer above this
+  // one, which is why those styles keep clear of it (see PROP_FLOOR).
+  if (def.edge) {
+    ctx.fillStyle = def.edge;
+    ctx.fillRect(px, py + PROP_FLOOR, TILE, TILE - PROP_FLOOR);
+    // the lit nose of the surface, then the shadow it drops on the ground
+    ctx.fillStyle = 'rgba(255,255,255,.22)';
+    ctx.fillRect(px, py + PROP_FLOOR, TILE, 1);
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.fillRect(px, py + TILE - 1, TILE, 1);
   }
 }
 
@@ -315,6 +477,51 @@ export function namePlateArt(scene: Phaser.Scene, placement: BuildingPlacement, 
   const top = artTop < footprintTop ? artTop - SIGN_H - SIGN_GAP : defaultTop;
 
   return { key, x: footprintLeft + (bodyW - width) / 2, y: top };
+}
+
+// --- the plaque beside the door ----------------------------------------------
+
+/** The little plaque, in pixels. Small on purpose: it is a detail, not a sign. */
+const PLAQUE_W = 6;
+const PLAQUE_H = 5;
+/** How far its bottom edge sits above the ground line at the facade's foot. */
+const PLAQUE_LIFT = 4;
+
+export interface PlaqueArt {
+  key: string;
+  x: number;
+  y: number;
+}
+
+/**
+ * A small brass plaque on the wall beside the door, over whatever is behind
+ * it — the engine draws this on every building, painted or not, so no artist
+ * ever has to paint one and every building has somewhere to thank its painter
+ * (DESIGN.md §2/§4). Returns null when the placement has opted out.
+ *
+ * It hangs at the foot of the facade, centred on the tile the player reads it
+ * from, so wall art and plaque never fight over the same pixels for long.
+ */
+export function plaqueArt(scene: Phaser.Scene, placement: BuildingPlacement): PlaqueArt | null {
+  const tile = plaqueTile(placement);
+  if (!tile) return null;
+
+  const key = 'prop:plaque';
+  if (!scene.textures.exists(key)) {
+    const { texture, ctx } = canvas(scene, key, PLAQUE_W, PLAQUE_H);
+    ctx.fillStyle = '#8a6a35';
+    ctx.fillRect(0, 0, PLAQUE_W, PLAQUE_H);
+    ctx.fillStyle = '#d8b268';
+    ctx.fillRect(0, 0, PLAQUE_W, 1);
+    texture.refresh();
+  }
+
+  const groundY = (placement.pos[1] + placement.size[1]) * TILE;
+  return {
+    key,
+    x: tile[0] * TILE + (TILE - PLAQUE_W) / 2,
+    y: groundY - PLAQUE_LIFT - PLAQUE_H
+  };
 }
 
 // --- characters --------------------------------------------------------------

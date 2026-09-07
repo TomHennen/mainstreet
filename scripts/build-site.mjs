@@ -28,7 +28,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -132,6 +132,26 @@ function worldTitle(id) {
   return { title: world.title ?? id, subtitle: world.subtitle ?? '' };
 }
 
+/**
+ * Who painted what, for the landing page. The painter is named here, and
+ * thanked in-game on the plaque beside that building's door — never in the
+ * building's sign dialogue, which belongs to the story copy (DESIGN.md §2/§4).
+ *
+ * Read the way the engine reads it: credits.json is optional, and a credit
+ * only counts once the building actually has its PNG.
+ */
+function paintedSoFar(id) {
+  const dir = resolve(WORLDS_DIR, id);
+  const creditsFile = resolve(dir, 'credits.json');
+  if (!existsSync(creditsFile)) return [];
+  const buildings = JSON.parse(readFileSync(creditsFile, 'utf-8')).buildings ?? {};
+  const world = JSON.parse(readFileSync(resolve(dir, 'world.json'), 'utf-8'));
+  return Object.entries(buildings)
+    .filter(([buildingId]) => existsSync(resolve(dir, 'assets', 'buildings', `${buildingId}.png`)))
+    .map(([buildingId, painter]) => ({ name: world.buildings?.[buildingId]?.name ?? buildingId, painter }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, (ch) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
@@ -148,6 +168,15 @@ function rewriteMarkdownLink(url) {
   return GITHUB_BLOB_BASE + url.replace(/^\.?\//, '');
 }
 
+// Images in CONTRIBUTING.md are authored with a repo-relative path (e.g.
+// docs/examples/demo-facade-x4.png) so they also render on GitHub. On the
+// built page, buildContributingPage() copies those files in flat, next to
+// dist/contributing/index.html, so the <img> src just needs the basename.
+function rewriteMarkdownImage(url) {
+  if (/^([a-z]+:|#)/i.test(url)) return url; // absolute URL or an in-page anchor
+  return basename(url);
+}
+
 function splitTableRow(line) {
   return line
     .trim()
@@ -162,13 +191,16 @@ function isTableSeparator(line) {
   return cells.length > 0 && cells.every((cell) => /^:?-+:?$/.test(cell));
 }
 
-/** Inline markdown within one block: code spans, bold, italic, links, and `<url>` autolinks. */
+/** Inline markdown within one block: code spans, bold, italic, images, links, and `<url>` autolinks. */
 function renderInline(text) {
   let out = escapeHtml(text);
   out = out.replace(/&lt;(https?:\/\/[^\s&<>]+)&gt;/g, (_, url) => `<a href="${url}">${url}</a>`);
   out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
   out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  // Images before links: an image's leading "!" would otherwise leave the
+  // link regex to match its "[alt](url)" part and wrap it in an <a>.
+  out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => `<img src="${rewriteMarkdownImage(url)}" alt="${alt}">`);
   out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => `<a href="${rewriteMarkdownLink(url)}">${label}</a>`);
   return out;
 }
@@ -177,10 +209,12 @@ function renderInline(text) {
  * A small, self-contained Markdown -> HTML converter — just enough of the
  * language for CONTRIBUTING.md (CLAUDE.md: keep dependencies minimal, so no
  * markdown library for one document). Handles: headings, paragraphs,
- * bold/italic/code spans, links (rewritten via rewriteMarkdownLink), `<url>`
- * autolinks, bullet lists, one flavour of table, and horizontal rules.
- * Anything fancier (nested lists, ordered lists, blockquotes, images) isn't
- * needed by the one document this renders and isn't supported.
+ * bold/italic/code spans, links (rewritten via rewriteMarkdownLink), images
+ * (rewritten via rewriteMarkdownImage — see buildContributingPage for where
+ * the files come from), `<url>` autolinks, bullet lists, one flavour of
+ * table, and horizontal rules. Anything fancier (nested lists, ordered
+ * lists, blockquotes) isn't needed by the one document this renders and
+ * isn't supported.
  */
 function renderMarkdown(markdown) {
   const lines = markdown.replace(/\r\n/g, '\n').split('\n');
@@ -332,6 +366,15 @@ function renderContributingPage(bodyHtml, siteHref) {
       padding: 1px 5px;
       border-radius: 3px;
     }
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 4px 0 14px;
+      image-rendering: pixelated;
+      border: 2px solid #4c6b58;
+      border-radius: 4px;
+    }
     hr { border: none; border-top: 1px solid #4c6b58; margin: 24px 0; }
     table { border-collapse: collapse; width: 100%; margin: 0 0 16px; font-size: 13px; }
     th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #33463a; }
@@ -354,12 +397,23 @@ function renderLanding(ids, studioHref, contributeHref) {
       const { title, subtitle } = worldTitle(id);
       const href = `${SITE_BASE}/${id}/`;
       const sub = subtitle ? `<p>${escapeHtml(subtitle)}</p>` : '';
+      const painted = paintedSoFar(id);
+      const credits = painted.length
+        ? `
+        <div class="painted">
+          <h3>Painted so far</h3>
+          <ul>
+${painted.map((p) => `            <li>${escapeHtml(p.name)} &mdash; ${escapeHtml(p.painter)}</li>`).join('\n')}
+          </ul>
+          <p>Every one of them is thanked on a little plaque beside that building&rsquo;s door in the game. Press &ldquo;Paint it&rdquo; at an unpainted building&rsquo;s plaque and the Studio opens, ready for your take on it.</p>
+        </div>`
+        : '';
       return `
       <li>
         <a href="${escapeHtml(href)}">
           <h2>${escapeHtml(title)}</h2>
           ${sub}
-        </a>
+        </a>${credits}
       </li>`;
     })
     .join('\n');
@@ -401,17 +455,19 @@ function renderLanding(ids, studioHref, contributeHref) {
       margin-bottom: 28px;
     }
     ul { list-style: none; display: flex; flex-direction: column; gap: 12px; }
-    li a {
-      display: block;
+    li {
       background: var(--night);
       border: 2px solid #4c6b58;
       border-radius: 6px;
+      transition: border-color 0.15s ease;
+    }
+    li:hover, li:focus-within { border-color: var(--maple); }
+    li a {
+      display: block;
       padding: 14px 16px;
       text-decoration: none;
       color: inherit;
-      transition: border-color 0.15s ease;
     }
-    li a:hover, li a:focus-visible { border-color: var(--maple); }
     li h2 {
       font-size: 15px;
       color: var(--maple);
@@ -422,6 +478,26 @@ function renderLanding(ids, studioHref, contributeHref) {
       opacity: 0.75;
       line-height: 1.5;
     }
+    li .painted {
+      padding: 0 16px 14px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    li .painted h3 {
+      font-size: 12px;
+      font-weight: normal;
+      opacity: 0.7;
+      margin-bottom: 2px;
+      padding-top: 12px;
+      border-top: 1px solid #33463a;
+    }
+    li .painted ul { display: block; }
+    li .painted li {
+      background: none;
+      border: none;
+      opacity: 0.9;
+    }
+    li .painted p { margin-top: 8px; opacity: 0.6; }
     p.studio {
       margin-top: 22px;
       font-size: 13px;
@@ -463,6 +539,17 @@ function buildContributingPage() {
   const markdown = readFileSync(resolve(ROOT, 'CONTRIBUTING.md'), 'utf-8');
   const page = renderContributingPage(renderMarkdown(markdown), `${SITE_BASE}/`);
   writeFileSync(resolve(outDir, 'index.html'), page);
+
+  // Images CONTRIBUTING.md links to (docs/examples/*.png) are copied in
+  // flat, next to index.html, matching the basename-only src that
+  // rewriteMarkdownImage() writes into the page. docs/examples isn't a
+  // world pack, so this is the only place these files ship from.
+  const examplesDir = resolve(ROOT, 'docs', 'examples');
+  if (existsSync(examplesDir)) {
+    for (const file of readdirSync(examplesDir)) {
+      if (file.endsWith('.png')) cpSync(resolve(examplesDir, file), resolve(outDir, file));
+    }
+  }
 }
 
 function main() {

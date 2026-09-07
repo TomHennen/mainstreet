@@ -149,14 +149,15 @@ export class UiScene extends Phaser.Scene {
 
   /**
    * Sits just above the dialogue box, flush with its right edge, so it never
-   * covers the line it belongs to or the advance hint. Positioned in CSS
-   * pixels against #stage, which the UI scene matches one-to-one (zoom 1).
+   * covers the text or the advance hint — on any page, at any box height.
+   * Positioned in CSS pixels against #stage, which the UI scene matches
+   * one-to-one (zoom 1). A link with no `line` stays up for the whole entry.
    */
   private layoutLink(boxTop: number, boxRight: number, stageHeight: number): void {
     const el = this.linkEl;
     if (!el) return;
     const link = this.link;
-    if (!this.open || !link || this.index !== link.line) {
+    if (!this.open || !link || (link.line !== undefined && this.index !== link.line)) {
       this.hideLink();
       return;
     }

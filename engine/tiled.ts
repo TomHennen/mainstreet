@@ -7,7 +7,7 @@
  *   over it in file order and also contribute solidity;
  * - a tile is solid when its tileset entry carries `solid: true`;
  * - every tile a map uses carries the properties the engine needs to draw a
- *   placeholder for it (`style`, `colors`, optional `base`) so a world is
+ *   placeholder for it (`style`, `colors`, optional `base` and `edge`) so a world is
  *   playable before its tileset PNG exists (CLAUDE.md hard rule 3);
  * - object layers are ignored: gameplay positions live in world.json.
  *
@@ -32,9 +32,13 @@ export type TileStyle =
   | 'tree'
   | 'flower'
   | 'prop'
+  | 'disc'
+  | 'rim'
+  | 'umbrella'
   | 'block'
   | 'shelf'
   | 'mat'
+  | 'planks'
   | 'stripe-h'
   | 'stripe-v';
 
@@ -45,9 +49,13 @@ const STYLES: readonly string[] = [
   'tree',
   'flower',
   'prop',
+  'disc',
+  'rim',
+  'umbrella',
   'block',
   'shelf',
   'mat',
+  'planks',
   'stripe-h',
   'stripe-v'
 ];
@@ -58,6 +66,12 @@ export interface TileDef {
   style: TileStyle;
   /** Painted under the style detail, for styles that sit on top of ground. */
   base?: string;
+  /**
+   * Front face colour for a tile whose surface is raised above the ground
+   * plane — the near row of a deck, a porch, a stage. Drawn last, along the
+   * bottom of the cell, so it stays in front of everything else in it.
+   */
+  edge?: string;
   colors: string[];
   solid: boolean;
   /** Which tileset this tile came from, and where it sits in that tileset. */
@@ -188,6 +202,7 @@ export function parseTileset(raw: unknown, where: string): TilesetDef {
       kind: typeof tile.type === 'string' && tile.type ? tile.type : 'tile',
       style: style as TileStyle,
       base: typeof prop.base === 'string' && prop.base ? prop.base : undefined,
+      edge: typeof prop.edge === 'string' && prop.edge ? prop.edge : undefined,
       colors,
       solid: prop.solid === true,
       tileset: name,

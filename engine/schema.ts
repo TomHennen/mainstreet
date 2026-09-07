@@ -26,6 +26,30 @@ export interface BuildingPlacement {
   enter?: Vec2;
   /** Floating name plate above the building, painted or not. Default true. */
   label?: boolean;
+  /**
+   * Walkable front-row tile the plaque beside the door is read from. Omitted
+   * means the default (see `plaqueTile`); `false` means this building has no
+   * plaque at all.
+   */
+  plaque?: Vec2 | false;
+}
+
+/**
+ * Where a building's plaque is read from (DESIGN.md §2/§4). Every building has
+ * one unless it opts out: it is where the painter is thanked, and where an
+ * unpainted building carries its invitation.
+ *
+ * The default is the tile immediately right of the door — or immediately left
+ * when the door already sits in the building's right-most column, so the
+ * plaque stays in front of the building rather than wandering off the end of
+ * it. Returns null when the placement sets `"plaque": false`.
+ */
+export function plaqueTile(placement: BuildingPlacement): Vec2 | null {
+  if (placement.plaque === false) return null;
+  if (placement.plaque) return [placement.plaque[0], placement.plaque[1]];
+  const rightMost = placement.pos[0] + placement.size[0] - 1;
+  const step = placement.door[0] >= rightMost ? -1 : 1;
+  return [placement.door[0] + step, placement.door[1]];
 }
 
 export interface MapLabel {
@@ -98,15 +122,32 @@ export interface WorldCopy {
   ui: {
     narrator: string;
     advance: string;
-    /** `{building}` and `{contribute}` are substituted. */
+    /**
+     * The stand-in for an unpainted building that has no sign copy at all this
+     * episode — without it the box would open empty. Keep it short and kind:
+     * a building with sign copy never shows this. `{building}` and
+     * `{contribute}` are substituted.
+     */
     unpainted: string;
     /**
-     * Label on the link shown beside an unpainted building's line (DESIGN.md
-     * §2). No label means no link — the line still reads fine on its own.
+     * Label on the link to the world's contribution page, shown for the whole
+     * of an unpainted building's plaque dialogue (DESIGN.md §2). No label
+     * means no link — the plaque still reads fine on its own.
      */
     paint?: string;
-    /** `{credit}` is substituted. Shown after a painted building's sign lines. */
-    credit: string;
+    /**
+     * What the little plaque beside a building's door says (DESIGN.md §2/§4).
+     * It is the one place in the game where art is talked about, so the sign
+     * box can stay entirely story: `painted` thanks the painter named in
+     * `credits.json`, `anonymous` covers a painted building with no credit on
+     * file, and `unpainted` is the invitation, shown beside the "Paint it"
+     * link. `{building}` and `{credit}` are substituted.
+     */
+    plaque: {
+      painted: string;
+      anonymous: string;
+      unpainted: string;
+    };
   };
   intro?: { speaker: string; lines: string[] };
   /**

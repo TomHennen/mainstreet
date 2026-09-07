@@ -107,6 +107,14 @@ describe('parseTileset', () => {
     expect(parseTileset(raw, 'test.json').tiles.get(0)?.solid).toBe(false);
   });
 
+  it('reads the optional front-edge colour, and leaves it unset when absent', () => {
+    const raw = tilesetJson();
+    raw.tiles[1].properties.push({ name: 'edge', type: 'string', value: '#6b5136' });
+    const set = parseTileset(raw, 'test.json');
+    expect(set.tiles.get(3)?.edge).toBe('#6b5136');
+    expect(set.tiles.get(0)?.edge).toBeUndefined();
+  });
+
   it('rejects a tile with no style', () => {
     const raw = tilesetJson();
     raw.tiles[0].properties = [{ name: 'colors', type: 'string', value: '#0f0' }];
@@ -114,7 +122,10 @@ describe('parseTileset', () => {
   });
 
   it('accepts every style the engine can draw', () => {
-    const styles = ['flat', 'speck', 'ripple', 'tree', 'flower', 'prop', 'block', 'shelf', 'mat', 'stripe-h', 'stripe-v'];
+    const styles = [
+      'flat', 'speck', 'ripple', 'tree', 'flower', 'prop', 'disc', 'rim', 'umbrella',
+      'block', 'shelf', 'mat', 'planks', 'stripe-h', 'stripe-v'
+    ];
     for (const style of styles) {
       const raw = tilesetJson();
       raw.tiles[0].properties = [

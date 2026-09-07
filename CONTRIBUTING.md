@@ -28,6 +28,20 @@ If you'd rather use a "real" pixel art tool, **Aseprite** (paid) or
 **Piskel** (free, in-browser) both work — just follow the spec below by
 hand.
 
+### What good enough looks like
+
+Here's a plain, ordinary building at the size and level of detail we're
+hoping for — a flat wall, a roof band, a few windows, a door, a sign.
+Nothing fancy; that's the point.
+
+![A modest painted building facade, 80 by 64 pixels, shown at 4x scale: a tan wall, a dark red roof band, four blue-glass windows with light top edges, a brown door with a step, and a blank white sign panel above the door.](docs/examples/demo-facade-x4.png)
+
+*This one was made by a computer to show size and detail. We won't put
+computer art in the game; we'd rather have yours.*
+
+Anything at this level of finish or better is very welcome — and rougher
+first tries are welcome too. We'll help you get it over the line.
+
 ## The spec in plain words
 
 - Everything sits on a **16×16 pixel grid** — like building out of little
@@ -54,7 +68,12 @@ Painted outside the Studio? Email that same address and attach the PNG.
 
 Either way, include **the name you'd like credited.** We may nudge colors
 or proportions slightly to fit, asking first for anything big — and your
-name goes up as the painter regardless.
+name goes up as the painter regardless: on a small plaque beside the door of
+the building you painted, where anyone walking past can read it, and on the
+site's front page under the town you painted for. It doesn't appear in the
+building's sign, so the story the game has to tell about the place stays
+uninterrupted. The plaque itself is the game's own — you never have to paint
+one, it goes on top of your art.
 
 ## The kindness rule
 
@@ -66,26 +85,36 @@ our own storefront:
 - No real private people appear without their own say-so first.
 - Keep it warm. If in doubt, make it kinder.
 
+## Where AI fits
+
+The game's code, maps, and tools get built with AI help — that's normal
+here. The art that ships in the towns doesn't: no model-generated pixel art
+goes into a world pack. Every facade, character, and portrait is painted by
+a person. If AI helped you get there behind the scenes — turning a photo of
+a building into a plan you then finished by hand, say — that's fine, and
+your credit can say so, in your own words. An unpainted building stays a
+plain placeholder box until someone paints it. That's not a gap to patch
+quickly; it's the invitation this whole project runs on.
+
 ## Licenses
 
 - The game's code is Apache 2.0 — see [`LICENSE`](LICENSE).
 - Art and world content, including everything you contribute, is Creative
   Commons Attribution 4.0 — see [`LICENSE-CONTENT.md`](LICENSE-CONTENT.md).
   In short: anyone may copy, share, adapt and use it, commercially too, as
-  long as they credit the creator — exactly what the in-game "painted by
-  ___" credit and `credits.json` are for.
+  long as they credit the creator — exactly what `credits.json` and the
+  "painted by ___" credit it feeds are for.
 
 ## Buildings waiting for an artist
 
-None of Route 10's buildings are painted yet — every one below is still a
-placeholder box, and any of them is up for grabs:
+Middle Brook Cafe has its first coat (thank you, Tom and Lana). Every
+building below is still a placeholder box, and any of them is up for grabs:
 
 | Building | Village | Size (pixels) |
 | --- | --- | --- |
 | Jefferson Town Hall (`jefferson-town-hall`) | Jefferson | 80 × 48 |
 | Mill Pond Inn (`mill-pond-inn`) | Jefferson | 80 × 48 |
 | Heartbreak Hotel (`heartbreak-hotel`) | Jefferson | 80 × 48 |
-| Middle Brook Cafe (`middle-brook-cafe`) | Jefferson | 80 × 48 |
 | Stewart's (`stewarts`) | Stamford | 96 × 64 |
 | Mac-A-Doodles (`mac-a-doodles`) | Stamford | 64 × 48 |
 | Stamford Coffee (`stamford-coffee`) | Stamford | 80 × 48 |

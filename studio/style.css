@@ -296,6 +296,24 @@ kbd {
 
 /* --- files and sending ----------------------------------------------------- */
 
+/*
+ * A file input that has been taken out of the layout with display:none is one
+ * some browsers decline to open a picker for. This keeps it a real, laid-out
+ * control that simply cannot be seen — the visible <button> beside it does the
+ * asking, for a finger and for a keyboard both.
+ */
+.offscreen {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .files,
 .send {
   border-top: 1px solid rgba(243, 234, 216, 0.12);
@@ -348,7 +366,8 @@ kbd {
   margin-bottom: 4px;
 }
 
-.field input {
+.field input,
+.field textarea {
   width: 100%;
   font-family: inherit;
   font-size: 14px;
@@ -357,6 +376,31 @@ kbd {
   border: 2px solid var(--edge);
   border-radius: 5px;
   padding: 10px;
+}
+
+/* A pasted code is one long unbroken run of characters, so it wraps anywhere
+   rather than pushing the field off the side of a phone. */
+.field textarea {
+  display: block;
+  resize: vertical;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.paste {
+  margin-top: 10px;
+  background: var(--night);
+  border: 1px solid rgba(243, 234, 216, 0.12);
+  border-radius: 6px;
+  padding: 12px 12px 2px;
+}
+
+.paste .field {
+  margin-bottom: 10px;
+}
+
+.paste .statusline {
+  margin-bottom: 8px;
 }
 
 .consent {
