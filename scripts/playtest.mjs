@@ -3911,6 +3911,187 @@ async function main() {
       log(`    pulled away again once the player stepped off: ${again.tiles.toFixed(1)} tiles in ${(again.ms / 1000).toFixed(1)}s`);
     }
 
+    // --- a story's own car ----------------------------------------------------
+    // An episode may bring cars of its own and a scene may drive one (issue
+    // #66, DESIGN.md §3): ep002 parks Walt's pickup in J&H's forecourt from
+    // the moment it starts, and when the handoff lands he walks to it, it
+    // pulls out onto Main Street and heads out of the village. All data, so
+    // the harness finds the episode with a parked car a scene drives rather
+    // than being told which one.
+    const truckEpisode = (() => {
+      for (const file of readdirSync(resolve(PACK, 'episodes')).sort()) {
+        if (!file.endsWith('.json') || file.startsWith('draft-')) continue;
+        const candidate = readJson(resolve(PACK, 'episodes', file));
+        for (const parked of (candidate.vehicles ?? []).filter((v) => v.pos && !v.path)) {
+          const scene = (candidate.scenes ?? []).find((sc) =>
+            (sc.steps ?? []).some((st) => st.move?.who === `vehicle:${parked.id}`)
+          );
+          // Triggered by a flag a line of dialogue sets, which is the rung the
+          // harness stands the story up to.
+          const trigger = scene?.on?.flag;
+          const speaker = trigger
+            ? candidate.npcs.find(
+                (n) => n.map === parked.map && n.dialogue.some((d) => (d.effects ?? []).some((e) => e.set === trigger))
+              )
+            : null;
+          if (scene && speaker) {
+            return { id: file.slice(0, -'.json'.length), episode: candidate, vehicle: parked, scene, speaker };
+          }
+        }
+      }
+      return null;
+    })();
+
+    if (!truckEpisode) {
+      log('  (no episode parks a car a scene drives — skipping the story car)');
+    } else {
+      const { id: truckId, episode: truckEp, vehicle, scene: departure, speaker } = truckEpisode;
+      const entry = speaker.dialogue.find((d) => (d.effects ?? []).some((e) => e.set === departure.on.flag));
+      log(`  ${truckId}'s own car: "${vehicle.id}" parked at ${vehicle.pos} on "${vehicle.map}"`);
+
+      // The same window the ambient cars used, for the same reason: zoom 3 is
+      // where a car reads properly, and these shots are meant to be at it.
+      const tctx = await browser.newContext({ viewport: { width: 1000, height: 900 }, deviceScaleFactor: 1 });
+      const tp = await tctx.newPage();
+      attach(tp, 'story-car');
+      await tp.goto(`${BASE}?episode=${encodeURIComponent(truckId)}`, { waitUntil: 'load' });
+      await waitUntil(tp, (s) => s.map === WORLD.start.map, `${truckId} to start`);
+      for (let i = 0; i < 6 && (await snap(tp)).dialogueOpen; i++) await pressA(tp);
+      if ((await snap(tp)).dialogueOpen) fail('story-car', 'the opening card never closed');
+
+      // Over to the village the car is parked in, if it is not this one.
+      if (vehicle.map !== WORLD.start.map) {
+        const out = WORLD.maps[WORLD.start.map].exits.find((e) => e.to === vehicle.map);
+        if (!out) fail('story-car', `no road from "${WORLD.start.map}" to "${vehicle.map}"`);
+        await walkTo(tp, 'story-car', [out.at[0], out.at[1]], { allowInterrupt: true, episode: truckEp });
+        await waitUntil(tp, (s) => s.map === vehicle.map && !s.locked, `the road to "${vehicle.map}"`, 30000);
+      }
+
+      // Parked where the episode left it, from the start, and going nowhere.
+      const whereIsTruck = async () => {
+        const state = await snap(tp);
+        const found = (state.vehicles ?? []).find((v) => v.id === vehicle.id);
+        if (!found) fail('story-car', `the engine published no car called "${vehicle.id}" on "${state.map}"`);
+        return found;
+      };
+      const parkedAt = await whereIsTruck();
+      if (Math.hypot(parkedAt.x - vehicle.pos[0], parkedAt.y - vehicle.pos[1]) > 0.2) {
+        fail('story-car', `"${vehicle.id}" is at ${[parkedAt.x, parkedAt.y]}, not parked at ${vehicle.pos}`);
+      }
+      if (!parkedAt.stopped) fail('story-car', `"${vehicle.id}" is meant to be parked, and it is driving`);
+      log(`    parked at ${vehicle.pos}, facing ${parkedAt.facing}, from the moment the episode starts`);
+
+      // Over to whoever hands the story its last flag. A tile below them, like
+      // Earl: talking is by reach, not by facing.
+      const meta = WORLD.maps[vehicle.map];
+      const taken = new Set();
+      for (const b of meta.buildings) {
+        taken.add(`${b.door[0]},${b.door[1]}`);
+        const pl = plaqueOf(b);
+        if (pl) taken.add(`${pl[0]},${pl[1]}`);
+      }
+      const away = exitTiles(meta);
+      const beside = [[0, 1], [1, 0], [-1, 0], [0, -1]]
+        .map(([dx, dy]) => [speaker.pos[0] + dx, speaker.pos[1] + dy])
+        .find(
+          (t) =>
+            !isSolid(meta, t[0], t[1]) &&
+            !taken.has(`${t[0]},${t[1]}`) &&
+            !away.has(`${t[0]},${t[1]}`) &&
+            !fixtureAt(vehicle.map, t[0], t[1])
+        );
+      if (!beside) fail('story-car', `nowhere to stand beside "${speaker.id}" at ${speaker.pos}`);
+      await walkTo(tp, 'story-car', beside, { episode: truckEp });
+      await shot(tp, 'story-car-parked');
+
+      // Stand the story up at the rung this line answers (engine/debug.ts's
+      // dev-only flag hook), rather than walking all three villages again.
+      for (const flag of entry.requires ?? []) {
+        const set = await evalIn(tp, `the dev hook to set "${flag}"`, (name) => window.__mainstreetSetFlag?.(name) ?? null, flag);
+        if (set !== true) fail('story-car', `the dev flag hook would not set "${flag}" (returned ${set})`);
+      }
+      if ((entry.requires ?? []).length) log(`    stood the story up at ${JSON.stringify(entry.requires)}`);
+
+      // The handoff itself, in the game, off the real line of dialogue.
+      await pressA(tp);
+      const said = await expectDialogue(tp, 'story-car', speaker.name);
+      if (said.dialogue?.text !== entry.lines[0]) {
+        fail('story-car', `${speaker.name} says "${said.dialogue?.text}", expected "${entry.lines[0]}"`);
+      }
+      await advanceDialogue(tp, 'story-car', entry.lines.length);
+      expectFlag(await snap(tp), 'story-car', departure.on.flag);
+      log(`    ${speaker.name} — "${entry.lines[entry.lines.length - 1]}"`);
+
+      // He walks to the truck…
+      const walk = (departure.steps ?? []).find((st) => st.move && st.move.who === speaker.id)?.move;
+      if (walk) {
+        const goal = walk.path ? walk.path[walk.path.length - 1] : walk.to;
+        await waitUntil(
+          tp,
+          (st) => {
+            const him = (st.people ?? []).find((p) => p.id === speaker.id);
+            return Boolean(him) && Math.hypot(him.x - goal[0], him.y - goal[1]) < 0.3;
+          },
+          `"${speaker.id}" to walk to the truck at ${goal}`,
+          30000
+        );
+        log(`    ${speaker.name} walked from ${speaker.pos} to the truck at ${goal}`);
+      }
+
+      // …and the truck pulls out and drives off the edge of the map. Nothing
+      // here counts frames: it waits for tiles covered, then for the last
+      // waypoint of the scene's own path.
+      const drive = (departure.steps ?? []).find((st) => st.move?.who === `vehicle:${vehicle.id}`).move;
+      const end = drive.path ? drive.path[drive.path.length - 1] : drive.to;
+      let held = false;
+      const pulledOut = await waitUntil(
+        tp,
+        (st) => {
+          if (st.scene?.holds) held = true;
+          const car = (st.vehicles ?? []).find((v) => v.id === vehicle.id);
+          // Far enough to be out of the lot and away down the street, rather
+          // than still nosing out of the stall.
+          return Boolean(car) && Math.hypot(car.x - vehicle.pos[0], car.y - vehicle.pos[1]) > 4;
+        },
+        `"${vehicle.id}" to pull out of the lot and away`,
+        30000
+      );
+      await shot(tp, 'story-car-leaving');
+      const leaving = (pulledOut.vehicles ?? []).find((v) => v.id === vehicle.id);
+      log(`    the truck pulled out: ${[leaving.x.toFixed(1), leaving.y.toFixed(1)]}, facing ${leaving.facing}`);
+
+      const gone = await waitUntil(
+        tp,
+        (st) => {
+          if (st.scene?.holds) held = true;
+          const car = (st.vehicles ?? []).find((v) => v.id === vehicle.id);
+          return Boolean(car) && Math.hypot(car.x - end[0], car.y - end[1]) < 0.3;
+        },
+        `"${vehicle.id}" to reach ${end}, at the edge of the map`,
+        40000
+      );
+      log(`    and drove to ${end}, at the edge of the map`);
+      if (gone.map !== vehicle.map) fail('story-car', 'the player was carried off the map by the scene');
+
+      // The toast the scene fires once he is gone, and the flag it records
+      // itself with — with the controls never once taken off the player.
+      const toastStep = (departure.steps ?? []).find((st) => st.toast !== undefined)?.toast;
+      if (toastStep) {
+        const toasted = await waitUntil(tp, (st) => st.toast === toastStep, `the toast "${toastStep}"`, 20000);
+        log(`    toast: "${toasted.toast}"`);
+      }
+      const over = await waitUntil(
+        tp,
+        (st) => st.scene === null && st.flags[`scene:${departure.id}`] === true,
+        `the scene to finish and record "scene:${departure.id}"`,
+        30000
+      );
+      if (held) fail('story-car', 'the scene took the controls off the player — nobody in it speaks or walks them anywhere');
+      if (over.locked) fail('story-car', 'the player was left locked once the scene was over');
+      log('    scene over, and the player kept the controls the whole way through');
+      await tctx.close();
+    }
+
     log(`\n  ${PLAYTEST_EPISODE} completed end to end.`);
   } finally {
     await browser.close();
