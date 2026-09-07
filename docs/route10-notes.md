@@ -391,3 +391,34 @@ opt-in, everything warm and affectionate) before it reaches the player.
   member citing the real right-to-farm rule. Could turn out to be the same
   flower farm as the sunflower field above, or a separate one — worth
   settling when the episode actually gets plotted.
+- **The beaver saga.** Real inspiration, great shape for a multi-day
+  small-town saga, but it needs careful handling to land inside CLAUDE.md
+  hard rule 6 (no combat, everything warm, the "would this reader smile"
+  bar) — flagging that up front rather than writing it as told. A beaver
+  moves into someone's pond and dams the outflow stream; the property (and
+  the road) starts flooding. The owners call in a wildlife-removal guy who
+  looks exactly the part — huge beard, waders, the works — but the beaver's
+  back the next day. The town removes the dam instead, which promptly
+  washes out a downhill neighbor's garden. Then a truck shows up, a couple
+  of bangs are heard from the woods, and the beaver's simply not around
+  anymore — "a drive-by shooting in the woods," as the story gets told
+  after the fact. The escalating-chaos shape of this (flood → removal guy
+  → dam pulled → neighbor's garden washes out → mystery resolution) is
+  terrific small-town-saga material, several beats' worth, and worth
+  keeping. The ending is the part that needs real care: **never depict the
+  beaver being shot, or confirm on the page that it was killed.** The
+  instinct to leave it open-ended is exactly right, and is the thing that
+  makes this usable at all — lean all the way into "nobody in town
+  actually knows what happened, and everyone tells it a little
+  differently" pure-rumor-mill territory, rather than staging or narrating
+  any violence toward the animal. The bang itself can stay ambiguous
+  in-world too (a truck backfiring, someone's fireworks, actually
+  unrelated) — the town not being sure is funnier and safer than the town
+  being sure. Good material for a "get to the bottom of a local legend"
+  episode structure: the player collects each person's version of the
+  story (the flooded-out owners, the bearded wildlife guy, the
+  downhill-garden neighbor, whoever heard the bangs) and the fun is in the
+  contradictions, not a resolved answer. The wildlife-removal character
+  (a fully invented local, hard rule 5, built from the "looks exactly like
+  you'd expect" archetype rather than any real person) is a nice one-off
+  or recurring cameo either way.
