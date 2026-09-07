@@ -463,6 +463,17 @@ and it is now a way to get to Hobart rather than scenery.
   them, drawn where the map can show it. **What this cost:** the road's
   dashed centre line breaks for the two rows of the bridge, and the river's
   stepped west end is gone.
+- **South of the water the trail is on the river's far side.** Stamford's
+  West Branch is drawn as one east–west band across the bottom of the map, so
+  anything heading south has to cross it; in the real valley the rail bed
+  stays on the near side of the water for a good while yet and crosses much
+  further down. The footbridge is where that crossing got spent.
+- **A mown verge either side of the trail.** The trees at y32 and y34 are
+  cleared from x24 to x44, and at (25, 41). A one-tile path with a wall of
+  trees along both sides has nowhere for two people to pass: a townsperson
+  walking the trail would path all the way out to NY 10 to get round the
+  player. Grass either side is both what a rail-bed trail looks like and
+  what lets somebody step aside.
 
 **Hobart (52 × 30).** Here the real alignment lands on the grid almost by
 itself: NY 10 comes down x32–34 and the West Branch comes down x38, so there
