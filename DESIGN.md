@@ -595,6 +595,27 @@ picked by their id so the same person always says the same thing, and
 the village is chatting about can change with the week's story. Optional;
 without it, `ui.passerby` keeps standing.
 
+**This week's cars.** An episode may carry a `vehicles` list of its own,
+shaped exactly like a map's (above) plus the `map` each car stands on:
+
+```jsonc
+"vehicles": [
+  { "id": "walts-pickup", "map": "jefferson", "kind": "pickup",
+    "colour": "#5f6f5a", "pos": [43, 12], "facing": "down" }
+]
+```
+
+The engine merges the two lists in one place (`vehiclesOn` in
+`engine/session.ts`), so nothing downstream knows or cares which list a car
+came off — and an episode's cars stand only while that episode is the one
+being played, which is how somebody's pickup can be parked outside the gas
+station for a morning without the village gaining a pickup for ever. They are
+validated by exactly the rules a map's own are, against the map they name, and
+a car may not take an id the village already uses on that map (a scene's
+`"vehicle:<id>"` has to name one car). ep002 is the worked example: Walt's
+pickup is parked in J&H's forecourt from the moment the episode starts, and
+drives out of the village when the story ends.
+
 ### Scenes
 
 A **scene** is a staged moment: the lights going up at the Belvedere, three
@@ -637,6 +658,13 @@ The steps, one per entry, exactly one field each:
 | `set` | sets a declared flag — also how a scene turns an overlay on | nothing |
 | `light` | see below | nothing |
 | `end` | stops the scene, whatever follows | — |
+
+A `move` on a `"vehicle:<id>"` names a car on that map — the village's own or
+this episode's — and it *drives*: over drivable tiles only, out through an
+exit if that is where the road goes, and it slows for anybody standing in the
+road rather than steering round them, exactly as ambient traffic does (§2).
+The validator checks every leg of it for paved road, starting from the tile
+the episode parked the car on.
 
 The player keeps the controls between steps: townspeople crossing the room, the
 lights coming up and a toast all happen around somebody still free to walk

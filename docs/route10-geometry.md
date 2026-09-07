@@ -506,3 +506,33 @@ does, with their own copy under `transitions` in `copy.json`
 (`stamford-hobart-trail`, `hobart-stamford-trail`). The `stamford-hobart`
 and `hobart-stamford` road exits, and everything else on either map, are
 unchanged.
+
+## 12. J&H's forecourt (Sep 2026)
+
+ep002 ends with Walt driving down the valley, which meant the map needed
+somewhere on it a truck could legally stand: a parked vehicle has to sit on a
+drivable tile (`engine/validate.ts`), and J&H's apron was sandy. Jefferson's
+row 12 between the sidewalk (x38–41) and NY 10 (x48–50) is now the gas
+station's paved forecourt.
+
+| what                | tiles                                            |
+|---------------------|--------------------------------------------------|
+| forecourt           | row 12, x42–47 — asphalt, one speck tile at x47   |
+| stall stripes       | (42, 12) and (44, 12), the white `stripe-v` tile  |
+| the marked stall    | (43, 12) — where ep002 parks Walt's pickup        |
+| J&H's doorstep      | (45, 12), unchanged                               |
+| J&H's plaque tile   | (46, 12), unchanged                               |
+
+- **Two stripes and one stall**, the same pattern the Middle Brook lot uses at
+  x42–44, y24–25. The stall is at the west end, away from the door and the
+  plaque, so a truck's 32 px sprite never sits over either of them.
+- **It opens straight onto Main Street.** Row 13 is asphalt the whole way
+  across, so the forecourt needs no drive of its own: a truck in the stall
+  pulls south into the westbound lane and away. Nothing else on the map
+  moved, and no coordinate changed.
+- **The way out of the village is east.** NY 10 comes down x48–50 and turns
+  east along Main Street, so a truck "heading south" in the fiction — down the
+  valley toward Stamford and the city — drives east along row 15, the
+  eastbound lane the ambient van uses, and off the map at x63, where the
+  `jefferson-stamford` exit is. ep002's scene drives it (43,12) → (43,15) →
+  (63,15).
