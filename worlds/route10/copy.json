@@ -78,6 +78,48 @@
     "lines": [
       "Late summer in the western Catskills. Route 10 runs north to Jefferson and south-west to Hobart; the road across it is Route 23, Main Street through the village.",
       "Tap where you want to go, or use the d-pad. Tap a person, a door or a sign to talk, go in, or read; A does the same."
+    ],
+    "byDate": [
+      {
+        "from": "03-15",
+        "to": "04-30",
+        "line": "Mud season is easing into first green here in the western Catskills. Route 10 runs north to Jefferson and south-west to Hobart; the road across it is Route 23, Main Street through the village."
+      },
+      {
+        "from": "05-01",
+        "to": "06-15",
+        "line": "Late spring in the western Catskills, everything leafing out at once. Route 10 runs north to Jefferson and south-west to Hobart; the road across it is Route 23, Main Street through the village."
+      },
+      {
+        "from": "06-16",
+        "to": "08-20",
+        "line": "Summer in the western Catskills, warm and easy. Route 10 runs north to Jefferson and south-west to Hobart; the road across it is Route 23, Main Street through the village."
+      },
+      {
+        "from": "08-21",
+        "to": "09-20",
+        "line": "Late summer in the western Catskills — Labor Day's just behind us, and this is the last of it. Route 10 runs north to Jefferson and south-west to Hobart; the road across it is Route 23, Main Street through the village."
+      },
+      {
+        "from": "09-21",
+        "to": "10-31",
+        "line": "Leaf season in the western Catskills, the hills turning color by the day. Route 10 runs north to Jefferson and south-west to Hobart; the road across it is Route 23, Main Street through the village."
+      },
+      {
+        "from": "11-01",
+        "to": "12-10",
+        "line": "Stick season in the western Catskills, the leaves down and the hills bare and quiet before the snow. Route 10 runs north to Jefferson and south-west to Hobart; the road across it is Route 23, Main Street through the village."
+      },
+      {
+        "from": "12-11",
+        "to": "02-28",
+        "line": "Deep winter in the western Catskills, snow settled in for the season. Route 10 runs north to Jefferson and south-west to Hobart; the road across it is Route 23, Main Street through the village."
+      },
+      {
+        "from": "03-01",
+        "to": "03-14",
+        "line": "Late-winter thaw in the western Catskills, the snow going soft and the days stretching out. Route 10 runs north to Jefferson and south-west to Hobart; the road across it is Route 23, Main Street through the village."
+      }
     ]
   },
   "transitions": {

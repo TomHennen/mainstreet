@@ -5,6 +5,7 @@ import { Flags } from '../flags';
 import { loadSave } from '../save';
 import type { SaveFile } from '../save';
 import { restoreEpisode, resumePoint } from '../progress';
+import { validateIntroByDate } from '../season';
 import { startSession } from '../session';
 import type { AssetIndex } from '../session';
 import { validateEpisode, validateWorld } from '../validate';
@@ -42,10 +43,11 @@ export class BootScene extends Phaser.Scene {
 
     try {
       const loaded = await loadWorld(worldId);
-      const { world, episodes, maps } = loaded;
+      const { world, copy, episodes, maps } = loaded;
 
       const problems = [
         ...validateWorld(world, maps),
+        ...validateIntroByDate(copy.intro),
         ...episodes.flatMap((episode) => validateEpisode(episode, world, maps))
       ];
       if (problems.length) {

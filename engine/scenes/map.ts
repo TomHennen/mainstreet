@@ -29,6 +29,7 @@ import { patchFor, withOverlays } from '../overlay';
 import { Driver, DRIVE_FACTOR } from '../vehicle';
 import { findPath, pathToTile } from '../path';
 import { autosave } from '../progress';
+import { introLineFor } from '../season';
 import { SceneRunner, sceneTriggered } from '../scene';
 import type { SceneDriver } from '../scene';
 import {
@@ -441,8 +442,15 @@ export class MapScene extends Phaser.Scene {
       state.introShown = true;
       // The world intro sets the place and the controls; an episode's own
       // `intro` (DESIGN.md §3) follows it in the same card, in the same
-      // voice, with this week's opening line or two.
-      const lines = [...state.copy.intro.lines, ...(state.episode.intro ?? [])];
+      // voice, with this week's opening line or two. The first line follows
+      // the real calendar when the world pack offers `intro.byDate`
+      // (DESIGN.md §2/§3) — picked from the device's local date at boot and
+      // never saved (CLAUDE.md hard rule 7).
+      const lines = [
+        introLineFor(state.copy.intro, new Date()),
+        ...state.copy.intro.lines.slice(1),
+        ...(state.episode.intro ?? [])
+      ];
       bus.emit(EV.say, { speaker: state.copy.intro.speaker, lines });
     }
 

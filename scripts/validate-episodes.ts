@@ -30,6 +30,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { parseTiledMap, parseTileset, tilesetSources } from '../engine/tiled.ts';
 import type { TilesetDef } from '../engine/tiled.ts';
+import { validateIntroByDate } from '../engine/season.ts';
 import { overlayNotes, validateEpisode, validateWorld } from '../engine/validate.ts';
 import type { Episode, GameMap, World, WorldCopy } from '../engine/schema.ts';
 
@@ -70,9 +71,13 @@ function validateWorldPack(dir: string, worldId: string): void {
 
   const world = readJson<World>(worldId, worldFile);
   // copy.json is loaded at boot alongside world.json (engine/loader.ts) but
-  // carries only UI strings — validate.ts has no rules for it, so presence
-  // and JSON validity is all that's checked here.
-  readJson<WorldCopy>(worldId, copyFile);
+  // carries only UI strings — validate.ts has no rules for it beyond
+  // `intro.byDate` (engine/season.ts's `validateIntroByDate`, DESIGN.md §2/§3),
+  // so presence, JSON validity and that one shape are all that's checked here.
+  const copy = readJson<WorldCopy>(worldId, copyFile);
+  for (const problem of validateIntroByDate(copy.intro)) {
+    fail(worldId, copyFile, problem);
+  }
 
   if (world.id !== worldId) {
     fail(worldId, worldFile, `declares id "${world.id}" but lives in directory "${worldId}"`);

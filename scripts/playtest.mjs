@@ -31,6 +31,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // so the harness can build a worst-case drawing the same way scripts/decode-
 // art.ts reads a real one — no browser needed to make a code this big.
 import { encode } from '../studio/codec.ts';
+// Same story for the season picker (engine/season.ts's own header) — it is
+// what decides the intro's first line in the browser, so the harness imports
+// the real thing rather than re-implementing the calendar logic here.
+import { introLineFor } from '../engine/season.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = process.env.PLAYTEST_URL ?? 'http://localhost:5173/';
@@ -1228,8 +1232,13 @@ async function main() {
     if (booted.map !== WORLD.start.map) fail('boot', `started on "${booted.map}"`);
     // The opening card is the world's own intro (copy.json, episode-neutral)
     // followed by this episode's own `intro` (DESIGN.md §3) — one card, the
-    // world's scene-setting first and then this week's opening line(s).
-    const introLines = [...(COPY.intro?.lines ?? []), ...(EPISODE.intro ?? [])];
+    // world's scene-setting first and then this week's opening line(s). The
+    // first line follows the real calendar (DESIGN.md §2/§3) when the world
+    // pack offers `intro.byDate`, picked the same way engine/scenes/map.ts
+    // does at boot.
+    const introLines = COPY.intro
+      ? [introLineFor(COPY.intro, new Date()), ...COPY.intro.lines.slice(1), ...(EPISODE.intro ?? [])]
+      : [...(EPISODE.intro ?? [])];
     const introPages = await readDialogue(page, 'boot', introLines.length, async (i) => {
       const on = (await snap(page)).dialogue;
       if (on?.text !== introLines[i]) {
@@ -3334,7 +3343,9 @@ async function main() {
         try {
           await op.goto(`${BASE}?episode=${encodeURIComponent(otherId)}`, { waitUntil: 'load' });
           await waitUntil(op, (s) => s.dialogueOpen, `"${otherId}"'s intro to open`);
-          const otherLines = [...(COPY.intro?.lines ?? []), ...(other.intro ?? [])];
+          const otherLines = COPY.intro
+            ? [introLineFor(COPY.intro, new Date()), ...COPY.intro.lines.slice(1), ...(other.intro ?? [])]
+            : [...(other.intro ?? [])];
           const otherPages = await readDialogue(op, 'other-intro', otherLines.length, async (i) => {
             const on = (await snap(op)).dialogue;
             if (on?.text !== otherLines[i]) {
