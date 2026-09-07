@@ -2493,8 +2493,12 @@ async function main() {
     }
     await sleep(300);
     const saidHuge = (await send.locator('#sendstatus').innerText({ timeout: 20000 })).trim();
-    if (!saidHuge.toLowerCase().includes('copied')) {
-      fail('studio-send', `a finished-size send should say the code was copied; it said "${saidHuge}"`);
+    // The clipboard write needs a focused, permitted document; a headless or
+    // CI browser may refuse it, and the studio then says so and points at the
+    // "Copy the code" button instead. Either wording is the right behaviour.
+    const lower = saidHuge.toLowerCase();
+    if (!lower.includes('copied') && !lower.includes('copy the code')) {
+      fail('studio-send', `a finished-size send should say the code was copied or offer Copy the code; it said "${saidHuge}"`);
     }
     if (!(await send.locator('#copycode').isVisible({ timeout: 20000 }))) {
       fail('studio-send', 'a finished-size send should leave a "Copy the code" button showing');
