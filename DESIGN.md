@@ -61,9 +61,12 @@ path written in the data. What it expects of the file (all of it enforced in
 water, wall, floor, counter, mat — which is there for the person editing the
 map; the engine never branches on it. What the engine reads is Tiled custom
 properties: `solid` (bool, default false — the only source of tile collision),
-`style`, `colors` (comma-separated hex) and optional `base`. `style` is one of
-twelve drawing recipes (`flat`, `speck`, `ripple`, `tree`, `flower`, `prop`,
-`disc`, `block`, `shelf`, `mat`, `stripe-h`, `stripe-v`), so a tile is fully
+`style`, `colors` (comma-separated hex), optional `base` (a flat fill painted
+under the recipe) and optional `edge` (the colour of a front face painted along
+the bottom of the cell, for a surface raised above the ground plane — the near
+row of a deck or a porch). `style` is one of fifteen drawing recipes (`flat`,
+`speck`, `ripple`, `tree`, `flower`, `prop`, `disc`, `rim`, `umbrella`,
+`block`, `shelf`, `mat`, `planks`, `stripe-h`, `stripe-v`), so a tile is fully
 self-describing and variants of a
 kind — three grasses, road with and without a crack — are separate tiles the
 author paints with, rather than something the engine randomises per position.
