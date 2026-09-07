@@ -8,6 +8,28 @@
       "painted": "A little plaque by the door: {building}, painted by {credit}. Thank you, {credit}!",
       "anonymous": "A little plaque by the door: somebody painted {building} for everyone to enjoy. Thank you, whoever you are.",
       "unpainted": "A little plaque by the door, waiting for a name. Nobody has painted {building} yet — it could be you."
+    },
+    "suggest": {
+      "lines": [
+        "Jefferson Town Hall keeps a suggestion box by the door, with a slot worn smooth by years of good ideas.",
+        "Got a story for Route 10, a bit of local lore, someone who should be in it, or something we should fix? Write to us — every note gets read."
+      ],
+      "link": "Write to us",
+      "body": [
+        "Hello! Here's something for Route 10 — fill in whatever fits and delete the rest. A line or two is plenty.",
+        "",
+        "A story idea (which village, who's in it, what happens):",
+        "",
+        "Local lore or history worth a mention:",
+        "",
+        "A person or place that should be in the game:",
+        "(Real people only appear with their own okay, and real businesses appear by name, always with affection.)",
+        "",
+        "Something that isn't right, or could be kinder:",
+        "",
+        "How you'd like to be thanked:",
+        ""
+      ]
     }
   },
   "intro": {

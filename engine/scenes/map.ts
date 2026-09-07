@@ -5,6 +5,7 @@ import {
   buildingArt,
   characterTexture,
   dashTexture,
+  fixtureArt,
   frameIndex,
   itemTexture,
   mapTexture,
@@ -16,12 +17,13 @@ import {
 } from '../art';
 import { publishDebug } from '../debug';
 import { isHeld, onAction } from '../input';
+import { feedbackUrl } from '../feedback';
 import { paintUrl } from '../paint';
 import { creditFor, dialogueFor, itemVisible, itemsOn, npcsOn, propSignsOn, session, signFor } from '../session';
 import { isSolid } from '../validate';
 import { plaqueTile } from '../schema';
 import type { PlateBox } from '../art';
-import type { BuildingPlacement, EpisodeItem, EpisodeSign, Facing, GameMap, Vec2 } from '../schema';
+import type { BuildingPlacement, EpisodeItem, EpisodeSign, Facing, Fixture, GameMap, Vec2 } from '../schema';
 
 const SPEED = 102; // px/s — the prototype's 1.7px/frame at 60fps
 const HITBOX = TILE;
@@ -32,7 +34,9 @@ const MAX_ZOOM = 4;
 // Reach in tiles. Interiors are tight, so an NPC behind a counter needs more.
 // The plaque is the exception: it is read standing at it, on its own tile, so
 // the building's sign keeps the rest of the front to itself.
-const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 2.1, plaque: 0.75 };
+// A fixture is solid, so unlike the plaque it is read from the tile beside it:
+// far enough to take in a diagonal neighbour, not far enough to reach past one.
+const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 2.1, plaque: 0.75, fixture: 1.5 };
 /** How long the travel card holds, by what we are walking through. */
 const HOLD = { road: 900, enter: 500, exit: 400 };
 const WALK_FRAME_MS = 133;
@@ -45,12 +49,13 @@ export interface MapSceneData {
 }
 
 interface Target {
-  kind: 'npc' | 'item' | 'prop' | 'enter' | 'sign' | 'plaque';
+  kind: 'npc' | 'item' | 'prop' | 'enter' | 'sign' | 'plaque' | 'fixture';
   at: Vec2;
   npcIndex?: number;
   item?: EpisodeItem;
   sign?: EpisodeSign;
   building?: BuildingPlacement;
+  fixture?: Fixture;
 }
 
 /**
@@ -149,6 +154,14 @@ export class MapScene extends Phaser.Scene {
           ease: 'Sine.easeInOut'
         });
       }
+    }
+
+    // The engine's own street furniture: drawn on the tile it stands on, at
+    // that tile's depth, so the player passes behind it going up the street
+    // and in front of it coming down (DESIGN.md §2).
+    for (const fixture of this.fixtures()) {
+      const art = fixtureArt(this, fixture);
+      this.add.image(art.x, art.y, art.key).setOrigin(0, 0).setDepth(art.depth);
     }
 
     const itemKey = itemTexture(this);
@@ -278,10 +291,16 @@ export class MapScene extends Phaser.Scene {
     return this.solidTile(Math.floor(x / TILE), Math.floor(y / TILE));
   }
 
+  private fixtures(): Fixture[] {
+    return this.map.fixtures ?? [];
+  }
+
   private solidTile(tx: number, ty: number): boolean {
-    // isSolid is shared with the validator and only knows map data; NPCs are
-    // episode data, so the player has to be stopped by them here.
+    // isSolid is shared with the validator, which has to be able to ask what
+    // the tile under a fixture or an NPC is like, so neither is in there: the
+    // player is stopped by them here instead.
     if (isSolid(this.map, tx, ty)) return true;
+    if (this.fixtures().some((fixture) => fixture.pos[0] === tx && fixture.pos[1] === ty)) return true;
     return npcsOn(this.mapId).some((npc) => npc.pos[0] === tx && npc.pos[1] === ty);
   }
 
@@ -332,6 +351,9 @@ export class MapScene extends Phaser.Scene {
     }
     for (const sign of propSignsOn(this.mapId)) {
       if (sign.pos) consider({ kind: 'prop', at: sign.pos, sign }, REACH.prop, 2);
+    }
+    for (const fixture of this.fixtures()) {
+      consider({ kind: 'fixture', at: fixture.pos, fixture }, REACH.fixture, 2);
     }
     for (const building of this.map.buildings) {
       // The plaque is considered first so that standing exactly on the line
@@ -404,6 +426,18 @@ export class MapScene extends Phaser.Scene {
 
     if (target.kind === 'prop' && target.sign) {
       bus.emit(EV.say, { speaker: state.copy.ui.narrator, lines: target.sign.lines });
+      return;
+    }
+
+    if (target.kind === 'fixture' && target.fixture) {
+      // The one thing in town that is the game talking to the player about the
+      // game. Every word of it is world copy; the engine only knows there is a
+      // box here, and where the world said to write (DESIGN.md §2).
+      const suggest = state.copy.ui.suggest;
+      if (!suggest?.lines.length) return;
+      const url = feedbackUrl(state.world.feedback, suggest.body);
+      const link = url && suggest.link ? { url, label: suggest.link } : undefined;
+      bus.emit(EV.say, { speaker: state.copy.ui.narrator, lines: suggest.lines, link });
       return;
     }
 

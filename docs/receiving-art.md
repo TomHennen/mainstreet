@@ -95,8 +95,37 @@ the name given, spelled as given. First name only is fine.
 - Someone asks to change or remove their credit or their art: do it in one
   PR, no questions asked, and say so in the PR body.
 
-## Things that are not art submissions
+## Receiving a story idea
 
-Story ideas, corrections to a building's position, or "that shop closed"
-go to Tom as a note, not into this flow. Map facts belong in
-`docs/route10-notes.md`.
+Story ideas arrive the same way art does — by email, from the suggestion box
+outside Jefferson Town Hall in the game, from the front page, or from
+CONTRIBUTING.md. They are not art submissions and do not go through
+`decode-art`, but they get the same welcome. The standing GitHub issue for
+them is #36 (Studio and contributing).
+
+1. Say thank you first. Tom replies to the person; the agent's job is to make
+   that easy by summarising what they sent in a sentence or two, in their own
+   words wherever possible.
+2. Note it on issue #36 as a comment: who sent it, what the idea is, and the
+   credit name they asked for. That is the whole record for a small idea — a
+   line of lore, a nicer word for a sign, a shop that has moved.
+3. Open a dedicated issue only when it is really an episode: a story with a
+   village, a person and something that happens. Link it back to the #36
+   comment.
+4. Check it against the hard rules before it goes anywhere near an episode
+   (CLAUDE.md 5 and 6). A real private person appears only with their own
+   say-so, in writing, and a real business appears by name with affection and
+   nothing else — no gentle knocks, no jokes at anyone's expense. If an idea
+   would need softening to ship, say so kindly and ask the sender rather than
+   quietly rewriting them out of it.
+5. Facts about the real villages that come in alongside an idea — what is on
+   which corner, what a place is really called — belong in
+   `docs/route10-notes.md`, whether or not the idea itself is ever used.
+6. When an idea actually ships in an episode, credit it: the person is named
+   on the site's front page under the town they wrote for, the way a painter
+   is. Credit story exactly as art is credited — the name given, spelled as
+   given, first name only if that is what they asked for. Ask Tom if the
+   credit name is missing rather than guessing.
+
+Someone asking to change or remove their credit, or to withdraw an idea, is
+done in one PR, no questions asked — same as art.

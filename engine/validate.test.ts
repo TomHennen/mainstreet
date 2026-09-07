@@ -6,7 +6,7 @@ import { parseTiledMap, parseTileset, tilesetSources } from './tiled';
 import type { TilesetDef } from './tiled';
 import { isSolid, validateEpisode, validateWorld } from './validate';
 import { plaqueTile } from './schema';
-import type { BuildingPlacement, Episode, GameMap, MapMeta, World } from './schema';
+import type { BuildingPlacement, Episode, Fixture, GameMap, MapMeta, World } from './schema';
 
 // --- small fixture builders --------------------------------------------------
 // Kept deliberately minimal — just enough to satisfy the schema — so each test
@@ -340,6 +340,97 @@ describe('validateWorld', () => {
     });
     const problems = runWorld(world);
     expect(problems).toContainEqual(expect.stringContaining('start position is on a solid tile'));
+  });
+
+  // Street fixtures (DESIGN.md §2): the engine's own furniture, standing on a
+  // tile of its own and blocking it. The tile therefore has to be one the
+  // player could have walked on, and it must not be a tile the player has to
+  // reach some other way.
+  it('accepts a fixture on a walkable tile', () => {
+    const world = makeWorld({
+      maps: { town: makeMap({ fixtures: [{ kind: 'suggestion-box', pos: [2, 2] }] }) }
+    });
+    expect(runWorld(world)).toEqual([]);
+  });
+
+  it('flags a fixture outside the map', () => {
+    const world = makeWorld({
+      maps: { town: makeMap({ fixtures: [{ kind: 'suggestion-box', pos: [9, 1] }] }) }
+    });
+    expect(runWorld(world).join('\n')).toContain('is outside the map');
+  });
+
+  it('flags a fixture on a solid tile', () => {
+    const world = makeWorld({
+      maps: { town: makeMap({ fixtures: [{ kind: 'suggestion-box', pos: [1, 1] }] }, ['....', '.#..', '....', '....']) }
+    });
+    expect(runWorld(world).join('\n')).toContain('fixture "suggestion-box" at 1,1 is on a solid tile');
+  });
+
+  it('flags a fixture standing on a building footprint', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          buildings: [{ id: 'shop', pos: [2, 0], size: [2, 2], door: [2, 2] }],
+          fixtures: [{ kind: 'suggestion-box', pos: [2, 1] }]
+        })
+      }
+    });
+    expect(runWorld(world).join('\n')).toContain('is on a solid tile');
+  });
+
+  it("flags a fixture on a building's door tile", () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          buildings: [{ id: 'shop', pos: [0, 0], size: [2, 2], door: [0, 2] }],
+          fixtures: [{ kind: 'suggestion-box', pos: [0, 2] }]
+        })
+      }
+    });
+    expect(runWorld(world).join('\n')).toContain('is on building "shop"\'s door tile');
+  });
+
+  it("flags a fixture on a building's plaque tile", () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          // The plaque defaults to the tile right of the door.
+          buildings: [{ id: 'shop', pos: [0, 0], size: [2, 2], door: [0, 2] }],
+          fixtures: [{ kind: 'suggestion-box', pos: [1, 2] }]
+        })
+      }
+    });
+    expect(runWorld(world).join('\n')).toContain('is on building "shop"\'s plaque tile');
+  });
+
+  it('flags a fixture standing where the player arrives', () => {
+    const onStart = makeWorld({
+      start: { map: 'town', pos: [2, 2], facing: 'down' },
+      maps: { town: makeMap({ fixtures: [{ kind: 'suggestion-box', pos: [2, 2] }] }) }
+    });
+    expect(runWorld(onStart).join('\n')).toContain("is on the world's start tile");
+
+    const onSpawn = makeWorld({
+      maps: {
+        town: makeMap({
+          exits: [{ id: 'town-away', at: [0, 0, 1, 1], to: 'away', spawn: [3, 3], facing: 'down', style: 'road' }]
+        }),
+        away: makeMap({ fixtures: [{ kind: 'suggestion-box', pos: [3, 3] }] })
+      }
+    });
+    expect(runWorld(onSpawn).join('\n')).toContain('is on the tile exit "town-away" spawns onto');
+  });
+
+  it('flags a fixture kind the engine has no shape for', () => {
+    const world = makeWorld({
+      maps: {
+        // world.json is untyped JSON at load time, so a typo here is a
+        // realistic author mistake rather than a TypeScript escape hatch.
+        town: makeMap({ fixtures: [{ kind: 'suggestion-bin', pos: [2, 2] } as unknown as Fixture] })
+      }
+    });
+    expect(runWorld(world).join('\n')).toContain('unknown fixture kind');
   });
 });
 

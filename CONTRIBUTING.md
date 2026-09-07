@@ -143,6 +143,15 @@ These are minimums — width is fixed by the footprint, but add extra rows
 above for a roofline, sign, or anything that makes it feel like the real
 place.
 
+## Not painting? Write to us anyway
+
+Have a story idea, a bit of local lore, someone who should be in it, or
+something we should fix?
+[Write to us](mailto:tom.hennen+mainstreet@gmail.com?subject=A%20story%20idea%20for%20Route%2010)
+— there's a suggestion box by the Town Hall door in Jefferson that opens the
+same note. Ideas are as welcome as paint, and a used one gets a "story by"
+credit on the front page, just like a painted building gets its painter.
+
 ---
 
 If you want to work on the code instead, start with [`CLAUDE.md`](CLAUDE.md).

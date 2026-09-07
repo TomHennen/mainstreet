@@ -1,6 +1,6 @@
 // Runtime import, so it carries the extension scripts/validate-episodes.ts
 // needs under Node's type stripping (see that file's header).
-import { plaqueTile } from './schema.ts';
+import { FIXTURE_KINDS, plaqueTile } from './schema.ts';
 import type { Episode, GameMap, World } from './schema';
 
 /**
@@ -56,6 +56,40 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
           problems.push(`building "${placement.id}" points at unknown interior "${placement.interior}"`);
         } else if (!placement.enter) {
           problems.push(`building "${placement.id}" has an interior but no "enter" spawn`);
+        }
+      }
+    }
+
+    // A fixture is a solid thing standing on a tile of its own, so the tile has
+    // to be one the player could otherwise have stood on, and it must not take
+    // the place of a door or a plaque — both of which are read by standing on
+    // or at that very tile.
+    for (const fixture of map.fixtures ?? []) {
+      const where = `map "${mapId}" fixture "${fixture.kind}" at ${fixture.pos.join(',')}`;
+      if (!FIXTURE_KINDS.includes(fixture.kind)) {
+        problems.push(`${where}: unknown fixture kind — expected one of ${FIXTURE_KINDS.join(', ')}`);
+      }
+      const [fx, fy] = fixture.pos;
+      if (fx < 0 || fy < 0 || fx >= map.width || fy >= map.height) {
+        problems.push(`${where} is outside the map`);
+        continue;
+      }
+      if (isSolid(map, fx, fy)) problems.push(`${where} is on a solid tile`);
+      for (const placement of map.buildings) {
+        if (fx === placement.door[0] && fy === placement.door[1]) {
+          problems.push(`${where} is on building "${placement.id}"'s door tile`);
+        }
+        const plaque = plaqueTile(placement);
+        if (plaque && fx === plaque[0] && fy === plaque[1]) {
+          problems.push(`${where} is on building "${placement.id}"'s plaque tile`);
+        }
+      }
+      if (world.start.map === mapId && fx === world.start.pos[0] && fy === world.start.pos[1]) {
+        problems.push(`${where} is on the world's start tile`);
+      }
+      for (const exit of Object.values(world.maps).flatMap((meta) => meta.exits)) {
+        if (exit.to === mapId && fx === exit.spawn[0] && fy === exit.spawn[1]) {
+          problems.push(`${where} is on the tile exit "${exit.id}" spawns onto`);
         }
       }
     }
@@ -171,6 +205,10 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
  * loop and the validator so a door placed inside a wall fails at load rather
  * than at play. A cell is solid if any layer's tile there is solid, or if a
  * building footprint covers it.
+ *
+ * Fixtures and NPCs are deliberately not in here: both stand *on* a walkable
+ * tile, and the validator has to be able to ask what that tile is like.
+ * MapScene blocks the player on them separately.
  */
 export function isSolid(map: GameMap, x: number, y: number): boolean {
   if (x < 0 || y < 0 || x >= map.width || y >= map.height) return true;

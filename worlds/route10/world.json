@@ -3,6 +3,10 @@
   "title": "Route 10",
   "subtitle": "western Catskills, NY",
   "contribute": "https://tomhennen.github.io/mainstreet/studio/?world=route10",
+  "feedback": {
+    "email": "tom.hennen+mainstreet@gmail.com",
+    "subject": "A story idea for Route 10"
+  },
   "palette": "palette.png",
   "episodes": [
     "ep000",
@@ -240,6 +244,15 @@
           ],
           "facing": "down",
           "style": "road"
+        }
+      ],
+      "fixtures": [
+        {
+          "kind": "suggestion-box",
+          "pos": [
+            5,
+            12
+          ]
         }
       ]
     },
