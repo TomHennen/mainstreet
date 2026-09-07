@@ -57,7 +57,19 @@ Route 10 leaves the junction north and east; the east arm is the road to
 Stamford.
 
 **Hobart.** Route 10 is Main Street, running south-west to north-east. The
-village hugs the West Branch; Maple Avenue crosses it on a bridge.
+village hugs the West Branch; Maple Avenue crosses it on a bridge. Hobart is
+a real **book village** — half a dozen or so independent bookshops on Main
+Street, walkable end to end (real names on record: Adams' Antiquarian,
+Book Nook, More Good Books, Creative Corner Books, among others — don't use
+any of these in-game without the friendly-heads-up step in DESIGN.md §5).
+The real designation only dates to the early 2000s (Don Dales began leasing
+empty storefronts to booksellers around 2001-2005), but **in-game, never
+put a number on it** — no "20th anniversary" sign, no founding date. Let it
+read as though it's been a book village forever; the mystery is better
+than the truth here. Hobart is currently the least developed of the three
+villages and is the natural place to grow bookshop lots over time — reserve
+several full-size open lots along Main Street per map rule 4, and let named
+shops fill in gradually rather than all at once.
 
 **Stewart's interior.** The clerk is enclosed behind the counter; the player
 talks across it and cannot walk round.
@@ -87,6 +99,11 @@ notes-file guess:
   building.
 - **Veterans Memorial Park** — a possible future addition; village and
   position not yet given. See the flavor note below on tone.
+- **Hobart's bookshop lots.** Hobart is under-built relative to Stamford
+  and Jefferson right now. Next time Hobart's map gets attention, reserve
+  several full-size open lots along Main Street for bookshops — no need to
+  name or place actual shops yet, just make sure the room exists so the
+  village can visibly grow, episode by episode, matching map rule 4.
 
 ## Map rules (agreed 2026-09-06)
 
