@@ -30,7 +30,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { parseTiledMap, parseTileset, tilesetSources } from '../engine/tiled.ts';
 import type { TilesetDef } from '../engine/tiled.ts';
-import { validateEpisode, validateWorld } from '../engine/validate.ts';
+import { overlayNotes, validateEpisode, validateWorld } from '../engine/validate.ts';
 import type { Episode, GameMap, World, WorldCopy } from '../engine/schema.ts';
 
 const args = process.argv.slice(2);
@@ -117,17 +117,23 @@ function validateWorldPack(dir: string, worldId: string): void {
     }
   }
 
+  const notes: string[] = [];
   for (const episodeId of episodeIds) {
     const episodeFile = join(dir, 'episodes', `${episodeId}.json`);
     const episode = readJson<Episode>(worldId, episodeFile);
     for (const problem of validateEpisode(episode, world, maps)) {
       fail(worldId, episodeFile, problem);
     }
+    // Two overlays that could be on together and paint the same tile are not
+    // a problem — the later one wins — but it has to be a decision somebody
+    // made, so it is printed rather than swallowed (DESIGN.md §3).
+    notes.push(...overlayNotes(episode, maps));
   }
 
   const count = episodeIds.size;
   const mapCount = Object.keys(maps).length;
   console.log(`✓ ${worldId} (${mapCount} map${mapCount === 1 ? '' : 's'}, ${count} episode${count === 1 ? '' : 's'})`);
+  for (const note of notes) console.log(`  note: ${note}`);
 }
 
 let worldIds: string[];

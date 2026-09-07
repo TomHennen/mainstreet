@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseTiledMap, parseTileset, tilesetSources } from './tiled';
 import type { TilesetDef } from './tiled';
-import { isSolid, moverWalkable, validateEpisode, validateWorld } from './validate';
+import { isSolid, moverWalkable, overlayNotes, validateEpisode, validateWorld } from './validate';
 import { hashId, Mover } from './mover';
 import { plaqueTile } from './schema';
 import type { BuildingDef, BuildingPlacement, Episode, Fixture, GameMap, MapMeta, World } from './schema';
@@ -1151,5 +1151,328 @@ describe('people, routes and wanders', () => {
       ]
     });
     expect(runEpisode(episode, makeWorld({ maps: { town: makeMap({}, ROWS) } }))).toEqual([]);
+  });
+});
+
+/**
+ * Scenes (DESIGN.md §3). A scene that cannot stage itself is a week of story
+ * the player watches nothing happen in, so what is checked is that everybody
+ * it names is somebody on that map and every tile it sends them to is one they
+ * could stand on.
+ */
+describe('scenes', () => {
+  const ROWS = ['......', '..##..', '......', '......', '......', '......'];
+  const world = () => makeWorld({ maps: { town: makeMap({}, ROWS) } });
+  const withScene = (steps: unknown[], over: Record<string, unknown> = {}) =>
+    makeEpisode({ scenes: [{ id: 'welcome', on: { enter: 'town' }, steps, ...over }] as never });
+
+  it('accepts a scene that stages itself', () => {
+    const episode = withScene([
+      { light: { mode: 'party', colours: ['#d9a441'], at: [[3, 3]] } },
+      { move: { who: 'npc1', to: [4, 4], speed: 2 } },
+      { say: { who: 'npc1', lines: ['Come in, come in.'] } },
+      { wait: 1 },
+      { camera: { to: [2, 2] } },
+      { camera: { to: 'player' } },
+      { toast: 'A good night.' },
+      { set: 'done' }
+    ]);
+    expect(runEpisode(episode, world())).toEqual([]);
+  });
+
+  it('declares the scene flag on the episode\'s behalf', () => {
+    // Nothing in the episode declares "scene:welcome", and nothing has to.
+    const episode = withScene([{ toast: 'hello' }]);
+    expect(runEpisode(episode, world())).toEqual([]);
+  });
+
+  it('wants exactly one trigger', () => {
+    expect(runEpisode(withScene([{ toast: 'x' }], { on: {} }), world()).join('\n')).toContain(
+      'needs exactly one of "on.flag" or "on.enter"'
+    );
+    expect(
+      runEpisode(withScene([{ toast: 'x' }], { on: { flag: 'metNpc', enter: 'town' } }), world()).join('\n')
+    ).toContain('needs exactly one of "on.flag" or "on.enter"');
+  });
+
+  it('flags an undeclared trigger flag', () => {
+    expect(runEpisode(withScene([{ toast: 'x' }], { on: { flag: 'nope' } }), world()).join('\n')).toContain(
+      'triggered by undeclared flag "nope"'
+    );
+  });
+
+  it('flags a scene entered on a map that does not exist', () => {
+    expect(runEpisode(withScene([{ toast: 'x' }], { on: { enter: 'nowhere' } }), world()).join('\n')).toContain(
+      'entered on unknown map "nowhere"'
+    );
+  });
+
+  it('flags a step that does nothing, and one that does two things', () => {
+    expect(runEpisode(withScene([{}]), world()).join('\n')).toContain('does nothing');
+    expect(runEpisode(withScene([{ toast: 'a', wait: 1 }]), world()).join('\n')).toContain('does 2 things at once');
+  });
+
+  it('flags a scene with no steps at all', () => {
+    expect(runEpisode(withScene([]), world()).join('\n')).toContain('has no steps');
+  });
+
+  it('flags moving somebody who is not in the episode', () => {
+    expect(runEpisode(withScene([{ move: { who: 'ghost', to: [1, 1] } }]), world()).join('\n')).toContain(
+      'moves "ghost", who is not in this episode'
+    );
+  });
+
+  it('flags moving somebody who is on another map', () => {
+    const episode = makeEpisode({
+      npcs: [
+        { id: 'npc1', name: 'NPC', map: 'town', pos: [1, 1], dialogue: [{ requires: [], lines: ['hi'] }] },
+        { id: 'npc2', name: 'Two', map: 'other', pos: [1, 1], dialogue: [{ requires: [], lines: ['hi'] }] }
+      ],
+      scenes: [{ id: 'welcome', on: { enter: 'town' }, steps: [{ move: { who: 'npc2', to: [3, 3] } }] }]
+    } as never);
+    const two = makeWorld({ maps: { town: makeMap({}, ROWS), other: makeMap({}, ROWS) } });
+    expect(runEpisode(episode, two).join('\n')).toContain('who is on map "other" and not on "town"');
+  });
+
+  it('flags a walk into a wall, and one off the edge of the map', () => {
+    expect(runEpisode(withScene([{ move: { who: 'npc1', to: [2, 1] } }]), world()).join('\n')).toContain(
+      'is somewhere "npc1" cannot stand'
+    );
+    expect(runEpisode(withScene([{ move: { who: 'npc1', to: [99, 1] } }]), world()).join('\n')).toContain(
+      'is outside the map'
+    );
+  });
+
+  it('checks every leg of a path', () => {
+    const problems = runEpisode(withScene([{ move: { who: 'npc1', path: [[4, 4], [2, 1]] } }]), world()).join('\n');
+    expect(problems).toContain('path 1');
+    expect(problems).not.toContain('path 0');
+  });
+
+  it('wants exactly one of "to" and "path"', () => {
+    expect(runEpisode(withScene([{ move: { who: 'npc1' } }]), world()).join('\n')).toContain(
+      'needs exactly one of "to" or "path"'
+    );
+  });
+
+  it('lets the player stand where a townsperson may not', () => {
+    // A doorstep is read by standing exactly on it, so nobody but the player
+    // may be sent there (moverWalkable).
+    const withDoor = makeWorld({
+      maps: { town: makeMap({ buildings: [{ id: 'shop', pos: [0, 0], size: [2, 2], door: [1, 2] }] }, ROWS) }
+    });
+    expect(runEpisode(withScene([{ move: { who: 'player', to: [1, 2] } }]), withDoor)).toEqual([]);
+    expect(runEpisode(withScene([{ move: { who: 'npc1', to: [1, 2] } }]), withDoor).join('\n')).toContain(
+      'is somewhere "npc1" cannot stand'
+    );
+  });
+
+  it('flags a vehicle no map has', () => {
+    expect(runEpisode(withScene([{ move: { who: 'vehicle:pickup', to: [3, 3] } }]), world()).join('\n')).toContain(
+      'which is not a vehicle on map "town"'
+    );
+  });
+
+  it('accepts a vehicle a map does have', () => {
+    const withCar = makeWorld({
+      maps: { town: { ...makeMap({}, ROWS), vehicles: [{ id: 'pickup' }] } as never }
+    });
+    expect(runEpisode(withScene([{ move: { who: 'vehicle:pickup', to: [3, 3] } }]), withCar)).toEqual([]);
+  });
+
+  it('flags a speaker who is not in the episode, and empty lines', () => {
+    expect(runEpisode(withScene([{ say: { who: 'ghost', lines: ['hi'] } }]), world()).join('\n')).toContain(
+      'has "ghost" speaking, who is not in this episode'
+    );
+    expect(runEpisode(withScene([{ say: { lines: [] } }]), world()).join('\n')).toContain('says nothing');
+    expect(runEpisode(withScene([{ say: { lines: ['  '] } }]), world()).join('\n')).toContain('line 0 is empty');
+  });
+
+  it('lets the narrator speak with no "who" at all', () => {
+    expect(runEpisode(withScene([{ say: { lines: ['The room goes warm.'] } }]), world())).toEqual([]);
+  });
+
+  it('keeps a wait to a beat', () => {
+    expect(runEpisode(withScene([{ wait: 9 }]), world()).join('\n')).toContain('as long as a beat should ever hold');
+    expect(runEpisode(withScene([{ wait: 0 }]), world()).join('\n')).toContain("isn't a number of seconds");
+  });
+
+  it('flags an undeclared flag on a set step', () => {
+    expect(runEpisode(withScene([{ set: 'nope' }]), world()).join('\n')).toContain('sets undeclared flag "nope"');
+  });
+
+  it('checks the lights', () => {
+    expect(runEpisode(withScene([{ light: { mode: 'disco' } }]), world()).join('\n')).toContain('expected one of off, dim, party');
+    expect(runEpisode(withScene([{ light: { mode: 'party', colours: ['blue'] } }]), world()).join('\n')).toContain(
+      "isn't a hex colour"
+    );
+    expect(runEpisode(withScene([{ light: { mode: 'party', at: [[99, 99]] } }]), world()).join('\n')).toContain(
+      'outside the map'
+    );
+    expect(runEpisode(withScene([{ light: { mode: 'dim', at: [[1, 1]] } }]), world()).join('\n')).toContain(
+      'names lights or colours on a "dim" step'
+    );
+  });
+
+  it('flags a camera looking at nothing in particular', () => {
+    expect(runEpisode(withScene([{ camera: { to: 'nobody' } }]), world()).join('\n')).toContain(
+      'looks at neither a tile like [12, 4] nor "player"'
+    );
+  });
+
+  it('flags two scenes with the same id', () => {
+    const episode = makeEpisode({
+      scenes: [
+        { id: 'welcome', on: { enter: 'town' }, steps: [{ toast: 'a' }] },
+        { id: 'welcome', on: { enter: 'town' }, steps: [{ toast: 'b' }] }
+      ]
+    } as never);
+    expect(runEpisode(episode, world()).join('\n')).toContain('is listed twice');
+  });
+});
+
+/**
+ * Overlays (DESIGN.md §3). One canonical map per village: an episode is free
+ * to put a marquee on the green, and not free to put it across the only way to
+ * a door — which is why every combination that could be on together is checked
+ * rather than each one on its own.
+ */
+describe('overlays', () => {
+  //  0123456
+  const ROWS = [
+    '.......',
+    '.......',
+    '.......',
+    '.......',
+    '.......'
+  ];
+  // The shop sits in the top right corner, so the only way to its door is the
+  // column of ground at x=4 — three tiles, and easy to wall off between two
+  // overlays without either of them doing it alone.
+  const shopMap = () =>
+    makeMap({ buildings: [{ id: 'shop', pos: [5, 0], size: [2, 2], door: [5, 2] }] }, ROWS);
+  const world = () => makeWorld({ maps: { town: shopMap() } });
+  const withOverlay = (overlays: unknown[]) => makeEpisode({ overlays } as never);
+
+  it('accepts an overlay that paints a tile', () => {
+    const episode = withOverlay([{ id: 'market', map: 'town', requires: [], tiles: [{ pos: [5, 4], tile: 1 }] }]);
+    expect(runEpisode(episode, world())).toEqual([]);
+  });
+
+  it('flags an undeclared requires or unless', () => {
+    const problems = runEpisode(
+      withOverlay([{ id: 'market', map: 'town', requires: ['nope'], unless: ['nah'], tiles: [{ pos: [5, 4], tile: 1 }] }]),
+      world()
+    ).join('\n');
+    expect(problems).toContain('requires undeclared flag "nope"');
+    expect(problems).toContain('an "unless" on undeclared flag "nah"');
+  });
+
+  it('flags one that requires and rules out the same flag', () => {
+    const episode = withOverlay([
+      { id: 'never', map: 'town', requires: ['metNpc'], unless: ['metNpc'], tiles: [{ pos: [5, 4], tile: 1 }] }
+    ]);
+    expect(runEpisode(episode, world()).join('\n')).toContain('can never be on');
+  });
+
+  it('flags a tile no tileset on that map has', () => {
+    const episode = withOverlay([{ id: 'market', map: 'town', requires: [], tiles: [{ pos: [5, 4], tile: 42 }] }]);
+    expect(runEpisode(episode, world()).join('\n')).toContain('which no tileset "town" uses has');
+  });
+
+  it('flags an overlay on an unknown map, and one painted off the edge', () => {
+    expect(
+      runEpisode(withOverlay([{ id: 'm', map: 'nowhere', requires: [], tiles: [{ pos: [0, 0], tile: 1 }] }]), world()).join('\n')
+    ).toContain('patches unknown map "nowhere"');
+    expect(
+      runEpisode(withOverlay([{ id: 'm', map: 'town', requires: [], tiles: [{ pos: [99, 0], tile: 1 }] }]), world()).join('\n')
+    ).toContain('outside map "town"');
+  });
+
+  it('refuses to let an overlay wall a door in', () => {
+    const episode = withOverlay([
+      {
+        id: 'stage',
+        map: 'town',
+        requires: [],
+        tiles: [
+          { pos: [4, 2], tile: 1 },
+          { pos: [4, 3], tile: 1 },
+          { pos: [4, 4], tile: 1 }
+        ]
+      }
+    ]);
+    expect(runEpisode(episode, world()).join('\n')).toContain("building \"shop\"'s door at 5,2 cannot be reached");
+  });
+
+  it('catches two overlays that only strand a door together', () => {
+    const episode = withOverlay([
+      { id: 'left', map: 'town', requires: [], tiles: [{ pos: [4, 2], tile: 1 }, { pos: [4, 3], tile: 1 }] },
+      { id: 'right', map: 'town', requires: [], tiles: [{ pos: [4, 4], tile: 1 }] }
+    ]);
+    const problems = runEpisode(episode, world()).join('\n');
+    // Neither of them does it alone; between them they take the last way in.
+    expect(problems).toContain('with "left" + "right" on');
+    expect(problems).toContain('door at 5,2 cannot be reached');
+    expect(problems).not.toContain('with "left" on');
+  });
+
+  it('lets a before and an after wall the same door, since they never co-occur', () => {
+    const episode = withOverlay([
+      {
+        id: 'before',
+        map: 'town',
+        requires: [],
+        unless: ['metNpc'],
+        tiles: [{ pos: [4, 2], tile: 1 }, { pos: [4, 3], tile: 1 }]
+      },
+      { id: 'after', map: 'town', requires: ['metNpc'], tiles: [{ pos: [4, 4], tile: 1 }] }
+    ]);
+    expect(runEpisode(episode, world())).toEqual([]);
+  });
+
+  it('flags a prop with nothing to read and an unknown fixture kind', () => {
+    const problems = runEpisode(
+      withOverlay([
+        {
+          id: 'market',
+          map: 'town',
+          requires: [],
+          tiles: [{ pos: [5, 4], tile: 1 }],
+          props: [{ pos: [5, 3], lines: [] }],
+          fixtures: [{ kind: 'jukebox', pos: [4, 4] }]
+        }
+      ]),
+      world()
+    ).join('\n');
+    expect(problems).toContain('with nothing to read');
+    expect(problems).toContain('unknown fixture kind "jukebox"');
+  });
+});
+
+describe('overlayNotes', () => {
+  const ROWS = ['.....', '.....', '.....'];
+  it('names every tile two co-occurring overlays both paint', () => {
+    const maps = { town: makeMap({}, ROWS) };
+    const episode = makeEpisode({
+      overlays: [
+        { id: 'a', map: 'town', requires: [], tiles: [{ pos: [1, 1], tile: 1 }, { pos: [2, 1], tile: 1 }] },
+        { id: 'b', map: 'town', requires: [], tiles: [{ pos: [2, 1], tile: 0 }] }
+      ]
+    } as never);
+    const notes = overlayNotes(episode, maps as never);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toContain('"a" and "b" both paint 2,1');
+  });
+
+  it('says nothing about two that can never be on together', () => {
+    const maps = { town: makeMap({}, ROWS) };
+    const episode = makeEpisode({
+      overlays: [
+        { id: 'a', map: 'town', requires: [], unless: ['metNpc'], tiles: [{ pos: [1, 1], tile: 1 }] },
+        { id: 'b', map: 'town', requires: ['metNpc'], tiles: [{ pos: [1, 1], tile: 0 }] }
+      ]
+    } as never);
+    expect(overlayNotes(episode, maps as never)).toEqual([]);
   });
 });
