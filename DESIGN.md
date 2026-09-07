@@ -98,10 +98,17 @@ the map's collision, people included, and never across a road out of the
 village unless that road is what was tapped — and a small ring marks where
 they are headed until they get there. A tap on a blocked or unreachable tile
 walks to the nearest tile beside it, or, if there is no way through at all,
-blinks the ring once and stays put. Tapping a person, a door, a sign, a
-plaque or something lying about walks to where it is read from and reads it
-on arrival, exactly as pressing A there would — and somebody behind a counter,
-with no free tile beside them, is walked up to as close as that same reach
+blinks the ring once and stays put. Tapping a person, a door, a shopfront, a
+plaque, a street fixture or something lying about walks over and does the
+thing on arrival, with no A press: a door with an interior behind it opens,
+a door without one reads the sign, the plaque — the tile it is read from, or
+the little brass one drawn on the wall above it — thanks whoever painted the
+place, and anywhere else on a building's picture, roof and floating name
+plate included, is its front, which walks to the doorstep and reads the sign
+rather than walking in. What was tapped is what happens when the walk ends,
+not whatever is in reach of where it ended; if the player is already standing
+in the right place it happens straight away. Somebody behind a counter, with
+no free tile beside them, is walked up to as close as that same reach
 allows. Any d-pad or movement key
 calls the walk off on the spot, and a new tap replaces the destination; A
 waits until the walk is over rather than stranding the player half way.

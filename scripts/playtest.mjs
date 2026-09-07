@@ -283,11 +283,22 @@ async function walkTo(page, milestone, goal, { allowInterrupt = false } = {}) {
     if (!path) fail(milestone, `no walkable path on "${s.map}" from ${from} to ${goal}`);
 
     for (let i = 1; i < path.length; i++) {
-      // Collapse the path into straight runs so a key is held across a corridor.
+      // Collapse the path into straight runs so a key is held across a
+      // corridor — but only so far: at 102px/s a run longer than this outlives
+      // hold()'s own eight-second cap, and a walk the length of a village
+      // would be reported as a timeout rather than walked.
+      const MAX_RUN = 24;
       const dx = path[i][0] - path[i - 1][0];
       const dy = path[i][1] - path[i - 1][1];
       let j = i;
-      while (j + 1 < path.length && path[j + 1][0] - path[j][0] === dx && path[j + 1][1] - path[j][1] === dy) j++;
+      while (
+        j + 1 < path.length &&
+        j - i < MAX_RUN &&
+        path[j + 1][0] - path[j][0] === dx &&
+        path[j + 1][1] - path[j][1] === dy
+      ) {
+        j++;
+      }
       const dir = dx === 1 ? 'right' : dx === -1 ? 'left' : dy === 1 ? 'down' : 'up';
       const axis = dx !== 0 ? 'x' : 'y';
       const sign = dx !== 0 ? dx : dy;
@@ -966,10 +977,20 @@ async function main() {
       const skip = readableTiles(s.map);
       const exits = exitTiles(map);
       const from = here(s);
+      // A building's picture reaches above the ground it stands on — roof,
+      // upper storeys, the name plate floating over the lot — and a tap
+      // anywhere on it is a tap on that building (MapScene.tapTargetAt). So
+      // the ground under an overhang is not plain ground, however walkable it
+      // is. The engine publishes the boxes it drew, because only the drawing
+      // knows how tall a facade turned out to be.
+      const art = s.art ?? [];
+      const covered = (tx, ty) =>
+        art.some((b) => tx * T < b.x + b.w && b.x < (tx + 1) * T && ty * T < b.y + b.h && b.y < (ty + 1) * T);
       // Open ground: walkable, nothing to read on it, and not a way out of town.
       const plain = (tx, ty) =>
         !skip.has(`${tx},${ty}`) &&
         !exits.has(`${tx},${ty}`) &&
+        !covered(tx, ty) &&
         !isSolid(map, tx, ty) &&
         !npcAt(s.map, tx, ty);
       // Two tiles in from the edges of the view, because the view is still
@@ -1104,6 +1125,190 @@ async function main() {
     if (stopped.walkTo) fail('tap-cancel', 'the walk picked itself back up after the d-pad press');
     log(`    stopped at ${here(stopped)}, short of ${cancelGoal.tile}`);
     await shot(wp, 'tap-cancelled');
+
+    // --- tap targets --------------------------------------------------------
+    // Tapping the thing itself is the whole control scheme (CLAUDE.md #4): a
+    // shopfront, a door, the little plaque beside it, the box on the sidewalk
+    // and the road out of town each walk the player over and do the thing on
+    // arrival, with no A press anywhere. Every target below is read out of the
+    // world pack rather than written down here.
+    log('  tap targets: a facade, a plaque, a door, a fixture');
+    const CREDITS = existsSync(resolve(PACK, 'credits.json')) ? readJson(resolve(PACK, 'credits.json')) : {};
+
+    /** What the door of a building says, in the engine's order (DESIGN.md §3). */
+    function signTextOf(b) {
+      const episodeSign = (EPISODE.signs ?? []).find((s) => s.building === b.id);
+      if (episodeSign) return episodeSign.lines[0];
+      const own = WORLD.buildings[b.id].sign ?? [];
+      if (own.length) return own[0];
+      return COPY.ui.unpainted
+        .replace('{building}', WORLD.buildings[b.id].name)
+        .replace('{contribute}', WORLD.contribute ?? '');
+    }
+
+    /** What its plaque says: thanks when it is painted, an invitation when not. */
+    function plaqueTextOf(b) {
+      const painted = existsSync(resolve(PACK, 'assets', 'buildings', `${b.id}.png`));
+      const credit = painted ? CREDITS.buildings?.[b.id] : undefined;
+      const template = painted
+        ? credit
+          ? COPY.ui.plaque.painted
+          : COPY.ui.plaque.anonymous
+        : COPY.ui.plaque.unpainted;
+      return template.replace(/\{building\}/g, WORLD.buildings[b.id].name).replace(/\{credit\}/g, credit ?? '');
+    }
+
+    /** A tile the player can stand on, nearest first, from a list of offsets. */
+    function standable(mapId, from, offsets) {
+      const map = WORLD.maps[mapId];
+      const exits = exitTiles(map);
+      // A door or a plaque is somewhere to read, not somewhere to stand and
+      // watch from: standing on one would make the next tap a no-op.
+      const taken = new Set(
+        map.buildings.flatMap((b) => {
+          const p = plaqueOf(b);
+          return [`${b.door[0]},${b.door[1]}`, ...(p ? [`${p[0]},${p[1]}`] : [])];
+        })
+      );
+      for (const [dx, dy] of offsets) {
+        const tile = [from[0] + dx, from[1] + dy];
+        const k = `${tile[0]},${tile[1]}`;
+        if (isSolid(map, tile[0], tile[1]) || npcAt(mapId, tile[0], tile[1]) || fixtureAt(mapId, tile[0], tile[1])) {
+          continue;
+        }
+        if (exits.has(k) || taken.has(k)) continue;
+        return tile;
+      }
+      return null;
+    }
+
+    /** Taps a tile and insists the finger came down on it, with the view still. */
+    async function tapTarget(milestone, tile, what) {
+      await tapTile(wp, wcdp, tile);
+      const landed = await tapLanding(wp, tile);
+      if (landed[0] !== tile[0] || landed[1] !== tile[1]) {
+        fail(milestone, `the tap on ${what} (${tile}) landed on ${landed}`);
+      }
+    }
+
+    /** After a door or a road: back in the player's hands, nothing on screen. */
+    const handsBack = (page, label) => waitUntil(page, (s) => !s.locked && !s.dialogueOpen, label, 15000);
+
+    const shop = WORLD.maps.stamford.buildings.find((b) => b.interior && b.enter);
+    if (!shop) fail('tap-targets', 'no Stamford building has an interior to tap into');
+    const shopPlaque = plaqueOf(shop);
+    if (!shopPlaque) fail('tap-targets', `${shop.id} has no plaque to tap`);
+    const shopStand = standable('stamford', shop.door, [[0, 2], [0, 3], [1, 2], [-1, 2], [0, 1]]);
+    if (!shopStand) fail('tap-targets', `nowhere to stand in front of ${shop.id}`);
+    await walkTo(wp, 'tap-targets', shopStand);
+
+    // The facade: a tile of the picture that is neither the door nor the
+    // plaque. Tapping a shopfront walks to the front and reads the sign — it
+    // does not walk in, even where there is an interior to walk into.
+    const wallColumn = Array.from({ length: shop.size[0] }, (_, i) => shop.pos[0] + i).find(
+      (x) => x !== shop.door[0] && x !== shopPlaque[0]
+    );
+    if (wallColumn === undefined) fail('tap-targets', `${shop.id} is all door and plaque`);
+    const wall = [wallColumn, shop.pos[1] + Math.floor(shop.size[1] / 2)];
+    await tapTarget('tap-facade', wall, `${shop.id}'s front`);
+    const read = await waitUntil(wp, (s) => s.dialogueOpen, `${shop.id}'s sign after a tap on its front`, 12000);
+    if (read.map !== 'stamford') fail('tap-facade', `tapping the front of ${shop.id} walked in instead of reading it`);
+    if (read.dialogue?.text !== signTextOf(shop)) {
+      fail('tap-facade', `the front of ${shop.id} read "${read.dialogue?.text}", expected "${signTextOf(shop)}"`);
+    }
+    log(`    ${wall} (${shop.id}'s wall) -> its sign, standing at ${here(read)}`);
+    await advanceDialogue(wp, 'tap-facade', 3);
+
+    // The plaque, on the tile it is read from and on the little brass one
+    // hanging on the wall above it — both are the plaque to a finger.
+    for (const [tile, what] of [
+      [shopPlaque, 'the plaque tile'],
+      [[shopPlaque[0], shopPlaque[1] - 1], 'the plaque on the wall']
+    ]) {
+      await tapTarget('tap-plaque', tile, what);
+      const said = await waitUntil(wp, (s) => s.dialogueOpen, `${shop.id}'s plaque after tapping ${what}`, 12000);
+      if (said.dialogue?.text !== plaqueTextOf(shop)) {
+        fail('tap-plaque', `${what} read "${said.dialogue?.text}", expected "${plaqueTextOf(shop)}"`);
+      }
+      log(`    ${tile} (${what}) -> the plaque`);
+      if (what === 'the plaque tile') await shot(wp, 'tap-plaque');
+      await advanceDialogue(wp, 'tap-plaque', 1);
+    }
+
+    // The door of a building with an interior opens it. No A press, no
+    // stopping on the doorstep to press anything.
+    await tapTarget('tap-door', shop.door, `${shop.id}'s door`);
+    await shot(wp, 'tap-door');
+    await waitUntil(wp, (s) => s.map === shop.interior, `${shop.id}'s door to open on a tap`, 15000);
+    await handsBack(wp, 'the shop to settle');
+    log(`    ${shop.door} (${shop.id}'s door) -> inside`);
+    await shot(wp, 'tap-entered');
+
+    // And the way out is a tap too.
+    const back = WORLD.maps[shop.interior].exits[0];
+    if (!back) fail('tap-targets', `${shop.interior} has no way out`);
+    await tapTarget('tap-exit', [back.at[0], back.at[1]], 'the way out');
+    await waitUntil(wp, (s) => s.map === back.to && !s.locked, 'the way out to be taken on a tap', 15000);
+    await handsBack(wp, 'the street to settle');
+    log(`    ${[back.at[0], back.at[1]]} (the way out) -> back on the street`);
+
+    // A building with no interior has no door to open, so its door reads the
+    // sign like the rest of the front.
+    const shopfront = WORLD.maps.stamford.buildings.find(
+      (b) => !b.interior && (EPISODE.signs ?? []).some((s) => s.building === b.id)
+    );
+    if (!shopfront) fail('tap-targets', 'no Stamford building without an interior has a sign this episode');
+    const frontStand = standable('stamford', shopfront.door, [[0, 2], [0, 3], [1, 2], [-1, 2], [0, 1]]);
+    if (!frontStand) fail('tap-targets', `nowhere to stand in front of ${shopfront.id}`);
+    await walkTo(wp, 'tap-targets', frontStand);
+    await tapTarget('tap-shut-door', shopfront.door, `${shopfront.id}'s door`);
+    const front = await waitUntil(wp, (s) => s.dialogueOpen, `${shopfront.id}'s sign`, 12000);
+    if (front.map !== 'stamford') fail('tap-shut-door', `${shopfront.id} has no interior, and the tap left Stamford`);
+    if (front.dialogue?.text !== signTextOf(shopfront)) {
+      fail('tap-shut-door', `${shopfront.id}'s door read "${front.dialogue?.text}", expected "${signTextOf(shopfront)}"`);
+    }
+    log(`    ${shopfront.door} (${shopfront.id}'s door, no interior) -> its sign`);
+    await advanceDialogue(wp, 'tap-shut-door', 3);
+
+    // The suggestion box, and the road that gets us to it: a fixture blocks
+    // its own tile, so tapping one walks up beside it and reads it from there.
+    const withBox = Object.entries(WORLD.maps).find(([, m]) => (m.fixtures ?? []).length > 0);
+    if (!withBox) {
+      log('  (this world has no fixture to tap — skipping that one)');
+    } else {
+      const [boxMapId, boxMap] = withBox;
+      let standingOn = (await snap(wp)).map;
+      if (standingOn !== boxMapId) {
+        const road = WORLD.maps[standingOn].exits.find((e) => e.to === boxMapId);
+        if (!road) fail('tap-road', `no road from "${standingOn}" to "${boxMapId}"`);
+        const mouth = [road.at[0] + Math.floor(road.at[2] / 2), road.at[1] + Math.floor(road.at[3] / 2)];
+        const kerb = standable(standingOn, mouth, [[0, 1], [0, -1], [-1, 0], [1, 0], [0, 2], [-2, 0]]);
+        if (!kerb) fail('tap-road', `nowhere to stand beside the road out at ${mouth}`);
+        await walkTo(wp, 'tap-road', kerb);
+        await tapTarget('tap-road', mouth, 'the road out of town');
+        await waitUntil(wp, (s) => s.map === boxMapId && !s.locked, `the road to ${boxMapId} to be taken`, 20000);
+        await handsBack(wp, `${boxMapId} to settle`);
+        log(`    ${mouth} (the road out) -> ${boxMapId}`);
+        standingOn = boxMapId;
+      }
+      const fixture = boxMap.fixtures[0];
+      const nearBox = standable(boxMapId, fixture.pos, [[2, 0], [-2, 0], [0, 2], [0, -2], [2, 1], [-2, 1], [1, 1], [-1, 1]]);
+      if (!nearBox) fail('tap-fixture', `nowhere to stand near the ${fixture.kind} at ${fixture.pos}`);
+      await walkTo(wp, 'tap-fixture', nearBox);
+      await tapTarget('tap-fixture', fixture.pos, `the ${fixture.kind}`);
+      const box = await waitUntil(wp, (s) => s.dialogueOpen, `the ${fixture.kind} to be read after a tap`, 12000);
+      const first = COPY.ui.suggest?.lines?.[0];
+      if (!first) fail('tap-fixture', 'copy.json has no ui.suggest.lines for the box to say');
+      if (box.dialogue?.text !== first) {
+        fail('tap-fixture', `the ${fixture.kind} read "${box.dialogue?.text}", expected "${first}"`);
+      }
+      if (box.x === fixture.pos[0] && box.y === fixture.pos[1]) {
+        fail('tap-fixture', `the player is standing inside the ${fixture.kind} at ${fixture.pos}`);
+      }
+      log(`    ${fixture.pos} (the ${fixture.kind}) -> read from ${here(box)}`);
+      await shot(wp, 'tap-fixture');
+      await advanceDialogue(wp, 'tap-fixture', COPY.ui.suggest.lines.length);
+    }
 
     // --- Paint it -----------------------------------------------------------
     // The invitation to draw an unpainted building lives on the plaque beside
