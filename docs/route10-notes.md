@@ -563,10 +563,12 @@ opt-in, everything warm and affectionate) before it reaches the player.
   played directly with `?episode=ep002`. September 2026, Tom's call: the
   errand has to take the player inside Stamford Coffee, so the chain is
   now Priya → Hannah (who sends you to the coffee shop: nobody drives to
-  the city without paninis for the road) → Fern, a regular at the record
-  player's table, who saw the order go out and heard Cellar Door mentioned
-  (`askedCoffee`) → Renata, who puts Walt's name to it → Walt. Five story
-  flags; the rumor beat below rides along on a sixth.
+  the city without stopping there first) → Fern, a regular at a table in
+  Stamford Coffee, who saw an order for the road go out and heard Cellar
+  Door mentioned (`askedCoffee`) → Renata, who puts Walt's name to it →
+  Walt. Five story flags; the rumor beat below rides along on a sixth, and
+  stays out of the errand's own lines — Tom's note: don't let either the
+  paninis or the mystery shop get obsessive.
 
   Went through a design pass before being written (an automated review on
   the PR that added this note caught real issues before any JSON
@@ -729,19 +731,16 @@ opt-in, everything warm and affectionate) before it reaches the player.
   the player doesn't get an answer either. If Tom later says what it is,
   that's a separate reveal beat, folded in or held back at his call — same
   open question on episode timing as before (episode 2, or keep our
-  powder dry). Built, September 2026, in ep002: the rumor runs as a B-thread
-  beside Priya's errand and never resolves. Hannah says bookshop, Renata
-  says record shop, Walt says bike shop, Priya only hopes for a dance studio;
-  three new rumor-carriers each have their own — Fern, a regular at a table
-  in Stamford Coffee, says gallery; Ozzie, browsing sweaters in 80 Main,
-  says oyster bar; Ines, walking her dog Biscuit past the patio, says dog
-  treats. A prop sign down the side of the coffee shop reads the plywood and
-  paper over the low window and finds nothing written on any of it. A
-  `heardShop` flag only changes whether a carrier opens with "you've
-  heard, then"; no line anywhere says what the shop is, and the small talk
-  for the week carries the same not-knowing plus the new interior details
-  (paninis, the record player, the coffee makers, the self-serve fridge, 80
-  Main's sweaters, the coal coffee table, oyster nights).
+  powder dry). Built, September 2026, in ep002, kept light at Tom's
+  request: three rumor-carriers, none of them in the errand's own chain,
+  each with their own confident guess — Fern, a regular at a table in
+  Stamford Coffee, says gallery; Ozzie, browsing sweaters in 80 Main, says
+  oyster bar; Ines, walking her dog Biscuit past the patio, says dog
+  treats. An ep002 overlay paints a papered-over panel down the side of the
+  coffee shop, and reading it finds nothing written on any of it. A
+  `heardShop` flag only changes whether a carrier opens with "you've heard,
+  then"; no line anywhere says what the shop is. One small-talk line
+  carries the not-knowing; Priya, Hannah, Renata and Walt stay out of it.
 - **The mayor and the pool.** Years ago, when the Belvedere was being shown
   to its owner, the mayor — who is also the realtor — walked out across the
   plywood laid over the hotel's old swimming pool and went straight through
