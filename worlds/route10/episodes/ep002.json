@@ -27,7 +27,7 @@
     "Oyster night at 80 Main — get your name down early, it fills right up.",
     "Whatever goes in under the coffee shop, it's got the best patio in town right on top of it. Lucky them."
   ],
-  "flags": ["heardAsk", "triedStamford", "triedHobart", "done", "heardShop"],
+  "flags": ["heardAsk", "triedStamford", "askedCoffee", "triedHobart", "done", "heardShop"],
   "npcs": [
     {
       "id": "priya",
@@ -50,8 +50,12 @@
           "lines": ["Still asking around? Try the gas station — half the county passes through there before nine."]
         },
         {
-          "requires": ["triedStamford"],
+          "requires": ["askedCoffee"],
           "lines": ["Renata might know something — Cellar Door, down in Hobart."]
+        },
+        {
+          "requires": ["triedStamford"],
+          "lines": ["Hannah sent you to Stamford Coffee? Go on in — that's where everybody's morning starts, city-bound or not."]
         },
         {
           "requires": ["heardAsk"],
@@ -85,10 +89,14 @@
           "lines": ["Renata sent you to Walt, then — J&H, the gas station up in Jefferson."]
         },
         {
+          "requires": ["askedCoffee"],
+          "lines": ["Paninis for the road and a bottle from Cellar Door? Then Renata's your next stop — down in Hobart. She'll put a name to that order."]
+        },
+        {
           "requires": ["heardAsk"],
           "lines": [
             "Nobody from in here's going down today, far as I know.",
-            "Check the board at Tops on your way through — and Cellar Door in Hobart, Renata always seems to know who's coming and going.",
+            "But nobody drives to the city without stopping at Stamford Coffee first — paninis for the road, it's practically a rule. Ask in there, on Main Street. Check the board at Tops on your way, too.",
             "And did you hear? Somebody's fixing up the space under Stamford Coffee. Everybody who comes through that door has a different answer for what it is. Mine's a bookshop, so we'd have one of our own up this end of the road."
           ],
           "effects": [{ "set": "triedStamford" }]
@@ -119,13 +127,20 @@
           "lines": ["Go on, catch him before he leaves — the gas station, up in Jefferson."]
         },
         {
-          "requires": ["triedStamford"],
+          "requires": ["askedCoffee"],
           "lines": [
-            "Not me today — my truck's in the shop.",
-            "But I saw someone loading a cooler bag into their trunk up at the gas station this morning. Nobody packs a cooler for a trip up the road — that's a city run.",
-            "That'll be Walt — J&H, the gas station up in Jefferson."
+            "Two paninis and a cold brew to go, then a bottle from me first thing this morning? Not me — my truck's in the shop. That's Walt.",
+            "I saw him loading a cooler bag into his trunk up at the gas station on my way in. Nobody packs a cooler for a trip up the road — that's a city run.",
+            "J&H, the gas station up in Jefferson. Go on, catch him before he leaves."
           ],
           "effects": [{ "set": "triedHobart" }]
+        },
+        {
+          "requires": ["triedStamford"],
+          "lines": [
+            "Hannah sent you? Then she'll have said: anybody driving to the city stops at Stamford Coffee first.",
+            "Ask in there what got ordered for the road this morning, then come back and tell me. I'll know who it was."
+          ]
         },
         {
           "requires": ["heardAsk"],
@@ -188,6 +203,29 @@
       "facing": "down",
       "accent": "#4f7f6e",
       "dialogue": [
+        {
+          "requires": ["done"],
+          "lines": [
+            "So the paninis were Walt's. Of course they were — every other Sunday, same order. Tell Priya's kid break a leg from the record player's table.",
+            "And whatever you've heard about the space underneath us: gallery. Half the people at these tables paint."
+          ]
+        },
+        {
+          "requires": ["askedCoffee"],
+          "lines": [
+            "Renata, at Cellar Door in Hobart — that's who'll know whose order that was. Whoever it was, they said they were stopping there for a bottle.",
+            "And whatever you've heard about the space underneath us: it's a gallery. Half the people at these tables paint. I've seen the sketchbooks."
+          ]
+        },
+        {
+          "requires": ["triedStamford"],
+          "lines": [
+            "Priya's costume run? Hannah sent you to the right place. Somebody was in early — two paninis wrapped for the road and a cold brew big enough to get to Brooklyn on.",
+            "I didn't catch who; I had my head in the LPs. But they said they were stopping at Cellar Door for a bottle first. Renata will know — down in Hobart.",
+            "And while you're here — whatever you've heard about the space underneath us, it's a gallery. Half the people at these tables paint. I've seen the sketchbooks."
+          ],
+          "effects": [{ "set": "askedCoffee" }, { "set": "heardShop" }]
+        },
         {
           "requires": ["heardShop"],
           "lines": [

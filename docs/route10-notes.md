@@ -548,7 +548,13 @@ opt-in, everything warm and affectionate) before it reaches the player.
   anyway). Not in `world.json`'s `episodes` list, so it doesn't ship; it
   validates with `npm run validate-episodes -- --all` (DESIGN.md §3's
   review path — the same way ep000 is kept around unshipped) and can be
-  played directly with `?episode=ep002`.
+  played directly with `?episode=ep002`. September 2026, Tom's call: the
+  errand has to take the player inside Stamford Coffee, so the chain is
+  now Priya → Hannah (who sends you to the coffee shop: nobody drives to
+  the city without paninis for the road) → Fern, a regular at the record
+  player's table, who saw the order go out and heard Cellar Door mentioned
+  (`askedCoffee`) → Renata, who puts Walt's name to it → Walt. Five story
+  flags; the rumor beat below rides along on a sixth.
 
   Went through a design pass before being written (an automated review on
   the PR that added this note caught real issues before any JSON
