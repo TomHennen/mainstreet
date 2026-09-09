@@ -1,0 +1,78 @@
+{
+  "name": "80 Main",
+  "size": [14, 12],
+  "wall": 14,
+  "floor": [11, 24],
+  "door": { "side": "bottom", "column": 6, "width": 2 },
+  "exit": { "id": "eighty-main-exit", "to": "stamford", "spawn": [85, 23], "facing": "down" },
+  "props": [
+    { "kind": "counter", "rect": [8, 2, 4, 1], "behind": "top" },
+    {
+      "kind": "shelf",
+      "rect": [1, 1, 5, 1],
+      "tiles": [17, 18, 19, 17, 18],
+      "lines": [
+        "Catskills-logo wear, a whole wall of it: hats, tees, hoodies, the mountains stitched small over the heart.",
+        "You would wear it home, and then keep wearing it."
+      ]
+    },
+    {
+      "kind": "shelf",
+      "rect": [1, 2, 1, 3],
+      "tiles": [23, 17, 18],
+      "lines": [
+        "A very good sweater, folded the way only a shop folds things, and beside it some camo that is more fashion than deer season.",
+        "Both would look right on Main Street. Both would look right anywhere."
+      ]
+    },
+    {
+      "kind": "shelf",
+      "rect": [12, 4, 1, 4],
+      "tiles": [19, 17, 18, 19],
+      "lines": [
+        "Candles and mugs made close to home, the kind you pick up to see the price and then keep holding.",
+        "Everything on this shelf was chosen by somebody who liked it first."
+      ]
+    },
+    {
+      "kind": "table",
+      "at": [[6, 6]],
+      "lines": [
+        "A coffee table made of coal. Polished, black, heavier than it looks, and yes — really coal.",
+        "They sold one once, and maybe still do. Somebody, somewhere, sets a cup down on it every morning."
+      ]
+    },
+    {
+      "kind": "sign",
+      "at": [[10, 10]],
+      "lines": [
+        "OYSTER & WINE NIGHT, the board says: some evenings the shop stays open late, the oysters come out on ice and the wine comes out with them.",
+        "Ask at the counter which night. It is worth planning a week around."
+      ]
+    },
+    { "kind": "planter", "at": [[1, 10], [12, 10]] },
+    { "kind": "mat", "rect": [6, 10, 2, 1] },
+    {
+      "kind": "exit",
+      "rect": [0, 6, 1, 2],
+      "id": "eighty-main-to-stamford-coffee",
+      "to": "stamford-coffee-interior",
+      "spawn": [18, 6],
+      "facing": "left"
+    }
+  ],
+  "people": [
+    {
+      "id": "eighty-main-keeper",
+      "name": "Tamsin",
+      "pos": [9, 1],
+      "facing": "down",
+      "look": { "hair": "short", "hairColor": "#8a6a3c", "skin": "#d9a98a", "shirt": "#3f6b5a" },
+      "lines": [
+        "Come on in and have a look round. Everything here is the kind of thing we would want ourselves.",
+        "The sweaters run true to size, and the mugs are from just up the road.",
+        "The coffee shop is right through the doorway on the left. The two of us have always been one visit."
+      ]
+    }
+  ]
+}

@@ -1596,16 +1596,23 @@ async function main() {
           }
           log(`    ${beyond.name}'s furniture is solid`);
 
-          // A yard is outside, so its floor is the ground: grass and what
-          // grows in it (Tom, Sep 2026). Anything paved in one is a patch
-          // somebody laid — the ring round a fire — and never the whole floor.
+          // What is through the door is one of two things. A room with a
+          // street door of its own — a way out to a village map — is the
+          // shop next door, and its floor is a floor. A room with none is
+          // reached only through this one: a yard, which is outside, so its
+          // floor is the ground — grass and what grows in it (Tom, Sep 2026).
+          // Anything paved in a yard is a patch somebody laid — the ring
+          // round a fire — and never the whole floor.
+          const shop = beyond.exits.some((way) => WORLD.maps[way.to]?.kind === 'village');
           const ground = (outsideSpec.floor ?? []).map((id) => TILE_OF.get(id)?.kind ?? String(id));
           const growing = ground.filter((kind) => kind === 'grass' || kind === 'flowers');
-          if (beyond.kind === 'interior' && outsideSpec.floor && growing.length !== ground.length) {
+          if (beyond.kind === 'interior' && !shop && outsideSpec.floor && growing.length !== ground.length) {
             const paved = [...new Set(ground.filter((kind) => kind !== 'grass' && kind !== 'flowers'))];
             fail(`${place.id}-onward`, `${beyond.name}'s floor is ${paved.join('/')} — a yard's floor is grass`);
           }
-          if (outsideSpec.floor) {
+          if (shop) {
+            log(`    ${beyond.name} is a room with a street door of its own — the shop next door, not a yard`);
+          } else if (outsideSpec.floor) {
             log(
               `    ${beyond.name}'s floor: ${ground.filter((k) => k === 'grass').length} grass ` +
                 `and ${ground.filter((k) => k === 'flowers').length} flowers in ${ground.length}`

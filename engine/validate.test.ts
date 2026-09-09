@@ -966,6 +966,22 @@ describe('validateEpisode', () => {
       const episode = makeEpisode({ smallTalk: undefined });
       expect(runEpisode(episode, worldWithWalkers)).toEqual([]);
     });
+
+    it('does not count somebody with lines of their own, who never draws from the pool', () => {
+      const withBarista = makeWorld({
+        maps: {
+          town: makeMap({
+            people: [
+              { id: 'walker1', name: 'A', pos: [1, 1] },
+              { id: 'walker2', name: 'B', pos: [2, 1] },
+              { id: 'barista', name: 'C', pos: [3, 1], lines: ['Morning. The board is up there.'] }
+            ]
+          })
+        }
+      });
+      const episode = makeEpisode({ smallTalk: ['one', 'two'] });
+      expect(runEpisode(episode, withBarista)).toEqual([]);
+    });
   });
 });
 

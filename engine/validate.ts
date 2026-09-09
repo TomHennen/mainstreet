@@ -442,9 +442,14 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
   // hashing their id against the pool (engine/session.ts's smallTalkFor), so
   // the same person always says the same thing — but with fewer lines than
   // there are ambient people, some of them are guaranteed to land on the same
-  // line and repeat it, verbatim, to everyone who asks, all week.
+  // line and repeat it, verbatim, to everyone who asks, all week. Somebody
+  // who carries their own `lines` (a barista behind a counter, DESIGN.md §2)
+  // says those instead and never draws from the pool, so they do not count.
   if (episode.smallTalk) {
-    const ambientPeople = Object.values(world.maps).reduce((sum, meta) => sum + (meta.people?.length ?? 0), 0);
+    const ambientPeople = Object.values(world.maps).reduce(
+      (sum, meta) => sum + (meta.people ?? []).filter((person) => !person.lines?.length).length,
+      0
+    );
     if (episode.smallTalk.length < ambientPeople) {
       problems.push(
         `${where}: "smallTalk" has ${episode.smallTalk.length} line${episode.smallTalk.length === 1 ? '' : 's'} ` +

@@ -199,8 +199,8 @@
       "id": "fern",
       "name": "Fern",
       "map": "stamford-coffee-interior",
-      "pos": [0, 0],
-      "facing": "down",
+      "pos": [6, 8],
+      "facing": "left",
       "accent": "#4f7f6e",
       "dialogue": [
         {
@@ -248,8 +248,8 @@
       "id": "ozzie",
       "name": "Ozzie",
       "map": "eighty-main-interior",
-      "pos": [0, 0],
-      "facing": "down",
+      "pos": [3, 5],
+      "facing": "left",
       "accent": "#b0743a",
       "dialogue": [
         {

@@ -641,10 +641,11 @@ Because that pick is a hash of the person's id rather than a fresh roll,
 a `smallTalk` pool with fewer lines than the world has ambient people
 guarantees some of them land on the same line and repeat it, word for word,
 to everyone who asks — `engine/validate.ts`'s `validateEpisode` fails an
-episode whose `smallTalk` is shorter than the world's total ambient people
-count for exactly this reason. Write at least that many lines, varied enough
-that nobody minds if two or three background characters land on the same
-one.
+episode whose `smallTalk` is shorter than the world's count of ambient people
+with no `lines` of their own for exactly this reason (somebody who carries
+their own `lines`, like a barista behind a counter, says those and never
+draws from the pool). Write at least that many lines, varied enough that
+nobody minds if two or three background characters land on the same one.
 
 **This week's cars.** An episode may carry a `vehicles` list of its own,
 shaped exactly like a map's (above) plus the `map` each car stands on:
@@ -1079,6 +1080,11 @@ Hobart — "Jewel of the West Branch."
   mac-n-cheese burger; pup cups.
 - `stamford-coffee` (Stamford, 79 Main St): coffee shop; Maple Smoke latte
   (maple, liquid smoke, sea salt); attached Catskill Outpost shop.
+- `eighty-main` (Stamford, 80 Main St): the shop through the open doorway on
+  Stamford Coffee's right, sharing its patio; Catskills-logo wear, candles
+  and mugs, a very good sweater; once (maybe still) sold a coffee table made
+  of coal; oyster-and-wine nights. Interior `eighty-main-interior`, counter
+  NPC **Tamsin** (fictional).
 - `the-belvedere` (Stamford): "The Bel," dive-bar community space; bat signs
   point to the patio; taco nights, movie nights, live music.
 - `cellar-door-wines` (Hobart): curated wine shop; the owner's

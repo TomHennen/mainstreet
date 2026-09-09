@@ -158,7 +158,7 @@ scrappy punk band. It is not a fiddle place — don't write one in. Karaoke,
 open mic and trivia are already on record, and a big-name comic passes
 through now and then.
 
-**Stamford Coffee interior (Tom, Sep 2026, not built yet).** The left wall
+**Stamford Coffee interior (Tom, Sep 2026; built Sep 2026).** The left wall
 has a record player with a big spread of LPs out, and there's a whole
 collection of different coffee makers on display too — the furniture
 throughout reads mid-century modern. A self-serve fridge sits up front with
@@ -169,9 +169,29 @@ menu. On the right side there's a large open doorway straight through to
 storefronts already share one patio deck outside (see the Stamford's Main
 Street block note above).
 
-**80 Main interior (Tom, Sep 2026, not built yet).** High-end goods, lots
+*As built* (`worlds/route10/rooms/stamford-coffee-interior.json`, 20×12):
+the tileset has no record player, LP crate, coffee maker or menu, so each is
+a run of the existing shelf tiles with a readable prop sign carrying the
+words — the record player and the LP crates are two shelf runs down the left
+wall, the coffee-maker collection is the shelf along the top wall right of
+the counter, the menu (paninis and the Maple Smoke latte) is a standing
+board at the end of Ronnie's counter, and the self-serve fridge is the two
+cooler tiles by the street door (readable; nothing bought yet). The
+mid-century furniture is the room's tables and stools, with the first table
+readable as the whole set. The doorway to 80 Main is a two-tile-tall open
+gap in the right wall at rows 6–7, matched by the same gap in 80 Main's left
+wall, so the two rooms read as one opening.
+
+**80 Main interior (Tom, Sep 2026; built Sep 2026).** High-end goods, lots
 of Catskills-logo wear. They once (maybe still do) sold a high-end coffee
 table made out of coal. They sometimes host oyster-and-wine nights.
+
+*As built* (`worlds/route10/rooms/eighty-main-interior.json`, 14×12, its
+own street door at [85, 23]): the logo wear is the shelf along the top
+wall, the sweater and camo the rack on the left wall (same items as its
+street sign), candles and mugs the shelf on the right wall, the coal coffee
+table a readable table in the middle of the floor, and oyster-and-wine
+nights a standing board by the door. Tamsin (invented) keeps the counter.
 
 ## Open items — pending map work
 
@@ -196,14 +216,6 @@ than a notes-file guess:
   several full-size open lots along Main Street for bookshops — no need to
   name or place actual shops yet, just make sure the room exists so the
   village can visibly grow, episode by episode, matching map rule 4.
-
-- **Stamford Coffee and 80 Main interiors.** Not built yet — see the notes
-  under Ground truth above (record player and LPs, coffee-maker collection,
-  MCM furniture, self-serve fridge, paninis; the doorway through to 80
-  Main; 80 Main's high-end goods, Catskills-logo wear, the coal coffee
-  table, oyster-and-wine nights). Build as two connected rooms, doorway on
-  Stamford Coffee's right / 80 Main's corresponding side, not two separate
-  interiors that happen to be adjacent.
 
 ## Map rules (agreed 2026-09-06)
 

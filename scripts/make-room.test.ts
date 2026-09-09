@@ -443,7 +443,7 @@ describe('paletteOf', () => {
 describe('the rooms route10 ships', () => {
   const tileset = () => parseTileset(readJson(join(PACK, 'assets', 'tiles', 'route10.json')), 'route10');
 
-  for (const id of ['stamford-coffee-interior', 'the-belvedere-interior', 'the-belvedere-yard']) {
+  for (const id of ['stamford-coffee-interior', 'eighty-main-interior', 'the-belvedere-interior', 'the-belvedere-yard']) {
     it(`${id} on disk is what its spec builds`, () => {
       const spec: RoomSpec = readJson(join(PACK, 'rooms', `${id}.json`));
       const built = buildRoom(spec, paletteOf(tileset()));

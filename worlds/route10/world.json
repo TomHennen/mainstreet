@@ -599,6 +599,11 @@
           "door": [
             85,
             23
+          ],
+          "interior": "eighty-main-interior",
+          "enter": [
+            6,
+            10
           ]
         },
         {
@@ -1240,6 +1245,84 @@
           ],
           "facing": "down",
           "style": "door"
+        },
+        {
+          "id": "stamford-coffee-to-eighty-main",
+          "at": [
+            19,
+            6,
+            1,
+            2
+          ],
+          "to": "eighty-main-interior",
+          "spawn": [
+            1,
+            6
+          ],
+          "facing": "right",
+          "style": "door"
+        }
+      ],
+      "signs": [
+        {
+          "pos": [
+            10,
+            2
+          ],
+          "lines": [
+            "The menu, in chalk: coffee every way you could want it, the Maple Smoke latte in a box of its own, and a row of paninis pressed to order — the kind you smell before you see.",
+            "Nothing on this board you would regret."
+          ]
+        },
+        {
+          "pos": [
+            15,
+            1
+          ],
+          "lines": [
+            "A whole shelf of coffee makers, every kind there is: a glass pour-over, a stovetop moka pot, a siphon like something out of a science set, a percolator with a few decades on it.",
+            "They all still work, and most of them get used. It is a collection, not a museum."
+          ]
+        },
+        {
+          "pos": [
+            1,
+            3
+          ],
+          "lines": [
+            "A record player on the left wall, lid up, something warm and a little crackly turning on it.",
+            "Whoever is behind the counter picks the side. It is always the right one."
+          ]
+        },
+        {
+          "pos": [
+            1,
+            8
+          ],
+          "lines": [
+            "Crates of LPs, spread out so you can flip through them: jazz, old country, soul, and a few things nobody can quite place.",
+            "Every sleeve has been handled a hundred times, which is exactly what they are for."
+          ]
+        },
+        {
+          "pos": [
+            4,
+            5
+          ],
+          "lines": [
+            "The furniture is mid-century modern, all of it: low tables, tapered legs, chairs that look like they came off a magazine cover in 1958 and have been sat in happily ever since.",
+            "Nothing matches exactly, and it all goes together anyway."
+          ]
+        },
+        {
+          "pos": [
+            13,
+            10
+          ],
+          "lines": [
+            "A self-serve fridge up by the door: cold drinks, snacks, and ready-made dinners for anyone who would rather not cook tonight.",
+            "Help yourself, says the little sign on it. One of these weeks, you might."
+          ]
         }
       ],
       "people": [
@@ -1247,7 +1330,7 @@
           "id": "stamford-coffee-barista",
           "name": "Ronnie",
           "pos": [
-            7,
+            6,
             1
           ],
           "facing": "down",
@@ -1257,8 +1340,123 @@
             "shirt": "#5c7a8f"
           },
           "lines": [
-            "Morning. The board's up there, but the Maple Smoke latte's the one everybody ends up asking about.",
-            "Take your time picking a table \u2014 the patio's lovely if the sun's out."
+            "Morning. The board's right here — the Maple Smoke latte's the one everybody asks about, and the paninis come off the press hot.",
+            "That's my record on. Have a flip through the crates by the player if you like — there's always something good in there.",
+            "Take your time picking a table. The big doorway on the right goes straight through to 80 Main, if you feel like browsing."
+          ]
+        }
+      ]
+    },
+    "eighty-main-interior": {
+      "name": "80 Main",
+      "kind": "interior",
+      "buildings": [],
+      "labels": [],
+      "exits": [
+        {
+          "id": "eighty-main-exit",
+          "at": [
+            6,
+            11,
+            2,
+            1
+          ],
+          "to": "stamford",
+          "spawn": [
+            85,
+            23
+          ],
+          "facing": "down",
+          "style": "door"
+        },
+        {
+          "id": "eighty-main-to-stamford-coffee",
+          "at": [
+            0,
+            6,
+            1,
+            2
+          ],
+          "to": "stamford-coffee-interior",
+          "spawn": [
+            18,
+            6
+          ],
+          "facing": "left",
+          "style": "door"
+        }
+      ],
+      "signs": [
+        {
+          "pos": [
+            3,
+            1
+          ],
+          "lines": [
+            "Catskills-logo wear, a whole wall of it: hats, tees, hoodies, the mountains stitched small over the heart.",
+            "You would wear it home, and then keep wearing it."
+          ]
+        },
+        {
+          "pos": [
+            1,
+            3
+          ],
+          "lines": [
+            "A very good sweater, folded the way only a shop folds things, and beside it some camo that is more fashion than deer season.",
+            "Both would look right on Main Street. Both would look right anywhere."
+          ]
+        },
+        {
+          "pos": [
+            12,
+            6
+          ],
+          "lines": [
+            "Candles and mugs made close to home, the kind you pick up to see the price and then keep holding.",
+            "Everything on this shelf was chosen by somebody who liked it first."
+          ]
+        },
+        {
+          "pos": [
+            6,
+            6
+          ],
+          "lines": [
+            "A coffee table made of coal. Polished, black, heavier than it looks, and yes — really coal.",
+            "They sold one once, and maybe still do. Somebody, somewhere, sets a cup down on it every morning."
+          ]
+        },
+        {
+          "pos": [
+            10,
+            10
+          ],
+          "lines": [
+            "OYSTER & WINE NIGHT, the board says: some evenings the shop stays open late, the oysters come out on ice and the wine comes out with them.",
+            "Ask at the counter which night. It is worth planning a week around."
+          ]
+        }
+      ],
+      "people": [
+        {
+          "id": "eighty-main-keeper",
+          "name": "Tamsin",
+          "pos": [
+            9,
+            1
+          ],
+          "facing": "down",
+          "look": {
+            "hair": "short",
+            "hairColor": "#8a6a3c",
+            "skin": "#d9a98a",
+            "shirt": "#3f6b5a"
+          },
+          "lines": [
+            "Come on in and have a look round. Everything here is the kind of thing we would want ourselves.",
+            "The sweaters run true to size, and the mugs are from just up the road.",
+            "The coffee shop is right through the doorway on the left. The two of us have always been one visit."
           ]
         }
       ]
