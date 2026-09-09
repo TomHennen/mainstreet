@@ -711,7 +711,19 @@ opt-in, everything warm and affectionate) before it reaches the player.
   the player doesn't get an answer either. If Tom later says what it is,
   that's a separate reveal beat, folded in or held back at his call — same
   open question on episode timing as before (episode 2, or keep our
-  powder dry).
+  powder dry). Built, September 2026, in ep002: the rumor runs as a B-thread
+  beside Priya's errand and never resolves. Hannah says bookshop, Renata
+  says record shop, Walt says bike shop, Priya only hopes for a dance studio;
+  three new rumor-carriers each have their own — Fern, a regular at a table
+  in Stamford Coffee, says gallery; Ozzie, browsing sweaters in 80 Main,
+  says oyster bar; Ines, walking her dog Biscuit past the patio, says dog
+  treats. A prop sign down the side of the coffee shop reads the plywood and
+  paper over the low window and finds nothing written on any of it. A
+  `heardShop` flag only changes whether a carrier opens with "you've
+  heard, then"; no line anywhere says what the shop is, and the small talk
+  for the week carries the same not-knowing plus the new interior details
+  (paninis, the record player, the coffee makers, the self-serve fridge, 80
+  Main's sweaters, the coal coffee table, oyster nights).
 - **The mayor and the pool.** Years ago, when the Belvedere was being shown
   to its owner, the mayor — who is also the realtor — walked out across the
   plywood laid over the hotel's old swimming pool and went straight through

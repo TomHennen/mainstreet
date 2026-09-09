@@ -14,9 +14,20 @@
     "Word travels faster than traffic on Route 10, and that's saying something.",
     "I hope that costume makes it there in one piece — I heard it's got sequins.",
     "Walt's truck could use a wash before it goes anywhere near the city.",
-    "Nice to see everybody pitching in for Priya's kid."
+    "Nice to see everybody pitching in for Priya's kid.",
+    "Somebody's fixing up the space under Stamford Coffee. Ask ten people what it's going to be and you'll get eleven answers.",
+    "There's paper over that low window under the coffee shop now. Whatever's going in, they're keeping it a surprise.",
+    "Heard hammering under Stamford Coffee again this morning. Good sound, that — something's coming.",
+    "My neighbour says the new place under the coffee shop is a bookshop. My other neighbour says it isn't. Neither of them has been inside.",
+    "Stamford Coffee's got a record on and a whole shelf of coffee makers lined up like a museum. Go look, it's worth the trip on its own.",
+    "The paninis at Stamford Coffee — get whichever one they're pressing when you walk in. Never been wrong yet.",
+    "If you're late getting home, the self-serve fridge at Stamford Coffee has dinner in it. That fridge has saved a lot of Tuesdays.",
+    "80 Main's got the Catskills sweaters in again. I'm not saying I need another one. I'm saying I'm going to look.",
+    "80 Main had a coffee table made out of coal. Made of coal! I went in twice just to look at it.",
+    "Oyster night at 80 Main — get your name down early, it fills right up.",
+    "Whatever goes in under the coffee shop, it's got the best patio in town right on top of it. Lucky them."
   ],
-  "flags": ["heardAsk", "triedStamford", "triedHobart", "done"],
+  "flags": ["heardAsk", "triedStamford", "triedHobart", "done", "heardShop"],
   "npcs": [
     {
       "id": "priya",
@@ -30,7 +41,8 @@
           "requires": ["done"],
           "lines": [
             "He texted a photo from the stage door the second he got it — you'll just have to imagine it, but trust me, it's a whole look.",
-            "Thank you, truly."
+            "Thank you, truly.",
+            "Oh — you were just down in Stamford. Did anybody tell you what's going in under the coffee shop? Nobody will tell me either. I keep hoping dance studio, but I'm biased."
           ]
         },
         {
@@ -76,7 +88,8 @@
           "requires": ["heardAsk"],
           "lines": [
             "Nobody from in here's going down today, far as I know.",
-            "Check the board at Tops on your way through — and Cellar Door in Hobart, Renata always seems to know who's coming and going."
+            "Check the board at Tops on your way through — and Cellar Door in Hobart, Renata always seems to know who's coming and going.",
+            "And did you hear? Somebody's fixing up the space under Stamford Coffee. Everybody who comes through that door has a different answer for what it is. Mine's a bookshop, so we'd have one of our own up this end of the road."
           ],
           "effects": [{ "set": "triedStamford" }]
         },
@@ -125,7 +138,8 @@
           "requires": [],
           "lines": [
             "Welcome — pull up a seat on the bench anytime.",
-            "If you're headed up toward Jefferson, say hi to Priya on the green — I hear she's asking around about something."
+            "If you're headed up toward Jefferson, say hi to Priya on the green — I hear she's asking around about something.",
+            "And if you pass Stamford Coffee, have a look at the space under it — somebody's putting something in. Hannah says bookshop. I say record shop. Have you seen the wall of LPs upstairs? Something's got to catch the overflow."
           ]
         }
       ]
@@ -160,8 +174,87 @@
           "requires": [],
           "lines": [
             "Every other Sunday I load up and head down for the week — traffic and all. Don't ask me why I keep doing it to myself.",
-            "If you're new around here, Priya's out on the green — good person to know."
+            "If you're new around here, Priya's out on the green — good person to know.",
+            "Heard about the space under Stamford Coffee? Bike shop. Has to be. All those rail-trail folks rolling into town needing a tube and a coffee — mark my words."
           ]
+        }
+      ]
+    },
+    {
+      "id": "fern",
+      "name": "Fern",
+      "map": "stamford-coffee-interior",
+      "pos": [0, 0],
+      "facing": "down",
+      "accent": "#4f7f6e",
+      "dialogue": [
+        {
+          "requires": ["heardShop"],
+          "lines": [
+            "You've heard about the space downstairs, then. Well, whatever you were told, it's a gallery. Half the people at these tables paint. I've seen the sketchbooks.",
+            "They put paper over the window before I could get a look. I respect that. I'm still going to try."
+          ]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "Sit anywhere — this is the record player's table, so you get whichever side they've put on.",
+            "Have you heard? Somebody's doing something with the space underneath us. Hammering all last week. Nobody knows what it is, including the counter, and the counter knows everything.",
+            "My money's on a gallery. Half the people at these tables paint. I've seen the sketchbooks."
+          ],
+          "effects": [{ "set": "heardShop" }]
+        }
+      ]
+    },
+    {
+      "id": "ozzie",
+      "name": "Ozzie",
+      "map": "eighty-main-interior",
+      "pos": [0, 0],
+      "facing": "down",
+      "accent": "#b0743a",
+      "dialogue": [
+        {
+          "requires": ["heardShop"],
+          "lines": [
+            "So you've heard about the downstairs. Everyone's guessing. Oysters — that's my guess and I'm sticking with it. The wine nights in here fill right up; imagine that every night of the week.",
+            "Whoever it is, they've picked the best spot in town. Coffee upstairs, sweaters next door. I'd open there."
+          ]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "Don't mind me, I'm deciding between two sweaters and losing.",
+            "You've noticed the work going on under the coffee shop? Whole town's noticed. Nobody's got the answer, which hasn't slowed anybody down.",
+            "My guess is an oyster bar. The oyster-and-wine nights in here fill right up — somebody's clearly been paying attention."
+          ],
+          "effects": [{ "set": "heardShop" }]
+        }
+      ]
+    },
+    {
+      "id": "ines",
+      "name": "Ines",
+      "map": "stamford",
+      "pos": [91, 24],
+      "facing": "left",
+      "accent": "#c9a24a",
+      "dialogue": [
+        {
+          "requires": ["heardShop"],
+          "lines": [
+            "Somebody's told you about the space under the coffee shop, then. Did they say dog treats? No? Well, it's dog treats. Look at this deck — every dog in Stamford naps here. That's a customer base.",
+            "Biscuit here has been sniffing at that papered-over window every walk this week. He knows something. He's not telling either."
+          ]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "Morning. Biscuit likes to check the patio before we go anywhere else, so we check the patio.",
+            "Have you heard about the space underneath the coffee shop? Somebody's doing it up. There's paper on the window and hammering behind it, and that's all anybody knows.",
+            "My guess is dog treats. Every dog in Stamford naps on this deck. Somebody's finally noticed."
+          ],
+          "effects": [{ "set": "heardShop" }]
         }
       ]
     }
@@ -198,6 +291,15 @@
       "building": "tops",
       "requires": ["heardAsk"],
       "lines": ["Pinned to the board by the door: someone's asking if anybody's headed down to the city today. Half the county's seen it already."]
+    },
+    {
+      "map": "stamford",
+      "pos": [92, 22],
+      "requires": [],
+      "lines": [
+        "Down the side of the coffee shop, a low window right at the ground, with brown paper and a sheet of plywood over it from the inside. Somebody's at work behind it — you can hear a saw going.",
+        "Not a word written on any of it. Everybody who walks past leans in for a look anyway, and comes away knowing exactly as much as before."
+      ]
     }
   ]
 }
