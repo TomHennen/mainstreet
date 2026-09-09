@@ -158,6 +158,21 @@ scrappy punk band. It is not a fiddle place — don't write one in. Karaoke,
 open mic and trivia are already on record, and a big-name comic passes
 through now and then.
 
+**Stamford Coffee interior (Tom, Sep 2026, not built yet).** The left wall
+has a record player with a big spread of LPs out, and there's a whole
+collection of different coffee makers on display too — the furniture
+throughout reads mid-century modern. A self-serve fridge sits up front with
+drinks, snacks and ready-made dinners in it; we might eventually let the
+player actually buy something from it. Panini sandwiches are also on the
+menu. On the right side there's a large open doorway straight through to
+**80 Main** — the two interiors connect directly, matching how the two
+storefronts already share one patio deck outside (see the Stamford's Main
+Street block note above).
+
+**80 Main interior (Tom, Sep 2026, not built yet).** High-end goods, lots
+of Catskills-logo wear. They once (maybe still do) sold a high-end coffee
+table made out of coal. They sometimes host oyster-and-wine nights.
+
 ## Open items — pending map work
 
 New businesses/landmarks Tom has named that aren't placed on the map yet.
@@ -181,6 +196,14 @@ than a notes-file guess:
   several full-size open lots along Main Street for bookshops — no need to
   name or place actual shops yet, just make sure the room exists so the
   village can visibly grow, episode by episode, matching map rule 4.
+
+- **Stamford Coffee and 80 Main interiors.** Not built yet — see the notes
+  under Ground truth above (record player and LPs, coffee-maker collection,
+  MCM furniture, self-serve fridge, paninis; the doorway through to 80
+  Main; 80 Main's high-end goods, Catskills-logo wear, the coal coffee
+  table, oyster-and-wine nights). Build as two connected rooms, doorway on
+  Stamford Coffee's right / 80 Main's corresponding side, not two separate
+  interiors that happen to be adjacent.
 
 ## Map rules (agreed 2026-09-06)
 
@@ -657,6 +680,13 @@ opt-in, everything warm and affectionate) before it reaches the player.
   carried lives in that visit to that yard and nowhere else, so it is not an
   inventory and no episode can ever be gated on it. Both the pile and the fire
   say something whichever way round you find them.
+- **A new shop opening below Stamford Coffee.** Tom's heard someone is
+  opening a shop of some sort under/below Stamford Coffee — what it is
+  isn't known yet. Don't guess at a name, type, or placement; wait for Tom
+  to say more. Once it's known, it may fit as a beat inside the Stamford
+  Coffee / 80 Main interior work above, or it may be worth keeping our
+  powder dry rather than folding it into episode 2 — Tom's call when the
+  time comes.
 - **The mayor and the pool.** Years ago, when the Belvedere was being shown
   to its owner, the mayor — who is also the realtor — walked out across the
   plywood laid over the hotel's old swimming pool and went straight through
