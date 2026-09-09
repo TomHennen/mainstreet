@@ -438,6 +438,22 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
   checkLines(episode.intro, '"intro"');
   checkLines(episode.smallTalk, '"smallTalk"');
 
+  // A world person with no story of their own picks their small talk by
+  // hashing their id against the pool (engine/session.ts's smallTalkFor), so
+  // the same person always says the same thing — but with fewer lines than
+  // there are ambient people, some of them are guaranteed to land on the same
+  // line and repeat it, verbatim, to everyone who asks, all week.
+  if (episode.smallTalk) {
+    const ambientPeople = Object.values(world.maps).reduce((sum, meta) => sum + (meta.people?.length ?? 0), 0);
+    if (episode.smallTalk.length < ambientPeople) {
+      problems.push(
+        `${where}: "smallTalk" has ${episode.smallTalk.length} line${episode.smallTalk.length === 1 ? '' : 's'} ` +
+          `for ${ambientPeople} ambient people across the world — too few, and several of them will hash onto the ` +
+          `same line and repeat it word for word; add more (at least ${ambientPeople})`
+      );
+    }
+  }
+
   // The cars this week brings with it (DESIGN.md §3). They are the map's own
   // vehicles in every respect but one — they stand only while this episode
   // plays — so they are checked by exactly the same rules, against the map

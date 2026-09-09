@@ -11,7 +11,10 @@
     "Every dog in the county seems to know Scout's business better than we do.",
     "Nice enough out today, if you don't mind the mud.",
     "Someone said Scout got as far as the trailhead and turned right back around.",
-    "I keep meaning to fix that gate. Scout's not the only one who'd walk through it."
+    "I keep meaning to fix that gate. Scout's not the only one who'd walk through it.",
+    "That dog's got more frequent-flyer miles on Route 10 than the rest of us combined.",
+    "Somebody ought to give Scout his own parking spot at this point.",
+    "I left the porch light on all week, just in case he wandered by."
   ],
   "flags": ["metEarl", "sawHobart", "sawJefferson", "gotDog", "done"],
   "npcs": [

@@ -637,6 +637,15 @@ picked by their id so the same person always says the same thing, and
 the village is chatting about can change with the week's story. Optional;
 without it, `ui.passerby` keeps standing.
 
+Because that pick is a hash of the person's id rather than a fresh roll,
+a `smallTalk` pool with fewer lines than the world has ambient people
+guarantees some of them land on the same line and repeat it, word for word,
+to everyone who asks — `engine/validate.ts`'s `validateEpisode` fails an
+episode whose `smallTalk` is shorter than the world's total ambient people
+count for exactly this reason. Write at least that many lines, varied enough
+that nobody minds if two or three background characters land on the same
+one.
+
 **This week's cars.** An episode may carry a `vehicles` list of its own,
 shaped exactly like a map's (above) plus the `map` each car stands on:
 
