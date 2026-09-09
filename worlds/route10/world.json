@@ -1276,7 +1276,7 @@
         },
         {
           "pos": [
-            15,
+            14,
             1
           ],
           "lines": [
@@ -1389,7 +1389,7 @@
       "signs": [
         {
           "pos": [
-            3,
+            4,
             1
           ],
           "lines": [
@@ -1410,11 +1410,31 @@
         {
           "pos": [
             12,
-            6
+            5
           ],
           "lines": [
-            "Candles and mugs made close to home, the kind you pick up to see the price and then keep holding.",
+            "Candles and mugs made close to home, the kind you pick up to look at properly and then keep holding.",
             "Everything on this shelf was chosen by somebody who liked it first."
+          ]
+        },
+        {
+          "pos": [
+            5,
+            3
+          ],
+          "lines": [
+            "A low table of wool throws and blankets, folded in the colours the hills go in October.",
+            "Somebody has already run a hand over every one of them today. You do too."
+          ]
+        },
+        {
+          "pos": [
+            9,
+            8
+          ],
+          "lines": [
+            "More of the logo wear, out where you can get at it: beanies in a basket, a stack of tees, hoodies on a rail with the mountains over the heart.",
+            "The good stuff is the stuff you will still be wearing in ten years, and this is the good stuff."
           ]
         },
         {
@@ -1424,12 +1444,12 @@
           ],
           "lines": [
             "A coffee table made of coal. Polished, black, heavier than it looks, and yes — really coal.",
-            "They sold one once, and maybe still do. Somebody, somewhere, sets a cup down on it every morning."
+            "They have sold one, and they may still. Somebody, somewhere, sets a cup down on it every morning."
           ]
         },
         {
           "pos": [
-            10,
+            11,
             10
           ],
           "lines": [

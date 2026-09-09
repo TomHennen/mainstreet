@@ -9,8 +9,8 @@
     { "kind": "counter", "rect": [8, 2, 4, 1], "behind": "top" },
     {
       "kind": "shelf",
-      "rect": [1, 1, 5, 1],
-      "tiles": [17, 18, 19, 17, 18],
+      "rect": [1, 1, 6, 1],
+      "tiles": [17, 18, 19, 17, 18, 19],
       "lines": [
         "Catskills-logo wear, a whole wall of it: hats, tees, hoodies, the mountains stitched small over the heart.",
         "You would wear it home, and then keep wearing it."
@@ -27,11 +27,29 @@
     },
     {
       "kind": "shelf",
-      "rect": [12, 4, 1, 4],
-      "tiles": [19, 17, 18, 19],
+      "rect": [12, 2, 1, 6],
+      "tiles": [19, 17, 18, 19, 17, 18],
       "lines": [
-        "Candles and mugs made close to home, the kind you pick up to see the price and then keep holding.",
+        "Candles and mugs made close to home, the kind you pick up to look at properly and then keep holding.",
         "Everything on this shelf was chosen by somebody who liked it first."
+      ]
+    },
+    {
+      "kind": "shelf",
+      "rect": [4, 3, 3, 1],
+      "tiles": [18, 19, 18],
+      "lines": [
+        "A low table of wool throws and blankets, folded in the colours the hills go in October.",
+        "Somebody has already run a hand over every one of them today. You do too."
+      ]
+    },
+    {
+      "kind": "shelf",
+      "rect": [8, 8, 3, 1],
+      "tiles": [17, 19, 17],
+      "lines": [
+        "More of the logo wear, out where you can get at it: beanies in a basket, a stack of tees, hoodies on a rail with the mountains over the heart.",
+        "The good stuff is the stuff you will still be wearing in ten years, and this is the good stuff."
       ]
     },
     {
@@ -39,12 +57,12 @@
       "at": [[6, 6]],
       "lines": [
         "A coffee table made of coal. Polished, black, heavier than it looks, and yes — really coal.",
-        "They sold one once, and maybe still do. Somebody, somewhere, sets a cup down on it every morning."
+        "They have sold one, and they may still. Somebody, somewhere, sets a cup down on it every morning."
       ]
     },
     {
       "kind": "sign",
-      "at": [[10, 10]],
+      "at": [[11, 10]],
       "lines": [
         "OYSTER & WINE NIGHT, the board says: some evenings the shop stays open late, the oysters come out on ice and the wine comes out with them.",
         "Ask at the counter which night. It is worth planning a week around."
@@ -55,6 +73,7 @@
     {
       "kind": "exit",
       "rect": [0, 6, 1, 2],
+      "tiles": [11, 24],
       "id": "eighty-main-to-stamford-coffee",
       "to": "stamford-coffee-interior",
       "spawn": [18, 6],

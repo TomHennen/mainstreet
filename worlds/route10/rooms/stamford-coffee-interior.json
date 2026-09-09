@@ -17,8 +17,8 @@
     },
     {
       "kind": "shelf",
-      "rect": [12, 1, 6, 1],
-      "tiles": [17, 18, 19, 17, 18, 19],
+      "rect": [11, 1, 7, 1],
+      "tiles": [17, 18, 19, 17, 18, 19, 17],
       "lines": [
         "A whole shelf of coffee makers, every kind there is: a glass pour-over, a stovetop moka pot, a siphon like something out of a science set, a percolator with a few decades on it.",
         "They all still work, and most of them get used. It is a collection, not a museum."
@@ -55,7 +55,7 @@
     {
       "kind": "shelf",
       "rect": [12, 10, 2, 1],
-      "tiles": [21, 22],
+      "tiles": [20, 21],
       "lines": [
         "A self-serve fridge up by the door: cold drinks, snacks, and ready-made dinners for anyone who would rather not cook tonight.",
         "Help yourself, says the little sign on it. One of these weeks, you might."
@@ -66,6 +66,7 @@
     {
       "kind": "exit",
       "rect": [19, 6, 1, 2],
+      "tiles": [11, 24],
       "id": "stamford-coffee-to-eighty-main",
       "to": "eighty-main-interior",
       "spawn": [1, 6],

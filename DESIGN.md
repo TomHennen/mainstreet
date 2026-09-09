@@ -1079,8 +1079,9 @@ Hobart — "Jewel of the West Branch."
 - `mac-a-doodles` (Stamford, 33 Harper St): seasonal ice cream/burger stand;
   mac-n-cheese burger; pup cups.
 - `stamford-coffee` (Stamford, 79 Main St): coffee shop; Maple Smoke latte
-  (maple, liquid smoke, sea salt); attached Catskill Outpost shop.
-- `eighty-main` (Stamford, 80 Main St): the shop through the open doorway on
+  (maple, liquid smoke, sea salt); the shop attached next door is
+  `eighty-main`, below, reached through an open doorway inside.
+- `eighty-main` (Stamford): the shop through the open doorway on
   Stamford Coffee's right, sharing its patio; Catskills-logo wear, candles
   and mugs, a very good sweater; once (maybe still) sold a coffee table made
   of coal; oyster-and-wine nights. Interior `eighty-main-interior`, counter
