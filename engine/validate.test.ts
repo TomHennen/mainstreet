@@ -937,6 +937,36 @@ describe('validateEpisode', () => {
     });
     expect(runEpisode(episode, world)).toEqual([]);
   });
+
+  describe('smallTalk vs. ambient people', () => {
+    const worldWithWalkers = makeWorld({
+      maps: {
+        town: makeMap({
+          people: [
+            { id: 'walker1', name: 'A', pos: [1, 1] },
+            { id: 'walker2', name: 'B', pos: [2, 1] },
+            { id: 'walker3', name: 'C', pos: [3, 1] }
+          ]
+        })
+      }
+    });
+
+    it('flags a smallTalk pool with fewer lines than ambient people', () => {
+      const episode = makeEpisode({ smallTalk: ['one line'] });
+      const problems = runEpisode(episode, worldWithWalkers);
+      expect(problems.join('\n')).toContain('"smallTalk" has 1 line for 3 ambient people');
+    });
+
+    it('accepts a smallTalk pool with at least as many lines as ambient people', () => {
+      const episode = makeEpisode({ smallTalk: ['one', 'two', 'three'] });
+      expect(runEpisode(episode, worldWithWalkers)).toEqual([]);
+    });
+
+    it('does not require smallTalk at all, even with ambient people around', () => {
+      const episode = makeEpisode({ smallTalk: undefined });
+      expect(runEpisode(episode, worldWithWalkers)).toEqual([]);
+    });
+  });
 });
 
 /**
