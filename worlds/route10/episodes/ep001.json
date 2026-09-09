@@ -6,9 +6,12 @@
   ],
   "smallTalk": [
     "Has anybody actually caught that dog yet, or is he still just enjoying himself?",
-    "Another wet one. The pond's never looked so full.",
     "My tomatoes don't know what month it is.",
-    "I heard he turned up on somebody's porch and then just left again, like he had somewhere to be."
+    "I heard he turned up on somebody's porch and then just left again, like he had somewhere to be.",
+    "Every dog in the county seems to know Scout's business better than we do.",
+    "Nice enough out today, if you don't mind the mud.",
+    "Someone said Scout got as far as the trailhead and turned right back around.",
+    "I keep meaning to fix that gate. Scout's not the only one who'd walk through it."
   ],
   "flags": ["metEarl", "sawHobart", "sawJefferson", "gotDog", "done"],
   "npcs": [
