@@ -678,7 +678,7 @@ opt-in, everything warm and affectionate) before it reaches the player.
   four of the ambient `people` walkers (DESIGN.md §2 — townspeople who
   belong to the village, not to any story, and by default carry no
   dialogue of their own) now carry a `name` of "Jess" plus a last initial
-  that doesn't match anyone real — Jess K. and Jess R. in Stamford, Jess M.
+  that doesn't match anyone real — Jess K. and Jess R. in Stamford, Jess L.
   in Jefferson, Jess T. in Hobart — spread across all three villages rather
   than piled into one. None of them have `lines` or flags of any kind, so
   they're exactly as uninvolved in any storyline as any other passerby;
