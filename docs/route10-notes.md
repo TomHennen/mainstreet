@@ -680,13 +680,21 @@ opt-in, everything warm and affectionate) before it reaches the player.
   carried lives in that visit to that yard and nowhere else, so it is not an
   inventory and no episode can ever be gated on it. Both the pile and the fire
   say something whichever way round you find them.
-- **A new shop opening below Stamford Coffee.** Tom's heard someone is
-  opening a shop of some sort under/below Stamford Coffee — what it is
-  isn't known yet. Don't guess at a name, type, or placement; wait for Tom
-  to say more. Once it's known, it may fit as a beat inside the Stamford
-  Coffee / 80 Main interior work above, or it may be worth keeping our
-  powder dry rather than folding it into episode 2 — Tom's call when the
-  time comes.
+- **A new shop opening below Stamford Coffee — the not-knowing is the
+  story.** Tom's heard someone is opening a shop of some sort under/below
+  Stamford Coffee, but nobody actually knows what it'll be yet — and that
+  itself is prime small-town gossip: everybody's noticed the activity,
+  everybody's got a theory, nobody's got the answer. That's usable now,
+  independent of ever learning the real answer, the same way the beaver
+  saga runs on the town's contradictory versions rather than a resolved
+  ending — an NPC each with their own confident, wrong guess, a running
+  "did you hear..." thread across a few characters, a sign or plywood over
+  the window that nobody can read anything from. Don't invent what the
+  shop actually is or guess a name; the rumor mill works precisely because
+  the player doesn't get an answer either. If Tom later says what it is,
+  that's a separate reveal beat, folded in or held back at his call — same
+  open question on episode timing as before (episode 2, or keep our
+  powder dry).
 - **The mayor and the pool.** Years ago, when the Belvedere was being shown
   to its owner, the mayor — who is also the realtor — walked out across the
   plywood laid over the hotel's old swimming pool and went straight through
