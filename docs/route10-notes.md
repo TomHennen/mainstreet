@@ -158,6 +158,21 @@ scrappy punk band. It is not a fiddle place — don't write one in. Karaoke,
 open mic and trivia are already on record, and a big-name comic passes
 through now and then.
 
+**Stamford Coffee interior (Tom, Sep 2026, not built yet).** The left wall
+has a record player with a big spread of LPs out, and there's a whole
+collection of different coffee makers on display too — the furniture
+throughout reads mid-century modern. A self-serve fridge sits up front with
+drinks, snacks and ready-made dinners in it; we might eventually let the
+player actually buy something from it. Panini sandwiches are also on the
+menu. On the right side there's a large open doorway straight through to
+**80 Main** — the two interiors connect directly, matching how the two
+storefronts already share one patio deck outside (see the Stamford's Main
+Street block note above).
+
+**80 Main interior (Tom, Sep 2026, not built yet).** High-end goods, lots
+of Catskills-logo wear. They once (maybe still do) sold a high-end coffee
+table made out of coal. They sometimes host oyster-and-wine nights.
+
 ## Open items — pending map work
 
 New businesses/landmarks Tom has named that aren't placed on the map yet.
@@ -181,6 +196,14 @@ than a notes-file guess:
   several full-size open lots along Main Street for bookshops — no need to
   name or place actual shops yet, just make sure the room exists so the
   village can visibly grow, episode by episode, matching map rule 4.
+
+- **Stamford Coffee and 80 Main interiors.** Not built yet — see the notes
+  under Ground truth above (record player and LPs, coffee-maker collection,
+  MCM furniture, self-serve fridge, paninis; the doorway through to 80
+  Main; 80 Main's high-end goods, Catskills-logo wear, the coal coffee
+  table, oyster-and-wine nights). Build as two connected rooms, doorway on
+  Stamford Coffee's right / 80 Main's corresponding side, not two separate
+  interiors that happen to be adjacent.
 
 ## Map rules (agreed 2026-09-06)
 
@@ -649,6 +672,23 @@ opt-in, everything warm and affectionate) before it reaches the player.
   reveal, no speculation about why any one person doesn't; per hard rule
   6, that stays generic texture, not a puzzle about a real guarded
   person's inner life.
+- **The Jesses of Route 10.** Built, September 2026. Tom's noticed a real
+  small-town coincidence — an awful lot of people around here happen to be
+  named Jess. Played it straight into the world as pure background texture:
+  four of the ambient `people` walkers (DESIGN.md §2 — townspeople who
+  belong to the village, not to any story, and by default carry no
+  dialogue of their own) now carry a `name` of "Jess" plus a last initial
+  that doesn't match anyone real — Jess K. and Jess R. in Stamford, Jess L.
+  in Jefferson, Jess T. in Hobart — spread across all three villages rather
+  than piled into one. None of them have `lines` or flags of any kind, so
+  they're exactly as uninvolved in any storyline as any other passerby;
+  the only thing that changes is the name shown on their dialogue box. A
+  new `ui.trivia` line ties the joke together for anyone who doesn't
+  connect the dots on their own from names alone ("Somehow there are an
+  awful lot of people named Jess around here..."), same one-in-five odds
+  as any other trivia roll. If a real future storyline ever wants a named
+  Jess of its own, give that character an unrelated last name so nobody
+  reads them as one of these four.
 - **A piece of wood on the fire.** Built, September 2026. The Belvedere's
   yard has a firepit and a stack of wood beside it, and the beat Tom wanted is
   in: take a split log off the pile, put it on the fire, and the fire catches
@@ -657,6 +697,21 @@ opt-in, everything warm and affectionate) before it reaches the player.
   carried lives in that visit to that yard and nowhere else, so it is not an
   inventory and no episode can ever be gated on it. Both the pile and the fire
   say something whichever way round you find them.
+- **A new shop opening below Stamford Coffee — the not-knowing is the
+  story.** Tom's heard someone is opening a shop of some sort under/below
+  Stamford Coffee, but nobody actually knows what it'll be yet — and that
+  itself is prime small-town gossip: everybody's noticed the activity,
+  everybody's got a theory, nobody's got the answer. That's usable now,
+  independent of ever learning the real answer, the same way the beaver
+  saga runs on the town's contradictory versions rather than a resolved
+  ending — an NPC each with their own confident, wrong guess, a running
+  "did you hear..." thread across a few characters, a sign or plywood over
+  the window that nobody can read anything from. Don't invent what the
+  shop actually is or guess a name; the rumor mill works precisely because
+  the player doesn't get an answer either. If Tom later says what it is,
+  that's a separate reveal beat, folded in or held back at his call — same
+  open question on episode timing as before (episode 2, or keep our
+  powder dry).
 - **The mayor and the pool.** Years ago, when the Belvedere was being shown
   to its owner, the mayor — who is also the realtor — walked out across the
   plywood laid over the hotel's old swimming pool and went straight through
