@@ -672,6 +672,23 @@ opt-in, everything warm and affectionate) before it reaches the player.
   reveal, no speculation about why any one person doesn't; per hard rule
   6, that stays generic texture, not a puzzle about a real guarded
   person's inner life.
+- **The Jesses of Route 10.** Built, September 2026. Tom's noticed a real
+  small-town coincidence — an awful lot of people around here happen to be
+  named Jess. Played it straight into the world as pure background texture:
+  four of the ambient `people` walkers (DESIGN.md §2 — townspeople who
+  belong to the village, not to any story, and by default carry no
+  dialogue of their own) now carry a `name` of "Jess" plus a last initial
+  that doesn't match anyone real — Jess K. and Jess R. in Stamford, Jess M.
+  in Jefferson, Jess T. in Hobart — spread across all three villages rather
+  than piled into one. None of them have `lines` or flags of any kind, so
+  they're exactly as uninvolved in any storyline as any other passerby;
+  the only thing that changes is the name shown on their dialogue box. A
+  new `ui.trivia` line ties the joke together for anyone who doesn't
+  connect the dots on their own from names alone ("Somehow there are an
+  awful lot of people named Jess around here..."), same one-in-five odds
+  as any other trivia roll. If a real future storyline ever wants a named
+  Jess of its own, give that character an unrelated last name so nobody
+  reads them as one of these four.
 - **A piece of wood on the fire.** Built, September 2026. The Belvedere's
   yard has a firepit and a stack of wood beside it, and the beat Tom wanted is
   in: take a split log off the pile, put it on the fire, and the fire catches
