@@ -21,6 +21,7 @@ import {
   vehicleTexture
 } from '../art';
 import { currentDialogue, currentInventory, currentToast, publishDebug, publishFlagSetter } from '../debug';
+import { doorPressAdvance } from '../doors';
 import { edgeAt, lostAt, roadEndLine } from '../edges';
 import { isHeld, onAction, onTap } from '../input';
 import { feedbackUrl } from '../feedback';
@@ -94,14 +95,6 @@ const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 1
  * road name.
  */
 const HOLD = { road: 900, enter: 500, exit: 400, lost: 1600 };
-/**
- * How long a held "up" has to keep pressing into a door before it opens
- * (`checkDoors`, DESIGN.md §2) — long enough that the single tile-aligning
- * step an unrelated walk might clip past a doorstep with never adds up to
- * it (that step is over in under half this), short enough that actually
- * walking into one never feels like a wait.
- */
-const DOOR_PRESS_MS = 180;
 const WALK_FRAME_MS = 133;
 /** How often a walk may be re-aimed at somebody who is moving, in ms. */
 const CHASE_MS = 250;
@@ -1094,6 +1087,14 @@ export class MapScene extends Phaser.Scene {
     if (dx !== 0) this.facing = dx < 0 ? 'left' : 'right';
     else if (dy !== 0) this.facing = dy < 0 ? 'up' : 'down';
 
+    // Snapshotted before the move, for checkDoors: whether a held "up" is
+    // genuinely stuck against a door this frame is whether this attempt
+    // actually got anywhere, on either axis — a diagonal held across the
+    // same tile keeps inching forward on the other one and is never stuck,
+    // however long it takes to cross (DESIGN.md §2).
+    const beforePx = this.px;
+    const beforePy = this.py;
+
     if (this.moving) {
       // Diagonals cover two axes at once, so slow them to the same real speed.
       let step = (SPEED * delta) / 1000;
@@ -1119,7 +1120,7 @@ export class MapScene extends Phaser.Scene {
     this.updateMarker();
     this.checkExits();
     this.checkEdges();
-    this.checkDoors(dy, delta);
+    this.checkDoors(dy, delta, this.px === beforePx && this.py === beforePy);
   }
 
   /**
@@ -1146,13 +1147,22 @@ export class MapScene extends Phaser.Scene {
   }
 
   /**
-   * Coming out of a door drops the player on the doorstep. Leaving `checkDoors`
-   * free to fire from the very first frame would walk them straight back in
-   * before they had taken a step, so a door stays quiet until half a tile of
-   * daylight is between the player and where they landed.
+   * Coming out of a door drops the player right back on its doorstep.
+   * Leaving `checkDoors` free to fire from the very first frame would walk
+   * them straight back in before they had taken a step, so a door stays
+   * quiet until either half a tile of daylight is between the player and
+   * where they landed, or "up" is not being held at all — which is most of
+   * the time, since a real exit rarely lands with a thumb already back on
+   * the very key that would walk straight in. The half-tile rule alone is
+   * what covers the rest: "up" held across the transition itself, which
+   * only releasing or moving off the spot can arm.
    */
   private armEnters(): void {
     if (this.enterArmed) return;
+    if (!isHeld('up')) {
+      this.enterArmed = true;
+      return;
+    }
     if (Math.hypot(this.px - this.spawnX, this.py - this.spawnY) >= TILE / 2) this.enterArmed = true;
   }
 
@@ -1742,6 +1752,12 @@ export class MapScene extends Phaser.Scene {
     // beat after it closes, so dismissing a line can never re-trigger a talk.
     if (state.locked || state.dialogueOpen || performance.now() - state.lastDialogueClose < 200) return;
 
+    // A tap aimed at a door that is disarmed — the very one the player is
+    // standing on having just left it (`armEnters`) — has nowhere to walk
+    // in to yet, but it tapped a door, and a door always answers a tap
+    // (DESIGN.md §2): read its standing sign instead of doing nothing.
+    if (target.kind === 'enter' && !this.enterArmed) target = { ...target, kind: 'sign' };
+
     if (target.kind === 'npc') {
       const walker = this.walkers[target.person ?? 0];
       if (!walker) return;
@@ -1888,10 +1904,8 @@ export class MapScene extends Phaser.Scene {
       // A tap on the door itself opens it directly, exactly like a held "up"
       // does at the keyboard (`checkDoors`) — never an A press, and never
       // debounced the way a held key is, since a completed, deliberate walk
-      // here is already the whole gesture (DESIGN.md §2). `enterArmed` is
-      // the same doorstep guard `checkDoors` uses: stepping out of a door
-      // and tapping it straight back must not go in again.
-      if (!this.enterArmed) return;
+      // here is already the whole gesture (DESIGN.md §2). Armed for certain
+      // by now — a disarmed door was already turned into a 'sign' target above.
       this.leave({
         style: 'door',
         hold: HOLD.enter,
@@ -1909,32 +1923,29 @@ export class MapScene extends Phaser.Scene {
    * "Into," not merely "onto": every door sits one row south of its own
    * building, on the street a player is forever walking along and across, so
    * a door that opened the instant a step so much as touched its tile would
-   * swallow anyone passing a shopfront on their way somewhere else — the
-   * single tile-aligning step an unrelated walk takes past a doorstep on its
-   * way to a turn looks, for exactly one frame, identical to the real thing.
-   * `dy < 0` (a held "up", the same `update()` drove this frame's step with)
-   * is the direction that would otherwise walk the player into the solid
-   * wall behind the door, which rules out a sideways step or a diagonal one
-   * clipping the corner — but not that one coincident frame, so `doorPress`
-   * counts how long the player has stood on this door's tile with "up" still
-   * held: `DOOR_PRESS_MS` is comfortably past how long merely crossing it
-   * takes, and comfortably short of feeling like a wait to somebody actually
-   * walking in and pressed up against it. A tap that lands the walk on the
-   * doorstep is `followPath`'s own arrival press, which reads the standing
-   * sign like any other A press, never this — and never holds "up" at all.
-   * `enterArmed` is `armEnters`'s guard against the doorstep a player was
-   * just dropped on by leaving the very same way.
+   * swallow anyone passing a shopfront on their way somewhere else. `dy < 0`
+   * (a held "up", the same `update()` drove this frame's step with) is the
+   * direction that would otherwise walk the player into the solid wall
+   * behind the door, which already rules out a sideways step — but not a
+   * diagonal one, which keeps inching forward on its other axis the whole
+   * way across the tile, however long "up" stays held alongside it, and
+   * never actually stops (`stuck`, this frame's real outcome — see
+   * `doorPressAdvance`, `engine/doors.ts`, for both of the ways this took
+   * three tries to get right). `enterArmed` is `armEnters`'s guard against
+   * the doorstep a player was just dropped on by leaving the very same way.
+   * A tap that lands the walk on the doorstep is `followPath`'s own arrival
+   * press, which reads the standing sign like any other A press, never
+   * this — and never holds "up" at all. A scene playing owns the controls
+   * (`this.runner`), so a held key left over from before it started can't
+   * walk the player out from under it either.
    */
-  private checkDoors(dy: number, delta: number): void {
+  private checkDoors(dy: number, delta: number, stuck: boolean): void {
     const state = session();
+    const tx = Math.floor((this.px + TILE / 2) / TILE);
+    const ty = Math.floor((this.py + TILE / 2) / TILE);
     const building =
-      dy < 0 && this.enterArmed && !state.locked && !state.dialogueOpen
-        ? this.map.buildings.find((b) => {
-            if (!b.interior || !b.enter) return false;
-            const tx = Math.floor((this.px + TILE / 2) / TILE);
-            const ty = Math.floor((this.py + TILE / 2) / TILE);
-            return b.door[0] === tx && b.door[1] === ty;
-          })
+      dy < 0 && !state.locked && !state.dialogueOpen && !this.runner
+        ? this.map.buildings.find((b) => b.interior && b.enter && b.door[0] === tx && b.door[1] === ty)
         : undefined;
 
     if (!building) {
@@ -1946,11 +1957,12 @@ export class MapScene extends Phaser.Scene {
       this.doorPress = building.id;
       this.doorPressMs = 0;
     }
-    this.doorPressMs += delta;
-    if (this.doorPressMs < DOOR_PRESS_MS) return;
+
+    const result = doorPressAdvance(this.enterArmed, dy < 0, stuck, delta, this.doorPressMs);
+    this.doorPressMs = result.ms;
+    if (!result.open) return;
 
     this.doorPress = null;
-    this.doorPressMs = 0;
     this.leave({
       style: 'door',
       hold: HOLD.enter,
@@ -1962,6 +1974,9 @@ export class MapScene extends Phaser.Scene {
   }
 
   private checkExits(): void {
+    // A scene playing owns the controls; a held key left over from before it
+    // started must not walk the player out from under it (DESIGN.md §3).
+    if (this.runner) return;
     const tx = Math.floor((this.px + TILE / 2) / TILE);
     const ty = Math.floor((this.py + TILE / 2) / TILE);
     const on = this.exitAt(tx, ty);

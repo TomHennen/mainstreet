@@ -259,16 +259,32 @@ way to play, so a phone has to be able to walk in a front door the same way
 the keyboard can). Holding "up" onto that tile at the keyboard or the touch
 d-pad opens it too — the direction that would otherwise walk the player into
 the solid wall behind it, since every building sits one row north of its own
-door — but only once the press has genuinely been leaning into it for
-`DOOR_PRESS_MS` (180ms, `MapScene.checkDoors`): a door sits on the street a
-player is forever crossing on their way past a shopfront to somewhere else,
-and a straight walk elsewhere can clip the doorstep for a single frame while
-lining up a turn — indistinguishable, in that one frame, from actually
-walking in, and comfortably shorter than 180ms even so. An A press, or a
-tap anywhere else on the building's picture — its facade, roof or floating
-name plate — reads the door's standing sign instead, exactly like a door
-with no interior at all, walking the player up to the door to do it, the
-same as tapping anything else (Controls, above).
+door — but only once the player has genuinely stopped there, pressed against
+it, for `DOOR_PRESS_MS` (180ms, `MapScene.checkDoors`/`doorPressAdvance` in
+`engine/doors.ts`). Two things that look alike for a moment turn out not to
+be, which is why "stopped" means stopped, not merely holding "up": a door
+sits on the street a player is forever crossing on their way past a
+shopfront to somewhere else, and a straight walk elsewhere can clip the
+doorstep for a single frame while lining up a turn — indistinguishable, in
+that one frame, from actually walking in; and a diagonal step past the same
+tile, "up" held alongside a side, keeps inching forward the whole time on
+whichever axis is not blocked, however long it takes to cross — never
+actually stuck, so it is never counted either, no matter how long it takes.
+Only a player truly walked into the wall, going nowhere further, adds up to
+the 180ms. An A press, or a tap anywhere else on the building's picture —
+its facade, roof or floating name plate — reads the door's standing sign
+instead, exactly like a door with no interior at all, walking the player up
+to the door to do it, the same as tapping anything else (Controls, above).
+
+A door a player just walked out of is a special case, and player-visible on
+purpose: it drops them right back on its own doorstep, and holding "up"
+there — whether that carried over from before the door closed, or a tap on
+it lands them there directly — must not walk straight back in. Such a door
+stays disarmed until either it is let go of, which is most of the time
+since a thumb is rarely still on the very key that would walk back in, or
+the player moves half a tile away regardless (`MapScene.armEnters`). A tap
+at a disarmed door still answers, reading the sign instead of doing
+nothing, since a tap always answers something.
 
 Nothing marked an opening door as one before a player tried it, so the engine
 lays a small doormat right on the doorstep of any door with an interior
