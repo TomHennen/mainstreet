@@ -94,6 +94,14 @@ const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 1
  * road name.
  */
 const HOLD = { road: 900, enter: 500, exit: 400, lost: 1600 };
+/**
+ * How long a held "up" has to keep pressing into a door before it opens
+ * (`checkDoors`, DESIGN.md §2) — long enough that the single tile-aligning
+ * step an unrelated walk might clip past a doorstep with never adds up to
+ * it (that step is over in under half this), short enough that actually
+ * walking into one never feels like a wait.
+ */
+const DOOR_PRESS_MS = 180;
 const WALK_FRAME_MS = 133;
 /** How often a walk may be re-aimed at somebody who is moving, in ms. */
 const CHASE_MS = 250;
@@ -230,6 +238,9 @@ export class MapScene extends Phaser.Scene {
   private hollerUntil = 0;
   private exitArmed = false;
   private enterArmed = false;
+  /** Which door (by building id) `checkDoors` has been counting a held "up" against, and for how long. */
+  private doorPress: string | null = null;
+  private doorPressMs = 0;
   /** id of the `edges` entry (or a `road-end:<x>,<y>` / `lost:<x>,<y>` key) currently shown, so it says its line once per visit rather than every frame. */
   private edgeShown: string | null = null;
   /** Where the player is being taken once the narrator's "you got lost" lines are read (DESIGN.md §2), else null. */
@@ -286,6 +297,8 @@ export class MapScene extends Phaser.Scene {
     this.facing = data.facing;
     this.exitArmed = false;
     this.enterArmed = false;
+    this.doorPress = null;
+    this.doorPressMs = 0;
     this.edgeShown = null;
     this.lost = null;
     this.itemSprites = new Map();
@@ -1106,7 +1119,7 @@ export class MapScene extends Phaser.Scene {
     this.updateMarker();
     this.checkExits();
     this.checkEdges();
-    this.checkDoors(dy);
+    this.checkDoors(dy, delta);
   }
 
   /**
@@ -1868,31 +1881,53 @@ export class MapScene extends Phaser.Scene {
   }
 
   /**
-   * A door with an interior behind it opens the moment the player actually
-   * walks into it — the doormat is the only warning it gets (DESIGN.md §2).
+   * A door with an interior behind it opens once the player actually walks
+   * into it — the doormat is the only warning it gets (DESIGN.md §2).
    * "Into," not merely "onto": every door sits one row south of its own
    * building, on the street a player is forever walking along and across, so
-   * a door that opened for any step that so much as touched its tile would
-   * swallow anyone passing a shopfront on their way somewhere else. It takes
-   * a held "up" to open one — the direction that would otherwise walk the
-   * player straight into the wall behind it — the same `dy` `update()` drove
-   * this frame's step with, so it never fires from a sideways step along the
-   * street or a diagonal one just clipping the tile's corner. A tap that
-   * lands the walk on the doorstep is `followPath`'s own arrival press,
-   * which reads the standing sign like any other A press, never this.
+   * a door that opened the instant a step so much as touched its tile would
+   * swallow anyone passing a shopfront on their way somewhere else — the
+   * single tile-aligning step an unrelated walk takes past a doorstep on its
+   * way to a turn looks, for exactly one frame, identical to the real thing.
+   * `dy < 0` (a held "up", the same `update()` drove this frame's step with)
+   * is the direction that would otherwise walk the player into the solid
+   * wall behind the door, which rules out a sideways step or a diagonal one
+   * clipping the corner — but not that one coincident frame, so `doorPress`
+   * counts how long the player has stood on this door's tile with "up" still
+   * held: `DOOR_PRESS_MS` is comfortably past how long merely crossing it
+   * takes, and comfortably short of feeling like a wait to somebody actually
+   * walking in and pressed up against it. A tap that lands the walk on the
+   * doorstep is `followPath`'s own arrival press, which reads the standing
+   * sign like any other A press, never this — and never holds "up" at all.
    * `enterArmed` is `armEnters`'s guard against the doorstep a player was
    * just dropped on by leaving the very same way.
    */
-  private checkDoors(dy: number): void {
-    if (dy >= 0 || !this.enterArmed) return;
+  private checkDoors(dy: number, delta: number): void {
     const state = session();
-    if (state.locked || state.dialogueOpen) return;
-    const tx = Math.floor((this.px + TILE / 2) / TILE);
-    const ty = Math.floor((this.py + TILE / 2) / TILE);
-    const building = this.map.buildings.find(
-      (b) => b.interior && b.enter && b.door[0] === tx && b.door[1] === ty
-    );
-    if (!building) return;
+    const building =
+      dy < 0 && this.enterArmed && !state.locked && !state.dialogueOpen
+        ? this.map.buildings.find((b) => {
+            if (!b.interior || !b.enter) return false;
+            const tx = Math.floor((this.px + TILE / 2) / TILE);
+            const ty = Math.floor((this.py + TILE / 2) / TILE);
+            return b.door[0] === tx && b.door[1] === ty;
+          })
+        : undefined;
+
+    if (!building) {
+      this.doorPress = null;
+      this.doorPressMs = 0;
+      return;
+    }
+    if (this.doorPress !== building.id) {
+      this.doorPress = building.id;
+      this.doorPressMs = 0;
+    }
+    this.doorPressMs += delta;
+    if (this.doorPressMs < DOOR_PRESS_MS) return;
+
+    this.doorPress = null;
+    this.doorPressMs = 0;
     this.leave({
       style: 'door',
       hold: HOLD.enter,

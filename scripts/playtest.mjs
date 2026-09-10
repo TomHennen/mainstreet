@@ -516,6 +516,23 @@ async function walkTo(page, milestone, goal, { allowInterrupt = false, episode =
   fail(milestone, `could not reach ${goal}; stopped at ${here(s)} on "${s.map}" (x=${s.x.toFixed(2)}, y=${s.y.toFixed(2)})`);
 }
 
+/**
+ * Walks up onto a door and keeps holding "up" until the engine opens it
+ * (`MapScene.checkDoors`, DESIGN.md §2) — a real, sustained press into the
+ * wall behind the door, not the single tile-aligning step an unrelated walk
+ * elsewhere might clip in passing. The caller has to already be standing
+ * one tile south of the door (its own doorstep); this aims three tiles past
+ * the door itself so the hold never stops on its own — the building's own
+ * solid wall stops the player's feet at the door tile long before that, and
+ * the door opening (which locks the controls) is what actually ends the hold.
+ */
+async function walkUpInto(page, milestone, door) {
+  const result = await hold(page, 'up', 'y', door[1] - 3, -1);
+  if (result.reason !== 'interrupted') {
+    fail(milestone, `holding "up" into the door at ${door} ended with "${result.reason}", not the door opening`);
+  }
+}
+
 /** Space, spaced out past the 220ms action debounce. */
 async function pressA(page) {
   await page.keyboard.press('Space');
@@ -1425,7 +1442,7 @@ async function main() {
     await shot(page, 'stewarts-door-prompt');
 
     log("  walk into Stewart's");
-    await walkTo(page, 'stewarts', stewarts.door, { allowInterrupt: true });
+    await walkUpInto(page, 'stewarts', stewarts.door);
     await waitUntil(page, (s) => s.map === stewarts.interior && !s.locked, "Stewart's interior");
     await shot(page, 'stewarts-interior');
 
@@ -1473,7 +1490,7 @@ async function main() {
       // row south of its own building, so the doorstep just below it is where
       // the final, deliberate step up has to start from.
       await walkTo(page, `${place.id}-approach`, [place.door[0], place.door[1] + 1]);
-      await walkTo(page, `${place.id}-enter`, place.door, { allowInterrupt: true });
+      await walkUpInto(page, `${place.id}-enter`, place.door);
       const inside = await waitUntil(page, (s) => s.map === place.interior && !s.locked, `${name}'s room`);
       const landed = here(inside);
       if (landed[0] !== place.enter[0] || landed[1] !== place.enter[1]) {
@@ -2543,7 +2560,7 @@ async function main() {
     // never merely landing on its tile, so this steps off it and back on
     // rather than reusing wherever the tap above left the player standing.
     await walkTo(wp, 'walk-in-approach', [shop.door[0], shop.door[1] + 1]);
-    await walkTo(wp, 'walk-in', shop.door, { allowInterrupt: true });
+    await walkUpInto(wp, 'walk-in', shop.door);
     await waitUntil(wp, (s) => s.map === shop.interior && !s.locked, `${shop.id}'s door to open on a walk`, 15000);
     log(`    ${shop.door} (${shop.id}'s door, walked onto from the south) -> inside`);
     await shot(wp, 'walked-in');
@@ -3528,7 +3545,7 @@ async function main() {
       // south of it first and walks up from there, same as every other door
       // this harness walks into.
       await walkTo(cp, 'scene-approach', [building.door[0], building.door[1] + 1], { episode: sceneEp });
-      await walkTo(cp, 'scene', building.door, { episode: sceneEp, allowInterrupt: true });
+      await walkUpInto(cp, 'scene', building.door);
       const inside = await waitUntil(cp, (st) => st.map === scene.on.enter, `the door into "${scene.on.enter}"`, 25000);
       log(`    walked in: ${inside.map} at ${here(inside)}`);
 

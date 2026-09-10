@@ -258,9 +258,14 @@ door with no interior at all; the two have never behaved differently to a
 button, only to a footstep, and only to that one direction of footstep. It
 takes "up" specifically, not merely landing on the tile at all, because a
 door sits on the street a player is forever crossing on their way past a
-shopfront to somewhere else — a door that opened for any step that touched
-it would swallow anyone walking along Main Street. Tapping walks the player
-up to the door and presses A on arrival on their behalf, the same as
+shopfront to somewhere else, and a straight walk elsewhere can clip a
+doorstep's tile for a single frame while lining up a turn — indistinguishable,
+in that one frame, from actually walking in. `checkDoors` asks for a held
+"up" against the door for `DOOR_PRESS_MS` (180ms) running, comfortably past
+how long that coincidental frame ever lasts and comfortably under anything
+that reads as a wait, so a door only opens once a player is genuinely
+pressed up against it, not merely on their way past it. Tapping walks the
+player up to the door and presses A on arrival on their behalf, the same as
 tapping anything else (Controls, above), so a tap on a door never opens it
 either — a deliberate difference from the held-"up" case, since a tapped
 walk is a promise to arrive and read, not to barge in.
