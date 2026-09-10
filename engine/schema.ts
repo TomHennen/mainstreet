@@ -104,6 +104,24 @@ export interface Fixture {
   /** What it says when `give`/`take` has nothing to do. See above. */
   otherwise?: string[];
   /**
+   * What the "with you" panel calls the token this fixture hands over
+   * (DESIGN.md §2, `engine/inventory.ts`), while the player is holding it.
+   * Belongs on the `give` fixture, the one place the token is named; the
+   * `take` fixture that spends it needs neither this nor `heldBlurb`. The
+   * engine never invents player-facing English from the token — no
+   * title-casing it — so leaving this out shows the token's own name
+   * verbatim instead ("log", not "Log").
+   */
+  heldName?: string;
+  /**
+   * One line for the "with you" panel while the player is holding this
+   * fixture's token — what it's like to have it in hand, since `lines` is the
+   * moment of picking it up rather than a description for later. Leaving it
+   * out still shows the token on the panel, just with no second line under it
+   * (hard rule 3) — the exchange itself is unaffected either way.
+   */
+  heldBlurb?: string;
+  /**
    * Seconds this fixture glows warmly after a successful `take` — a fire that
    * has just been fed. One soft light disc over its tile, no strobe, and its
    * art switches to the kind's lit variant for as long as it lasts
@@ -663,6 +681,24 @@ export interface WorldCopy {
       paint?: string;
       back?: string;
     };
+    /**
+     * The "with you" panel (DESIGN.md §2, `engine/inventory.ts`): a glance at
+     * what the player is carrying, not an inventory — no counts, no slots,
+     * nothing to manage. `button` labels the HUD button that opens it, `title`
+     * is the panel's own heading, and `empty` is the one warm line it shows
+     * with nothing to list. The engine draws each entry's name (title-cased
+     * off its id) and a placeholder swatch itself; only the words are
+     * copy. `button` is what switches the whole feature on — with no label
+     * for it there is nothing to tap or bind a key to, so the panel, the HUD
+     * button and the keyboard shortcut all simply do not appear (hard rule
+     * 3). `title` and `empty` left out just leave that one line off the
+     * open panel.
+     */
+    withYou?: {
+      button?: string;
+      title?: string;
+      empty?: string;
+    };
   };
   intro?: {
     speaker: string;
@@ -738,6 +774,31 @@ export interface EpisodeItem {
   requires: string[];
   effects: Effect[];
   lines: string[];
+  /**
+   * What the "with you" panel calls this item (DESIGN.md §2,
+   * `engine/inventory.ts`). The engine never invents player-facing English —
+   * no title-casing an id — so leaving this out shows the item's own id
+   * verbatim instead ("pen", not "Pen").
+   */
+  name?: string;
+  /**
+   * One line for the "with you" panel: what this is, now that it's in hand,
+   * since `lines` is the moment of picking it up rather than a description to
+   * keep reading later. Leaving it out still shows the item on the panel,
+   * just with no second line under it (hard rule 3).
+   */
+  blurb?: string;
+  /**
+   * A declared flag (like `requires`) that takes this item off the "with
+   * you" panel once it's true — the beat the item is handed back or used up,
+   * usually the same flag that finishes the episode ("done"). Without it the
+   * item stays on the panel for good once picked up: `withYou` only ever
+   * reads `session().taken`, never the item's own `effects`, so an item with
+   * no `until` simply has no moment of leaving. The validator checks it names
+   * a flag the episode actually declares, the same as `requires` and every
+   * effect's `set`.
+   */
+  until?: string;
 }
 
 /**

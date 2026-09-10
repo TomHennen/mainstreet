@@ -8,7 +8,7 @@ import { restoreEpisode, resumePoint } from '../progress';
 import { validateIntroByDate } from '../season';
 import { startSession } from '../session';
 import type { AssetIndex } from '../session';
-import { validateEpisode, validateWorld } from '../validate';
+import { validateCopy, validateEpisode, validateWorld } from '../validate';
 import { sceneFlags } from '../schema';
 import type { Episode } from '../schema';
 
@@ -48,6 +48,7 @@ export class BootScene extends Phaser.Scene {
       const problems = [
         ...validateWorld(world, maps),
         ...validateIntroByDate(copy.intro),
+        ...validateCopy(copy),
         ...episodes.flatMap((episode) => validateEpisode(episode, world, maps))
       ];
       if (problems.length) {
@@ -168,8 +169,10 @@ export function startEpisode(
     dialogueOpen: false,
     lastDialogueClose: 0,
     locked: false,
+    sceneRunning: false,
     introShown: false,
     taken: new Set<string>(),
+    held: null,
     place,
     light: null,
     save,

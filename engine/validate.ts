@@ -28,8 +28,36 @@ import type {
   Vec2,
   Vehicle,
   Wander,
-  World
+  World,
+  WorldCopy
 } from './schema';
+
+/**
+ * `copy.json`'s own rules (DESIGN.md §2), run alongside `validateWorld` at
+ * boot and by `scripts/validate-episodes` — see those two call sites for why
+ * this is separate from it rather than folded in. Almost none of `ui.*` is
+ * checked at all: a missing or empty string simply isn't drawn (hard rule 3),
+ * so there is nothing to validate. `ui.intro.byDate` has its own checker
+ * (`engine/season.ts`'s `validateIntroByDate`, called alongside this one for
+ * the same reason). `ui.withYou` is the other exception, worth the cheap
+ * check because an empty string there would put up a HUD button with no
+ * label, or open a panel with a blank heading or a blank empty-state line.
+ */
+export function validateCopy(copy: WorldCopy): string[] {
+  const problems: string[] = [];
+  const withYou = copy.ui.withYou;
+  if (withYou) {
+    const word = (name: 'button' | 'title' | 'empty', value: string | undefined) => {
+      if (value !== undefined && (typeof value !== 'string' || !value.trim())) {
+        problems.push(`ui.withYou.${name} is empty`);
+      }
+    };
+    word('button', withYou.button);
+    word('title', withYou.title);
+    word('empty', withYou.empty);
+  }
+  return problems;
+}
 
 /**
  * Load-time validation of a world pack (DESIGN.md §3), run both in the browser
@@ -171,6 +199,13 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
       if (fixture.glow !== undefined && !takes) {
         problems.push(`${where}: "glow" is what a fixture does when it takes something, and this one takes nothing`);
       }
+      // The "with you" panel's own words for the token (DESIGN.md §2,
+      // engine/inventory.ts): cheap non-empty checks, same as everywhere else
+      // a world pack writes a line of copy — an empty string would put a
+      // blank name or a blank second line on the panel.
+      const emptyWord = (value: unknown) => value !== undefined && (typeof value !== 'string' || !value.trim());
+      if (emptyWord(fixture.heldName)) problems.push(`${where}: "heldName" is empty`);
+      if (emptyWord(fixture.heldBlurb)) problems.push(`${where}: "heldBlurb" is empty`);
       for (const placement of map.buildings) {
         if (fx === placement.door[0] && fy === placement.door[1]) {
           problems.push(`${where} is on building "${placement.id}"'s door tile`);
@@ -423,6 +458,15 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
       // Without a flag to set, the item can never be marked as taken.
       problems.push(`${where}: item "${item.id}" has no effect that sets a flag`);
     }
+    // `until` is checked the same way `requires` is — it names a flag, not a
+    // one-off value, so it has to be one the episode actually declares
+    // (DESIGN.md §3, engine/inventory.ts).
+    if (item.until !== undefined) checkFlags([item.until], `item "${item.id}"`);
+    // The "with you" panel's own words (DESIGN.md §2): cheap non-empty
+    // checks, same reasoning as the carry verbs' `heldName`/`heldBlurb`.
+    const emptyWord = (value: unknown) => value !== undefined && (typeof value !== 'string' || !value.trim());
+    if (emptyWord(item.name)) problems.push(`${where}: item "${item.id}" "name" is empty`);
+    if (emptyWord(item.blurb)) problems.push(`${where}: item "${item.id}" "blurb" is empty`);
   }
 
   episode.signs?.forEach((sign, index) => {

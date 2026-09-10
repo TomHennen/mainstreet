@@ -4,10 +4,20 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseTiledMap, parseTileset, tilesetSources } from './tiled';
 import type { TilesetDef } from './tiled';
-import { driveable, isSolid, moverWalkable, overlayNotes, validateEpisode, validateWorld } from './validate';
+import { driveable, isSolid, moverWalkable, overlayNotes, validateCopy, validateEpisode, validateWorld } from './validate';
 import { hashId, Mover } from './mover';
 import { plaqueTile } from './schema';
-import type { BuildingDef, BuildingPlacement, Episode, Fixture, GameMap, MapMeta, World } from './schema';
+import type {
+  BuildingDef,
+  BuildingPlacement,
+  Episode,
+  EpisodeItem,
+  Fixture,
+  GameMap,
+  MapMeta,
+  World,
+  WorldCopy
+} from './schema';
 
 // --- small fixture builders --------------------------------------------------
 // Kept deliberately minimal — just enough to satisfy the schema — so each test
@@ -767,6 +777,60 @@ describe('validateWorld', () => {
     );
     expect(carrying({ take: 'log', lines: ['a'], otherwise: ['b'], glow: 60 })).toBe('');
   });
+
+  // The "with you" panel's own words for the token (DESIGN.md §2).
+  it('accepts a fixture with heldName/heldBlurb written', () => {
+    expect(
+      carrying({
+        give: 'log',
+        lines: ['a'],
+        otherwise: ['b'],
+        heldName: 'A split log',
+        heldBlurb: 'Tucked under your arm.'
+      })
+    ).toBe('');
+  });
+
+  it('flags an empty heldName or heldBlurb', () => {
+    expect(carrying({ give: 'log', lines: ['a'], otherwise: ['b'], heldName: '  ' })).toContain(
+      '"heldName" is empty'
+    );
+    expect(carrying({ give: 'log', lines: ['a'], otherwise: ['b'], heldBlurb: '' })).toContain(
+      '"heldBlurb" is empty'
+    );
+  });
+});
+
+describe('validateCopy', () => {
+  const baseCopy: WorldCopy = {
+    ui: {
+      narrator: 'You',
+      advance: '▼',
+      unpainted: '',
+      plaque: { painted: '', anonymous: '', unpainted: '' }
+    },
+    transitions: {}
+  };
+
+  it('accepts copy with no `withYou` at all', () => {
+    expect(validateCopy(baseCopy)).toEqual([]);
+  });
+
+  it('accepts a fully-written `withYou`', () => {
+    const copy: WorldCopy = {
+      ...baseCopy,
+      ui: { ...baseCopy.ui, withYou: { button: 'With you', title: 'What you have', empty: 'Nothing on you.' } }
+    };
+    expect(validateCopy(copy)).toEqual([]);
+  });
+
+  it('flags an empty withYou.button/title/empty', () => {
+    const withField = (field: 'button' | 'title' | 'empty', value: string) =>
+      validateCopy({ ...baseCopy, ui: { ...baseCopy.ui, withYou: { [field]: value } } }).join('\n');
+    expect(withField('button', '  ')).toContain('ui.withYou.button is empty');
+    expect(withField('title', '')).toContain('ui.withYou.title is empty');
+    expect(withField('empty', '   ')).toContain('ui.withYou.empty is empty');
+  });
 });
 
 describe('isSolid', () => {
@@ -928,6 +992,48 @@ describe('validateEpisode', () => {
       items: [{ id: 'pen', map: 'town', pos: [0, 0], requires: ['metNpc'], effects: [{ set: 'done' }], lines: ['a'] }]
     });
     expect(runEpisode(episode, world)).toEqual([]);
+  });
+
+  // The "with you" panel's own fields (DESIGN.md §2/§3).
+  it('accepts an item with name, blurb and a declared `until` flag', () => {
+    const episode = makeEpisode({
+      items: [
+        {
+          id: 'pen',
+          map: 'town',
+          pos: [0, 0],
+          requires: [],
+          effects: [{ set: 'metNpc' }],
+          lines: ['a'],
+          name: "Earl's pen",
+          blurb: 'A fine ballpoint.',
+          until: 'done'
+        }
+      ]
+    });
+    expect(runEpisode(episode, world)).toEqual([]);
+  });
+
+  it('flags an item whose `until` names an undeclared flag', () => {
+    const episode = makeEpisode({
+      items: [
+        { id: 'pen', map: 'town', pos: [0, 0], requires: [], effects: [{ set: 'done' }], lines: ['a'], until: 'ghostFlag' }
+      ]
+    });
+    const problems = runEpisode(episode, world);
+    expect(problems.join('\n')).toContain('item "pen" uses undeclared flag "ghostFlag"');
+  });
+
+  it('flags an empty item name or blurb', () => {
+    const named = (overrides: Partial<EpisodeItem>) =>
+      runEpisode(
+        makeEpisode({
+          items: [{ id: 'pen', map: 'town', pos: [0, 0], requires: [], effects: [{ set: 'done' }], lines: ['a'], ...overrides }]
+        }),
+        world
+      ).join('\n');
+    expect(named({ name: '  ' })).toContain('item "pen" "name" is empty');
+    expect(named({ blurb: '' })).toContain('item "pen" "blurb" is empty');
   });
 
   it('flags a sign that requires an undeclared flag', () => {
