@@ -1099,10 +1099,13 @@ Hobart — "Jewel of the West Branch."
 - `stamford-coffee` (Stamford, 79 Main St): coffee shop; Maple Smoke latte
   (maple, liquid smoke, sea salt); the shop attached next door is
   `eighty-main`, below, reached through an open doorway inside. A hallway
-  in the room's upper left has the two bathrooms at its top and, on its
-  right, the door to the kitchen (`stamford-coffee-kitchen`), where the
-  baker **Lorna** (fictional) works behind the prep counter; bottles of
-  beer and wine to take home sit behind the right end of the counter
+  in the room's upper left passes the two bathrooms and ends at a steel
+  door into the kitchen (`stamford-coffee-kitchen`), open plan, where the
+  baker **Solveig** (fictional) makes the lemon shortbread cookies people
+  can't get enough of and builds custom cakes, mostly late at night — her
+  own business, unnamed, run out of the shop's kitchen after hours by
+  arrangement, not a Stamford Coffee employee; bottles
+  of beer and wine to take home sit behind the right end of the counter
   (readable, nothing bought yet).
 - `eighty-main` (Stamford): the shop through the open doorway on
   Stamford Coffee's right, sharing its patio; Catskills-logo wear, candles

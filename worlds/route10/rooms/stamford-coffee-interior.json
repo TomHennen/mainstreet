@@ -3,13 +3,13 @@
   "size": [20, 12],
   "wall": 14,
   "floor": [11, 24],
-  "door": { "side": "bottom", "column": 9, "width": 2 },
-  "exit": { "id": "stamford-coffee-exit", "to": "stamford", "spawn": [89, 23], "facing": "down" },
+  "door": {"side": "bottom", "column": 9, "width": 2},
+  "exit": {"id": "stamford-coffee-exit", "to": "stamford", "spawn": [89, 23], "facing": "down"},
   "props": [
-    { "kind": "hall", "rect": [1, 1, 2, 3] },
+    {"kind": "hall", "rect": [2, 1, 4, 1], "tiles": [12], "cap": "right"},
     {
       "kind": "door",
-      "at": [[1, 0]],
+      "at": [[3, 0]],
       "lines": [
         "A single bathroom, and a good one: clean, a plant on the cistern, and a hand-lettered sign asking you kindly to jiggle the handle.",
         "Anyone can use it. There is a hook for your coat, and the soap smells like lemons."
@@ -17,7 +17,7 @@
     },
     {
       "kind": "door",
-      "at": [[2, 0]],
+      "at": [[4, 0]],
       "lines": [
         "The other one, just the same, with a changing table folded against the wall and a stack of the good paper towels.",
         "Whichever is free is yours."
@@ -25,18 +25,18 @@
     },
     {
       "kind": "exit",
-      "rect": [3, 2, 1, 1],
-      "tiles": [11],
+      "rect": [6, 1, 1, 1],
+      "tiles": [53],
       "id": "stamford-coffee-to-kitchen",
       "to": "stamford-coffee-kitchen",
       "spawn": [1, 4],
       "facing": "right"
     },
-    { "kind": "counter", "rect": [5, 2, 14, 1], "behind": "top" },
+    {"kind": "counter", "rect": [8, 2, 11, 1], "behind": "top"},
     {
       "kind": "shelf",
-      "rect": [5, 1, 4, 1],
-      "tiles": [17, 18, 19, 17],
+      "rect": [8, 1, 3, 1],
+      "tiles": [17, 18, 19],
       "lines": [
         "A whole shelf of coffee makers, every kind there is: a glass pour-over, a stovetop moka pot, a siphon like something out of a science set, a percolator with a few decades on it.",
         "They all still work, and most of them get used. It is a collection, not a museum."
@@ -44,7 +44,7 @@
     },
     {
       "kind": "sign",
-      "at": [[12, 1]],
+      "at": [[14, 1]],
       "lines": [
         "The menu, in chalk: coffee every way you could want it, the Maple Smoke latte in a box of its own, and a row of paninis pressed to order — the kind you smell before you see.",
         "Nothing on this board you would regret."
@@ -52,8 +52,8 @@
     },
     {
       "kind": "shelf",
-      "rect": [14, 1, 5, 1],
-      "tiles": [21, 17, 18, 21, 19],
+      "rect": [15, 1, 4, 1],
+      "tiles": [21, 17, 18, 21],
       "lines": [
         "Bottles behind the right end of the counter: a cooler of beer from breweries an easy drive from here, and a few bottles of wine to take home, each with a little card in Ronnie's hand saying what it goes with.",
         "Ask at the counter and one goes home with you. One of these evenings, one will."
@@ -85,8 +85,8 @@
         "Nothing matches exactly, and it all goes together anyway."
       ]
     },
-    { "kind": "table", "at": [[7, 5], [4, 8], [7, 8], [13, 5], [16, 5], [13, 8], [16, 8]] },
-    { "kind": "stool", "at": [[5, 5], [8, 5], [5, 8], [8, 8], [12, 5], [15, 5], [12, 8], [15, 8]] },
+    {"kind": "table", "at": [[7, 5], [4, 8], [7, 8], [13, 5], [16, 5], [13, 8], [16, 8]]},
+    {"kind": "stool", "at": [[5, 5], [8, 5], [5, 8], [8, 8], [12, 5], [15, 5], [12, 8], [15, 8]]},
     {
       "kind": "shelf",
       "rect": [12, 10, 2, 1],
@@ -96,8 +96,8 @@
         "Help yourself, says the little sign on it. One of these weeks, you might."
       ]
     },
-    { "kind": "planter", "at": [[3, 10], [17, 10]] },
-    { "kind": "mat", "rect": [9, 10, 2, 1] },
+    {"kind": "planter", "at": [[3, 10], [17, 10]]},
+    {"kind": "mat", "rect": [9, 10, 2, 1]},
     {
       "kind": "exit",
       "rect": [19, 6, 1, 2],
@@ -112,13 +112,13 @@
     {
       "id": "stamford-coffee-barista",
       "name": "Ronnie",
-      "pos": [10, 1],
+      "pos": [12, 1],
       "facing": "down",
-      "look": { "hair": "curly", "hairColor": "#3a2a1e", "shirt": "#5c7a8f" },
+      "look": {"hair": "curly", "hairColor": "#3a2a1e", "shirt": "#5c7a8f"},
       "lines": [
         "Morning. The board's right here — the Maple Smoke latte's the one everybody asks about.",
         "That's my record on. Have a flip through the crates by the player if you like — there's always something good in there.",
-        "Take your time picking a table. The big doorway on the right goes straight through to 80 Main, and the bathrooms are down the little hallway in the corner on the left — the kitchen's through there too."
+        "Take your time picking a table. The big doorway on the right goes straight through to 80 Main, and the bathrooms are down the little hallway in the corner on the left — the steel door at the end of it is the kitchen."
       ]
     }
   ]

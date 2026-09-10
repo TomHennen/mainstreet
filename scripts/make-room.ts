@@ -65,7 +65,10 @@
  *   face of the riser (`front`, default `"bottom"`).
  * - `mat`, `planter`, `sign` — a doormat, a pot with something growing in it,
  *   and a standing board a later episode can hang a prop sign on.
- * - `hall` — a corridor cut off the room, walled down both long sides.
+ * - `hall` — a corridor cut off the room, walled down both long sides and
+ *   open at the ends; `cap` closes one end with a wall tile, for a hallway
+ *   that dead-ends at a door (Stamford Coffee's kitchen door, cut through
+ *   the cap by an `exit` after it).
  * - `door`, `panel` — something in a wall: a door to read a note on, a wall
  *   worth stopping at. `exit` is a way out cut through a wall, stated like
  *   the spec's own `exit`. Any wall tile will do — the outside wall, or the
@@ -144,6 +147,11 @@ export interface RoomProp {
   open?: Side;
   /** `island`/`peninsula`: how wide that way in is, in tiles. Default 1. */
   gap?: number;
+  /**
+   * `hall`: close this end of the corridor with a wall tile, for a hallway
+   * that dead-ends — at a door an `exit` then cuts through it, say.
+   */
+  cap?: Side;
   /**
    * `peninsula`: which side of its rect is against the room's outer wall.
    * Default "bottom", which is what a bar you walk in alongside reads as.
@@ -555,6 +563,16 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
       for (let x = rx; x < rx + rw; x++) sides.push([x, ry - 1], [x, ry + rh]);
     } else {
       for (let y = ry; y < ry + rh; y++) sides.push([rx - 1, y], [rx + rw, y]);
+    }
+    // A capped end: the wall goes across the run one tile past it.
+    if (prop.cap) {
+      if (!(prop.cap in STEP)) throw new RoomError(`${where}: "cap" is "${prop.cap}", not one of top, bottom, left, right`);
+      const [dx, dy] = STEP[prop.cap];
+      for (const [x, y] of cells) {
+        const [cx, cy] = [x + dx, y + dy];
+        if (cells.some(([ox, oy]) => ox === cx && oy === cy)) continue;
+        sides.push([cx, cy]);
+      }
     }
     for (const [x, y] of sides) {
       if (x < 1 || y < 1 || x > width - 2 || y > height - 2) continue;

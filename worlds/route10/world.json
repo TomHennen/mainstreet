@@ -1271,8 +1271,8 @@
         {
           "id": "stamford-coffee-to-kitchen",
           "at": [
-            3,
-            2,
+            6,
+            1,
             1,
             1
           ],
@@ -1304,7 +1304,7 @@
       "signs": [
         {
           "pos": [
-            1,
+            3,
             0
           ],
           "lines": [
@@ -1314,7 +1314,7 @@
         },
         {
           "pos": [
-            2,
+            4,
             0
           ],
           "lines": [
@@ -1324,7 +1324,7 @@
         },
         {
           "pos": [
-            7,
+            9,
             1
           ],
           "lines": [
@@ -1334,7 +1334,7 @@
         },
         {
           "pos": [
-            12,
+            14,
             1
           ],
           "lines": [
@@ -1344,7 +1344,7 @@
         },
         {
           "pos": [
-            16,
+            17,
             1
           ],
           "lines": [
@@ -1398,7 +1398,7 @@
           "id": "stamford-coffee-barista",
           "name": "Ronnie",
           "pos": [
-            10,
+            12,
             1
           ],
           "facing": "down",
@@ -1410,7 +1410,7 @@
           "lines": [
             "Morning. The board's right here — the Maple Smoke latte's the one everybody asks about.",
             "That's my record on. Have a flip through the crates by the player if you like — there's always something good in there.",
-            "Take your time picking a table. The big doorway on the right goes straight through to 80 Main, and the bathrooms are down the little hallway in the corner on the left — the kitchen's through there too."
+            "Take your time picking a table. The big doorway on the right goes straight through to 80 Main, and the bathrooms are down the little hallway in the corner on the left — the steel door at the end of it is the kitchen."
           ]
         }
       ]
@@ -1431,8 +1431,8 @@
           ],
           "to": "stamford-coffee-interior",
           "spawn": [
-            2,
-            2
+            5,
+            1
           ],
           "facing": "left",
           "style": "door"
@@ -1441,52 +1441,62 @@
       "signs": [
         {
           "pos": [
-            4,
-            2
+            2,
+            1
           ],
           "lines": [
-            "The prep counter: a big stand mixer at one end, a bowl of flour ready by the scale, and a bench scraper worn smooth from years of good use.",
+            "The oven, two big decks of it, ticking as it warms. Whatever is in it, the whole kitchen smells of it.",
+            "Solveig keeps a timer on a string round her neck, and has never once needed it."
+          ]
+        },
+        {
+          "pos": [
+            5,
+            1
+          ],
+          "lines": [
+            "Steel work tables all along the wall: the big stand mixer, a scale that weighs to the gram, and a bench scraper worn smooth from years of good use.",
             "The recipes are on index cards in a tin, and the cards are older than some of the customers."
           ]
         },
         {
           "pos": [
-            2,
+            9,
             1
           ],
           "lines": [
-            "The oven, two big decks of it, ticking as it warms. Whatever is in there this morning, the whole kitchen smells of it.",
-            "Lorna keeps a timer on a string round her neck, and has never once needed it."
-          ]
-        },
-        {
-          "pos": [
-            7,
-            1
-          ],
-          "lines": [
-            "A tall rolling rack of trays, cooling: scones, a slab of something with apples in it, and croissants still settling into themselves.",
-            "They go out front a tray at a time, still warm."
+            "Two fridges and a chest freezer, humming in three different keys: butter by the case, eggs by the flat, cream, and a tub of lemon curd for tomorrow.",
+            "Everything in here is going to be a cookie or a cake by the end of the week."
           ]
         },
         {
           "pos": [
             10,
-            3
+            4
           ],
           "lines": [
-            "Shelves of the dry goods: sacks of flour, a tub of sugar, jars of oats and raisins and walnuts, all labelled in the same neat hand.",
-            "Somewhere in here is the good chocolate, and everybody knows exactly where."
+            "The cake table, where the custom cakes get built: a turntable, offset spatulas, a rack of food colours. There's a sketch taped up of somebody's birthday cake, three tiers, and it's going to be exactly that.",
+            "Weddings, birthdays, a retirement, a dog's first birthday once. If you can describe it, it gets made."
+          ]
+        },
+        {
+          "pos": [
+            2,
+            7
+          ],
+          "lines": [
+            "A rolling rack of trays, cooling: lemon shortbread cookies, every tray of them. People can't get enough — they go out front by the dozen and they're gone.",
+            "Buttery, a little sharp, sugar on top. One is never the number."
           ]
         }
       ],
       "people": [
         {
           "id": "stamford-coffee-baker",
-          "name": "Lorna",
+          "name": "Solveig",
           "pos": [
             6,
-            1
+            5
           ],
           "facing": "down",
           "look": {
@@ -1495,10 +1505,14 @@
             "skin": "#e0b48c",
             "shirt": "#8f6a4a"
           },
+          "wander": {
+            "radius": 2,
+            "pause": 2
+          },
           "lines": [
-            "Morning! Mind the warm air off the oven — there's a tray of scones in there and an apple cake right behind them, both about ten minutes off.",
-            "I've been in since four. The street's dark and quiet and the whole town's asleep, and by the time the sun is up the first tray is out. Best hours of the day, honestly.",
-            "Looking for the bathrooms? Back out the door and they're the two at the top of the hallway. Either one — whichever's free."
+            "Lemon shortbread — that's the batch cooling. Third one today, and it still won't be enough; they go about as fast as they get out front.",
+            "That's a birthday cake on the table for tomorrow, three tiers, and it'll look just like the drawing. The cakes are my own business — orders come to me, and the shop lets me build them in here once they've locked up. Weddings too, and whatever else somebody dreams up.",
+            "I do most of this late at night, after the shop's closed, when the place is quiet and the oven's all mine. It suits us both — they get a baker, I get a kitchen, and nobody's in anybody's way. If you've caught me, it's later than you think."
           ]
         }
       ]

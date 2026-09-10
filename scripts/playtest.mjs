@@ -546,10 +546,18 @@ const APPROACH_STEP = { down: [0, 2], up: [0, -2], left: [-2, 0], right: [2, 0] 
 async function talkToEveryone(page, tag, room, name) {
   for (const person of room.people ?? []) {
     const who = `${tag}-${person.id}`;
-    const [dx, dy] = APPROACH_STEP[person.facing ?? 'down'];
-    log(`  talk to ${person.name ?? person.id} behind the counter in ${name}`);
-    await walkTo(page, who, [person.pos[0] + dx, person.pos[1] + dy]);
-    await pressA(page);
+    if (person.wander || person.route) {
+      // Somebody moving about the room — a baker in an open kitchen — is
+      // met the way a player meets them: tapped where they are, which hails
+      // them (they wait), and the walk goes over and talks on arrival.
+      log(`  talk to ${person.name ?? person.id}, moving about ${name}`);
+      await tapPerson(page, who, person.id);
+    } else {
+      const [dx, dy] = APPROACH_STEP[person.facing ?? 'down'];
+      log(`  talk to ${person.name ?? person.id} behind the counter in ${name}`);
+      await walkTo(page, who, [person.pos[0] + dx, person.pos[1] + dy]);
+      await pressA(page);
+    }
     await expectDialogue(page, who, person.name ?? person.id);
     await shot(page, who);
     const said = await snap(page);
@@ -563,6 +571,44 @@ async function talkToEveryone(page, tag, room, name) {
     await advanceDialogue(page, who, person.lines.length);
     log(`    ${expectedSpeaker || '(no name)'}: "${person.lines[0]}"`);
   }
+}
+
+/**
+ * A tap on somebody who may be walking: aimed at the middle of their picture
+ * (16x32, standing on their tile — engine/scenes/map.ts `personBox`), worked
+ * out inside the page so reading where they are and turning it into a point
+ * on the canvas is one round trip. A finger that comes down beside somebody
+ * mid-step is a miss, and a real player would simply tap again, so it tries
+ * three times; once it lands, the engine hails them and walks over, and the
+ * dialogue opening is the arrival.
+ */
+async function tapPerson(page, milestone, id) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const point = await page.evaluate((wanted) => {
+      const s = window.__mainstreet;
+      const canvas = document.querySelector('#stage canvas');
+      const who = (s?.people ?? []).find((q) => q.id === wanted);
+      if (!s?.view || !canvas || !who) return null;
+      const r = canvas.getBoundingClientRect();
+      const v = s.view;
+      return {
+        x: r.left + ((who.x * v.tile + v.tile / 2 - v.x) / v.width) * r.width,
+        y: r.top + ((who.y * v.tile - v.y) / v.height) * r.height,
+        at: [who.x, who.y]
+      };
+    }, id);
+    if (!point) fail(milestone, `"${id}" is not on screen to aim at`);
+    await page.mouse.click(point.x, point.y);
+    const t0 = Date.now();
+    while (Date.now() - t0 < 12000) {
+      const state = await snap(page);
+      if (state?.dialogueOpen) return;
+      await sleep(25);
+    }
+    log(`    (tap ${attempt} came down beside them at ${point.at.map((n) => n.toFixed(1))} — aiming again)`);
+    await sleep(600);
+  }
+  fail(milestone, `three taps in a row never got a word out of "${id}"`);
 }
 
 /**

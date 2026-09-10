@@ -369,6 +369,21 @@ describe('buildRoom: halls, doors, panels and a second way out', () => {
     ).toThrow(/not a wall/);
   });
 
+  it('caps a hall at one end, for a hallway that dead-ends at a door', () => {
+    const r = long([{ kind: 'hall', rect: [2, 1, 4, 1], cap: 'right' }]);
+    expect(groundAt(r, 6, 1)).toBe(PALETTE.wall);
+    expect(groundAt(r, 1, 1)).not.toBe(PALETTE.wall);
+    for (let x = 2; x < 6; x++) expect(groundAt(r, x, 2)).toBe(PALETTE.wall);
+    expect(() => long([{ kind: 'hall', rect: [2, 1, 4, 1], cap: 'sideways' as never }])).toThrow(/"cap" is "sideways"/);
+    // And the door through the cap, which is the point of it.
+    const door = long([
+      { kind: 'hall', rect: [2, 1, 4, 1], cap: 'right' },
+      { kind: 'exit', at: [[6, 1]], tiles: [PALETTE.floor[1]], id: 'a-room-kitchen', to: 'kitchen', spawn: [1, 4], facing: 'right' }
+    ]);
+    expect(groundAt(door, 6, 1)).toBe(PALETTE.floor[1]);
+    expect(door.meta.exits[1].at).toEqual([6, 1, 1, 1]);
+  });
+
   it("cuts a way out through a hall's own wall — the kitchen door off a hallway", () => {
     const r = long([
       { kind: 'hall', rect: [8, 4, 5, 2] },

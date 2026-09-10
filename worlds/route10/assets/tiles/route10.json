@@ -6,7 +6,7 @@
   "margin": 0,
   "name": "route10",
   "spacing": 0,
-  "tilecount": 53,
+  "tilecount": 54,
   "tiledversion": "1.10.2",
   "tileheight": 16,
   "tilewidth": 16,
@@ -1253,6 +1253,27 @@
           "name": "style",
           "type": "string",
           "value": "chalkwall"
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "type": "door",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#5b6068,#9aa1ab,#d3d8de"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": false
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "door"
         }
       ]
     }

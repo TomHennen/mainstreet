@@ -182,26 +182,41 @@ readable as the whole set. The doorway to 80 Main is a two-tile-tall open
 gap in the right wall at rows 6–7, matched by the same gap in 80 Main's left
 wall, so the two rooms read as one opening.
 
-*Tom, Sep 10 2026 (built Sep 2026):* a **hallway in the upper left of the
-cafe itself** — you are still in the main room when you step into it. The
-**bathrooms are at the top of that hallway** (north), and **to its right is
-the entrance to the kitchen**; from inside the kitchen the way out is on the
-**left**. The counter now runs **all the way to the right wall**, with the
-opening on its **left** leading round to the hallway. On the right side of
-the counter, **bottles on display behind it**: beers and wine to buy and take
-home (readable only for now, like the fridge). A **female baker with silver
-hair** works in the kitchen, which is worth having now because more will
-happen in it later. As built: the hall is the two-wide corridor at x1–2,
-rows 1–3, walled on its right at x3 and open into the room at row 4; the two
-bathroom doors are in the top wall at [1,0] and [2,0]; the kitchen doorway
-is cut through the hall's wall at [3,2]; the counter is x5–18 on row 2 with
+*Tom, Sep 10 2026 (built Sep 2026, corrected the same day):* a **hallway in
+the upper left of the cafe itself** — you are still in the main room when
+you step into it: up the left-hand wall, then right along a corridor under
+the top wall, past the **two bathroom doors on its north side**, to the
+**kitchen door at its far end** — a **steel door**, so it reads as a kitchen
+door. The counter runs **all the way to the right wall**, with the opening at
+its left end leading round to the hallway. On the right side of the counter,
+**bottles on display behind it**: beers and wine to buy and take home
+(readable only for now, like the fridge). The kitchen is worth having now
+because more will happen in it later.
+
+The kitchen is **open plan — no counter the baker stands behind, that is not
+how kitchens work**: work tables round the perimeter, an oven, fridges and
+freezers, the middle left open, and the baker moving freely about it with
+the player. She may not always be there; an empty kitchen is fine. She is
+**Solveig** (invented; the first name tried was too close to the real
+baker's), silver hair in a bun. She makes **lemon shortbread cookies**,
+which people can't get enough of, and **custom cakes**, and she is more
+likely to be found there **late at night** than early in the morning. **The
+baker runs her own business out of this kitchen** (Tom, Sep 10): she is not
+Stamford Coffee's employee — the cake orders are hers, and the shop lets her
+bake in here after hours by arrangement, which suits them both. Her business
+stays unnamed (hard rule 5).
+
+As built: the hall is the corridor at x2–5, row 1 (its own lighter floor,
+walled below and capped at x6), entered up column 1; the bathroom doors are
+in the top wall at [3,0] and [4,0]; the kitchen door is the steel door tile
+(id 53) at [6,1] cut through the cap; the counter is x8–18 on row 2 with
 Ronnie, the coffee-maker shelf, the menu board and the bottle shelf in the
-strip behind it. The kitchen is its own map, `stamford-coffee-kitchen`
-(12×8, spec `worlds/route10/rooms/stamford-coffee-kitchen.json`, door in its
-left wall): the prep counter with the oven, a cooler and a cooling rack
-behind it, and shelves of dry goods on the right wall. The baker is
-**Lorna** (invented), silver hair in a bun, behind the prep counter. Nothing
-is bought yet.
+strip behind it. The kitchen is `stamford-coffee-kitchen` (12×9, spec
+`worlds/route10/rooms/stamford-coffee-kitchen.json`, door in its left wall):
+the oven, a steel work table and the fridges and freezer along the top wall,
+the cake table down the right wall, the cooling rack (lemon shortbread) by
+the bottom wall, the centre open, and Solveig wandering it. Nothing is
+bought yet.
 
 **80 Main interior (Tom, Sep 2026; built Sep 2026).** High-end goods, lots
 of Catskills-logo wear. They once (maybe still do) sold a high-end coffee
