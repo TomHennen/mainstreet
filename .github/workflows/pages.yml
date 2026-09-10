@@ -45,7 +45,7 @@ jobs:
       - name: Find the latest release tag
         id: release
         run: |
-          tag=$(git -C main tag --list 'v[0-9]*' --sort=-v:refname | grep -v -- '-' | head -n 1)
+          tag=$(git -C main tag --list 'v[0-9]*' --sort=-v:refname | grep -v -- '-' | head -n 1 || true)
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           if [ -n "$tag" ]; then echo "Release: $tag"; else echo "No release tag yet; main goes to the root as well"; fi
 

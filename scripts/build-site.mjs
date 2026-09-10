@@ -48,7 +48,7 @@ const SITE_BASE = rawBase.replace(/\/+$/, '');
 // foot, so nobody who lands there mistakes it for the game. The release says
 // nothing about the dev build: players are never pointed at it. Optional: a
 // local build, or the release, leaves it unset.
-const SITE_RELEASE_BASE = process.env.SITE_RELEASE_BASE?.replace(/\/+$/, '') || null;
+const SITE_RELEASE_BASE = process.env.SITE_RELEASE_BASE === undefined ? null : process.env.SITE_RELEASE_BASE.replace(/\/+$/, '');
 
 function worldIds() {
   const requested = process.argv.slice(2);
@@ -596,7 +596,7 @@ ${world.credits.map((p) => `          <li>${escapeHtml(p.name)} &mdash; ${escape
 
   // On the dev build only: say plainly that this is the one still being
   // worked on, and point at the released game.
-  const builds = SITE_RELEASE_BASE
+  const builds = SITE_RELEASE_BASE !== null
     ? `      <p>This is the in-progress build &mdash; whatever is being worked on right now, before it is finished and released. <a href="${escapeHtml(`${SITE_RELEASE_BASE}/`)}">The released game is here &rarr;</a></p>`
     : '';
 
