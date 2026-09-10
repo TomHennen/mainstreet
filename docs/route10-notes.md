@@ -182,16 +182,30 @@ readable as the whole set. The doorway to 80 Main is a two-tile-tall open
 gap in the right wall at rows 6–7, matched by the same gap in 80 Main's left
 wall, so the two rooms read as one opening.
 
-*Tom, Sep 10 2026 (built Sep 2026, corrected the same day):* a **hallway in
-the upper left of the cafe itself** — you are still in the main room when
-you step into it: up the left-hand wall, then right along a corridor under
-the top wall, past the **two bathroom doors on its north side**, to the
-**kitchen door at its far end** — a **steel door**, so it reads as a kitchen
-door. The counter runs **all the way to the right wall**, with the opening at
-its left end leading round to the hallway. On the right side of the counter,
-**bottles on display behind it**: beers and wine to buy and take home
-(readable only for now, like the fridge). The kitchen is worth having now
-because more will happen in it later.
+*Tom, Sep 10 2026 (built Sep 2026, corrected twice the same day):* the
+kitchen and the bathrooms are **part of the coffee shop's own map — one
+map, not a rectangle, no transition**. Tom's sketch (B = bathroom door):
+
+```
+xBxxBxxx
+x                  kitchen
+x        xxxx
+x.       x
+x.       xxxxxxxxxxxxxxxxxxxxxx
+x.                                                               x
+x.        counter............                         x
+x
+```
+
+A walkway runs up the left side of the cafe into a hallway in the top-left
+corner; the **two bathroom doors are in the hallway's top wall**; the
+**kitchen is to the right of the hallway, above the cafe's top wall**,
+through a **steel door** in the wall between them; the counter is below,
+running all the way to the right wall with the opening at its left end.
+"You're stuck because you want to keep the interior a square. That is a
+mistake." On the right side of the counter, **bottles on display behind
+it**: beers and wine to buy and take home (readable only for now, like the
+fridge).
 
 The kitchen is **open plan — no counter the baker stands behind, that is not
 how kitchens work**: work tables round the perimeter, an oven, fridges and
@@ -206,17 +220,18 @@ Stamford Coffee's employee — the cake orders are hers, and the shop lets her
 bake in here after hours by arrangement, which suits them both. Her business
 stays unnamed (hard rule 5).
 
-As built: the hall is the corridor at x2–5, row 1 (its own lighter floor,
-walled below and capped at x6), entered up column 1; the bathroom doors are
-in the top wall at [3,0] and [4,0]; the kitchen door is the steel door tile
-(id 53) at [6,1] cut through the cap; the counter is x8–18 on row 2 with
-Ronnie, the coffee-maker shelf, the menu board and the bottle shelf in the
-strip behind it. The kitchen is `stamford-coffee-kitchen` (12×9, spec
-`worlds/route10/rooms/stamford-coffee-kitchen.json`, door in its left wall):
-the oven, a steel work table and the fridges and freezer along the top wall,
-the cake table down the right wall, the cooling rack (lemon shortbread) by
-the bottom wall, the centre open, and Solveig wandering it. Nothing is
-bought yet.
+As built (`worlds/route10/rooms/stamford-coffee-interior.json`, a 20×18
+box with a `plan` — see DESIGN.md §2): the hallway bay is x1–3, rows 1–6,
+open into the cafe at row 7, with the bathroom doors in the top wall at
+[1,0] and [3,0]; the steel door is the tile at [4,2] in the dividing wall;
+the kitchen is x5–18, rows 1–5 — the oven, a steel work table and the two
+fridges and chest freezer along its top wall, the cake table down its right
+wall, the cooling rack (lemon shortbread) by its bottom wall, the middle
+open for Solveig, who wanders it; the cafe is x1–18, rows 7–16, with the
+counter on row 8 and Ronnie, the coffee-maker shelf, the menu board and the
+bottle shelf in the strip behind it, the record player and the LP crates
+down the left wall, the tables, the fridge by the door. Nothing is bought
+yet.
 
 **80 Main interior (Tom, Sep 2026; built Sep 2026).** High-end goods, lots
 of Catskills-logo wear. They once (maybe still do) sold a high-end coffee

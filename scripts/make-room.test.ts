@@ -427,6 +427,96 @@ describe('buildRoom: halls, doors, panels and a second way out', () => {
   });
 });
 
+describe('buildRoom: a plan that is not a rectangle', () => {
+  // An L: a 6-wide room with a 3-wide wing off its top-right, walls all
+  // round the union and the door in the bottom wall as ever.
+  const ell = (spec: Partial<RoomSpec> = {}) =>
+    buildRoom(
+      {
+        ...BASE,
+        size: [10, 10],
+        plan: [
+          [1, 5, 6, 4],
+          [6, 1, 3, 4]
+        ],
+        door: { side: 'bottom', column: 2, width: 2 },
+        ...spec
+      },
+      PALETTE
+    );
+
+  it('walls round the union and fills the rest with wall too', () => {
+    const r = ell();
+    expect(groundAt(r, 3, 6)).not.toBe(PALETTE.wall);
+    expect(groundAt(r, 7, 2)).not.toBe(PALETTE.wall);
+    // the wing's own walls
+    expect(groundAt(r, 5, 2)).toBe(PALETTE.wall);
+    expect(groundAt(r, 9, 2)).toBe(PALETTE.wall);
+    expect(groundAt(r, 7, 0)).toBe(PALETTE.wall);
+    // the mass outside the plan is wall as well
+    expect(groundAt(r, 2, 2)).toBe(PALETTE.wall);
+    expect(groundAt(r, 4, 4)).toBe(PALETTE.wall);
+    expect(r.enter).toEqual([2, 8]);
+  });
+
+  it('refuses furniture outside the plan, and a plan that reaches the box edge', () => {
+    expect(() => ell({ props: [{ kind: 'table', at: [[2, 2]] }] })).toThrow(/the wall or outside the room/);
+    expect(() => ell({ plan: [[0, 5, 6, 4]] })).toThrow(/reaches the edge/);
+    expect(() => ell({ door: { side: 'bottom', column: 7, width: 2 } })).toThrow(/no floor inside it/);
+  });
+
+  it('reaches the floor in a wing, and notices when it cannot', () => {
+    expect(() => ell()).not.toThrow();
+    // a shelf across the wing's mouth cuts the wing off
+    expect(() => ell({ props: [{ kind: 'shelf', rect: [6, 4, 3, 1] }] })).toThrow(/walled off from the door/);
+  });
+
+  it("cuts a way out through a wing's wall, and refuses one with no floor beside it", () => {
+    const r = ell({ props: [{ kind: 'exit', at: [[9, 2]], id: 'a-room-side', to: 'side', spawn: [1, 1], facing: 'right' }] });
+    expect(r.meta.exits[1].at).toEqual([9, 2, 1, 1]);
+    expect(() =>
+      ell({ props: [{ kind: 'exit', at: [[2, 2]], id: 'x', to: 'side', spawn: [1, 1], facing: 'up' }] })
+    ).toThrow(/no floor beside it/);
+  });
+
+  it('makes a passage of a plan cell inside a dividing wall with a mat on it', () => {
+    // Two rooms side by side with one plan cell in the wall between them: a
+    // mat there (a steel door tile, say) is a doorway, and the far room is
+    // reachable through it.
+    const r = buildRoom(
+      {
+        ...BASE,
+        size: [12, 8],
+        plan: [
+          [1, 1, 4, 6],
+          [5, 3, 1, 1],
+          [6, 1, 5, 6]
+        ],
+        door: { side: 'bottom', column: 2, width: 2 },
+        props: [{ kind: 'mat', at: [[5, 3]], tiles: [PALETTE.floor[1]] }]
+      },
+      PALETTE
+    );
+    expect(groundAt(r, 5, 3)).toBe(PALETTE.floor[1]);
+    expect(groundAt(r, 5, 2)).toBe(PALETTE.wall);
+    expect(groundAt(r, 5, 4)).toBe(PALETTE.wall);
+    expect(() =>
+      buildRoom(
+        {
+          ...BASE,
+          size: [12, 8],
+          plan: [
+            [1, 1, 4, 6],
+            [6, 1, 5, 6]
+          ],
+          door: { side: 'bottom', column: 2, width: 2 }
+        },
+        PALETTE
+      )
+    ).toThrow(/walled off from the door/);
+  });
+});
+
 describe('buildRoom: people and fixtures', () => {
   it('passes them through to the stanza', () => {
     const r = room({
@@ -482,7 +572,6 @@ describe('the rooms route10 ships', () => {
 
   for (const id of [
     'stamford-coffee-interior',
-    'stamford-coffee-kitchen',
     'eighty-main-interior',
     'the-belvedere-interior',
     'the-belvedere-yard'

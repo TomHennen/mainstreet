@@ -38,8 +38,9 @@ wall people have drawn on. All six are solid.
 
 Then a second door (id 53): the same door in steel — dark frame, brushed
 panel, bright handle — for a kitchen. It is not solid: it is the doorway
-itself, the tile the player walks onto to go through, so a room cuts it into
-a wall as an exit rather than standing it there as furniture.
+itself, the tile the player walks through, laid on the one floor cell of a
+dividing wall between two parts of a room (Stamford Coffee's kitchen door)
+rather than standing there as furniture.
 
 Anything raised above the ground plane is lit from the top left and keeps its
 art in the top 12 pixels of its cell, so a deck's front face still shows below

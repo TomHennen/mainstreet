@@ -82,6 +82,7 @@ for (const [mapId, map] of Object.entries(WORLD.maps)) {
   const file = resolve(PACK, 'maps', `${mapId}.json`);
   const tiled = readJson(file);
   const solidGid = new Set();
+  const kindGid = new Map();
   // Which local tile ids are solid, per tileset: an overlay names a tile that
   // way rather than by gid (DESIGN.md §3), so both spellings are kept.
   map.id = mapId;
@@ -94,16 +95,21 @@ for (const [mapId, map] of Object.entries(WORLD.maps)) {
         solidGid.add(ref.firstgid + tile.id);
         ids.add(tile.id);
       }
+      kindGid.set(ref.firstgid + tile.id, tile.type ?? '');
     }
     map.tilesetSolid.set(tileset.name, ids);
   }
   map.width = tiled.width;
   map.height = tiled.height;
   map.solid = new Array(tiled.width * tiled.height).fill(false);
+  // The kind of the topmost tile in each cell, for telling a wall from a
+  // counter: both are solid, but only one is read across.
+  map.kinds = new Array(tiled.width * tiled.height).fill('');
   for (const layer of tiled.layers) {
     if (layer.type !== 'tilelayer' || layer.visible === false) continue;
     layer.data.forEach((gid, i) => {
       if (solidGid.has(gid & GID_MASK)) map.solid[i] = true;
+      if (gid & GID_MASK) map.kinds[i] = kindGid.get(gid & GID_MASK) ?? '';
     });
   }
 }
@@ -527,12 +533,33 @@ async function pressA(page) {
  * to stand, however close it is. Null when nowhere will do.
  */
 function readSpotFor(mapId, sign, from) {
+  const map = WORLD.maps[mapId];
   const [sx, sy] = sign.pos;
   const beside = [[0, 1], [0, -1], [1, 0], [-1, 0]];
   const further = offsetsWithin(REACH.prop).filter(([dx, dy]) => !beside.some(([bx, by]) => bx === dx && by === dy));
+  // Nearest wins when the A button is pressed, so the spot has to be one
+  // this sign is the nearest thing from — two tiles off a shelf with another
+  // sign right beside the player reads that instead, and so does somebody
+  // who may have wandered up (their home tile, give or take their radius).
+  const winsFrom = ([x, y]) => {
+    const mine = Math.hypot(x - sx, y - sy);
+    if ((map.signs ?? []).some((other) => other !== sign && Math.hypot(x - other.pos[0], y - other.pos[1]) <= mine)) return false;
+    return !(map.people ?? []).some(
+      (who) => Math.hypot(x - who.pos[0], y - who.pos[1]) - (who.wander?.radius ?? 0) <= mine
+    );
+  };
+  // A shelf is read across the counter in front of it, never through the
+  // wall behind it: two tiles off with a wall in between is the other side
+  // of the wall, whatever the reach says.
+  const throughWall = ([x, y]) => {
+    const [mx, my] = [sx + Math.sign(x - sx), sy + Math.sign(y - sy)];
+    return (Math.abs(x - sx) === 2 || Math.abs(y - sy) === 2) && map.kinds?.[my * map.width + mx] === 'wall';
+  };
   return [...beside, ...further]
     .map(([dx, dy]) => [sx + dx, sy + dy])
-    .find((tile) => !isSolid(WORLD.maps[mapId], tile[0], tile[1]) && findPath(mapId, from, tile) !== null);
+    .find(
+      (tile) => !isSolid(map, tile[0], tile[1]) && !throughWall(tile) && winsFrom(tile) && findPath(mapId, from, tile) !== null
+    );
 }
 
 /**

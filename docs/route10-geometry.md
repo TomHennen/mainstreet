@@ -406,29 +406,25 @@ Both doorways are two tiles wide in the bottom wall, matted, with the exit
 trigger on the mat and the spawn tile the mat just inside it — the way out of
 Stewart's, and the reason a room's door reads as a door.
 
-- **Stamford Coffee** (20 × 12, exposed brick, light floor; rebuilt to Tom's
-  notes, Sep 2026): the counter runs along the back wall all the way to the
-  right wall, with Ronnie, the coffee-maker collection, the menu board and a
-  shelf of bottles (beer and wine to take home) in the strip behind it; the
-  opening at the counter's left end leads round to a **hallway in the
-  room's upper left** — up column 1, then a corridor along the top wall at
-  x2–5, row 1, on its own lighter floor, walled below and capped at its
-  right-hand end — with the **two bathroom doors in the top wall** on its
-  north side and the **steel kitchen door** cut through the cap at [6,1]
-  (Tom, Sep 10); the record player and the crates of LPs down the left wall
-  below the hall; tables in two clusters either side of the aisle from the
-  door; the self-serve fridge up front by the door; and, in the **right**
-  wall, a two-tile open doorway straight through into **80 Main**'s own room.
-- **Stamford Coffee Kitchen** (`stamford-coffee-kitchen`, 12 × 9, same brick
-  and floor; Sep 2026): reached only through the hallway, so its door is the
-  two-tile gap in its **left** wall (you come in facing right and leave
-  facing left, back into the corridor beside the steel door) and there is no
-  street door. Open plan, as Tom asked: the oven, a steel work table and two
-  fridges and a chest freezer along the top wall, the cake table down the
-  right wall, the cooling rack by the bottom wall, and the middle left clear
-  for Solveig the baker, who wanders it rather than standing behind
-  anything. The floor is a floor, not grass: the playtest tells a room from a
-  yard by whether its whole floor grows.
+- **Stamford Coffee** (a 20 × 18 box, not a rectangle; exposed brick, light
+  floor; rebuilt to Tom's sketch, Sep 10 2026): the first room built from a
+  `plan` — the floor is a union of rectangles and everything outside it is
+  wall (DESIGN.md §2). The cafe is x1–18, rows 7–16, entered from the
+  bottom; a walkway up its left side leads into a hallway bay in the top
+  left (x1–3, rows 1–6) with the **two bathroom doors in its top wall**;
+  the **kitchen** (x5–18, rows 1–5) sits above the cafe's top wall, to the
+  right of the hallway, through a **steel door** in the one-cell gap of the
+  dividing wall at [4,2] — same map, no transition. The counter runs along
+  the cafe's top wall all the way to the right wall, with Ronnie, the
+  coffee-maker collection, the menu board and a shelf of bottles (beer and
+  wine to take home) in the strip behind it; the record player and the
+  crates of LPs down the left wall; tables in two clusters either side of
+  the aisle from the door; the self-serve fridge up front by the door; and,
+  in the **right** wall, a two-tile open doorway straight through into **80
+  Main**'s own room. The kitchen is open plan: the oven, a steel work table
+  and two fridges and a chest freezer along its top wall, the cake table
+  down its right wall, the cooling rack by its bottom wall, and the middle
+  left clear for Solveig the baker, who wanders it.
 - **80 Main** (14 × 12, same brick and floor): its own street door onto the
   shared patio, the counter along the back, the logo wear, the sweater rack,
   the candles and mugs round the walls, the coal coffee table in the middle
