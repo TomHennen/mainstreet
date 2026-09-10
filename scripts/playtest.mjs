@@ -1599,7 +1599,7 @@ async function main() {
       await readEverything(page, place.id, room, name);
 
       // Any further way out of the room — the Belvedere's yard, the shop next
-      // door, the rooms out the back of the coffee shop — walked both ways,
+      // door, the kitchen off the coffee shop's hallway — walked both ways,
       // since a door nobody can come back through is a trap; and whoever and
       // whatever is through it is met the same way as in the room itself.
       for (const onward of room.exits.slice(1)) {
@@ -1636,9 +1636,8 @@ async function main() {
           // what grows in it, nothing else (Tom, Sep 2026): anything paved in
           // a yard is a patch somebody laid — the ring round a fire — and
           // never the whole floor. A room's floor has no grass in it at all:
-          // the shop next door, with a street door of its own, or the rooms
-          // out the back of one, reached only through it. Half and half is
-          // neither.
+          // the shop next door, with a street door of its own, or the kitchen
+          // off one, reached only through it. Half and half is neither.
           const ground = (outsideSpec.floor ?? []).map((id) => TILE_OF.get(id)?.kind ?? String(id));
           const growing = ground.filter((kind) => kind === 'grass' || kind === 'flowers');
           const yard = ground.length > 0 && growing.length === ground.length;

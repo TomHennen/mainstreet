@@ -1269,6 +1269,22 @@
           "style": "door"
         },
         {
+          "id": "stamford-coffee-to-kitchen",
+          "at": [
+            3,
+            2,
+            1,
+            1
+          ],
+          "to": "stamford-coffee-kitchen",
+          "spawn": [
+            1,
+            4
+          ],
+          "facing": "right",
+          "style": "door"
+        },
+        {
           "id": "stamford-coffee-to-eighty-main",
           "at": [
             19,
@@ -1283,28 +1299,32 @@
           ],
           "facing": "right",
           "style": "door"
-        },
-        {
-          "id": "stamford-coffee-to-back",
-          "at": [
-            1,
-            0,
-            2,
-            1
-          ],
-          "to": "stamford-coffee-back",
-          "spawn": [
-            9,
-            8
-          ],
-          "facing": "up",
-          "style": "door"
         }
       ],
       "signs": [
         {
           "pos": [
-            6,
+            1,
+            0
+          ],
+          "lines": [
+            "A single bathroom, and a good one: clean, a plant on the cistern, and a hand-lettered sign asking you kindly to jiggle the handle.",
+            "Anyone can use it. There is a hook for your coat, and the soap smells like lemons."
+          ]
+        },
+        {
+          "pos": [
+            2,
+            0
+          ],
+          "lines": [
+            "The other one, just the same, with a changing table folded against the wall and a stack of the good paper towels.",
+            "Whichever is free is yours."
+          ]
+        },
+        {
+          "pos": [
+            7,
             1
           ],
           "lines": [
@@ -1314,7 +1334,7 @@
         },
         {
           "pos": [
-            11,
+            12,
             1
           ],
           "lines": [
@@ -1335,7 +1355,7 @@
         {
           "pos": [
             1,
-            5
+            7
           ],
           "lines": [
             "A record player on the left wall, lid up, something warm and a little crackly turning on it.",
@@ -1345,7 +1365,7 @@
         {
           "pos": [
             1,
-            8
+            10
           ],
           "lines": [
             "Crates of LPs, spread out so you can flip through them: jazz, old country, soul, and a few things nobody can quite place.",
@@ -1378,7 +1398,7 @@
           "id": "stamford-coffee-barista",
           "name": "Ronnie",
           "pos": [
-            9,
+            10,
             1
           ],
           "facing": "down",
@@ -1390,31 +1410,31 @@
           "lines": [
             "Morning. The board's right here — the Maple Smoke latte's the one everybody asks about.",
             "That's my record on. Have a flip through the crates by the player if you like — there's always something good in there.",
-            "Take your time picking a table. The big doorway on the right goes straight through to 80 Main, and the bathrooms are out the back — past the end of the counter, on the left."
+            "Take your time picking a table. The big doorway on the right goes straight through to 80 Main, and the bathrooms are down the little hallway in the corner on the left — the kitchen's through there too."
           ]
         }
       ]
     },
-    "stamford-coffee-back": {
-      "name": "Stamford Coffee, out back",
+    "stamford-coffee-kitchen": {
+      "name": "Stamford Coffee Kitchen",
       "kind": "interior",
       "buildings": [],
       "labels": [],
       "exits": [
         {
-          "id": "stamford-coffee-back-exit",
+          "id": "stamford-coffee-kitchen-exit",
           "at": [
-            9,
-            9,
-            2,
-            1
+            0,
+            4,
+            1,
+            2
           ],
           "to": "stamford-coffee-interior",
           "spawn": [
             2,
-            1
+            2
           ],
-          "facing": "down",
+          "facing": "left",
           "style": "door"
         }
       ],
@@ -1435,7 +1455,7 @@
             1
           ],
           "lines": [
-            "The oven, two big decks of it, ticking as it warms. Whatever is in there this morning, the whole back room smells of it.",
+            "The oven, two big decks of it, ticking as it warms. Whatever is in there this morning, the whole kitchen smells of it.",
             "Lorna keeps a timer on a string round her neck, and has never once needed it."
           ]
         },
@@ -1451,32 +1471,12 @@
         },
         {
           "pos": [
-            1,
-            5
+            10,
+            3
           ],
           "lines": [
             "Shelves of the dry goods: sacks of flour, a tub of sugar, jars of oats and raisins and walnuts, all labelled in the same neat hand.",
             "Somewhere in here is the good chocolate, and everybody knows exactly where."
-          ]
-        },
-        {
-          "pos": [
-            10,
-            0
-          ],
-          "lines": [
-            "A single bathroom, and a good one: clean, a plant on the cistern, and a hand-lettered sign asking you kindly to jiggle the handle.",
-            "Anyone can use it. There is a hook for your coat, and the soap smells like lemons."
-          ]
-        },
-        {
-          "pos": [
-            12,
-            0
-          ],
-          "lines": [
-            "The other one, just the same, with a changing table folded against the wall and a stack of the good paper towels.",
-            "Whichever is free is yours."
           ]
         }
       ],
@@ -1498,7 +1498,7 @@
           "lines": [
             "Morning! Mind the warm air off the oven — there's a tray of scones in there and an apple cake right behind them, both about ten minutes off.",
             "I've been in since four. The street's dark and quiet and the whole town's asleep, and by the time the sun is up the first tray is out. Best hours of the day, honestly.",
-            "Looking for the bathrooms? They're the two doors in the hall there, just to your right. Either one — whichever's free."
+            "Looking for the bathrooms? Back out the door and they're the two at the top of the hallway. Either one — whichever's free."
           ]
         }
       ]

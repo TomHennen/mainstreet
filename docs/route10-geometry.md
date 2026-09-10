@@ -410,21 +410,23 @@ Stewart's, and the reason a room's door reads as a door.
   notes, Sep 2026): the counter runs along the back wall all the way to the
   right wall, with Ronnie, the coffee-maker collection, the menu board and a
   shelf of bottles (beer and wine to take home) in the strip behind it; the
-  record player and the crates of LPs down the left wall; tables in two
-  clusters either side of the aisle from the door; the self-serve fridge up
-  front by the door; in the **right** wall, a two-tile open doorway straight
-  through into **80 Main**'s own room; and, in the **top** wall at the far
-  left — past the counter's end, which is the customers' way round it — a
-  two-tile doorway to the rooms out back (Tom, Sep 10).
-- **Stamford Coffee, out back** (`stamford-coffee-back`, 14 × 10, same brick
-  and floor; Sep 2026): reached only through the coffee shop, so its door is
-  the two-tile gap in its bottom wall and there is no street door. The
-  kitchen fills the top left — a prep counter with a sealed strip behind it,
-  the oven, a cooler and a cooling rack along the back wall, Lorna the baker
-  behind the counter — with shelves of dry goods down the left wall, and a
-  one-tile hall along the top right with the two bathroom doors in the back
-  wall above it. The floor is a floor, not grass: the playtest tells a room
-  from a yard by whether its whole floor grows.
+  opening at the counter's left end leads round to a **hallway in the
+  room's upper left** (x1–2, rows 1–3, its own wall on the right, open into
+  the room at row 4) with the **two bathroom doors in the top wall** above
+  it and the **kitchen doorway cut through the hall's right-hand wall** at
+  [3,2] (Tom, Sep 10); the record player and the crates of LPs down the left
+  wall below the hall; tables in two clusters either side of the aisle from
+  the door; the self-serve fridge up front by the door; and, in the
+  **right** wall, a two-tile open doorway straight through into **80
+  Main**'s own room.
+- **Stamford Coffee Kitchen** (`stamford-coffee-kitchen`, 12 × 8, same brick
+  and floor; Sep 2026): reached only through the hallway, so its door is the
+  two-tile gap in its **left** wall (you come in facing right and leave
+  facing left, back into the hall) and there is no street door. The prep
+  counter runs along the back wall with a sealed strip behind it — the
+  oven, a cooler, Lorna the baker and a cooling rack along the back wall —
+  and the dry goods are on the right wall. The floor is a floor, not grass:
+  the playtest tells a room from a yard by whether its whole floor grows.
 - **80 Main** (14 × 12, same brick and floor): its own street door onto the
   shared patio, the counter along the back, the logo wear, the sweater rack,
   the candles and mugs round the walls, the coal coffee table in the middle

@@ -65,6 +65,13 @@
  *   face of the riser (`front`, default `"bottom"`).
  * - `mat`, `planter`, `sign` — a doormat, a pot with something growing in it,
  *   and a standing board a later episode can hang a prop sign on.
+ * - `hall` — a corridor cut off the room, walled down both long sides.
+ * - `door`, `panel` — something in a wall: a door to read a note on, a wall
+ *   worth stopping at. `exit` is a way out cut through a wall, stated like
+ *   the spec's own `exit`. Any wall tile will do — the outside wall, or the
+ *   wall of a `hall` (the kitchen door off Stamford Coffee's hallway) — as
+ *   long as it is a wall when the exit is placed, so an exit through a
+ *   hall's wall comes after the `hall` in `props`.
  *
  * Tile ids come from the world's own tileset — the script never invents one —
  * and the defaults are found by the tileset's kinds (`counter`, `shelf`,
@@ -335,9 +342,6 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
         }
         if (tiles[at(x, y)] !== wall) {
           throw new RoomError(`${where} covers ${x},${y}, which is not a wall — a ${prop.kind} goes in one`);
-        }
-        if (prop.kind === 'exit' && !onWall(x, y)) {
-          throw new RoomError(`${where} covers ${x},${y}, an inside wall — a way out has to be in an outside one`);
         }
         continue;
       }

@@ -357,14 +357,26 @@ describe('buildRoom: halls, doors, panels and a second way out', () => {
     ]);
   });
 
-  it('will not hang a door on the floor, or cut a way out through an inside wall', () => {
+  it('will not hang a door on the floor, or cut a way out where a wall is not yet', () => {
     expect(() => long([{ kind: 'door', at: [[5, 5]] }])).toThrow(/not a wall/);
+    // The hall's wall is only there once the hall is: an exit through it has
+    // to come after it in the props.
     expect(() =>
       long([
-        { kind: 'hall', rect: [8, 4, 5, 2] },
-        { kind: 'exit', at: [[10, 3]], id: 'x', to: 'somewhere', spawn: [1, 1], facing: 'up' }
+        { kind: 'exit', at: [[10, 3]], id: 'x', to: 'somewhere', spawn: [1, 1], facing: 'up' },
+        { kind: 'hall', rect: [8, 4, 5, 2] }
       ])
-    ).toThrow(/an inside wall/);
+    ).toThrow(/not a wall/);
+  });
+
+  it("cuts a way out through a hall's own wall — the kitchen door off a hallway", () => {
+    const r = long([
+      { kind: 'hall', rect: [8, 4, 5, 2] },
+      { kind: 'exit', at: [[10, 3]], tiles: [PALETTE.floor[0]], id: 'a-room-kitchen', to: 'kitchen', spawn: [1, 4], facing: 'up' }
+    ]);
+    expect(tileAt(r, 10, 3)).toBe(PALETTE.floor[0]);
+    expect(tileAt(r, 9, 3)).toBe(PALETTE.wall);
+    expect(r.meta.exits[1]).toEqual({ id: 'a-room-kitchen', at: [10, 3, 1, 1], to: 'kitchen', spawn: [1, 4], facing: 'up', style: 'door' });
   });
 
   it('cuts a second way out through the outside wall and states it like the first', () => {
@@ -386,8 +398,8 @@ describe('buildRoom: halls, doors, panels and a second way out', () => {
   });
 
   it('cuts a way out through the top wall too, floor showing through if the spec says', () => {
-    // A doorway to the rooms out back, the way Stamford Coffee's is: in the
-    // top wall, clear of the corner, with the floor running through it.
+    // A doorway in the top wall, clear of the corner, with the floor running
+    // through it — the shape Stamford Coffee's 80 Main doorway has, turned up.
     const r = long([{ kind: 'exit', rect: [1, 0, 2, 1], tiles: [PALETTE.floor[0]], id: 'a-room-back', to: 'back', spawn: [3, 6], facing: 'up' }]);
     expect(tileAt(r, 1, 0)).toBe(PALETTE.floor[0]);
     expect(tileAt(r, 2, 0)).toBe(PALETTE.floor[0]);
@@ -455,7 +467,7 @@ describe('the rooms route10 ships', () => {
 
   for (const id of [
     'stamford-coffee-interior',
-    'stamford-coffee-back',
+    'stamford-coffee-kitchen',
     'eighty-main-interior',
     'the-belvedere-interior',
     'the-belvedere-yard'

@@ -182,23 +182,26 @@ readable as the whole set. The doorway to 80 Main is a two-tile-tall open
 gap in the right wall at rows 6–7, matched by the same gap in 80 Main's left
 wall, so the two rooms read as one opening.
 
-*Tom, Sep 10 2026 (built Sep 2026):* a doorway in the **upper left** of the
-room leads out the back to two bathrooms and a kitchen — the kitchen is
-worth having now because more will happen in it later. The counter now runs
-**all the way to the right wall**, and the opening on its **left**, past the
-counter's end, is how customers get to the bathrooms and the kitchen. On the
-right side of the counter, **bottles on display behind it**: beers and wine
-to buy and take home (readable only for now, like the fridge). A **female
-baker with silver hair** works out back. As built: the doorway is the
-two-tile gap in the top wall at x1–2 (floor showing through, like the 80
-Main opening), the counter is x4–18 on row 2 with Ronnie, the coffee-maker
-shelf, the menu board and the bottle shelf in the strip behind it, and the
-back rooms are their own map, `stamford-coffee-back` (14×10, spec
-`worlds/route10/rooms/stamford-coffee-back.json`): a prep counter with the
-oven, a cooler and a cooling rack behind it, shelves of dry goods on the
-left wall, and a short hall along the top right with the two bathroom doors
-in the back wall. The baker is **Lorna** (invented), silver hair in a bun,
-behind the prep counter. Nothing is bought yet.
+*Tom, Sep 10 2026 (built Sep 2026):* a **hallway in the upper left of the
+cafe itself** — you are still in the main room when you step into it. The
+**bathrooms are at the top of that hallway** (north), and **to its right is
+the entrance to the kitchen**; from inside the kitchen the way out is on the
+**left**. The counter now runs **all the way to the right wall**, with the
+opening on its **left** leading round to the hallway. On the right side of
+the counter, **bottles on display behind it**: beers and wine to buy and take
+home (readable only for now, like the fridge). A **female baker with silver
+hair** works in the kitchen, which is worth having now because more will
+happen in it later. As built: the hall is the two-wide corridor at x1–2,
+rows 1–3, walled on its right at x3 and open into the room at row 4; the two
+bathroom doors are in the top wall at [1,0] and [2,0]; the kitchen doorway
+is cut through the hall's wall at [3,2]; the counter is x5–18 on row 2 with
+Ronnie, the coffee-maker shelf, the menu board and the bottle shelf in the
+strip behind it. The kitchen is its own map, `stamford-coffee-kitchen`
+(12×8, spec `worlds/route10/rooms/stamford-coffee-kitchen.json`, door in its
+left wall): the prep counter with the oven, a cooler and a cooling rack
+behind it, and shelves of dry goods on the right wall. The baker is
+**Lorna** (invented), silver hair in a bun, behind the prep counter. Nothing
+is bought yet.
 
 **80 Main interior (Tom, Sep 2026; built Sep 2026).** High-end goods, lots
 of Catskills-logo wear. They once (maybe still do) sold a high-end coffee
