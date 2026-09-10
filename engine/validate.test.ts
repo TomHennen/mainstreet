@@ -430,7 +430,7 @@ describe('validateWorld', () => {
       },
       buildings: { shop: { name: 'Shop', wall: '#fff', roof: '#000', sign: ['Open till six.'] } }
     });
-    world.maps['shop-interior'] = makeMap({ kind: 'interior' });
+    world.maps['shop-interior'] = makeMap({ kind: 'interior', people: [{ id: 'clerk', pos: [2, 2] }] });
     const problems = runWorld(world);
     expect(problems.join('\n')).toContain('building "shop" has an interior but no "enter" spawn');
   });
@@ -445,8 +445,52 @@ describe('validateWorld', () => {
         })
       }
     });
-    world.maps['shop-interior'] = makeMap({ kind: 'interior' });
+    world.maps['shop-interior'] = makeMap({ kind: 'interior', people: [{ id: 'clerk', pos: [2, 2] }] });
     expect(runWorld(world)).toEqual([]);
+  });
+
+  // A room a door opens onto has somebody in it, unless the world says on
+  // purpose that it does not (DESIGN.md §2).
+  describe('a building interior has somebody in it', () => {
+    const withRoom = (room: Partial<MapMeta>) => {
+      const world = makeWorld({
+        maps: {
+          town: makeMap({
+            buildings: [
+              { id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1], interior: 'shop-interior', enter: [0, 0] }
+            ]
+          })
+        }
+      });
+      world.maps['shop-interior'] = makeMap({ kind: 'interior', ...room });
+      return world;
+    };
+
+    it('flags a building interior with nobody in it', () => {
+      expect(runWorld(withRoom({})).join('\n')).toContain(
+        'building "shop"\'s interior "shop-interior" has nobody in it'
+      );
+      expect(runWorld(withRoom({ people: [] })).join('\n')).toContain('has nobody in it');
+    });
+
+    it('accepts a building interior with a person posted in it', () => {
+      expect(runWorld(withRoom({ people: [{ id: 'clerk', name: 'Clerk', pos: [2, 2], lines: ['Hello.'] }] }))).toEqual([]);
+    });
+
+    it('accepts a building interior that is "unstaffed" on purpose', () => {
+      expect(runWorld(withRoom({ unstaffed: true }))).toEqual([]);
+      // Only an explicit true is the opt-out.
+      expect(runWorld(withRoom({ unstaffed: false })).join('\n')).toContain('has nobody in it');
+    });
+
+    it('does not ask a room reached only through another room', () => {
+      const world = withRoom({
+        people: [{ id: 'clerk', pos: [2, 2] }],
+        exits: [{ id: 'through', at: [3, 3, 1, 1], to: 'back-room', spawn: [1, 1], facing: 'up', style: 'door' }]
+      });
+      world.maps['back-room'] = makeMap({ kind: 'interior' });
+      expect(runWorld(world)).toEqual([]);
+    });
   });
 
   it('flags an exit leading to an unknown map', () => {

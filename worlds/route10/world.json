@@ -1222,6 +1222,28 @@
           "facing": "down",
           "style": "door"
         }
+      ],
+      "people": [
+        {
+          "id": "hannah",
+          "name": "Hannah",
+          "pos": [
+            6,
+            12
+          ],
+          "facing": "down",
+          "look": {
+            "hair": "bun",
+            "hairColor": "#4a3524",
+            "shirt": "#7a3e5f",
+            "build": "slim"
+          },
+          "lines": [
+            "Morning! Coffee's on — it has been since half past four, and it'll still be on whenever you wander back in.",
+            "The ice cream case is right over there, and yes, the make-your-own sundae bar is real. Nobody has ever been sorry about a sundae.",
+            "There's a standing debate at this counter about whether our coffee costs more than Dunkin. Everybody having it is holding one of ours, so I'd say we're doing all right."
+          ]
+        }
       ]
     },
     "stamford-coffee-interior": {

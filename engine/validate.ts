@@ -111,10 +111,25 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
         }
       }
       if (placement.interior) {
-        if (!world.maps[placement.interior]) {
+        const room = world.maps[placement.interior];
+        if (!room) {
           problems.push(`building "${placement.id}" points at unknown interior "${placement.interior}"`);
         } else if (!placement.enter) {
           problems.push(`building "${placement.id}" has an interior but no "enter" spawn`);
+        } else if (!(room.people ?? []).length && room.unstaffed !== true) {
+          // A shop the player can walk into has somebody in it (DESIGN.md
+          // §2): a room with nobody behind the counter reads as closed, or
+          // as a place the art has not caught up with, neither of which a
+          // door should open onto by accident. The world's own `people` is
+          // what keeps a room staffed between stories — an episode NPC
+          // stands in for the same id while that episode runs (session.ts)
+          // — and `"unstaffed": true` on the room is the deliberate way to
+          // leave one empty. Rooms reached only through another room are not
+          // building interiors and are not asked.
+          problems.push(
+            `building "${placement.id}"'s interior "${placement.interior}" has nobody in it — give the room a "people" ` +
+              `entry, or mark it "unstaffed": true if it is meant to be empty`
+          );
         }
       }
     }

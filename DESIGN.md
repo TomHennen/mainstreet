@@ -131,6 +131,13 @@ village nicknames (see §5).
 **Interiors:** defined in world data (room map + counter/shelf collision +
 NPC placement), entered via building doors, exited via a door mat. Any
 building may gain an interior in a later episode with zero engine changes.
+A room a door opens onto has somebody in it: every building interior carries
+at least one entry in its `people` list (below) — Hannah behind Stewart's
+counter, say — so a shop is never found empty between stories, and
+`validate-episodes` refuses one that is, unless the map stanza says
+`"unstaffed": true`, the deliberate way to leave a room empty. Rooms reached
+only through another room (a back kitchen, a yard) are not building interiors
+and are not asked.
 Interiors are not a special case for the camera: size a room to the real
 place (a Stewart's is big, a coffee shop is a proper room), the camera
 follows the player exactly as it does outdoors, and a room that happens to
@@ -610,6 +617,16 @@ An NPC may carry a `route` or a `wander` (§2, "Townspeople who walk") and move
 about while the story waits. `pos` stays the tile they start on and the one an
 author places them by; they are simply not always standing on it, and they
 stop as soon as the player is close enough to talk to them.
+
+An episode NPC may share an id with one of a village's own `people` (§2), and
+then it **takes over** from them for as long as that episode is the one being
+played: the world's copy stays home, whatever map the episode has put theirs
+on, so a shop keeps its permanent counter person every week and a story can
+still hand them dialogue — or send them across the village — without the
+player meeting two of them. `engine/session.ts`'s `peopleOn` is where the
+world's copy steps aside; scene `move` and `say` targets and the asset
+convention (`chars/<id>.png`, `portraits/<id>.png`) name the one person either
+way.
 
 An episode may carry its own `intro`, an array of lines shown right after
 `copy.json`'s world `intro` on a fresh start of that episode — never on
