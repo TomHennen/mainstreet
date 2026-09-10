@@ -1091,7 +1091,8 @@ Hobart — "Jewel of the West Branch."
 - `middle-brook-cafe` (Jefferson, 170 Main St): café; pastry case empties by
   noon; the vegan chocolate chip cookie has a reputation.
 - `stewarts` (Stamford, Lake St): gas/convenience/ice cream; opens ~4:30 AM;
-  "costs more than Dunkin" debate is canon. Has the first interior; counter
+  the coffee is cheaper than Dunkin's and a great deal closer (Tom, Sep
+  2026 — the old "costs more than Dunkin" debate is retired; Hannah says so). Has the first interior; counter
   NPC **Hannah** (fictional, named for a praised real clerk — keep fictional).
 - `mac-a-doodles` (Stamford, 33 Harper St): seasonal ice cream/burger stand;
   mac-n-cheese burger; pup cups.
