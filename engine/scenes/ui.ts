@@ -12,6 +12,8 @@ const FONT = 'ui-monospace, Menlo, Consolas, monospace';
 const PAPER = 0xf3ead8;
 const INK = 0x2a231a;
 const PORTRAIT = 64;
+/** How long a toast stays up. `session().toastUntil` is this, from the moment one is raised — the one thing (engine/scenes/map.ts's holler) that ever asks. */
+export const TOAST_MS = 3800;
 
 /**
  * Dialogue and toasts, drawn over whatever scene is running. Kept at zoom 1 so
@@ -144,9 +146,13 @@ export class UiScene extends Phaser.Scene {
     this.toastText.setText(message).setVisible(true);
     this.toastBg.setVisible(true);
     if (import.meta.env.DEV) noteToast(message);
+    // The production-safe read of "is a toast showing right now" — unlike
+    // `currentToast`, which is dev-only — so a car's holler (DESIGN.md §2)
+    // never has to keep a second timer just to check.
+    session().toastUntil = performance.now() + TOAST_MS;
     this.layout();
     this.toastTimer?.remove();
-    this.toastTimer = this.time.delayedCall(3800, () => {
+    this.toastTimer = this.time.delayedCall(TOAST_MS, () => {
       this.toastText.setVisible(false);
       this.toastBg.setVisible(false);
       if (import.meta.env.DEV) noteToast(null);

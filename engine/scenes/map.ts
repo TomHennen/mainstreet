@@ -37,6 +37,7 @@ import {
   creditFor,
   dialogueFor,
   hasSmallTalk,
+  isToastShowing,
   itemVisible,
   itemsOn,
   npcsOn,
@@ -277,6 +278,7 @@ export class MapScene extends Phaser.Scene {
     this.held = null;
     this.litFixtures = new Map();
     this.clock = 0;
+    this.hollerUntil = 0;
     this.facades = [];
     this.artBoxes = [];
     this.walkPath = null;
@@ -793,17 +795,21 @@ export class MapScene extends Phaser.Scene {
    * at a crossroads. Nobody waits for a car, which is the whole point of them.
    *
    * A car the player specifically has held stopped for a moment gets to say
-   * so — the holler (DESIGN.md §2) — in `copy.json`'s `ui.honk`, shown the
+   * so — the holler (DESIGN.md §2) — in `copy.json`'s `ui.holler`, shown the
    * lightest way the engine already shows an ambient line: the same toast a
    * flag's own effect can raise, never a box the player has to dismiss. No
-   * `ui.honk` in the world pack and a car simply never has anything to say
-   * (hard rule 3); only one is ever on screen at a time, so a second car due
-   * to holler just waits its own turn.
+   * `ui.holler` in the world pack and a car simply never has anything to say
+   * (hard rule 3). It never fires with the controls away from the player
+   * (`locked`, or a dialogue box open — nobody is watching the road right
+   * then) and never while a toast is already up, `this.hollerUntil` or
+   * `isToastShowing()` either one — a holler must never cut off a scene's or
+   * a flag's own toast, only ever wait its own turn behind it.
    */
   private updateCars(delta: number): void {
     if (!this.cars.length) return;
     const dt = delta / 1000;
-    const honk = session().copy.ui.honk;
+    const state = session();
+    const lines = state.copy.ui.holler;
     this.cars.forEach((car, index) => {
       car.driver.update(dt, {
         blocked: (x, y) => {
@@ -819,10 +825,16 @@ export class MapScene extends Phaser.Scene {
         },
         player: (x, y) => this.playerTiles().some((tile) => tile[0] === x && tile[1] === y)
       });
-      if (honk?.length && this.clock >= this.hollerUntil) {
+      if (
+        lines?.length &&
+        !state.locked &&
+        !state.dialogueOpen &&
+        this.clock >= this.hollerUntil &&
+        !isToastShowing()
+      ) {
         const line = car.driver.takeHoller();
         if (line !== null) {
-          bus.emit(EV.toast, honk[line % honk.length]);
+          bus.emit(EV.toast, lines[line % lines.length]);
           this.hollerUntil = this.clock + HOLLER_DISPLAY;
         }
       }
@@ -839,11 +851,19 @@ export class MapScene extends Phaser.Scene {
    * the player's own depth, so wherever the two overlap the player is in
    * front: a car passes *under* the player, never over them, which is the
    * drawn half of "never a hazard" (DESIGN.md §1).
+   *
+   * **Visibility.** A through-route car between one lap and the next is off
+   * the map by the same maths that draws everybody else — `driver.x`/`.y`
+   * keep moving through the trip there is no tile for — so it is hidden for
+   * exactly as long as `driver.onMap` says it is, rather than trusting that
+   * position alone to read as "off screen" everywhere a camera might sit.
    */
   private drawCars(): void {
     const under = this.py + HITBOX - 1;
     for (const car of this.cars) {
       const { driver, sprite } = car;
+      sprite.setVisible(driver.onMap);
+      if (!driver.onMap) continue;
       sprite.setPosition(Math.round(driver.x * TILE) + TILE / 2, Math.round(driver.y * TILE) + TILE / 2);
       sprite.setDepth(Math.min((driver.y + 0.5) * TILE, under));
       sprite.setFrame(vehicleFrame(driver.facing));

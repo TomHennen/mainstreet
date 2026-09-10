@@ -280,6 +280,21 @@ describe('Driver', () => {
       expect(car.takeHoller()).toBeNull();
     });
 
+    it('never hollers at a player queued up behind another car, only the nearest thing in the way', () => {
+      // Two tiles blocked: a car at [10, 1], a player two further on at
+      // [12, 1]. The car in front is the *nearer* one, so that's what it is
+      // stopped for — the player past it has nobody's attention.
+      const queued: DriveStep = {
+        blocked: (x, y) => (x === 10 && y === 1) || (x === 12 && y === 1),
+        player: (x, y) => x === 12 && y === 1
+      };
+      const car = drivingEast();
+      runUntilStopped(car, queued);
+      expect(car.stopped).toBe(true);
+      run(car, HOLLER_AFTER + 1, queued);
+      expect(car.takeHoller()).toBeNull();
+    });
+
     it('never hollers while it is only slowing, before it has actually stopped', () => {
       // A slow car's own braking ramp takes longer than HOLLER_AFTER to reach
       // a full stop, so held for just over HOLLER_AFTER seconds it is still
@@ -354,6 +369,63 @@ describe('Driver', () => {
       expect(car.tiles().length).toBe(0);
     });
 
+    it('re-enters driving in from off the map rather than popping into view at the first waypoint', () => {
+      const car = new Driver({
+        path: [[0, 1], [19, 1]],
+        loop: true,
+        speed: 6,
+        pause: 0.2,
+        drivable: ROAD,
+        facing: 'right',
+        bounds: EDGE_BOUNDS
+      });
+      const dt = 1 / 60;
+      let sawOffMap = false;
+      let reappearedAt = -1;
+      for (let i = 0; i < Math.round(8 * 60) && reappearedAt < 0; i++) {
+        car.update(dt, clear);
+        if (car.x < -0.05) sawOffMap = true;
+        if (sawOffMap && Math.abs(car.x) < 0.02 && Math.abs(car.y - 1) < 0.02) reappearedAt = car.x;
+      }
+      // It was genuinely off the map first — not simply placed at [0, 1] —
+      // and came back in facing the way its first leg goes.
+      expect(sawOffMap).toBe(true);
+      expect(reappearedAt).toBeGreaterThanOrEqual(0);
+      expect(car.tile()).toEqual([0, 1]);
+      expect(car.facing).toBe('right');
+      // Already under way again once it's back — `next` past the first
+      // waypoint, not sitting through an extra pause on it — so a beat
+      // later it has covered real ground.
+      const atReappear = car.x;
+      run(car, 0.3);
+      expect(car.x).toBeGreaterThan(atReappear + 0.5);
+    });
+
+    it('holds off the map rather than reappearing on top of the player standing at the first waypoint', () => {
+      const car = new Driver({
+        path: [[0, 1], [19, 1]],
+        loop: true,
+        speed: 6,
+        pause: 0.2,
+        drivable: ROAD,
+        facing: 'right',
+        bounds: EDGE_BOUNDS
+      });
+      const blockStart: DriveStep = { blocked: (x, y) => x === 0 && y === 1 };
+      // Comfortably past when it would otherwise have reappeared.
+      run(car, 8, blockStart);
+      expect(car.tiles().length).toBe(0);
+      // The player steps off the tile, and it comes straight in — caught at
+      // the moment it arrives, before it has had the chance to drive on.
+      let arrived = false;
+      for (let i = 0; i < 60 * 2 && !arrived; i++) {
+        car.update(1 / 60, clear);
+        if (car.tiles().length > 0) arrived = true;
+      }
+      expect(arrived).toBe(true);
+      expect(car.tile()).toEqual([0, 1]);
+    });
+
     it('still just parks at the edge when the world pack says loop: false', () => {
       // A route that ends at the boundary on purpose — a one-off scene
       // move, say — is a car legitimately stopping, not a through route, and
@@ -410,9 +482,14 @@ describe('runsOffMap', () => {
     expect(runsOffMap([[5, 1], [5, 0]], BOUNDS)).toBe(true);
   });
 
-  it('is true for a route ending inside one of the map\'s own exits', () => {
+  it('is true for a route ending inside one of the map\'s own exits, when that exit itself touches the edge', () => {
     const exits: Rect[] = [[8, 0, 1, 3]];
     expect(runsOffMap([[5, 1], [8, 1]], BOUNDS, exits)).toBe(true);
+  });
+
+  it('is false for an exit rectangle mid-map — a building\'s own door, say — even if the last waypoint sits inside it', () => {
+    const doorway: Rect[] = [[8, 1, 1, 1]];
+    expect(runsOffMap([[5, 1], [8, 1]], BOUNDS, doorway)).toBe(false);
   });
 
   it('is false for a route that ends somewhere ordinary, mid-map', () => {
@@ -482,6 +559,33 @@ describe('Mover.ahead', () => {
       [2, 0],
       [2, 1],
       [2, 2]
+    ]);
+  });
+
+  it('carries on through a second turn too, rather than falling back to its old facing once it reaches the first', () => {
+    // A real bug: once the bend reached the next waypoint exactly, the
+    // padding used to top up with the *old* facing (the way the mover was
+    // pointed before the turn) instead of the way the route actually goes
+    // from there — here, pointed right on arrival at [5,0], but the route
+    // immediately turns down and then left, not right.
+    const mover = new Mover({
+      home: [0, 0],
+      speed: 4,
+      walkable: OPEN,
+      route: { path: [[0, 0], [5, 0], [5, 1], [0, 1]], pause: 1 }
+    });
+    const dt = 1 / 60;
+    for (let i = 0; i < 60 * 5; i++) {
+      mover.update(dt, { held: false, blocked: () => false });
+      if (mover.tile()[0] === 5 && mover.tile()[1] === 0 && !mover.busy) break;
+    }
+    expect(mover.tile()).toEqual([5, 0]);
+    expect(mover.busy).toBe(false);
+    expect(mover.facing).toBe('right');
+    expect(mover.ahead(3)).toEqual([
+      [5, 1],
+      [4, 1],
+      [3, 1]
     ]);
   });
 });

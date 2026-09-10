@@ -3,6 +3,7 @@
 import { rectsOverlap } from './edges.ts';
 import { findPath } from './path.ts';
 import { canCoOccur, combinations, overlapsIn, patchFor, withOverlays } from './overlay.ts';
+import { runsOffMap } from './vehicle.ts';
 import {
   BUILDS,
   FACINGS,
@@ -1058,7 +1059,10 @@ export function driveable(map: GameMap): (x: number, y: number) => boolean {
  * tiles the engine fills in between them — is drivable, or no path at all,
  * which is a car parked where somebody left it.
  *
- * A loop closes by road too, so a car that sets off can always get back round.
+ * A loop closes by road too, so a car that sets off can always get back
+ * round — except a through route (DESIGN.md §2), which never drives that
+ * closing leg at all: it vanishes off the map and reappears at the start
+ * instead, so nothing demands a paved way back for one of those.
  * A parked car has only to be somewhere a car could plausibly have been left:
  * a drivable tile, which covers both the road and a lot's marked stalls. On a
  * map with no drivable tiles anywhere — an interior, say — that rule would
@@ -1113,9 +1117,14 @@ function checkVehicle(vehicle: Vehicle, map: GameMap, context: string, problems:
   if (!ok) return;
 
   // Each leg in turn, from the tile the car starts on and ending back at the
-  // first waypoint when the path loops.
+  // first waypoint when the path loops — except a through route (DESIGN.md
+  // §2), which the engine never actually drives back through the
+  // pathfinder at all: it vanishes off the map and reappears at the start
+  // instead, so there is no closing leg here to demand a paved way through.
   const legs: Vec2[] = [vehicle.pos ?? path[0], ...path];
-  if (vehicle.loop !== false) legs.push(path[0]);
+  const loops = vehicle.loop !== false;
+  const throughRoute = loops && runsOffMap(path, { width: map.width, height: map.height }, map.exits.map((exit) => exit.at));
+  if (loops && !throughRoute) legs.push(path[0]);
   for (let i = 1; i < legs.length; i++) {
     const from = legs[i - 1];
     const to = legs[i];

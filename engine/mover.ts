@@ -180,13 +180,17 @@ export class Mover {
   /**
    * The next `count` tiles of the way ahead: the planned leg while there is
    * one, then — for a route, which knows where it turns next even before it
-   * has planned that far — straight on towards its next waypoint, so a car
-   * a short leg or a paused wait away from a corner still sees the tile it
-   * is about to turn into rather than only the tiles straight on from its
-   * current facing (which is what "ahead" fell back to for anyone without a
-   * route to consult, and still does). Nothing here says whether these
-   * tiles may be walked on — it is what the road ahead *is*, which is what
-   * a driver looks at before pulling away, and before it pulls away at all
+   * has planned that far — on through its own upcoming waypoints, one after
+   * another, so a car a short leg or a paused wait away from a corner still
+   * sees round however many turns it needs to rather than only the tiles
+   * straight on from its current facing (which is what "ahead" fell back to
+   * for anyone without a route to consult, and still does — a wander, or a
+   * route that has genuinely run out). Reading only the *first* turn and
+   * then carrying on along the old facing was a real bug: past a sharp
+   * corner that put the tiles on the wrong side of it entirely, sometimes
+   * even back the way the mover came. Nothing here says whether these tiles
+   * may be walked on — it is what the road ahead *is*, which is what a
+   * driver looks at before pulling away, and before it pulls away at all
    * (engine/vehicle.ts).
    */
   ahead(count: number): Vec2[] {
@@ -194,17 +198,24 @@ export class Mover {
     for (let i = 0; i < count && i < this.path.length; i++) out.push([this.path[i][0], this.path[i][1]]);
     if (out.length >= count) return out;
 
-    const turningTo = this.nextWaypoint();
-    if (turningTo) {
-      let [x, y] = out.length ? out[out.length - 1] : this.tile();
-      const [dx, dy] = stepToward([x, y], turningTo);
-      while (out.length < count && (x !== turningTo[0] || y !== turningTo[1])) {
-        x += dx;
-        y += dy;
-        out.push([x, y]);
+    let from = out.length ? out[out.length - 1] : this.tile();
+    let waypointIndex = this.next;
+    // Bounded by however many waypoints a route has, plus the tiles already
+    // found, so a pathological route (every waypoint the same tile, say)
+    // still terminates rather than spinning forever.
+    let guard = out.length + (this.route?.path.length ?? 0) + 1;
+    while (out.length < count && guard-- > 0) {
+      const to = this.routeWaypointAt(waypointIndex);
+      if (!to) break;
+      waypointIndex++;
+      const [dx, dy] = stepToward(from, to);
+      if (dx === 0 && dy === 0) continue; // a duplicate waypoint — nothing to walk, move on to the next
+      while (out.length < count && (from[0] !== to[0] || from[1] !== to[1])) {
+        from = [from[0] + dx, from[1] + dy];
+        out.push(from);
       }
-      if (out.length >= count) return out;
     }
+    if (out.length >= count) return out;
 
     const [dx, dy] = STEPS[this.facing];
     let [x, y] = out.length ? out[out.length - 1] : this.tile();
@@ -217,19 +228,21 @@ export class Mover {
   }
 
   /**
-   * The waypoint this mover turns towards next, once the leg already under
-   * way (or, paused at a waypoint, the leg about to be planned) is done —
+   * The route's own waypoint at this index, wrapping once the route loops —
    * `undefined` for a wander, or a route that has genuinely run out (no
    * more waypoints, and not set to loop). `next` already points past
    * whichever waypoint is the current goal by the time either of `ahead`'s
    * two callers would ask, in both the "mid-leg" and the "paused" case, so
-   * this is exactly "what comes after" either way.
+   * `routeWaypointAt(this.next)` is exactly "what comes after" either way,
+   * and `ahead` walks on from there through as many further waypoints as it
+   * needs.
    */
-  private nextWaypoint(): Vec2 | undefined {
+  private routeWaypointAt(index: number): Vec2 | undefined {
     if (!this.route) return undefined;
     const path = this.route.path;
-    if (this.next < path.length) return path[this.next];
-    return this.route.loop !== false ? path[0] : undefined;
+    if (!path.length) return undefined;
+    if (index < path.length) return path[index];
+    return this.route.loop !== false ? path[index % path.length] : undefined;
   }
 
   /** True while this person has somewhere to be. */

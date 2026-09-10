@@ -573,7 +573,7 @@ export interface WorldCopy {
      * (hard rule 3) — keep them good-natured, the kind of ribbing everyone
      * in the scene would smile at, never actually cross.
      */
-    honk?: string[];
+    holler?: string[];
     /**
      * The name on the dialogue box when one of those townspeople has none of
      * their own (DESIGN.md §2). A world person is somebody the player passes

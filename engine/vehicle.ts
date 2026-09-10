@@ -47,7 +47,7 @@
  *   never by another car ahead of it, which is nothing to say anything
  *   about — for `HOLLER_AFTER` seconds, a car has something to say about it.
  *   `takeHoller` is the one-shot: it hands the caller (`engine/scenes/map.ts`,
- *   which holds the world pack's `ui.honk` lines and shows them the way any
+ *   which holds the world pack's `ui.holler` lines and shows them the way any
  *   ambient one-liner is shown) the index of the line to use and will not
  *   hand out another until this stop is over and a new one begins, and its
  *   own count moves on each time so the same car never repeats a line right
@@ -56,7 +56,10 @@
  * Phaser is nowhere in here, so all of the above is testable under plain Node
  * (engine/vehicle.test.ts). The scene owns only the sprite, and the line.
  */
-import { Mover } from './mover';
+// Runtime import, carrying the extension engine/validate.ts's own callers
+// need under Node's type stripping (scripts/validate-episodes.ts, which
+// imports `runsOffMap` from here transitively — see that file's header).
+import { Mover } from './mover.ts';
 import type { Walkable } from './path';
 import type { Facing, Rect, Vec2 } from './schema';
 
@@ -109,14 +112,19 @@ export interface DriverOptions {
 const within = (rect: Rect, x: number, y: number): boolean =>
   x >= rect[0] && x < rect[0] + rect[2] && y >= rect[1] && y < rect[1] + rect[3];
 
+/** Whether a rectangle itself touches the map's own outer edge on any side. */
+const touchesBoundary = (rect: Rect, bounds: { width: number; height: number }): boolean =>
+  rect[0] === 0 || rect[1] === 0 || rect[0] + rect[2] === bounds.width || rect[1] + rect[3] === bounds.height;
+
 /**
  * Whether a route's last waypoint is where the road runs out, rather than
  * somewhere mid-map a car might plausibly stop or turn (see "A route that
  * runs off the map" above). True when that waypoint sits on the map's
- * outermost ring of tiles, when the tile straight on from it — in the
- * direction the car arrives from — would be off the grid entirely, or when
- * the waypoint itself lies inside one of the map's `exits`. A path shorter
- * than two waypoints has no direction of travel to read, so it never counts.
+ * outermost ring of tiles, or when it lies inside one of the map's own
+ * `exits` — but only one that itself touches that same outer edge: `exits`
+ * also covers a building's own door mid-map (`style: 'door'`), which is
+ * never "the road running out". A path shorter than two waypoints has no
+ * direction of travel to read, so it never counts.
  */
 export function runsOffMap(
   path: Vec2[] | undefined,
@@ -126,11 +134,7 @@ export function runsOffMap(
   if (!path || path.length < 2) return false;
   const [lx, ly] = path[path.length - 1];
   if (lx === 0 || ly === 0 || lx === bounds.width - 1 || ly === bounds.height - 1) return true;
-  const [px, py] = path[path.length - 2];
-  const beyondX = lx + Math.sign(lx - px);
-  const beyondY = ly + Math.sign(ly - py);
-  if (beyondX < 0 || beyondY < 0 || beyondX >= bounds.width || beyondY >= bounds.height) return true;
-  return exits.some((rect) => within(rect, lx, ly));
+  return exits.some((rect) => touchesBoundary(rect, bounds) && within(rect, lx, ly));
 }
 
 /** What the road looks like on the frame being stepped. */
@@ -174,11 +178,13 @@ export class Driver {
   /** This route's last waypoint — where a through-route car is once it is due to vanish. */
   private readonly lastWaypoint?: Vec2;
   /** `driving` normally; the rest is a through-route car's trip off the map and back — see `driveOffMap`. */
-  private phase: 'driving' | 'vanishing' | 'off' = 'driving';
-  /** Tiles still to cover before a vanishing car counts as gone. */
+  private phase: 'driving' | 'vanishing' | 'off' | 'arriving' = 'driving';
+  /** Tiles still to cover before a vanishing car counts as gone, or an arriving one is back. */
   private vanishLeft = 0;
-  /** Seconds still to sit off the map before an off car reappears. */
+  /** Seconds still to sit off the map before an off car is due to reappear. */
   private offClock = 0;
+  /** The heading an arriving car is entering on, fixed for the whole approach. */
+  private arriveFacing?: Facing;
   /** Seconds this stop has been the player's doing, specifically. */
   private stoppedForPlayer = 0;
   /** True once this stop has already handed out its one holler. */
@@ -251,6 +257,16 @@ export class Driver {
     return this.phase === 'driving' ? this.mover.tiles() : [];
   }
 
+  /**
+   * False for exactly as long as a through-route car is off the map between
+   * one lap and the next (`vanishing`, `off`, `arriving`) — what the scene
+   * hides the sprite on (`drawCars` in engine/scenes/map.ts), so it never
+   * draws wherever the maths happens to have parked `x`/`y` meanwhile.
+   */
+  get onMap(): boolean {
+    return this.phase === 'driving';
+  }
+
   /** True while the car is standing still — parked, waiting, or between legs. */
   get stopped(): boolean {
     return this.parked || this.throttle < STILL;
@@ -304,7 +320,7 @@ export class Driver {
    */
   update(dt: number, step: DriveStep): void {
     if (this.phase !== 'driving') {
-      this.driveOffMap(dt);
+      this.driveOffMap(dt, step);
       return;
     }
     const ahead = this.mover.ahead(LOOK_AHEAD);
@@ -323,10 +339,12 @@ export class Driver {
     }
 
     // A parked car is always stopped — nothing "brought it" to a stop, so it
-    // never has cause to holler. A moving one only does when the player
-    // specifically, rather than another car ahead of it, is why it isn't
-    // moving right now.
-    const byPlayer = !this.parked && this.stopped && ahead.some(([x, y]) => step.player?.(x, y));
+    // never has cause to holler. A moving one only does when the *nearest*
+    // thing in its way is the player, specifically — a car queued up behind
+    // another car has that car to look at, not a player who might be
+    // further up the road past it, and nothing to holler at.
+    const first = ahead.find(([x, y]) => step.blocked(x, y));
+    const byPlayer = !this.parked && this.stopped && !!first && step.player?.(first[0], first[1]) === true;
     if (byPlayer) {
       this.stoppedForPlayer += dt;
     } else {
@@ -336,7 +354,7 @@ export class Driver {
   }
 
   /**
-   * The index into the world pack's `ui.honk` lines to show, the one time a
+   * The index into the world pack's `ui.holler` lines to show, the one time a
    * stop for the player has gone on long enough to be worth a holler — see
    * "The holler" above. `null` on every other frame, including every frame
    * after the first for the same stop.
@@ -357,11 +375,16 @@ export class Driver {
    * The stretch of a through-route car's trip that its own `route` never
    * covers: straight on past the last waypoint at a steady clip — no giving
    * way, nobody can be standing past the edge of the map — until it is well
-   * off screen, a short wait out there out of sight, and a jump back to the
-   * start of the route, already moving, timed for while nobody can see it
-   * happen.
+   * off screen (`vanishing`); a short wait out there, out of sight (`off`);
+   * and then the mirror image back in (`arriving`) — driven the same
+   * `VANISH_TILES` in from off the map on the heading its first leg takes,
+   * rather than simply placed at its first waypoint already in view, which
+   * would pop it into being right there on screen. Both the wait and the
+   * drive in are held rather than sprung on anybody standing where the car
+   * is about to reappear: a stop just past the edge of a village is exactly
+   * where a player might be reading the "the road keeps going" line.
    */
-  private driveOffMap(dt: number): void {
+  private driveOffMap(dt: number, step: DriveStep): void {
     if (this.phase === 'vanishing') {
       const [dx, dy] = STEP[this.mover.facing];
       const covered = this.speed * dt;
@@ -375,10 +398,39 @@ export class Driver {
       }
       return;
     }
-    this.offClock -= dt;
-    if (this.offClock > 0 || !this.routeStart) return;
-    this.mover.warpTo(this.routeStart, headingTo(this.routeStart, this.routeSecond) ?? this.mover.facing);
-    this.throttle = 1;
-    this.phase = 'driving';
+
+    if (this.phase === 'off') {
+      this.offClock -= dt;
+      if (this.offClock > 0 || !this.routeStart) return;
+      // Held here, re-checked every frame, rather than popping into view on
+      // top of the player.
+      if (step.blocked(this.routeStart[0], this.routeStart[1])) return;
+      const facing = headingTo(this.routeStart, this.routeSecond) ?? this.mover.facing;
+      const [sx, sy] = STEP[facing];
+      this.mover.x = this.routeStart[0] - sx * VANISH_TILES;
+      this.mover.y = this.routeStart[1] - sy * VANISH_TILES;
+      this.mover.facing = facing;
+      this.arriveFacing = facing;
+      this.vanishLeft = VANISH_TILES;
+      this.phase = 'arriving';
+      this.throttle = 1;
+      return;
+    }
+
+    // 'arriving': the mirror of 'vanishing', driven back in over the same
+    // ground rather than warped straight to the first waypoint.
+    const facing = this.arriveFacing ?? this.mover.facing;
+    const [dx, dy] = STEP[facing];
+    const nextTile: Vec2 = [Math.round(this.mover.x) + dx, Math.round(this.mover.y) + dy];
+    if (step.blocked(nextTile[0], nextTile[1])) return;
+    const covered = this.speed * dt;
+    this.mover.x += dx * covered;
+    this.mover.y += dy * covered;
+    this.vanishLeft -= covered;
+    if (this.vanishLeft <= 0 && this.routeStart) {
+      this.mover.warpTo(this.routeStart, facing);
+      this.throttle = 1;
+      this.phase = 'driving';
+    }
   }
 }
