@@ -2569,6 +2569,12 @@ async function main() {
     // `checkDoors` answers to, with its own 180ms of genuinely leaning into
     // it so a step that merely crosses the tile in passing never counts
     // (DESIGN.md §2). Unrelated to the tap above, which needs no such wait.
+    // A few steps off the doorstep first: coming out of a door drops the
+    // player right back on it, disarmed on purpose (`armEnters`) so the very
+    // same exit can't be walked straight back through — a real half tile of
+    // daylight is what a player would put between themselves and it too
+    // before turning round and walking back in.
+    await walkTo(wp, 'walk-in-away', [shop.door[0], shop.door[1] + 2]);
     await walkUpInto(wp, 'walk-in', shop.door);
     await waitUntil(wp, (s) => s.map === shop.interior && !s.locked, `${shop.id}'s door to open on a walk`, 15000);
     log(`    ${shop.door} (${shop.id}'s door, walked into) -> inside`);
