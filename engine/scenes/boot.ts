@@ -170,6 +170,7 @@ export function startEpisode(
     lastDialogueClose: 0,
     locked: false,
     sceneRunning: false,
+    toastUntil: 0,
     introShown: false,
     taken: new Set<string>(),
     held: null,

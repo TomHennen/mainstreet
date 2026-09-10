@@ -75,6 +75,7 @@ function fakeSession(overrides: Partial<Session> = {}): Session {
     lastDialogueClose: 0,
     locked: false,
     sceneRunning: false,
+    toastUntil: 0,
     introShown: false,
     taken: new Set(),
     held: null,

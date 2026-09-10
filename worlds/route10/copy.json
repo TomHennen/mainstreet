@@ -33,6 +33,12 @@
         "That's as far as this week's story goes — might as well turn back.",
         "Nothing more to find this way just yet. The village is waiting behind you."
     ],
+    "holler": [
+      "Whole road to yourself out here — mind letting me by?",
+      "Morning! Just need to squeeze past you there.",
+      "Hey, friend — this isn't the city! Mind hopping out of the road?",
+      "No rush. The truck's just wider than it looks."
+    ],
     "plaque": {
       "painted": "A little plaque by the door: {building}, painted by {credit}. Thank you, {credit}!",
       "anonymous": "A little plaque by the door: somebody painted {building} for everyone to enjoy. Thank you, whoever you are.",

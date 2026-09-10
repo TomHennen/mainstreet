@@ -651,6 +651,17 @@ export interface WorldCopy {
      */
     roadEnd?: string[];
     /**
+     * What a car hollers out the window once the player specifically has
+     * held it stopped in the road for a moment (DESIGN.md §2) — never a car
+     * waiting on another car, which has nobody to holler at. Shown the same
+     * lightweight way any ambient one-liner is, picked so the same car
+     * doesn't repeat itself right after saying it (`Driver.takeHoller` in
+     * engine/vehicle.ts). A world with none of these simply never hollers
+     * (hard rule 3) — keep them good-natured, the kind of ribbing everyone
+     * in the scene would smile at, never actually cross.
+     */
+    holler?: string[];
+    /**
      * The name on the dialogue box when one of those townspeople has none of
      * their own (DESIGN.md §2). A world person is somebody the player passes
      * rather than somebody they are introduced to, so a world pack usually

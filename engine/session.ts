@@ -62,6 +62,15 @@ export interface Session {
    * with no dialogue box open — when input would otherwise look free.
    */
   sceneRunning: boolean;
+  /**
+   * `performance.now()` a toast currently on screen clears, or 0 for none —
+   * set by `UiScene.toast` (engine/scenes/ui.ts) each time one is raised, so
+   * another scene can ask "is one showing right now" (`isToastShowing`,
+   * engine/scenes/map.ts) without keeping a second timer of its own. A car's
+   * holler (DESIGN.md §2) is the one thing that checks it: it must never
+   * replace a toast a scene or a flag's own effect raised.
+   */
+  toastUntil: number;
   /** Shown once, on the first village the player lands in. */
   introShown: boolean;
   /**
@@ -110,6 +119,17 @@ export function session(): Session {
 /** The session if there is one, for callers that would rather not throw. */
 export function sessionOrNull(): Session | null {
   return current;
+}
+
+/**
+ * Whether a toast is on screen right now (`UiScene.toast`, engine/scenes/ui.ts)
+ * — the production-safe version of `engine/debug.ts`'s dev-only `currentToast`,
+ * for the one caller that needs to know outside a dev build: a car's holler
+ * (DESIGN.md §2) must never replace a toast a scene or a flag's own effect
+ * raised.
+ */
+export function isToastShowing(): boolean {
+  return performance.now() < session().toastUntil;
 }
 
 export const npcsOn = (mapId: string): EpisodeNpc[] =>
