@@ -131,7 +131,9 @@
       "lines": [
         "A fine ballpoint, half-buried in the grass by the pond bench. This has to be Earl's."
       ],
-      "blurb": "Earl's crossword pen. Forty years of Saturday puzzles rest on getting it back to him."
+      "name": "Earl's pen",
+      "blurb": "Earl's crossword pen. Forty years of Saturday puzzles rest on getting it back to him.",
+      "until": "done"
     }
   ],
   "signs": [

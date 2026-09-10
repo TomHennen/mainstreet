@@ -281,6 +281,7 @@ export class MapScene extends Phaser.Scene {
     this.replans = 0;
     this.lastReplan = 0;
     this.runner = null;
+    session().sceneRunning = false;
     this.queued = [];
     this.sceneWalk = false;
     // An overlay's tiles are part of the ground from here on: collision,
@@ -1031,6 +1032,7 @@ export class MapScene extends Phaser.Scene {
       this.runner.update(dt);
       if (!this.runner.finished) return;
       this.runner = null;
+      state.sceneRunning = false;
       this.sceneWalk = false;
     }
     if (!this.queued.length || state.locked || state.dialogueOpen) return;
@@ -1038,6 +1040,7 @@ export class MapScene extends Phaser.Scene {
     if (!next) return;
     this.stopWalk();
     this.runner = new SceneRunner(next, this.driver());
+    state.sceneRunning = true;
   }
 
   /**

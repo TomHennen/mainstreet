@@ -104,15 +104,21 @@ export interface Fixture {
   /** What it says when `give`/`take` has nothing to do. See above. */
   otherwise?: string[];
   /**
-   * One line for the "with you" panel (DESIGN.md §2, `engine/inventory.ts`)
-   * while the player is holding this fixture's token — what it's like to have
-   * it in hand, since `lines` is the moment of picking it up rather than a
-   * description for later. Belongs on the `give` fixture, the one place the
-   * token is named; the `take` fixture that spends it needs no blurb of its
-   * own. The panel's name for the token is the token itself, title-cased, so
-   * this is the only new copy the carry verbs need. Leaving it out still
-   * shows the token on the panel by that name, just with no second line
-   * under it (hard rule 3) — the exchange itself is unaffected either way.
+   * What the "with you" panel calls the token this fixture hands over
+   * (DESIGN.md §2, `engine/inventory.ts`), while the player is holding it.
+   * Belongs on the `give` fixture, the one place the token is named; the
+   * `take` fixture that spends it needs neither this nor `heldBlurb`. The
+   * engine never invents player-facing English from the token — no
+   * title-casing it — so leaving this out shows the token's own name
+   * verbatim instead ("log", not "Log").
+   */
+  heldName?: string;
+  /**
+   * One line for the "with you" panel while the player is holding this
+   * fixture's token — what it's like to have it in hand, since `lines` is the
+   * moment of picking it up rather than a description for later. Leaving it
+   * out still shows the token on the panel, just with no second line under it
+   * (hard rule 3) — the exchange itself is unaffected either way.
    */
   heldBlurb?: string;
   /**
@@ -748,15 +754,30 @@ export interface EpisodeItem {
   effects: Effect[];
   lines: string[];
   /**
-   * One line for the "with you" panel (DESIGN.md §2, `engine/inventory.ts`):
-   * what this is, now that it's in hand, since `lines` is the moment of
-   * picking it up rather than a description to keep reading later. The
-   * panel's name for the item is its id, title-cased — the pen, Scout — so
-   * this is the only new copy an item needs for the panel. Leaving it out
-   * still shows the item on the panel by that name, just with no second line
-   * under it (hard rule 3).
+   * What the "with you" panel calls this item (DESIGN.md §2,
+   * `engine/inventory.ts`). The engine never invents player-facing English —
+   * no title-casing an id — so leaving this out shows the item's own id
+   * verbatim instead ("pen", not "Pen").
+   */
+  name?: string;
+  /**
+   * One line for the "with you" panel: what this is, now that it's in hand,
+   * since `lines` is the moment of picking it up rather than a description to
+   * keep reading later. Leaving it out still shows the item on the panel,
+   * just with no second line under it (hard rule 3).
    */
   blurb?: string;
+  /**
+   * A declared flag (like `requires`) that takes this item off the "with
+   * you" panel once it's true — the beat the item is handed back or used up,
+   * usually the same flag that finishes the episode ("done"). Without it the
+   * item stays on the panel for good once picked up: `withYou` only ever
+   * reads `session().taken`, never the item's own `effects`, so an item with
+   * no `until` simply has no moment of leaving. The validator checks it names
+   * a flag the episode actually declares, the same as `requires` and every
+   * effect's `set`.
+   */
+  until?: string;
 }
 
 /**

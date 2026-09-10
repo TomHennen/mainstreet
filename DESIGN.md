@@ -368,23 +368,32 @@ player has on them right now — not an inventory: no counts, no slots, nothing
 to manage (`engine/inventory.ts`'s `withYou`, a pure derivation over the
 session and the world data, unit-tested on its own). Two things can be on it:
 the carry-verb token above, while it's held, and every episode item picked up
-and not yet handed back (§3) — the pen, Scout. There is no companion
-mechanic here: a dog that's been found is an ordinary episode item, walked to
-whoever is waiting for it like anything else picked up off the ground, not
-something that follows the player around a map. The panel draws each entry's
-name — its id, title-cased — beside an engine-drawn placeholder swatch (there
-is no per-item sprite convention yet, so every entry uses the same one) and,
-where the world pack wrote one, a one-line blurb underneath: `EpisodeItem`'s
-own `blurb`, or a `give` fixture's `heldBlurb` for the token it hands over.
-Leaving a blurb out still shows the entry by its name, just with no second
-line. The button and its own keyboard shortcut ("i", `engine/input.ts`'s
-`onToggle`) both open and close it; tapping anywhere or pressing A closes it
-without opening it, the same way the say box is dismissed. It pauses walking
-exactly like the say box, and — like the say box — it can never open over
-the say box or during a scene. `copy.json`'s `ui.withYou.button` labels the
-HUD button, `.title` heads the open panel, and `.empty` is the one line it
-shows with nothing on the list; no `button` and none of it draws at all —
-the button, the panel, the keyboard shortcut (hard rule 3).
+(`session().taken`) and not yet handed back — the pen, Scout. There is no
+companion mechanic here: a dog that's been found is an ordinary episode item,
+walked to whoever is waiting for it like anything else picked up off the
+ground, not something that follows the player around a map. An item leaves
+the list the moment its own `until` (§3) — a declared flag, same shape as
+`requires` — goes true; with no `until` a picked-up item simply stays for
+good. The panel draws each entry's name (`EpisodeItem.name`, or a `give`
+fixture's `heldName` for the token it hands over) and, where the world pack
+wrote one, a one-line blurb underneath (`.blurb`/`.heldBlurb`) — no swatch or
+icon, since there is no per-item sprite convention yet and one placeholder
+repeated on every row would be decoration, not information. The engine never
+invents player-facing English here: no name written and the entry shows its
+own id verbatim, not a title-cased guess at one. The button and its own
+keyboard shortcut ("i", `engine/input.ts`'s `onToggle`) both open and close
+it; tapping anywhere or pressing A closes it without opening it, the same way
+the say box is dismissed — the panel sets `document.body.dataset.dialogue`
+itself while it's open, exactly as the say box does, which is what sends a
+stage press to that close rather than to a walk underneath it. It pauses
+walking exactly like the say box (`session().dialogueOpen`), and it can never
+open over the say box, during the travel interstitial (`.locked`), or during
+a staged scene (`.sceneRunning`, set for the scene's whole run rather than
+only the beats it has a box open for, so the panel can't slip in between
+them). `copy.json`'s `ui.withYou.button` labels the HUD button, `.title`
+heads the open panel, and `.empty` is the one line it shows with nothing on
+the list; no `button` and none of it draws at all — the button, the panel,
+the keyboard shortcut (hard rule 3).
 
 **Townspeople who walk.** Nothing on a map moves but the player unless the
 data says otherwise, and two shapes of data say otherwise. Both belong to a
@@ -595,6 +604,16 @@ and `effects` (applied when the node is shown/consumed). No code in content.
   ]
 }
 ```
+
+An item's `requires`/`effects` decide when it's there to pick up and what
+picking it up does — same rules as a dialogue entry (§2's carry-verb section
+has the "persists and sets a flag" half of the story). Three more fields are
+for the "with you" panel alone (§2) and touch nothing else about how the item
+plays: `name` and `blurb` are its entry's words — the id verbatim, with no
+second line, when either is left out — and `until` is a declared flag, the
+same shape as `requires`, that takes the item off the panel the moment it
+goes true (usually the flag that closes out the story, the beat the item is
+handed back). No `until` and a picked-up item stays on the panel for good.
 
 A sign carries exactly one of `building` (read at that building's door, with
 the A prompt) or `map` + `pos` (a prop such as a shelf or a counter, examined by

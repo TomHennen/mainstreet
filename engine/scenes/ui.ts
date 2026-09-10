@@ -1,12 +1,11 @@
 import Phaser from 'phaser';
 import { bus, EV } from '../bus';
-import { itemTexture } from '../art';
 import { noteDialogue, noteToast } from '../debug';
 import type { SayRequest } from '../bus';
 import { isMailto } from '../feedback';
 import { withYou } from '../inventory';
 import type { Entry } from '../inventory';
-import { onAction, onTap, onToggle } from '../input';
+import { onAction, onToggle } from '../input';
 import { autosave } from '../progress';
 import { session } from '../session';
 import type { Effect } from '../schema';
@@ -15,15 +14,6 @@ const FONT = 'ui-monospace, Menlo, Consolas, monospace';
 const PAPER = 0xf3ead8;
 const INK = 0x2a231a;
 const PORTRAIT = 64;
-/** The "with you" panel's placeholder swatch, one tile square, beside each entry's name. */
-const SWATCH = 16;
-/**
- * Rows the panel keeps ready to fill in. "With you" is meant to stay a
- * glance, not a list to scroll — plenty for what an episode carries at once,
- * and if a later one somehow needs more, the extras simply don't draw
- * (nothing crashes; the panel just shows the first eight).
- */
-const INV_ROWS_MAX = 8;
 
 /**
  * Dialogue and toasts, drawn over whatever scene is running. Kept at zoom 1 so
@@ -43,8 +33,12 @@ export class UiScene extends Phaser.Scene {
   private invBox!: Phaser.GameObjects.Graphics;
   private invTitle!: Phaser.GameObjects.Text;
   private invEmpty!: Phaser.GameObjects.Text;
-  private invRows: { swatch: Phaser.GameObjects.Image; name: Phaser.GameObjects.Text; blurb: Phaser.GameObjects.Text }[] =
-    [];
+  /**
+   * One name/blurb pair of Text objects per row on screen, grown on demand
+   * (`ensureInvRows`) rather than pre-allocated to some cap — "with you" is
+   * not an inventory, so there is no slot count to reserve or run out of.
+   */
+  private invRows: { name: Phaser.GameObjects.Text; blurb: Phaser.GameObjects.Text }[] = [];
   private invOpen = false;
   /** Set once at boot from `copy.ui.withYou.button` — no label, no feature (hard rule 3). */
   private invEnabled = false;
@@ -98,25 +92,19 @@ export class UiScene extends Phaser.Scene {
       .text(0, 0, '', { fontFamily: FONT, fontSize: '13px', color: '#2a231a' })
       .setDepth(12)
       .setVisible(false);
-    for (let i = 0; i < INV_ROWS_MAX; i++) {
-      const swatch = this.add.image(0, 0, '__DEFAULT').setOrigin(0, 0).setDepth(12).setVisible(false);
-      const name = this.add
-        .text(0, 0, '', { fontFamily: FONT, fontSize: '13px', color: '#2a231a', fontStyle: 'bold' })
-        .setDepth(12)
-        .setVisible(false);
-      const blurb = this.add
-        .text(0, 0, '', { fontFamily: FONT, fontSize: '12px', color: '#2a231a' })
-        .setDepth(12)
-        .setVisible(false);
-      this.invRows.push({ swatch, name, blurb });
-    }
 
     this.invEnabled = Boolean(session().copy.ui.withYou?.button);
     this.invBtn = document.querySelector<HTMLButtonElement>('[data-overlay="withyou"]');
     if (this.invBtn && this.invEnabled) {
       this.invBtn.textContent = session().copy.ui.withYou!.button!;
     }
-    const onBtnClick = () => this.toggleInventory();
+    const onBtnClick = () => {
+      this.toggleInventory();
+      // Otherwise the button keeps focus after a click, and `bindControls`
+      // (engine/input.ts) leaves every key dead — it treats a focused overlay
+      // element as mid-use — until the canvas is clicked back into.
+      this.invBtn?.blur();
+    };
     this.invBtn?.addEventListener('click', onBtnClick);
 
     this.setOpen(false);
@@ -124,13 +112,15 @@ export class UiScene extends Phaser.Scene {
     bus.on(EV.say, this.say, this);
     bus.on(EV.toast, this.toast, this);
     const unbind = onAction(() => this.advance());
-    // Two more `onAction`/`onTap` listeners, alongside the ones above: each
-    // guards on the panel's own `invOpen` and no-ops otherwise, so A still
-    // reaches `advance()` untouched while the say box is what's open, and a
-    // stray tap still reaches `MapScene.tap()` (which itself no-ops while
-    // `dialogueOpen`) untouched while the panel is what's open.
+    // One more `onAction` listener, alongside the one above: it guards on the
+    // panel's own `invOpen` and no-ops otherwise, so A still reaches
+    // `advance()` untouched while the say box is what's open. There is no
+    // `onTap` listener to go with it — the panel sets
+    // `document.body.dataset.dialogue` itself while it's open (`setInvOpen`,
+    // below), exactly as the say box does, so a stage press already arrives
+    // here as `fireAction` (engine/input.ts) rather than a tap, and a tap
+    // never reaches `MapScene.tap()` to start a walk underneath it.
     const unbindInvAction = onAction(() => this.closeInventory());
-    const unbindInvTap = onTap(() => this.closeInventory());
     const unbindToggle = onToggle(() => this.toggleInventory());
     this.scale.on(Phaser.Scale.Events.RESIZE, this.layout, this);
 
@@ -139,9 +129,11 @@ export class UiScene extends Phaser.Scene {
       bus.off(EV.toast, this.toast, this);
       this.scale.off(Phaser.Scale.Events.RESIZE, this.layout, this);
       this.hideLink();
+      // So `dialogueOpen`/`document.body.dataset.dialogue` cannot survive a
+      // shutdown mid-panel and strand the next scene thinking input is held.
+      this.setInvOpen(false);
       unbind();
       unbindInvAction();
-      unbindInvTap();
       unbindToggle();
       this.invBtn?.removeEventListener('click', onBtnClick);
       if (this.invBtn) this.invBtn.hidden = true;
@@ -220,8 +212,11 @@ export class UiScene extends Phaser.Scene {
   /**
    * The HUD button and the "i" key both call this (DESIGN.md §2): open when
    * closed, close when open. Opening is refused outright while a say box is
-   * up or a scene is running — `state.dialogueOpen` covers both the say box
-   * and (once this returns) the panel itself, so the two can never stack.
+   * up (`state.dialogueOpen` — once this returns, that's also what the panel
+   * itself sets, so the two can never stack) or while `state.locked` (the
+   * travel interstitial) or `state.sceneRunning` (a staged scene, DESIGN.md
+   * §3 — set for its whole run, not just the beats it has a box open for, so
+   * the panel can't slip in between them).
    */
   private toggleInventory(): void {
     if (!this.invEnabled) return;
@@ -230,7 +225,7 @@ export class UiScene extends Phaser.Scene {
       return;
     }
     const state = session();
-    if (state.locked || state.dialogueOpen) return;
+    if (state.locked || state.dialogueOpen || state.sceneRunning) return;
     this.setInvOpen(true);
   }
 
@@ -242,12 +237,15 @@ export class UiScene extends Phaser.Scene {
   private setInvOpen(open: boolean): void {
     this.invOpen = open;
     const state = session();
-    // Pauses walking exactly like the say box (`setOpen`, above) — and
-    // MapScene's own `tap()`/`act()` already stand down while this is true,
-    // which is what keeps a tap meant to close the panel from also starting
-    // a walk underneath it.
+    // Pauses walking exactly like the say box (`setOpen`, above), and for the
+    // same two reasons: `state.dialogueOpen` is what `MapScene` reads
+    // everywhere to stand down, and `document.body.dataset.dialogue` is what
+    // lets a stage press reach `fireAction` (and so `closeInventory`, above)
+    // instead of `MapScene.tap()` (engine/input.ts).
     state.dialogueOpen = open;
     if (!open) state.lastDialogueClose = performance.now();
+    if (open) document.body.dataset.dialogue = 'open';
+    else delete document.body.dataset.dialogue;
     this.invEntries = open ? withYou(state) : [];
     this.layout();
   }
@@ -365,7 +363,6 @@ export class UiScene extends Phaser.Scene {
       this.invTitle.setVisible(false);
       this.invEmpty.setVisible(false);
       for (const row of this.invRows) {
-        row.swatch.setVisible(false);
         row.name.setVisible(false);
         row.blurb.setVisible(false);
       }
@@ -384,13 +381,34 @@ export class UiScene extends Phaser.Scene {
   }
 
   /**
+   * Grows `invRows` to at least `count` pairs, and never shrinks it — rows
+   * from a longer-ago panel just sit unused until the next one needs them
+   * again. "With you" stays a glance rather than turning into a slot-shaped
+   * inventory precisely because nothing here caps how many rows there can
+   * be; the list is as long as `withYou` says it is.
+   */
+  private ensureInvRows(count: number): void {
+    while (this.invRows.length < count) {
+      const name = this.add
+        .text(0, 0, '', { fontFamily: FONT, fontSize: '13px', color: '#2a231a', fontStyle: 'bold' })
+        .setDepth(12)
+        .setVisible(false);
+      const blurb = this.add
+        .text(0, 0, '', { fontFamily: FONT, fontSize: '12px', color: '#2a231a' })
+        .setDepth(12)
+        .setVisible(false);
+      this.invRows.push({ name, blurb });
+    }
+  }
+
+  /**
    * The panel's own layout: same paper box, bottom-docked, as the say box —
    * they never show at once, so sharing the spot costs nothing. Title, then
-   * either the empty line or one row per entry (name, and a blurb under it
-   * when the entry has one), each with the same placeholder swatch the
-   * ground uses for a picked-up-able item (`itemTexture`, engine/art.ts) —
-   * there is no per-item sprite convention yet, so every entry draws the
-   * same one.
+   * either the empty line or one row per entry — its name, and a blurb under
+   * it when the entry has one. No swatch or icon: there is no per-item
+   * sprite convention yet, and one engine-drawn placeholder repeated on every
+   * row read as decoration rather than information, so the panel is words
+   * only until there is real art to show.
    */
   private layoutInventory(width: number, height: number): void {
     const margin = 8;
@@ -398,13 +416,13 @@ export class UiScene extends Phaser.Scene {
     const boxW = width - margin * 2;
     const textLeft = left + 14;
     const wrapWidth = boxW - 28;
-    const rowTextWidth = wrapWidth - SWATCH - 8;
     const copy = session().copy.ui.withYou;
     const titleStr = copy?.title;
     const showEmpty = this.invEntries.length === 0;
     const emptyStr = showEmpty ? copy?.empty : undefined;
-    const entries = this.invEntries.slice(0, INV_ROWS_MAX);
+    const entries = this.invEntries;
 
+    this.ensureInvRows(entries.length);
     this.invTitle.setWordWrapWidth(wrapWidth, true).setText(titleStr ?? '').setVisible(Boolean(titleStr));
     this.invEmpty.setWordWrapWidth(wrapWidth, true).setText(emptyStr ?? '').setVisible(Boolean(emptyStr));
 
@@ -415,15 +433,13 @@ export class UiScene extends Phaser.Scene {
     this.invRows.forEach((row, i) => {
       const entry = entries[i];
       if (!entry || showEmpty) {
-        row.swatch.setVisible(false);
         row.name.setVisible(false);
         row.blurb.setVisible(false);
         return;
       }
-      row.swatch.setTexture(itemTexture(this)).setVisible(true);
-      row.name.setWordWrapWidth(rowTextWidth, true).setText(entry.name).setVisible(true);
-      row.blurb.setWordWrapWidth(rowTextWidth, true).setText(entry.blurb ?? '').setVisible(Boolean(entry.blurb));
-      rowHeights.push(Math.max(SWATCH, row.name.height + (entry.blurb ? row.blurb.height + 2 : 0)));
+      row.name.setWordWrapWidth(wrapWidth, true).setText(entry.name).setVisible(true);
+      row.blurb.setWordWrapWidth(wrapWidth, true).setText(entry.blurb ?? '').setVisible(Boolean(entry.blurb));
+      rowHeights.push(row.name.height + (entry.blurb ? row.blurb.height + 2 : 0));
     });
 
     let contentH = titleStr ? this.invTitle.height + 10 : 0;
@@ -452,25 +468,25 @@ export class UiScene extends Phaser.Scene {
     let rowIndex = 0;
     this.invRows.forEach((row, i) => {
       if (!entries[i]) return;
-      row.swatch.setPosition(textLeft, y);
-      row.name.setPosition(textLeft + SWATCH + 8, y);
-      row.blurb.setPosition(textLeft + SWATCH + 8, y + row.name.height + 2);
+      row.name.setPosition(textLeft, y);
+      row.blurb.setPosition(textLeft, y + row.name.height + 2);
       y += rowHeights[rowIndex] + 10;
       rowIndex += 1;
     });
   }
 
   /**
-   * The HUD button hides itself, rather than being disabled, whenever there
-   * is nothing it could sensibly open right now: over a say box, or while a
-   * scene holds the input. `invOpen` is exempted from the say-box half of
-   * that so the button stays put — and tappable — as a second way to close
-   * the very panel it opened.
+   * The HUD button hides itself, rather than being disabled, whenever
+   * `toggleInventory` would refuse to open the panel anyway (a say box up, a
+   * scene running, the travel interstitial locked) or the toast sits over
+   * its own corner. `invOpen` is exempted from the say-box/scene-running
+   * half of that so the button stays put — and tappable — as a second way to
+   * close the very panel it opened.
    */
   update(): void {
     if (!this.invEnabled || !this.invBtn) return;
     const state = session();
-    const sayShowing = state.dialogueOpen && !this.invOpen;
-    this.invBtn.hidden = sayShowing || state.locked;
+    const cannotOpen = !this.invOpen && (state.dialogueOpen || state.sceneRunning);
+    this.invBtn.hidden = cannotOpen || state.locked || this.toastText.visible;
   }
 }

@@ -47,7 +47,9 @@ const pen: EpisodeItem = {
   requires: [],
   effects: [{ set: 'hasPen' }],
   lines: ['a pen'],
-  blurb: 'A fine ballpoint. Earl will want it back.'
+  name: "Earl's pen",
+  blurb: 'A fine ballpoint. Earl will want it back.',
+  until: 'done'
 };
 
 const scout: EpisodeItem = {
@@ -57,7 +59,7 @@ const scout: EpisodeItem = {
   requires: [],
   effects: [{ set: 'gotDog' }],
   lines: ['a dog']
-  // Deliberately no blurb, to cover the name-only fallback.
+  // Deliberately no name, no blurb, no until — covers every fallback at once.
 };
 
 function fakeSession(overrides: Partial<Session> = {}): Session {
@@ -65,13 +67,14 @@ function fakeSession(overrides: Partial<Session> = {}): Session {
     world,
     maps: { town: fakeMap() },
     copy,
-    episode: { id: 'ep', title: 'Ep', flags: ['hasPen', 'gotDog'], npcs: [], items: [pen, scout] },
-    flags: new Flags(['hasPen', 'gotDog']),
+    episode: { id: 'ep', title: 'Ep', flags: ['hasPen', 'gotDog', 'done'], npcs: [], items: [pen, scout] },
+    flags: new Flags(['hasPen', 'gotDog', 'done']),
     assets: { buildings: new Set(), chars: new Set(), portraits: new Set(), tilesets: new Set(), vehicles: new Set() },
     credits: {},
     dialogueOpen: false,
     lastDialogueClose: 0,
     locked: false,
+    sceneRunning: false,
     introShown: false,
     taken: new Set(),
     held: null,
@@ -88,51 +91,66 @@ describe('withYou', () => {
     expect(withYou(fakeSession())).toEqual([]);
   });
 
-  it('lists an episode item once its flag is set, title-cased, with its blurb', () => {
-    const flags = new Flags(['hasPen', 'gotDog']);
+  it('never lists an item on its flag alone — only `taken` puts it on the list', () => {
+    // pen's own effect flag is set, but it was never recorded as taken (an
+    // episode that sets the flag some other way, or a stray hand-edited
+    // save) — the ground-visibility rule (`itemTaken`, engine/session.ts)
+    // does not apply here.
+    const flags = new Flags(['hasPen', 'gotDog', 'done']);
     flags.set('hasPen');
-    expect(withYou(fakeSession({ flags }))).toEqual([
-      { id: 'pen', name: 'Pen', blurb: 'A fine ballpoint. Earl will want it back.' }
-    ]);
+    expect(withYou(fakeSession({ flags }))).toEqual([]);
   });
 
-  it('lists an item recorded in `taken` even before its flag would say so', () => {
+  it('lists a taken item by its own name and blurb', () => {
     expect(withYou(fakeSession({ taken: new Set(['pen']) }))).toEqual([
-      { id: 'pen', name: 'Pen', blurb: 'A fine ballpoint. Earl will want it back.' }
+      { id: 'pen', name: "Earl's pen", blurb: 'A fine ballpoint. Earl will want it back.' }
     ]);
   });
 
-  it('falls back to the name alone when an item has no blurb', () => {
-    expect(withYou(fakeSession({ taken: new Set(['scout']) }))).toEqual([{ id: 'scout', name: 'Scout', blurb: undefined }]);
+  it('falls back to the id verbatim, no title-casing, when an item has no `name`', () => {
+    expect(withYou(fakeSession({ taken: new Set(['scout']) }))).toEqual([{ id: 'scout', name: 'scout', blurb: undefined }]);
   });
 
-  it('never lists an item neither taken nor flagged', () => {
-    const flags = new Flags(['hasPen', 'gotDog']);
-    flags.set('gotDog');
-    // Only scout's flag is set; pen stays off the list.
-    expect(withYou(fakeSession({ flags }))).toEqual([{ id: 'scout', name: 'Scout', blurb: undefined }]);
+  it('drops a taken item off the list once its `until` flag is set', () => {
+    const flags = new Flags(['hasPen', 'gotDog', 'done']);
+    flags.set('done');
+    expect(withYou(fakeSession({ taken: new Set(['pen']), flags }))).toEqual([]);
   });
 
-  it('lists the held carry-verb token ahead of any items, by its blurb off the `give` fixture', () => {
+  it('keeps a taken item with no `until` on the list forever', () => {
+    const flags = new Flags(['hasPen', 'gotDog', 'done']);
+    flags.set('done');
+    expect(withYou(fakeSession({ taken: new Set(['scout']), flags }))).toEqual([
+      { id: 'scout', name: 'scout', blurb: undefined }
+    ]);
+  });
+
+  it('lists the held carry-verb token ahead of any items, by its name and blurb off the `give` fixture', () => {
     const maps = {
       town: fakeMap({
         fixtures: [
-          { kind: 'woodpile', pos: [5, 7], give: 'log', heldBlurb: 'A split log, still cold from the pile.' }
+          {
+            kind: 'woodpile',
+            pos: [5, 7],
+            give: 'log',
+            heldName: 'A split log',
+            heldBlurb: 'A split log, still cold from the pile.'
+          }
         ]
       })
     };
     expect(withYou(fakeSession({ maps, held: 'log' }))).toEqual([
-      { id: 'log', name: 'Log', blurb: 'A split log, still cold from the pile.' }
+      { id: 'log', name: 'A split log', blurb: 'A split log, still cold from the pile.' }
     ]);
   });
 
-  it('shows the held token by name alone when its fixture has no blurb', () => {
+  it('falls back to the token id verbatim when its fixture has no `heldName`', () => {
     const maps = { town: fakeMap({ fixtures: [{ kind: 'woodpile', pos: [5, 7], give: 'log' }] }) };
-    expect(withYou(fakeSession({ maps, held: 'log' }))).toEqual([{ id: 'log', name: 'Log', blurb: undefined }]);
+    expect(withYou(fakeSession({ maps, held: 'log' }))).toEqual([{ id: 'log', name: 'log', blurb: undefined }]);
   });
 
-  it('shows the held token by name alone when the giving fixture is nowhere on the map', () => {
-    expect(withYou(fakeSession({ held: 'log' }))).toEqual([{ id: 'log', name: 'Log', blurb: undefined }]);
+  it('falls back to the token id verbatim when the giving fixture is nowhere on the map', () => {
+    expect(withYou(fakeSession({ held: 'log' }))).toEqual([{ id: 'log', name: 'log', blurb: undefined }]);
   });
 
   it('finds the `give` fixture through an active overlay, not just the base map', () => {
@@ -142,19 +160,14 @@ describe('withYou', () => {
         map: 'town',
         requires: ['flooded'],
         tiles: [],
-        fixtures: [{ kind: 'woodpile', pos: [9, 9], give: 'sandbag', heldBlurb: 'Heavier than it looks.' }]
+        fixtures: [{ kind: 'woodpile', pos: [9, 9], give: 'sandbag', heldName: 'A sandbag', heldBlurb: 'Heavier than it looks.' }]
       }
     ];
-    const flags = new Flags(['hasPen', 'gotDog', 'flooded']);
+    const flags = new Flags(['hasPen', 'gotDog', 'done', 'flooded']);
     flags.set('flooded');
     const episode: Episode = { id: 'ep', title: 'Ep', flags: ['flooded'], npcs: [], overlays };
     expect(withYou(fakeSession({ episode, flags, held: 'sandbag' }))).toEqual([
-      { id: 'sandbag', name: 'Sandbag', blurb: 'Heavier than it looks.' }
+      { id: 'sandbag', name: 'A sandbag', blurb: 'Heavier than it looks.' }
     ]);
-  });
-
-  it('title-cases a hyphenated id for both the held token and an item', () => {
-    const maps = { town: fakeMap({ fixtures: [{ kind: 'woodpile', pos: [5, 7], give: 'mill-pond-log' }] }) };
-    expect(withYou(fakeSession({ maps, held: 'mill-pond-log' }))[0].name).toBe('Mill Pond Log');
   });
 });

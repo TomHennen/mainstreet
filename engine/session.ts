@@ -52,6 +52,16 @@ export interface Session {
   dialogueOpen: boolean;
   lastDialogueClose: number;
   locked: boolean;
+  /**
+   * True from the moment a staged scene (DESIGN.md §3, `engine/scene.ts`)
+   * starts until its last step finishes — mirrors `MapScene`'s own
+   * `this.runner !== null`, so a check elsewhere (the "with you" panel's own
+   * guard against opening mid-scene, `engine/scenes/ui.ts`) doesn't need a
+   * scene reference. Unlike `locked`, which only the travel interstitial
+   * sets, this covers a staged scene's quieter beats too — a `wait` or a walk
+   * with no dialogue box open — when input would otherwise look free.
+   */
+  sceneRunning: boolean;
   /** Shown once, on the first village the player lands in. */
   introShown: boolean;
   /**
