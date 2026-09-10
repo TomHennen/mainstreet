@@ -347,6 +347,11 @@
           "value": "#a94f2e,#8d3f22"
         },
         {
+          "name": "opaque",
+          "type": "bool",
+          "value": true
+        },
+        {
           "name": "solid",
           "type": "bool",
           "value": true
@@ -366,6 +371,11 @@
           "name": "colors",
           "type": "string",
           "value": "#5b4632,#6d5138"
+        },
+        {
+          "name": "opaque",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "solid",
@@ -726,6 +736,11 @@
           "name": "colors",
           "type": "string",
           "value": "#a94f2e,#a94f2e"
+        },
+        {
+          "name": "opaque",
+          "type": "bool",
+          "value": true
         },
         {
           "name": "solid",

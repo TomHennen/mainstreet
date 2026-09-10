@@ -2,7 +2,7 @@
 // needs under Node's type stripping (see that file's header).
 import { rectsOverlap } from './edges.ts';
 import { findPath } from './path.ts';
-import { offsetsWithin, REACH } from './reach.ts';
+import { clearBetween, offsetsWithin, REACH } from './reach.ts';
 import { canCoOccur, combinations, overlapsIn, patchFor, withOverlays } from './overlay.ts';
 import {
   BUILDS,
@@ -210,7 +210,9 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
     // It is read from within a prop's reach (engine/reach.ts), so it needs
     // somewhere that close to be read from — the tile itself where that is
     // walkable, and otherwise a tile beside it or two tiles straight on,
-    // which is how a shelf on the back wall is read across the counter.
+    // which is how a shelf on the back wall is read across the counter. Two
+    // tiles on with a wall between is the other side of the wall, and does
+    // not count (`clearBetween`).
     for (const sign of map.signs ?? []) {
       const where = `map "${mapId}" sign at ${sign.pos.join(',')}`;
       const [sx, sy] = sign.pos;
@@ -221,7 +223,10 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
       if (!sign.lines?.length || sign.lines.some((line) => typeof line !== 'string' || !line.trim())) {
         problems.push(`${where} has nothing to read on it`);
       }
-      const reachable = [[0, 0], ...offsetsWithin(REACH.prop)].some(([dx, dy]) => !isSolid(map, sx + dx, sy + dy));
+      const opaque = (x: number, y: number) => isOpaque(map, x, y);
+      const reachable = [[0, 0], ...offsetsWithin(REACH.prop)].some(
+        ([dx, dy]) => !isSolid(map, sx + dx, sy + dy) && clearBetween([sx + dx, sy + dy], [sx, sy], opaque)
+      );
       if (!reachable) problems.push(`${where} has nowhere beside it to read it from`);
     }
 
@@ -1391,4 +1396,17 @@ export function isSolid(map: GameMap, x: number, y: number): boolean {
   return map.buildings.some(
     (b) => x >= b.pos[0] && x < b.pos[0] + b.size[0] && y >= b.pos[1] && y < b.pos[1] + b.size[1]
   );
+}
+
+/**
+ * The single definition of "you cannot see through here", shared the same
+ * way: a cell is opaque if any layer's tile there carries `opaque`
+ * (engine/tiled.ts). It is what `clearBetween` (engine/reach.ts) asks, so a
+ * thing two tiles off through a wall is out of reach in the scene and
+ * unreadable to the validator alike. Off the map counts as opaque too.
+ */
+export function isOpaque(map: GameMap, x: number, y: number): boolean {
+  if (x < 0 || y < 0 || x >= map.width || y >= map.height) return true;
+  const index = y * map.width + x;
+  return map.layers.some((layer) => layer.cells[index]?.opaque === true);
 }

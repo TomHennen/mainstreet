@@ -30,7 +30,7 @@ import { patchFor, withOverlays } from '../overlay';
 import { Driver, DRIVE_FACTOR } from '../vehicle';
 import { findPath, pathToTile } from '../path';
 import { autosave } from '../progress';
-import { REACH } from '../reach';
+import { clearBetween, REACH } from '../reach';
 import { introLineFor } from '../season';
 import { SceneRunner, sceneTriggered } from '../scene';
 import type { SceneDriver } from '../scene';
@@ -49,7 +49,7 @@ import {
   smallTalkFor,
   vehiclesOn
 } from '../session';
-import { driveable, isSolid, moverWalkable } from '../validate';
+import { driveable, isOpaque, isSolid, moverWalkable } from '../validate';
 import { lookOf, plaqueTile, SCENE_PLAYER, SCENE_VEHICLE } from '../schema';
 import type { PlateBox } from '../art';
 import type {
@@ -831,11 +831,15 @@ export class MapScene extends Phaser.Scene {
     const state = session();
     const held = state.locked || state.dialogueOpen;
     const me = this.centre();
+    const from = this.startTile();
     const reach = this.map.kind === 'interior' ? REACH.npcInterior : REACH.npcVillage;
     const dt = delta / 1000;
 
     for (const walker of this.walkers) {
-      const near = Math.hypot(me.x - (walker.mover.x + 0.5), me.y - (walker.mover.y + 0.5)) <= reach;
+      // Near enough to talk to, and not through a wall (`inReach`, below).
+      const near =
+        Math.hypot(me.x - (walker.mover.x + 0.5), me.y - (walker.mover.y + 0.5)) <= reach &&
+        clearBetween(from, walker.mover.tile(), this.opaque);
       if (near && walker.mover.walks && !walker.mover.busy) walker.mover.faceToward(me.x, me.y);
       walker.mover.update(dt, {
         held: held || near,
@@ -1109,6 +1113,20 @@ export class MapScene extends Phaser.Scene {
     return Math.hypot(me.x - (at[0] + 0.5), me.y - (at[1] + 0.5));
   }
 
+  /** What the map says cannot be seen or reached through (engine/tiled.ts `opaque`). */
+  private readonly opaque = (x: number, y: number): boolean => isOpaque(this.map, x, y);
+
+  /**
+   * The one meaning of "in reach", for everything A acts on and everything a
+   * tap walks up to: close enough, centre to centre, *and* nothing opaque on
+   * the line between (engine/reach.ts). Reach on its own is a distance and
+   * would read a shelf through the wall behind it; a counter is solid but
+   * not opaque, so the shelf behind that is still read across it.
+   */
+  private inReach(at: Vec2, reach: number): boolean {
+    return this.distance(at) <= reach && clearBetween(this.startTile(), at, this.opaque);
+  }
+
   /**
    * Nearest candidate wins, each kind judged against its own reach. Standing
    * beside somebody must never swallow the door you are walking up to; ties go
@@ -1121,8 +1139,8 @@ export class MapScene extends Phaser.Scene {
 
     // `at` is where the bubble floats; `from` is what the reach is measured to.
     const consider = (target: Target, reach: number, rank: number, from: Vec2 = target.at) => {
+      if (!this.inReach(from, reach)) return;
       const dist = this.distance(from);
-      if (dist > reach) return;
       if (dist < bestDist || (dist === bestDist && rank < bestRank)) {
         best = target;
         bestDist = dist;
@@ -1224,8 +1242,13 @@ export class MapScene extends Phaser.Scene {
     if (!route && target) {
       // Somebody behind a counter has no free tile beside them, and is still
       // perfectly easy to talk to across it. Failing that, stand anywhere the
-      // A button would reach them from — the same reach findTarget() uses.
-      route = findPath(start, (x, y) => Math.hypot(x - goal[0], y - goal[1]) <= reach, walkable);
+      // A button would reach them from — the same reach findTarget() uses,
+      // walls and all: across the counter, never through the wall behind.
+      route = findPath(
+        start,
+        (x, y) => Math.hypot(x - goal[0], y - goal[1]) <= reach && clearBetween([x, y], goal, this.opaque),
+        walkable
+      );
     }
     if (!route?.length) return false;
 
@@ -1516,8 +1539,7 @@ export class MapScene extends Phaser.Scene {
         // still costs nothing to check: near enough to say hello is near
         // enough, and otherwise the walk is aimed at them once more.
         const at = follow.mover.tile();
-        const me = this.centre();
-        if (Math.hypot(me.x - (at[0] + 0.5), me.y - (at[1] + 0.5)) > this.walkReach) {
+        if (!this.inReach(at, this.walkReach)) {
           this.reaim(follow);
           return moved;
         }

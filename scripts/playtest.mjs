@@ -35,7 +35,7 @@ import { encode } from '../studio/codec.ts';
 // what decides the intro's first line in the browser, so the harness imports
 // the real thing rather than re-implementing the calendar logic here.
 import { introLineFor } from '../engine/season.ts';
-import { offsetsWithin, REACH } from '../engine/reach.ts';
+import { clearBetween, offsetsWithin, REACH } from '../engine/reach.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = process.env.PLAYTEST_URL ?? 'http://localhost:5173/';
@@ -72,17 +72,18 @@ const GAME_URL = `${BASE}?episode=${encodeURIComponent(PLAYTEST_EPISODE)}`;
 /**
  * The tile grids are Tiled files (DESIGN.md §2). This reads them the way the
  * engine does — every visible tile layer, gids masked of their flip flags,
- * `solid` off the tileset's per-tile properties — deliberately as a second
- * implementation, so a harness that walks where the engine will not walk is a
- * failure rather than a shared bug. Each map metadata block in world.json
- * gains `width`, `height` and a solidity grid here.
+ * `solid` and `opaque` off the tileset's per-tile properties — deliberately
+ * as a second implementation, so a harness that walks where the engine will
+ * not walk is a failure rather than a shared bug. Each map metadata block in
+ * world.json gains `width`, `height`, a solidity grid and an opacity grid
+ * here.
  */
 const GID_MASK = 0x1fffffff;
 for (const [mapId, map] of Object.entries(WORLD.maps)) {
   const file = resolve(PACK, 'maps', `${mapId}.json`);
   const tiled = readJson(file);
   const solidGid = new Set();
-  const kindGid = new Map();
+  const opaqueGid = new Set();
   // Which local tile ids are solid, per tileset: an overlay names a tile that
   // way rather than by gid (DESIGN.md §3), so both spellings are kept.
   map.id = mapId;
@@ -95,21 +96,21 @@ for (const [mapId, map] of Object.entries(WORLD.maps)) {
         solidGid.add(ref.firstgid + tile.id);
         ids.add(tile.id);
       }
-      kindGid.set(ref.firstgid + tile.id, tile.type ?? '');
+      if (tile.properties?.some((p) => p.name === 'opaque' && p.value === true)) opaqueGid.add(ref.firstgid + tile.id);
     }
     map.tilesetSolid.set(tileset.name, ids);
   }
   map.width = tiled.width;
   map.height = tiled.height;
   map.solid = new Array(tiled.width * tiled.height).fill(false);
-  // The kind of the topmost tile in each cell, for telling a wall from a
-  // counter: both are solid, but only one is read across.
-  map.kinds = new Array(tiled.width * tiled.height).fill('');
+  // What cannot be seen through, for telling a wall from a counter: both are
+  // solid, but only one is read across (engine/reach.ts `clearBetween`).
+  map.opaque = new Array(tiled.width * tiled.height).fill(false);
   for (const layer of tiled.layers) {
     if (layer.type !== 'tilelayer' || layer.visible === false) continue;
     layer.data.forEach((gid, i) => {
       if (solidGid.has(gid & GID_MASK)) map.solid[i] = true;
-      if (gid & GID_MASK) map.kinds[i] = kindGid.get(gid & GID_MASK) ?? '';
+      if (opaqueGid.has(gid & GID_MASK)) map.opaque[i] = true;
     });
   }
 }
@@ -141,6 +142,12 @@ function noteOverlays(episode, flags) {
       if (overlayTileSolid(map, paint.tile)) overlaySolid.add(`${overlay.map},${paint.pos[0]},${paint.pos[1]}`);
     }
   }
+}
+
+/** Mirrors engine/validate.ts isOpaque(): off the map counts as opaque too. */
+function isOpaque(map, x, y) {
+  if (x < 0 || y < 0 || x >= map.width || y >= map.height) return true;
+  return map.opaque[y * map.width + x];
 }
 
 /** Mirrors engine/validate.ts isSolid(), plus whatever an overlay has painted. */
@@ -549,17 +556,13 @@ function readSpotFor(mapId, sign, from) {
     );
   };
   // A shelf is read across the counter in front of it, never through the
-  // wall behind it: two tiles off with a wall in between is the other side
-  // of the wall, whatever the reach says.
-  const throughWall = ([x, y]) => {
-    const [mx, my] = [sx + Math.sign(x - sx), sy + Math.sign(y - sy)];
-    return (Math.abs(x - sx) === 2 || Math.abs(y - sy) === 2) && map.kinds?.[my * map.width + mx] === 'wall';
-  };
+  // wall behind it: two tiles off with something opaque in between is the
+  // other side of the wall, whatever the reach says — the engine's own rule
+  // (engine/reach.ts `clearBetween`), over the harness's own opacity grid.
+  const clear = (tile) => clearBetween(tile, [sx, sy], (x, y) => isOpaque(map, x, y));
   return [...beside, ...further]
     .map(([dx, dy]) => [sx + dx, sy + dy])
-    .find(
-      (tile) => !isSolid(map, tile[0], tile[1]) && !throughWall(tile) && winsFrom(tile) && findPath(mapId, from, tile) !== null
-    );
+    .find((tile) => !isSolid(map, tile[0], tile[1]) && clear(tile) && winsFrom(tile) && findPath(mapId, from, tile) !== null);
 }
 
 /**

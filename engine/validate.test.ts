@@ -21,9 +21,9 @@ const TILESET = {
   image: 'test.png',
   tilewidth: 16,
   tileheight: 16,
-  columns: 3,
-  tilecount: 3,
-  imagewidth: 48,
+  columns: 4,
+  tilecount: 4,
+  imagewidth: 64,
   imageheight: 16,
   tiles: [
     {
@@ -55,11 +55,23 @@ const TILESET = {
         { name: 'solid', type: 'bool', value: false },
         { name: 'style', type: 'string', value: 'flat' }
       ]
+    },
+    // A wall proper: solid, and `opaque` too, so nothing is read or reached
+    // through it — where the plain solid tile above is a counter, read across.
+    {
+      id: 3,
+      type: 'wall',
+      properties: [
+        { name: 'colors', type: 'string', value: '#222' },
+        { name: 'opaque', type: 'bool', value: true },
+        { name: 'solid', type: 'bool', value: true },
+        { name: 'style', type: 'string', value: 'flat' }
+      ]
     }
   ]
 };
 
-/** `.` walkable, `#` solid, `=` paved and drivable — one `ground` layer. */
+/** `.` walkable, `#` solid, `W` solid and opaque, `=` paved and drivable — one `ground` layer. */
 function tiledMap(rows: string[]) {
   const height = rows.length;
   const width = height ? rows[0].length : 0;
@@ -79,7 +91,7 @@ function tiledMap(rows: string[]) {
         visible: true,
         width,
         height,
-        data: rows.flatMap((row) => [...row].map((ch) => (ch === '#' ? 2 : ch === '=' ? 3 : 1)))
+        data: rows.flatMap((row) => [...row].map((ch) => (ch === '#' ? 2 : ch === '=' ? 3 : ch === 'W' ? 4 : 1)))
       }
     ]
   };
@@ -639,6 +651,40 @@ describe('validateWorld', () => {
     const world = makeWorld({
       maps: {
         town: makeMap({ signs: [{ pos: [3, 3], lines: ['Bottles, behind the counter.'] }] }, ['.....', '.....', '#####', '#####', '#####'])
+      }
+    });
+    expect(runWorld(world)).toEqual([]);
+  });
+
+  // Reach is a distance, and two rooms can sit back to back with one wall
+  // between them; the sign is still only readable from its own side
+  // (engine/reach.ts `clearBetween`, over the tileset's `opaque`).
+  it('flags a map sign whose only reading spot is two tiles away through an opaque wall', () => {
+    const throughWall = makeWorld({
+      maps: {
+        town: makeMap(
+          { signs: [{ pos: [2, 3], lines: ['A shelf, seen from the wrong room.'] }] },
+          ['.....', '.....', 'WWWWW', '#####', '#####']
+        )
+      }
+    });
+    expect(runWorld(throughWall).join('\n')).toContain('sign at 2,3 has nowhere beside it to read it from');
+    // The same shelf with a counter between instead is read across it.
+    const acrossCounter = makeWorld({
+      maps: {
+        town: makeMap(
+          { signs: [{ pos: [2, 3], lines: ['A shelf, across the counter.'] }] },
+          ['.....', '.....', '#####', '#####', '#####']
+        )
+      }
+    });
+    expect(runWorld(acrossCounter)).toEqual([]);
+  });
+
+  it('accepts a map sign hung on an opaque wall, read from beside it', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({ signs: [{ pos: [2, 2], lines: ['A note pinned to the wall.'] }] }, ['.....', '.....', 'WWWWW', '#####'])
       }
     });
     expect(runWorld(world)).toEqual([]);

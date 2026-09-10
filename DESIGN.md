@@ -63,6 +63,9 @@ path written in the data. What it expects of the file (all of it enforced in
 water, wall, floor, counter, mat — which is there for the person editing the
 map; the engine never branches on it. What the engine reads is Tiled custom
 properties: `solid` (bool, default false — the only source of tile collision),
+`opaque` (bool, default false — nothing is seen, read or reached through the
+tile, so a wall is; a counter, solid as it is, is not, and is read and talked
+across — see engine/reach.ts `clearBetween`),
 `style`, `colors` (comma-separated hex), optional `base` (a flat fill painted
 under the recipe) and optional `edge` (the colour of a front face painted along
 the bottom of the cell, for a surface raised above the ground plane — the near

@@ -1,5 +1,8 @@
 route10.json is the Tiled tileset: the tile ids, their kinds and their
-`solid` flags. Open it in Tiled to paint the maps in ../../maps/.
+`solid` flags. Open it in Tiled to paint the maps in ../../maps/. The three
+wall tiles (ids 14, 15 and 30) also carry `opaque`: nothing is read, talked
+to or reached through them, where a counter or a shelf, solid as it is, is
+read across.
 
 route10.png is the sheet it names, and it does not exist yet — until it does,
 the engine draws each tile from the `style`/`colors` properties in the JSON.
