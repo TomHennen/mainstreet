@@ -1317,23 +1317,22 @@ async function main() {
       } else {
         log('  wander off into the woods');
         const map = WORLD.maps[start.map];
-        const onExit = exitTiles(map);
-        const onEdge = new Set();
-        for (const e of map.edges ?? []) {
-          for (let x = e.at[0]; x < e.at[0] + e.at[2]; x++) {
-            for (let y = e.at[1]; y < e.at[1] + e.at[3]; y++) onEdge.add(`${x},${y}`);
-          }
-        }
-        // Mirrors engine/edges.ts's own QUIET_KINDS and lostAt(): a boundary
-        // tile of bare ground, with no `exits` or `edges` entry standing on
-        // it already — a road at the edge is a road end, and says so instead.
+        // Mirrors engine/edges.ts's own QUIET_KINDS, SHOULDER and nearRect():
+        // a boundary tile of bare ground, not within SHOULDER tiles of any
+        // `exits` or `edges` rectangle — a landing spot one tile off a doorway
+        // out of town is still the road, not the woods (see lostAt() there).
         const QUIET_KINDS = new Set(['grass', 'tree', 'flowers']);
+        const SHOULDER = 1;
+        const nearRect = (at, x, y, margin) =>
+          x >= at[0] - margin && x < at[0] + at[2] + margin && y >= at[1] - margin && y < at[1] + at[3] + margin;
         const candidates = [];
         for (let y = 0; y < map.height; y++) {
           for (let x = 0; x < map.width; x++) {
             if (x !== 0 && y !== 0 && x !== map.width - 1 && y !== map.height - 1) continue;
             if (!QUIET_KINDS.has(map.kind[y * map.width + x])) continue;
-            if (isSolid(map, x, y) || onExit.has(`${x},${y}`) || onEdge.has(`${x},${y}`)) continue;
+            if (isSolid(map, x, y)) continue;
+            if (map.exits.some((exit) => nearRect(exit.at, x, y, SHOULDER))) continue;
+            if ((map.edges ?? []).some((edge) => nearRect(edge.at, x, y, SHOULDER))) continue;
             candidates.push([x, y]);
           }
         }
