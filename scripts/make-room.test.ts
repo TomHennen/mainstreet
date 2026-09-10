@@ -572,6 +572,7 @@ describe('the rooms route10 ships', () => {
 
   for (const id of [
     'stamford-coffee-interior',
+    'stamford-coffee-kitchen',
     'eighty-main-interior',
     'the-belvedere-interior',
     'the-belvedere-yard'

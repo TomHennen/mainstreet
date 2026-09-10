@@ -161,9 +161,8 @@ npm run make-room -- route10 stamford-coffee-interior \
 
 A room need not be a rectangle: `plan` lists the floor as rectangles inside
 `size`, and everything outside their union is wall — Stamford Coffee is a
-cafe with a bay for its hallway and the kitchen as a wing above its top
-wall, one map with a steel door tile in the wall between them rather than
-two maps and a transition.
+cafe with a bay for its hallway up the left, and the kitchen door is an
+`exit` cut through the bay's own inside wall.
 
 The spec lives in the world pack at `rooms/<map id>.json` — data, like
 everything else in a pack, and read by nothing at run time — so a room can be
@@ -1109,8 +1108,9 @@ Hobart — "Jewel of the West Branch."
   (maple, liquid smoke, sea salt); the shop attached next door is
   `eighty-main`, below, reached through an open doorway inside. A hallway
   in the room's upper left passes the two bathrooms and ends at a steel
-  door into the kitchen — part of the same map, a wing above the cafe's top
-  wall — open plan, where the baker **Solveig** (fictional) makes the lemon shortbread cookies people
+  door into the kitchen (`stamford-coffee-kitchen`, its own room, entered
+  through that door — Tom prefers it not drawn with the cafe), open plan,
+  where the baker **Laura** (fictional) makes the lemon shortbread cookies people
   can't get enough of and builds custom cakes, mostly late at night — her
   own business, unnamed, run out of the shop's kitchen after hours by
   arrangement, not a Stamford Coffee employee; bottles

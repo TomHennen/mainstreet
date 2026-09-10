@@ -1269,6 +1269,22 @@
           "style": "door"
         },
         {
+          "id": "stamford-coffee-to-kitchen",
+          "at": [
+            4,
+            2,
+            1,
+            1
+          ],
+          "to": "stamford-coffee-kitchen",
+          "spawn": [
+            1,
+            4
+          ],
+          "facing": "right",
+          "style": "door"
+        },
+        {
           "id": "stamford-coffee-to-eighty-main",
           "at": [
             19,
@@ -1304,56 +1320,6 @@
           "lines": [
             "The other one, just the same, with a changing table folded against the wall and a stack of the good paper towels.",
             "Whichever is free is yours."
-          ]
-        },
-        {
-          "pos": [
-            6,
-            1
-          ],
-          "lines": [
-            "The oven, two big decks of it, ticking as it warms. Whatever is in it, the whole kitchen smells of it.",
-            "Solveig keeps a timer on a string round her neck, and has never once needed it."
-          ]
-        },
-        {
-          "pos": [
-            9,
-            1
-          ],
-          "lines": [
-            "Steel work tables all along the wall: the big stand mixer, a scale that weighs to the gram, and a bench scraper worn smooth from years of good use.",
-            "The recipes are on index cards in a tin, and the cards are older than some of the customers."
-          ]
-        },
-        {
-          "pos": [
-            13,
-            1
-          ],
-          "lines": [
-            "Two fridges and a chest freezer, humming in three different keys: butter by the case, eggs by the flat, cream, and a tub of lemon curd for tomorrow.",
-            "Everything in here is going to be a cookie or a cake by the end of the week."
-          ]
-        },
-        {
-          "pos": [
-            18,
-            3
-          ],
-          "lines": [
-            "The cake table, where the custom cakes get built: a turntable, offset spatulas, a rack of food colours. There's a sketch taped up of somebody's birthday cake, three tiers, and it's going to be exactly that.",
-            "Weddings, birthdays, a retirement, a dog's first birthday once. If you can describe it, it gets made."
-          ]
-        },
-        {
-          "pos": [
-            6,
-            5
-          ],
-          "lines": [
-            "A rolling rack of trays, cooling: lemon shortbread cookies, every tray of them. People can't get enough — they go out front by the dozen and they're gone.",
-            "Buttery, a little sharp, sugar on top. One is never the number."
           ]
         },
         {
@@ -1446,13 +1412,91 @@
             "That's my record on. Have a flip through the crates by the player if you like — there's always something good in there.",
             "Take your time picking a table. The big doorway on the right goes straight through to 80 Main, and the bathrooms are up the hallway in the corner on the left — the steel door off it is the kitchen."
           ]
+        }
+      ]
+    },
+    "stamford-coffee-kitchen": {
+      "name": "Stamford Coffee Kitchen",
+      "kind": "interior",
+      "buildings": [],
+      "labels": [],
+      "exits": [
+        {
+          "id": "stamford-coffee-kitchen-exit",
+          "at": [
+            0,
+            4,
+            1,
+            2
+          ],
+          "to": "stamford-coffee-interior",
+          "spawn": [
+            3,
+            2
+          ],
+          "facing": "left",
+          "style": "door"
+        }
+      ],
+      "signs": [
+        {
+          "pos": [
+            2,
+            1
+          ],
+          "lines": [
+            "The oven, two big decks of it, ticking as it warms. Whatever is in it, the whole kitchen smells of it.",
+            "Laura keeps a timer on a string round her neck, and has never once needed it."
+          ]
         },
         {
-          "id": "stamford-coffee-baker",
-          "name": "Solveig",
           "pos": [
-            11,
+            5,
+            1
+          ],
+          "lines": [
+            "Steel work tables all along the wall: the big stand mixer, a scale that weighs to the gram, and a bench scraper worn smooth from years of good use.",
+            "The recipes are on index cards in a tin, and the cards are older than some of the customers."
+          ]
+        },
+        {
+          "pos": [
+            9,
+            1
+          ],
+          "lines": [
+            "Two fridges and a chest freezer, humming in three different keys: butter by the case, eggs by the flat, cream, and a tub of lemon curd for tomorrow.",
+            "Everything in here is going to be a cookie or a cake by the end of the week."
+          ]
+        },
+        {
+          "pos": [
+            10,
             4
+          ],
+          "lines": [
+            "The cake table, where the custom cakes get built: a turntable, offset spatulas, a rack of food colours. There's a sketch taped up of somebody's birthday cake, three tiers, and it's going to be exactly that.",
+            "Weddings, birthdays, a retirement, a dog's first birthday once. If you can describe it, it gets made."
+          ]
+        },
+        {
+          "pos": [
+            2,
+            7
+          ],
+          "lines": [
+            "A rolling rack of trays, cooling: lemon shortbread cookies, every tray of them. People can't get enough — they go out front by the dozen and they're gone.",
+            "Buttery, a little sharp, sugar on top. One is never the number."
+          ]
+        }
+      ],
+      "people": [
+        {
+          "id": "stamford-coffee-baker",
+          "name": "Laura",
+          "pos": [
+            6,
+            5
           ],
           "facing": "down",
           "look": {

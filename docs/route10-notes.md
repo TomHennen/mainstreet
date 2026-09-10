@@ -182,9 +182,10 @@ readable as the whole set. The doorway to 80 Main is a two-tile-tall open
 gap in the right wall at rows 6–7, matched by the same gap in 80 Main's left
 wall, so the two rooms read as one opening.
 
-*Tom, Sep 10 2026 (built Sep 2026, corrected twice the same day):* the
-kitchen and the bathrooms are **part of the coffee shop's own map — one
-map, not a rectangle, no transition**. Tom's sketch (B = bathroom door):
+*Tom, Sep 10 2026 (built Sep 2026, corrected three times the same day):*
+the coffee shop's map is **not a rectangle**: the hallway is a bay off the
+cafe's top-left, and the kitchen is off that hallway. Tom's sketch (B =
+bathroom door):
 
 ```
 xBxxBxxx
@@ -199,20 +200,23 @@ x
 
 A walkway runs up the left side of the cafe into a hallway in the top-left
 corner; the **two bathroom doors are in the hallway's top wall**; the
-**kitchen is to the right of the hallway, above the cafe's top wall**,
-through a **steel door** in the wall between them; the counter is below,
-running all the way to the right wall with the opening at its left end.
-"You're stuck because you want to keep the interior a square. That is a
-mistake." On the right side of the counter, **bottles on display behind
-it**: beers and wine to buy and take home (readable only for now, like the
-fridge).
+**kitchen is to the right of the hallway**, through a **steel door** in the
+hallway's wall; the counter is below, running all the way to the right wall
+with the opening at its left end. "You're stuck because you want to keep the
+interior a square. That is a mistake." Then, the same day, on seeing the
+kitchen drawn in the cafe's map: **"I prefer the kitchen as its own room you
+have to enter and not have it rendered with the rest of it"** — so the
+kitchen is its own map again, entered through the steel door, and the cafe
+keeps its non-rectangular shape for the hallway bay. On the right side of
+the counter, **bottles on display behind it**: beers and wine to buy and
+take home (readable only for now, like the fridge).
 
 The kitchen is **open plan — no counter the baker stands behind, that is not
 how kitchens work**: work tables round the perimeter, an oven, fridges and
 freezers, the middle left open, and the baker moving freely about it with
 the player. She may not always be there; an empty kitchen is fine. She is
-**Solveig** (invented; the first name tried was too close to the real
-baker's), silver hair in a bun. She makes **lemon shortbread cookies**,
+**Laura** (Tom's own choice for the name; the first one tried was too
+close to the real baker's), silver hair in a bun. She makes **lemon shortbread cookies**,
 which people can't get enough of, and **custom cakes**, and she is more
 likely to be found there **late at night** than early in the morning. **The
 baker runs her own business out of this kitchen** (Tom, Sep 10): she is not
@@ -223,15 +227,17 @@ stays unnamed (hard rule 5).
 As built (`worlds/route10/rooms/stamford-coffee-interior.json`, a 20×18
 box with a `plan` — see DESIGN.md §2): the hallway bay is x1–3, rows 1–6,
 open into the cafe at row 7, with the bathroom doors in the top wall at
-[1,0] and [3,0]; the steel door is the tile at [4,2] in the dividing wall;
-the kitchen is x5–18, rows 1–5 — the oven, a steel work table and the two
-fridges and chest freezer along its top wall, the cake table down its right
-wall, the cooling rack (lemon shortbread) by its bottom wall, the middle
-open for Solveig, who wanders it; the cafe is x1–18, rows 7–16, with the
+[1,0] and [3,0] and the steel door at [4,2] in the bay's right-hand wall —
+an exit into the kitchen's own map; the cafe is x1–18, rows 7–16, with the
 counter on row 8 and Ronnie, the coffee-maker shelf, the menu board and the
 bottle shelf in the strip behind it, the record player and the LP crates
-down the left wall, the tables, the fridge by the door. Nothing is bought
-yet.
+down the left wall, the tables, the fridge by the door. The kitchen
+(`stamford-coffee-kitchen`, 12×9, spec
+`worlds/route10/rooms/stamford-coffee-kitchen.json`, door in its left wall
+onto the hallway): the oven, a steel work table and the two fridges and
+chest freezer along its top wall, the cake table down its right wall, the
+cooling rack (lemon shortbread) by its bottom wall, the middle open for
+Laura, who wanders it. Nothing is bought yet.
 
 **80 Main interior (Tom, Sep 2026; built Sep 2026).** High-end goods, lots
 of Catskills-logo wear. They once (maybe still do) sold a high-end coffee

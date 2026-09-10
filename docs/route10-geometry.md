@@ -411,20 +411,28 @@ Stewart's, and the reason a room's door reads as a door.
   `plan` — the floor is a union of rectangles and everything outside it is
   wall (DESIGN.md §2). The cafe is x1–18, rows 7–16, entered from the
   bottom; a walkway up its left side leads into a hallway bay in the top
-  left (x1–3, rows 1–6) with the **two bathroom doors in its top wall**;
-  the **kitchen** (x5–18, rows 1–5) sits above the cafe's top wall, to the
-  right of the hallway, through a **steel door** in the one-cell gap of the
-  dividing wall at [4,2] — same map, no transition. The counter runs along
-  the cafe's top wall all the way to the right wall, with Ronnie, the
-  coffee-maker collection, the menu board and a shelf of bottles (beer and
-  wine to take home) in the strip behind it; the record player and the
-  crates of LPs down the left wall; tables in two clusters either side of
-  the aisle from the door; the self-serve fridge up front by the door; and,
-  in the **right** wall, a two-tile open doorway straight through into **80
-  Main**'s own room. The kitchen is open plan: the oven, a steel work table
-  and two fridges and a chest freezer along its top wall, the cake table
-  down its right wall, the cooling rack by its bottom wall, and the middle
-  left clear for Solveig the baker, who wanders it.
+  left (x1–3, rows 1–6) with the **two bathroom doors in its top wall** and
+  the **steel kitchen door** cut through the bay's right-hand wall at
+  [4,2]. The counter runs along the cafe's top wall all the way to the
+  right wall, with Ronnie, the coffee-maker collection, the menu board and
+  a shelf of bottles (beer and wine to take home) in the strip behind it;
+  the record player and the crates of LPs down the left wall; tables in
+  two clusters either side of the aisle from the door; the self-serve
+  fridge up front by the door; and, in the **right** wall, a two-tile open
+  doorway straight through into **80 Main**'s own room. The block above the
+  cafe's top wall is solid wall mass — the kitchen was drawn there for a
+  day, and Tom preferred it as a room of its own.
+- **Stamford Coffee Kitchen** (`stamford-coffee-kitchen`, 12 × 9, same brick
+  and floor; Sep 10 2026): its own map, entered through the steel door from
+  the hallway — Tom prefers the kitchen as a room you have to go into rather
+  than drawn with the rest of the cafe. Its door is the two-tile gap in its
+  **left** wall (in facing right, out facing left onto the hallway tile
+  beside the steel door); no street door. Open plan: the oven, a steel work
+  table and two fridges and a chest freezer along its top wall, the cake
+  table down its right wall, the cooling rack by its bottom wall, and the
+  middle left clear for Laura the baker, who wanders it. The floor is a
+  floor, not grass: the playtest tells a room from a yard by whether its
+  whole floor grows.
 - **80 Main** (14 × 12, same brick and floor): its own street door onto the
   shared patio, the counter along the back, the logo wear, the sweater rack,
   the candles and mugs round the walls, the coal coffee table in the middle
