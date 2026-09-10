@@ -303,15 +303,28 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
           problems.push(`${where} overlaps exit "${exit.id}"`);
         }
       }
-      if (!Array.isArray(edge.lines) || edge.lines.length === 0) {
-        problems.push(`${where} has no "lines"`);
+      checkSaid(edge.lines, where, problems);
+    }
+
+    // Getting lost (DESIGN.md §2): the one way off a map that is not an exit.
+    // It has to land somewhere real — a map the world has, a tile inside it
+    // that nobody would be stuck in — and say something on the way.
+    const lost = map.lost;
+    if (lost) {
+      const where = `map "${mapId}" "lost"`;
+      if (!world.maps[lost.to]) {
+        problems.push(`${where} leads to unknown map "${lost.to}"`);
       } else {
-        edge.lines.forEach((line, index) => {
-          if (typeof line !== 'string' || line.trim() === '') {
-            problems.push(`${where} line ${index} is empty`);
-          }
-        });
+        const dest = maps[lost.to];
+        // A destination with no grid is already reported against that map.
+        if (dest && checkTile(dest, lost.spawn, `${where} spawn`, problems) && isSolid(dest, lost.spawn[0], lost.spawn[1])) {
+          problems.push(`${where} spawns on a solid tile in "${lost.to}"`);
+        }
       }
+      if (!(FACINGS as readonly string[]).includes(lost.facing)) {
+        problems.push(`${where} has an unknown "facing" — expected one of ${FACINGS.join(', ')}`);
+      }
+      checkSaid(lost.lines, where, problems);
     }
   }
 
@@ -1162,6 +1175,19 @@ function checkPark(
     return false;
   }
   return true;
+}
+
+/** Something to say: a non-empty list of non-empty strings, with the reason if not. */
+function checkSaid(lines: unknown, where: string, problems: string[]): void {
+  if (!Array.isArray(lines) || lines.length === 0) {
+    problems.push(`${where} has no "lines"`);
+    return;
+  }
+  lines.forEach((line, index) => {
+    if (typeof line !== 'string' || line.trim() === '') {
+      problems.push(`${where} line ${index} is empty`);
+    }
+  });
 }
 
 /** A tile that is at least on the map and shaped like one, with the reason if not. */

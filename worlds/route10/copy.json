@@ -161,6 +161,10 @@
     "stewarts-exit": {
       "big": "HARPER STREET",
       "small": ""
+    },
+    "lost:stamford": {
+      "big": "ROUTE 10",
+      "small": "in the passenger seat of the deputy's truck, the heater going, back into the village and round the corner to STEWART'S. There's a coffee waiting for you."
     }
   },
   "_todo": {

@@ -7,7 +7,7 @@
  * `engine/edges.test.ts` exercises without a scene.
  */
 import { tileAt } from './tiled.ts';
-import type { GameMap, MapEdge, Rect } from './schema';
+import type { GameMap, MapEdge, MapLost, Rect } from './schema';
 
 const within = (at: Rect, x: number, y: number): boolean =>
   x >= at[0] && x < at[0] + at[2] && y >= at[1] && y < at[1] + at[3];
@@ -54,4 +54,20 @@ export function roadEndLine(
   const tile = tileAt(map, x, y);
   if (!tile || QUIET_KINDS.has(tile.kind)) return undefined;
   return pickByPosition(x, y, lines);
+}
+
+/**
+ * The map's `lost` entry, if walking onto this tile is walking off into the
+ * woods (DESIGN.md §2): the tile is on the map's own boundary, the ground
+ * there is the bare kind a road end stays quiet about, and nothing else —
+ * no `exits` entry, no `edges` entry — is already standing on the spot. A
+ * road at the boundary is never "lost": it is a road end, and says so.
+ */
+export function lostAt(map: GameMap, x: number, y: number): MapLost | undefined {
+  if (!map.lost) return undefined;
+  if (x !== 0 && y !== 0 && x !== map.width - 1 && y !== map.height - 1) return undefined;
+  const tile = tileAt(map, x, y);
+  if (!tile || !QUIET_KINDS.has(tile.kind)) return undefined;
+  if (map.exits.some((exit) => within(exit.at, x, y)) || edgeAt(map, x, y)) return undefined;
+  return map.lost;
 }

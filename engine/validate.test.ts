@@ -664,6 +664,41 @@ describe('validateWorld', () => {
       });
       expect(runWorld(world).join('\n')).toContain('map "town" edge "north-road" line 1 is empty');
     });
+  });
+
+  describe('lost', () => {
+    const lost = { lines: ['You got turned around.'], to: 'town', spawn: [2, 2] as [number, number], facing: 'up' as const };
+
+    it('accepts a lost entry that lands on a walkable tile of a real map', () => {
+      expect(runWorld(makeWorld({ maps: { town: makeMap({ lost }) } }))).toEqual([]);
+    });
+
+    it('flags a lost entry leading to an unknown map', () => {
+      const world = makeWorld({ maps: { town: makeMap({ lost: { ...lost, to: 'nowhere' } }) } });
+      expect(runWorld(world).join('\n')).toContain('map "town" "lost" leads to unknown map "nowhere"');
+    });
+
+    it('flags a lost entry that spawns on a solid tile', () => {
+      const world = makeWorld({ maps: { town: makeMap({ lost }, ['....', '....', '..#.', '....']) } });
+      expect(runWorld(world).join('\n')).toContain('map "town" "lost" spawns on a solid tile in "town"');
+    });
+
+    it('flags a lost entry that spawns outside its map', () => {
+      const world = makeWorld({ maps: { town: makeMap({ lost: { ...lost, spawn: [9, 9] } }) } });
+      expect(runWorld(world).join('\n')).toContain('map "town" "lost" spawn is outside the map');
+    });
+
+    it('flags a lost entry with an unknown facing', () => {
+      const world = makeWorld({ maps: { town: makeMap({ lost: { ...lost, facing: 'sideways' as never } }) } });
+      expect(runWorld(world).join('\n')).toContain('map "town" "lost" has an unknown "facing"');
+    });
+
+    it('flags a lost entry with no lines, or an empty one', () => {
+      const none = makeWorld({ maps: { town: makeMap({ lost: { ...lost, lines: [] } }) } });
+      expect(runWorld(none).join('\n')).toContain('map "town" "lost" has no "lines"');
+      const blank = makeWorld({ maps: { town: makeMap({ lost: { ...lost, lines: ['Fine.', ' '] } }) } });
+      expect(runWorld(blank).join('\n')).toContain('map "town" "lost" line 1 is empty');
+    });
 
   });
 

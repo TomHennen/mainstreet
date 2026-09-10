@@ -323,6 +323,36 @@ trees shows nothing at all, since that reads as open country rather than a
 road that ran out. A world with no `ui.roadEnd` simply shows nothing for the
 roads nobody wrote a line for (hard rule 3).
 
+**Getting lost.** That open country is the one place a village map can let
+the player actually leave: keep walking off the map's boundary over grass or
+flowers — never a road, which is a road end and says so — and, on a map with
+a `lost` entry, they have wandered into the woods:
+
+```jsonc
+"maps": {
+  "stamford": {
+    "lost": {
+      "lines": ["You keep going past the last of the houses, and the trees close in…",
+                "You call the Delaware County Sheriff's Office…"],
+      "to": "stamford", "spawn": [16, 15], "facing": "up"
+    }
+  }
+}
+```
+
+The controls lock, the narrator says `lines` in the say box, and when the
+last one is dismissed the road card plays — its copy is
+`copy.transitions["lost:<map id>"]`, the same shape every other card has —
+and the player is set down at `spawn` on `to`, facing `facing`, exactly as an
+exit would (`engine/edges.ts` `lostAt`, `MapScene.checkEdges`). Like an
+edge, it is scenery talking: no flags, no effects, nothing saved, and the
+tile never fires while a scene is playing or a box is already open. It cannot
+loop: the reset is a fresh map, so the player has to walk all the way back
+out to the trees to hear it again. The validator checks `to` names a map in
+the world, `spawn` is a tile inside that map that is not solid, `facing` is
+one of the four, and `lines` is a non-empty list of non-empty strings. A map
+without `lost` keeps its quiet boundary, as before.
+
 **The carry verbs: taking something and putting it somewhere.** A fixture may
 also hand the player a thing, and another may take it off them again. That is
 the whole mechanic — the log on the Belvedere's fire — and it is two fields:

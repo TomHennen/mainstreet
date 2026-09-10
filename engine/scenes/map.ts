@@ -20,7 +20,7 @@ import {
   vehicleTexture
 } from '../art';
 import { currentDialogue, currentToast, publishDebug, publishFlagSetter } from '../debug';
-import { edgeAt, roadEndLine } from '../edges';
+import { edgeAt, lostAt, roadEndLine } from '../edges';
 import { isHeld, onAction, onTap } from '../input';
 import { feedbackUrl } from '../feedback';
 import { improveUrl, paintUrl } from '../paint';
@@ -63,6 +63,7 @@ import type {
   GameMap,
   LightSpec,
   MapExit,
+  MapLost,
   Person,
   Vec2
 } from '../schema';
@@ -80,7 +81,8 @@ const MAX_ZOOM = 4;
 // far enough to take in a diagonal neighbour, not far enough to reach past one.
 const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 2.1, plaque: 0.75, fixture: 1.5 };
 /** How long the travel card holds, by what we are walking through. */
-const HOLD = { road: 900, enter: 500, exit: 400 };
+/** `lost` is the road card again, held a little longer: its line is a story, not a road name. */
+const HOLD = { road: 900, enter: 500, exit: 400, lost: 1600 };
 const WALK_FRAME_MS = 133;
 /** How often a walk may be re-aimed at somebody who is moving, in ms. */
 const CHASE_MS = 250;
@@ -209,8 +211,10 @@ export class MapScene extends Phaser.Scene {
   private clock = 0;
   private exitArmed = false;
   private enterArmed = false;
-  /** id of the `edges` entry (or a `road-end:<x>,<y>` key) currently shown, so it says its line once per visit rather than every frame. */
+  /** id of the `edges` entry (or a `road-end:<x>,<y>` / `lost:<x>,<y>` key) currently shown, so it says its line once per visit rather than every frame. */
   private edgeShown: string | null = null;
+  /** Where the player is being taken once the narrator's "you got lost" lines are read (DESIGN.md §2), else null. */
+  private lost: MapLost | null = null;
   private spawnX = 0;
   private spawnY = 0;
   private unbindAction: (() => void) | null = null;
@@ -264,6 +268,7 @@ export class MapScene extends Phaser.Scene {
     this.exitArmed = false;
     this.enterArmed = false;
     this.edgeShown = null;
+    this.lost = null;
     this.itemSprites = new Map();
     this.fixtureSprites = new Map();
     this.held = null;
@@ -962,6 +967,22 @@ export class MapScene extends Phaser.Scene {
     // not wait for a conversation to finish.
     this.updateWalkers(delta);
     this.updateCars(delta);
+    // Getting lost (DESIGN.md §2): the session stays locked from the moment
+    // the narrator starts until the ride back, so the box closing is the one
+    // beat that carries on — the same wait a scene's `say` step makes.
+    if (this.lost && !state.dialogueOpen) {
+      const lost = this.lost;
+      this.lost = null;
+      this.leave({
+        style: 'road',
+        hold: HOLD.lost,
+        copyKey: `lost:${this.mapId}`,
+        to: lost.to,
+        spawn: lost.spawn,
+        facing: lost.facing
+      });
+      return;
+    }
     if (state.locked || (state.dialogueOpen && !this.sceneWalk)) {
       // A card or a box means the trip is over: the walk does not pick itself
       // back up behind the player's back once they have read the line.
@@ -1797,6 +1818,12 @@ export class MapScene extends Phaser.Scene {
    * the player has actually stepped off the spot — the same arm/disarm
    * shape `checkExits` uses for its own doorstep rule, standing in for a
    * cooldown without needing a clock.
+   *
+   * Open ground at the boundary is the one place neither of those speaks,
+   * and on a map with `lost` it is where the player wanders off into the
+   * woods instead: the controls lock, the narrator says so, and the box
+   * closing sends them home (see `update`). Never over a scene that is
+   * playing, and never twice — the reset lands them on a fresh map.
    */
   private checkEdges(): void {
     const tx = Math.floor((this.px + TILE / 2) / TILE);
@@ -1821,6 +1848,21 @@ export class MapScene extends Phaser.Scene {
       if (this.edgeShown !== key) {
         this.edgeShown = key;
         bus.emit(EV.say, { speaker: session().copy.ui.narrator, lines: [line] });
+      }
+      return;
+    }
+
+    const lost = lostAt(this.map, tx, ty);
+    if (lost) {
+      const state = session();
+      if (this.runner || state.locked || state.dialogueOpen) return;
+      const key = `lost:${tx},${ty}`;
+      if (this.edgeShown !== key) {
+        this.edgeShown = key;
+        this.lost = lost;
+        state.locked = true;
+        this.stopWalk();
+        bus.emit(EV.say, { speaker: state.copy.ui.narrator, lines: lost.lines });
       }
       return;
     }

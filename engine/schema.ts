@@ -316,6 +316,25 @@ export interface MapEdge {
 }
 
 /**
+ * What happens when the player walks off the map over open ground (DESIGN.md
+ * §2) — the grass and trees at a village's edge that `edges` and `ui.roadEnd`
+ * deliberately say nothing about, because they read as open country rather
+ * than a road that ran out. Keep going into it and the narrator says `lines`
+ * in the say box; when the last one is dismissed the player is taken to `to`
+ * on the road card and set down at `spawn`, facing `facing`. It is the one
+ * way off a map that is not an exit, and like an edge it is scenery talking:
+ * no flags, no effects, nothing saved. A map without `lost` simply has a
+ * quiet boundary there, as before.
+ */
+export interface MapLost {
+  /** Narrator lines shown in the say box, then the player is sent `to`/`spawn`. */
+  lines: string[];
+  to: string;
+  spawn: Vec2;
+  facing: Facing;
+}
+
+/**
  * Everything about a map that world.json holds: its name, whether it is a
  * village or an interior, and every gameplay position on it. The tiles
  * themselves live in a Tiled file at `maps/<map id>.json` (DESIGN.md §2).
@@ -328,6 +347,8 @@ export interface MapMeta {
   exits: MapExit[];
   /** Roads that dead-end here with their own line, rather than an exit (DESIGN.md §2). */
   edges?: MapEdge[];
+  /** What happens when the player walks off the map over open ground (DESIGN.md §2). */
+  lost?: MapLost;
   /** Engine-drawn street fixtures on this map. Optional; usually absent. */
   fixtures?: Fixture[];
   /** Things on this map that can be read where they stand. Optional. */

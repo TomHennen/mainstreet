@@ -844,6 +844,16 @@
           "lines": ["The old rail bed keeps running this way too — the Catskill Scenic Trail covers a lot of ground. Another day's walk."]
         }
       ],
+      "lost": {
+        "lines": [
+          "You keep going past the last of the houses, and the trees close in behind you, and after a while every direction starts to look like the same direction.",
+          "You call the Delaware County Sheriff's Office. The dispatcher couldn't be kinder: happens to the best of us, those woods go on for miles, stay right where you are.",
+          "A deputy finds you in no time at all, not the least bit surprised, and holds the truck door open for you. \"Stewart's?\" \"Stewart's.\""
+        ],
+        "to": "stamford",
+        "spawn": [16, 15],
+        "facing": "up"
+      },
       "people": [
         {
           "id": "stamford-main-walker",

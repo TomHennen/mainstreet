@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { edgeAt, pickByPosition, rectsOverlap, roadEndLine } from './edges';
+import { edgeAt, lostAt, pickByPosition, rectsOverlap, roadEndLine } from './edges';
 import { parseTiledMap } from './tiled';
-import type { GameMap, MapEdge } from './schema';
+import type { GameMap, MapEdge, MapLost } from './schema';
 
 // A tiny two-tile tileset — grass (walkable) and road (walkable) — enough to
 // tell `roadEndLine` a road tile from bare ground without pulling in the real
@@ -148,5 +148,51 @@ describe('roadEndLine', () => {
     expect(lines).toContain(roadEndLine(map, 0, 0, lines));
     expect(lines).toContain(roadEndLine(map, map.width - 1, 0, lines));
     expect(lines).toContain(roadEndLine(map, 0, map.height - 1, lines));
+  });
+});
+
+describe('lostAt', () => {
+  const lost: MapLost = { lines: ['You got turned around.'], to: 'town', spawn: [1, 1], facing: 'up' };
+  const woods = (rows: string[], extra: Partial<GameMap> = {}): GameMap => ({ ...makeMap(rows), lost, ...extra });
+
+  it('is the map\'s lost entry on grass at the boundary', () => {
+    const map = woods(['....', '....', '....']);
+    expect(lostAt(map, 0, 0)).toBe(lost);
+    expect(lostAt(map, 2, 0)).toBe(lost);
+    expect(lostAt(map, 0, 1)).toBe(lost);
+    expect(lostAt(map, map.width - 1, 1)).toBe(lost);
+    expect(lostAt(map, 1, map.height - 1)).toBe(lost);
+  });
+
+  it('is undefined on grass inside the map', () => {
+    const map = woods(['....', '....', '....']);
+    expect(lostAt(map, 1, 1)).toBeUndefined();
+    expect(lostAt(map, 2, 1)).toBeUndefined();
+  });
+
+  it('is undefined on a road at the boundary — that is a road end, not the woods', () => {
+    const map = woods(['r...', '....']);
+    expect(lostAt(map, 0, 0)).toBeUndefined();
+    expect(lostAt(map, 1, 0)).toBe(lost);
+  });
+
+  it('is undefined where an exit or an edge already stands', () => {
+    const map = woods(['....', '....'], {
+      exits: [{ id: 'away', at: [0, 0, 2, 1], to: 'town', spawn: [1, 1], facing: 'up', style: 'road' }],
+      edges: [{ id: 'north-road', at: [2, 0, 1, 1], lines: ['On it goes.'] }]
+    });
+    expect(lostAt(map, 0, 0)).toBeUndefined();
+    expect(lostAt(map, 1, 0)).toBeUndefined();
+    expect(lostAt(map, 2, 0)).toBeUndefined();
+    expect(lostAt(map, 3, 0)).toBe(lost);
+  });
+
+  it('is undefined on a map with no lost entry at all', () => {
+    expect(lostAt(makeMap(['....', '....']), 0, 0)).toBeUndefined();
+  });
+
+  it('is undefined off the map', () => {
+    expect(lostAt(woods(['....']), -1, 0)).toBeUndefined();
+    expect(lostAt(woods(['....']), 4, 0)).toBeUndefined();
   });
 });

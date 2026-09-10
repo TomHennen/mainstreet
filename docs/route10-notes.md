@@ -31,6 +31,9 @@ bottom edge and Hobart's top edge carry a trail exit of their own beside
 the Route 10 one.
 
 **Stamford.** Stewart's is on the north-west corner of the 10/23 junction.
+Walking off the Stamford map into the woods (Tom, Sep 2026) gets you lost:
+a Delaware County Sheriff's deputy finds you, kindly and without fuss, and
+drops you back outside Stewart's, where a coffee is waiting.
 Mac-A-Doodles is on the east side of Route 10, south of Route 23 (the
 south-east corner). Route 23 is Harper Street west of the corner and Main
 Street east of it; Route 10 is Lake Street north of the corner and Hobart Road
