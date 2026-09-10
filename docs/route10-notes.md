@@ -205,6 +205,15 @@ than a notes-file guess:
   Stamford Coffee's right / 80 Main's corresponding side, not two separate
   interiors that happen to be adjacent.
 
+- **Street-name labels sit too far from their roads (Tom, Sep 2026).**
+  Across the current maps, labels like "Main Street" or "NY 10" often read
+  as floating rather than sitting tight against the road they name. Needs a
+  pass across all three villages to pull labels in closer to their streets
+  next time a village gets a redraw — check it as part of the critic rubric
+  (item 1: can you tell which road is which at a glance) rather than as a
+  one-off fix, since it likely recurs wherever a village hasn't had a full
+  pass recently.
+
 ## Map rules (agreed 2026-09-06)
 
 1. Intelligible first, accurate second. Bend the real geometry wherever the
@@ -725,3 +734,14 @@ opt-in, everything warm and affectionate) before it reaches the player.
   world (the Belvedere bartender included) — the papered wall in
   `the-belvedere-interior` itself still says only that the pool is behind
   it.
+- **A Bigfoot silhouette in the woods — Easter egg idea (Tom, Sep 2026).**
+  Real-world inspiration: a local vendor sells life-sized silhouette
+  cutouts of things like Bigfoot. Fun seed for a rare, easy-to-miss Easter
+  egg — a Bigfoot silhouette standing among the trees somewhere off the
+  beaten path, no quest or dialogue attached, just a moment of surprise for
+  a player who wanders far enough. Per hard rule 5, don't tie it to the
+  real vendor or any real person by name; in-world it's just an unexplained
+  silhouette in the woods. Needs an actual woods/forest tile area to place
+  it in first, which none of the three villages has yet — worth revisiting
+  once a map grows toward tree cover at its edges, or alongside a Catskill
+  Scenic Trail episode.
