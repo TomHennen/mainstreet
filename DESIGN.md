@@ -252,23 +252,41 @@ building no sign copy at all, the box would open empty, so `copy.json`
 confusing in two ways at once: nothing marks it as one before a player tries
 it, and once the door starts answering "enter," the sign it used to read has
 nowhere left to live. Both are engine-drawn fixes, not new art (CLAUDE.md
-hard rule 3, same as the plaque). The engine lays a small doormat at the foot
-of any door with an interior behind it (`engine/art.ts` `doormatArt`) —
-nothing a world ever paints, and nothing a door with no interior grows — so
+hard rule 3, same as the plaque). The engine lays a small doormat right on the
+doorstep of any door with an interior behind it (`engine/art.ts` `doormatArt`)
+— nothing a world ever paints, and nothing a door with no interior grows — so
 an enterable building reads as one at a glance, the same "at a glance" the
-plaque and the "needs an artist" shimmer already give a building's facade.
+plaque and the "needs an artist" shimmer already give a building's facade. It
+lives on the tile itself rather than baked into the facade's picture the way
+the plaque hangs on the wall above it, and draws at that tile's own depth
+rather than the facade's, so a player standing on the doorstep draws over it
+— covering it the way a rug disappears under a pair of feet — instead of the
+mat drawing over the player.
+
 And because every building a map places carries a standing sign (§3, no
 exceptions), a door with an interior always has one to relocate: it moves to
-a little board on the opposite side of the door from the plaque
-(`signBoardTile` in `engine/schema.ts`, drawn by `signBoardArt`), so a
-painter's thanks, the way in, and the place's own copy each keep a tile of
-their own rather than crowding one. The board is read exactly the way the
-door used to be — its own reach, its own prompt — and the default sits there
-without a placement having to say so; `signAt` on a building's placement in
-`world.json` overrides the tile for the rare case where the default lands
-somewhere awkward (astride a road, off the edge of the footprint). A door
-with no interior keeps reading its sign the way it always has: it grows
-neither a doormat nor a board, because it was never mistaken for a way in.
+a little board (`signBoardTile` in `engine/schema.ts`, drawn by
+`signBoardArt`) on the far side of the door from wherever the plaque actually
+is — so an explicit `plaque` that flips sides carries the board along with
+it, and the two never crowd the same tile — clamped to the building's own
+columns, since unlike the plaque the board never wanders onto a neighbour's
+frontage. The board is read exactly the way the door used to be — its own
+reach, its own prompt — and the default sits there without a placement having
+to say so; `signAt` on a building's placement in `world.json` overrides the
+tile outright, for the rare case the default lands somewhere awkward (astride
+a road, or — since a door sitting in an edge column of a narrow footprint
+leaves no far side inside it to clamp to — squarely on the door itself, which
+the validator catches and names `signAt` as the fix for). A door with no
+interior keeps reading its sign the way it always has: it grows neither a
+doormat nor a board, because it was never mistaken for a way in.
+
+The bubble that floats over whatever is in reach can carry a one-word verb
+above it too — `copy.json` `ui.enter` ("Go in") over a door with an interior,
+`ui.read` ("Read") over everything else it shows for a plaque, a sign board or
+a prop — stacked over the bubble rather than moving it, so the glyph (⌂ for a
+door, A for everything else) stays exactly where it always has. Either string
+missing drops the label and leaves the bubble to speak for itself (hard rule
+3): a world that never writes them plays exactly as it did before.
 
 **Street fixtures, and the suggestion box.** A map may list engine-drawn
 furniture that belongs to no building and no episode:
@@ -600,11 +618,12 @@ and `effects` (applied when the node is shown/consumed). No code in content.
 
 A sign carries exactly one of `building` (read at that building's door, or at
 its sign board once it has grown one — see §2) or `map` + `pos` (a prop such
-as a shelf or a counter, examined by standing next to it). Either way it gets
-the same little prompt as anything else in reach: a wall somebody has drawn on
-is as much a thing to press A on as a door or a fixture, and singling props
-out for silence just made a room's walls read as decoration rather than as
-readable.
+as a shelf or a counter, examined by standing next to it). Every prop the
+validator lets onto a map carries `lines` to read, so — reversing this
+schema's earlier call to leave props out of it — it gets the same little
+prompt as anything else in reach: a wall somebody has drawn on is as much a
+thing to press A on as a door or a fixture, and singling props out for
+silence just made a room's walls read as decoration rather than as readable.
 
 A building may also carry a **standing sign** in `world.json`, on its entry in
 the `buildings` registry — what is chalked up at its door on an ordinary day,

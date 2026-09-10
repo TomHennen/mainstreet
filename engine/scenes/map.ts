@@ -348,7 +348,7 @@ export class MapScene extends Phaser.Scene {
       // §2). A door with nothing behind it keeps reading the sign itself, and
       // grows neither.
       const mat = doormatArt(this, placement);
-      if (mat) this.add.image(mat.x, mat.y, mat.key).setOrigin(0, 0).setDepth(depth + 2);
+      if (mat) this.add.image(mat.x, mat.y, mat.key).setOrigin(0, 0).setDepth(mat.depth);
       const board = signBoardArt(this, placement);
       if (board) this.add.image(board.x, board.y, board.key).setOrigin(0, 0).setDepth(depth + 2);
 
@@ -1617,18 +1617,24 @@ export class MapScene extends Phaser.Scene {
     const target = this.findTarget();
     // Every interactable in reach gets the same little bubble — a wall panel
     // or a memorial sign is just as much a thing to press A on as a door or a
-    // fixture, and singling props out for silence was what made the walls of
-    // a room like the Belvedere's read as decoration rather than as readable.
+    // fixture, and singling props out for silence was what made a room whose
+    // walls are all readable look like plain decoration instead.
     if (!target) {
       this.prompt.setVisible(false);
       return;
     }
-    const glyph = target.kind === 'enter' ? '⌂' : 'A';
+    const entering = target.kind === 'enter';
+    const glyph = entering ? '⌂' : 'A';
+    // A one-word verb over the bubble, when the world bothers to write one
+    // (`copy.json` ui.enter/ui.read) — "Go in" over a door with an interior,
+    // "Read" over everything else the bubble shows for. Either missing means
+    // no label at all (hard rule 3); the glyph alone still tells them apart.
+    const label = entering ? state.copy.ui.enter : state.copy.ui.read;
     const bob = Math.sin(this.time.now / 167) * 1.5;
     // People are two tiles tall and stand on the tile they occupy, so their
     // head fills the tile above it; props and doors sit inside their own tile.
     const lift = target.kind === 'npc' ? TILE : 0;
-    this.prompt.setTexture(promptTexture(this, glyph));
+    this.prompt.setTexture(promptTexture(this, glyph, label));
     this.prompt.setPosition(target.at[0] * TILE + TILE / 2, target.at[1] * TILE - 2 - lift + bob);
     this.prompt.setVisible(true);
   }

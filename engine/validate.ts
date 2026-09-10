@@ -133,6 +133,13 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
           if (plaque && bx === plaque[0] && by === plaque[1]) {
             problems.push(`building "${placement.id}" has its sign board on its own plaque tile`);
           }
+          const left = placement.pos[0];
+          const right = placement.pos[0] + placement.size[0] - 1;
+          if (bx < left || bx > right) {
+            problems.push(
+              `building "${placement.id}" has its sign board outside its own footprint — give it an explicit "signAt" inside it`
+            );
+          }
         }
       } else if (placement.signAt) {
         problems.push(`building "${placement.id}" has a "signAt" but no interior — its door already reads the sign`);
@@ -199,6 +206,13 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
         const plaque = plaqueTile(placement);
         if (plaque && fx === plaque[0] && fy === plaque[1]) {
           problems.push(`${where} is on building "${placement.id}"'s plaque tile`);
+        }
+        // Same reasoning as the plaque: a fixture outranks a sign board in
+        // findTarget()'s tie-break, so one parked there would make the board
+        // unreachable — right where the player needs to stand to read it.
+        const board = signBoardTile(placement);
+        if (board && fx === board[0] && fy === board[1]) {
+          problems.push(`${where} is on building "${placement.id}"'s sign board tile`);
         }
       }
       if (world.start.map === mapId && fx === world.start.pos[0] && fy === world.start.pos[1]) {

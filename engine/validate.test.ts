@@ -439,8 +439,11 @@ describe('validateWorld', () => {
     const world = makeWorld({
       maps: {
         town: makeMap({
+          // A footprint one row deep with the door in its middle column, one
+          // row below it — the door sits outside the footprint's own solid
+          // rectangle, the way a real door does (DESIGN.md §2).
           buildings: [
-            { id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1], interior: 'shop-interior', enter: [0, 0] }
+            { id: 'shop', pos: [0, 0], size: [3, 1], door: [1, 1], interior: 'shop-interior', enter: [0, 0] }
           ]
         })
       }
@@ -451,13 +454,18 @@ describe('validateWorld', () => {
 
   // Once a door opens, its standing sign moves to a board beside it — the
   // engine's own new tile, held to the same "can stand here" rules the door
-  // and the plaque already are (DESIGN.md §2).
+  // and the plaque already are (DESIGN.md §2). A door in the middle of a
+  // footprint one row deep, sitting just below it (a real door's row, not the
+  // building's own solid rectangle — see the test just above), and the
+  // world's start moved off that row entirely so it never lands on one of
+  // these tiles by coincidence.
   const withInterior = (over: Partial<BuildingPlacement> = {}) => {
     const world = makeWorld({
+      start: { map: 'town', pos: [3, 3], facing: 'down' },
       maps: {
         town: makeMap({
           buildings: [
-            { id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1], interior: 'shop-interior', enter: [0, 0], ...over }
+            { id: 'shop', pos: [0, 0], size: [4, 1], door: [1, 1], interior: 'shop-interior', enter: [0, 0], ...over }
           ]
         })
       }
@@ -467,16 +475,16 @@ describe('validateWorld', () => {
   };
 
   it('accepts the sign board tile the engine puts beside a door with an interior', () => {
-    // Default: [2,1], the opposite side of the door from the plaque at [0,1] —
+    // Default: [0,1], the far side of the door from the plaque at [2,1] —
     // both walkable on this footprint.
     expect(runWorld(withInterior())).toEqual([]);
   });
 
   it('flags a sign board tile that is solid', () => {
-    // The default sign board lands at [2,1]; walling off that one tile
-    // leaves the door at [1,1] and the plaque at [0,1] untouched.
+    // The default sign board lands at [0,1]; walling off that one tile
+    // leaves the door at [1,1] and the plaque at [2,1] untouched.
     const world = withInterior();
-    world.maps.town = makeMap({ buildings: world.maps.town.buildings }, ['....', '..#.', '....', '....']);
+    world.maps.town = makeMap({ buildings: world.maps.town.buildings }, ['....', '#...', '....', '....']);
     const problems = runWorld(world);
     expect(problems.join('\n')).toContain('building "shop" has its sign board on a solid tile');
   });
@@ -494,9 +502,21 @@ describe('validateWorld', () => {
   });
 
   it('flags a sign board sitting on its own plaque tile', () => {
-    const world = withInterior({ signAt: [0, 1] });
+    const world = withInterior({ signAt: [2, 1] });
     const problems = runWorld(world);
     expect(problems.join('\n')).toContain('building "shop" has its sign board on its own plaque tile');
+  });
+
+  it('flags a sign board outside its own footprint', () => {
+    // The footprint only spans columns 0-3; a wider map gives column 5
+    // somewhere to be that isn't solid, isn't the door, and isn't the plaque,
+    // so only the footprint check fires.
+    const world = withInterior({ signAt: [5, 1] });
+    world.maps.town = makeMap({ buildings: world.maps.town.buildings }, ['......', '......', '......', '......']);
+    const problems = runWorld(world);
+    expect(problems.join('\n')).toContain(
+      'building "shop" has its sign board outside its own footprint — give it an explicit "signAt" inside it'
+    );
   });
 
   it('flags a "signAt" on a building with no interior', () => {
@@ -509,6 +529,15 @@ describe('validateWorld', () => {
     });
     const problems = runWorld(world);
     expect(problems.join('\n')).toContain('building "shop" has a "signAt" but no interior — its door already reads the sign');
+  });
+
+  it("flags a fixture on a building's sign board tile", () => {
+    const world = withInterior();
+    world.maps.town = makeMap({
+      buildings: world.maps.town.buildings,
+      fixtures: [{ kind: 'suggestion-box', pos: [0, 1] }]
+    });
+    expect(runWorld(world).join('\n')).toContain('is on building "shop"\'s sign board tile');
   });
 
   it('flags an exit leading to an unknown map', () => {
@@ -1174,14 +1203,60 @@ describe('signBoardTile', () => {
     expect(signBoardTile(place({ interior: 'shop-interior' }))).toEqual([2, 4]);
   });
 
-  it('defaults to the right of the door when the door is in the right-most column', () => {
-    // door in the right-most column: plaqueTile lands on the left, so the
-    // sign board takes the right.
-    expect(signBoardTile(place({ door: [4, 4], interior: 'shop-interior' }))).toEqual([5, 4]);
+  it('flips to the other side of the door when an explicit plaque flips sides', () => {
+    // The plaque is explicitly pulled to the door's left ([2,4] — normally
+    // where the board itself would default to); the board has to notice and
+    // take the right instead, never landing on the plaque's own tile.
+    const tile = signBoardTile(place({ interior: 'shop-interior', plaque: [2, 4] }));
+    expect(tile).toEqual([4, 4]);
+    expect(tile).not.toEqual([2, 4]);
+  });
+
+  it('keeps the board inside the footprint when the door is in the right-most column', () => {
+    // door in the right-most column (4, with this footprint's columns 2-4):
+    // plaqueTile lands on the left at [3,4], so the board's "far side" is off
+    // the right edge of the footprint entirely — clamped back to column 4,
+    // the door's own. That collision is exactly what the validator's "sign
+    // board on its own door tile" check exists to catch, with `signAt` as
+    // the fix; this test only holds the clamp itself to account.
+    const tile = signBoardTile(place({ door: [4, 4], interior: 'shop-interior' }));
+    expect(tile).not.toBeNull();
+    expect(tile![0]).toBeGreaterThanOrEqual(2);
+    expect(tile![0]).toBeLessThanOrEqual(4);
+  });
+
+  it('keeps the board inside the footprint when the door is in the left-most column', () => {
+    // Mirror image of the right-most case: the far side from the plaque
+    // would fall left of column 2, clamped back to column 2 — the door's own.
+    const tile = signBoardTile(place({ door: [2, 4], interior: 'shop-interior' }));
+    expect(tile).not.toBeNull();
+    expect(tile![0]).toBeGreaterThanOrEqual(2);
+    expect(tile![0]).toBeLessThanOrEqual(4);
   });
 
   it('uses an explicit signAt tile when the placement gives one', () => {
     expect(signBoardTile(place({ interior: 'shop-interior', signAt: [9, 9] }))).toEqual([9, 9]);
+  });
+});
+
+describe('moverWalkable', () => {
+  it("excludes a building's sign board tile, the same as its door and its plaque", () => {
+    // A footprint one row deep (row 0) with the door — and so the plaque and
+    // the sign board too — on the real, walkable row just below it.
+    const map = makeMap({
+      buildings: [
+        { id: 'shop', pos: [0, 0], size: [4, 1], door: [1, 1], interior: 'shop-interior', enter: [0, 0] }
+      ]
+    });
+    // door=[1,1], plaque default=[2,1], sign board default=[0,1] — see
+    // signBoardTile above for this same footprint.
+    const walkable = moverWalkable(map);
+    expect(walkable(1, 1)).toBe(false);
+    expect(walkable(2, 1)).toBe(false);
+    expect(walkable(0, 1)).toBe(false);
+    // Elsewhere on this 4x4 grid stays open to a townsperson's route or wander.
+    expect(walkable(3, 1)).toBe(true);
+    expect(walkable(1, 3)).toBe(true);
   });
 });
 
@@ -1754,6 +1829,46 @@ describe('overlays', () => {
     ).join('\n');
     expect(problems).toContain('with nothing to read');
     expect(problems).toContain('unknown fixture kind "jukebox"');
+  });
+});
+
+describe('sign board reachability', () => {
+  it('flags an explicit "signAt" the player has no way to stand on', () => {
+    // Door and plaque sit on the open top of the map; the sign board is
+    // pinned, by an explicit signAt, into a one-tile pocket walled in on
+    // every side — reachable on its own tile, but from nowhere else.
+    const rows = ['.....', '.....', '...#.', '..#.#', '...#.'];
+    const world = makeWorld({
+      maps: {
+        town: makeMap(
+          {
+            buildings: [
+              {
+                id: 'shop',
+                pos: [0, 0],
+                size: [4, 1],
+                door: [1, 1],
+                interior: 'shop-interior',
+                enter: [0, 0],
+                signAt: [3, 3]
+              }
+            ]
+          },
+          rows
+        )
+      }
+    });
+    world.maps['shop-interior'] = makeMap({ kind: 'interior' });
+    // unreachableWith only runs under an overlay combination (validateEpisode
+    // has nothing to check reachability against on the bare map), so a
+    // harmless overlay elsewhere gives it one to run under without touching
+    // the walls that isolate the board.
+    const episode = makeEpisode({
+      npcs: [],
+      overlays: [{ id: 'noop', map: 'town', requires: [], tiles: [{ pos: [4, 0], tile: 1 }] }]
+    } as never);
+    const problems = runEpisode(episode, world).join('\n');
+    expect(problems).toContain('building "shop"\'s sign board at 3,3 cannot be reached');
   });
 });
 
