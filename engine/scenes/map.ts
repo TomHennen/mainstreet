@@ -80,8 +80,11 @@ const MAX_ZOOM = 4;
 // A fixture is solid, so unlike the plaque it is read from the tile beside it:
 // far enough to take in a diagonal neighbour, not far enough to reach past one.
 const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 2.1, plaque: 0.75, fixture: 1.5 };
-/** How long the travel card holds, by what we are walking through. */
-/** `lost` is the road card again, held a little longer: its line is a story, not a road name. */
+/**
+ * How long the travel card holds, by what we are walking through. `lost` is
+ * the road card again, held a little longer: its line is a story, not a
+ * road name.
+ */
 const HOLD = { road: 900, enter: 500, exit: 400, lost: 1600 };
 const WALK_FRAME_MS = 133;
 /** How often a walk may be re-aimed at somebody who is moving, in ms. */

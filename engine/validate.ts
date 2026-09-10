@@ -1,6 +1,6 @@
 // Runtime import, so it carries the extension scripts/validate-episodes.ts
 // needs under Node's type stripping (see that file's header).
-import { rectsOverlap } from './edges.ts';
+import { lostAt, rectsOverlap } from './edges.ts';
 import { findPath } from './path.ts';
 import { canCoOccur, combinations, overlapsIn, patchFor, withOverlays } from './overlay.ts';
 import {
@@ -312,13 +312,27 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
     const lost = map.lost;
     if (lost) {
       const where = `map "${mapId}" "lost"`;
+      // Getting lost is a village thing — an interior has no open ground to
+      // wander off over, and the ride home only makes sense landing back in
+      // a village too.
+      if (map.kind !== 'village') {
+        problems.push(`${where} is on a "${map.kind}" map — only a village can have "lost"`);
+      }
       if (!world.maps[lost.to]) {
         problems.push(`${where} leads to unknown map "${lost.to}"`);
       } else {
+        if (world.maps[lost.to].kind !== 'village') {
+          problems.push(`${where} leads to "${lost.to}", which isn't a village`);
+        }
         const dest = maps[lost.to];
         // A destination with no grid is already reported against that map.
-        if (dest && checkTile(dest, lost.spawn, `${where} spawn`, problems) && isSolid(dest, lost.spawn[0], lost.spawn[1])) {
-          problems.push(`${where} spawns on a solid tile in "${lost.to}"`);
+        if (dest && checkTile(dest, lost.spawn, `${where} spawn`, problems)) {
+          if (isSolid(dest, lost.spawn[0], lost.spawn[1])) {
+            problems.push(`${where} spawns on a solid tile in "${lost.to}"`);
+          }
+          if (lostAt(dest, lost.spawn[0], lost.spawn[1])) {
+            problems.push(`${where} spawns onto "${lost.to}"'s own "lost" boundary — the player would get lost again on arrival`);
+          }
         }
       }
       if (!(FACINGS as readonly string[]).includes(lost.facing)) {
@@ -938,6 +952,7 @@ function unreachableWith(
     for (const placement of meta.buildings) {
       if (placement.interior === mapId && placement.enter) arrivals.push([placement.enter[0], placement.enter[1]]);
     }
+    if (meta.lost && meta.lost.to === mapId) arrivals.push([meta.lost.spawn[0], meta.lost.spawn[1]]);
   }
   if (!arrivals.length) return out;
 
@@ -1185,7 +1200,7 @@ function checkSaid(lines: unknown, where: string, problems: string[]): void {
   }
   lines.forEach((line, index) => {
     if (typeof line !== 'string' || line.trim() === '') {
-      problems.push(`${where} line ${index} is empty`);
+      problems.push(`${where} line ${index + 1} is empty`);
     }
   });
 }

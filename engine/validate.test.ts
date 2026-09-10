@@ -662,7 +662,7 @@ describe('validateWorld', () => {
       const world = makeWorld({
         maps: { town: makeMap({ edges: [{ id: 'north-road', at: [0, 0, 2, 1], lines: ['Fine.', '  '] }] }) }
       });
-      expect(runWorld(world).join('\n')).toContain('map "town" edge "north-road" line 1 is empty');
+      expect(runWorld(world).join('\n')).toContain('map "town" edge "north-road" line 2 is empty');
     });
   });
 
@@ -683,6 +683,13 @@ describe('validateWorld', () => {
       expect(runWorld(world).join('\n')).toContain('map "town" "lost" spawns on a solid tile in "town"');
     });
 
+    it('flags a lost entry that spawns inside a building footprint', () => {
+      const world = makeWorld({
+        maps: { town: makeMap({ lost, buildings: [{ id: 'shop', pos: [2, 2], size: [1, 1], door: [2, 1] }] }) }
+      });
+      expect(runWorld(world).join('\n')).toContain('map "town" "lost" spawns on a solid tile in "town"');
+    });
+
     it('flags a lost entry that spawns outside its map', () => {
       const world = makeWorld({ maps: { town: makeMap({ lost: { ...lost, spawn: [9, 9] } }) } });
       expect(runWorld(world).join('\n')).toContain('map "town" "lost" spawn is outside the map');
@@ -697,9 +704,30 @@ describe('validateWorld', () => {
       const none = makeWorld({ maps: { town: makeMap({ lost: { ...lost, lines: [] } }) } });
       expect(runWorld(none).join('\n')).toContain('map "town" "lost" has no "lines"');
       const blank = makeWorld({ maps: { town: makeMap({ lost: { ...lost, lines: ['Fine.', ' '] } }) } });
-      expect(runWorld(blank).join('\n')).toContain('map "town" "lost" line 1 is empty');
+      expect(runWorld(blank).join('\n')).toContain('map "town" "lost" line 2 is empty');
     });
 
+    it('flags a lost entry on a map that is not a village', () => {
+      const world = makeWorld({ maps: { town: makeMap({ kind: 'interior', lost }) } });
+      expect(runWorld(world).join('\n')).toContain('map "town" "lost" is on a "interior" map — only a village can have "lost"');
+    });
+
+    it('flags a lost entry leading to a map that is not a village', () => {
+      const world = makeWorld({
+        maps: {
+          town: makeMap({ lost: { ...lost, to: 'cabin', spawn: [1, 1] } }),
+          cabin: makeMap({ kind: 'interior' }, ['....', '....'])
+        }
+      });
+      expect(runWorld(world).join('\n')).toContain('map "town" "lost" leads to "cabin", which isn\'t a village');
+    });
+
+    it('flags a lost entry whose spawn is itself lost-eligible — the player would get lost again on arrival', () => {
+      const world = makeWorld({ maps: { town: makeMap({ lost: { ...lost, spawn: [0, 0] } }) } });
+      expect(runWorld(world).join('\n')).toContain(
+        'map "town" "lost" spawns onto "town"\'s own "lost" boundary — the player would get lost again on arrival'
+      );
+    });
   });
 
   // The carry verbs (DESIGN.md §2): one fixture hands a token over, another
@@ -1637,6 +1665,19 @@ describe('overlays', () => {
     expect(
       runEpisode(withOverlay([{ id: 'm', map: 'town', requires: [], tiles: [{ pos: [99, 0], tile: 1 }] }]), world()).join('\n')
     ).toContain('outside map "town"');
+  });
+
+  it('refuses to let an overlay wall a "lost" spawn in — an arrival, same as a door', () => {
+    const withLost = makeMap(
+      {
+        buildings: [{ id: 'shop', pos: [5, 0], size: [2, 2], door: [5, 2] }],
+        lost: { lines: ['You wander off into the grass.'], to: 'town', spawn: [3, 2], facing: 'up' }
+      },
+      ROWS
+    );
+    const episode = withOverlay([{ id: 'wall-in', map: 'town', requires: [], tiles: [{ pos: [3, 2], tile: 1 }] }]);
+    const problems = runEpisode(episode, makeWorld({ maps: { town: withLost } })).join('\n');
+    expect(problems).toContain('the player arrives at 3,2 on ground nobody can stand on');
   });
 
   it('refuses to let an overlay wall a door in', () => {
