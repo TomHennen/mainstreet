@@ -419,16 +419,16 @@ ride home happening entirely off screen:
 
 ```jsonc
 "lost": {
-  "lines": ["…"], "to": "stamford", "spawn": [16, 15], "facing": "up",
+  "lines": ["…"], "to": "stamford", "spawn": [16, 15], "facing": "left",
   "arrive": [
     { "camera": { "to": [16, 16], "speed": 10 } },
     { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [16, 16] } },
     { "wait": 1.4 },
-    { "player": { "show": { "at": [17, 16] } } },
-    { "move": { "who": "player", "path": [[16, 16], [16, 15]], "speed": 3.5 } },
+    { "player": { "show": { "at": [17, 15] } } },
+    { "move": { "who": "player", "to": [16, 15], "speed": 3.5 } },
     { "say": { "lines": ["…"] } },
     { "camera": { "to": "player" } },
-    { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [40, 16] } }
+    { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [95, 18] } }
   ]
 }
 ```
@@ -727,12 +727,15 @@ is ever left idling in the middle of a crossroads.
 A parked vehicle may also carry `"hidden": true`: a car that exists only for
 a scene, drawn nowhere and given way to by nobody — as if it were not on the
 map at all — until the first time a scene's `move` sends it somewhere
-(`Driver.sendTo`, engine/vehicle.ts), which reveals it, for good. This is how
-Stamford's deputy truck (§2 "Getting lost") sits waiting at the edge of town
-rather than being an ordinary, unexplained parked truck every week the story
-never calls on it. Refused on anything but a parked vehicle (no `path`): a
-car this covers has nowhere of its own to drive until a scene sends it, which
-is what a parked one already is.
+(`Driver.sendTo`, engine/vehicle.ts), which reveals it for as long as this
+visit to the map lasts. A fresh map rebuilds it hidden again, so a story that
+sends the same car out more than once (a `lost` reset played again, say)
+always finds it waiting out of sight the same way. This is how Stamford's
+deputy truck (§2 "Getting lost") sits waiting at the edge of town rather than
+being an ordinary, unexplained parked truck every week the story never calls
+on it. Refused on anything but a parked vehicle (no `path`): a car this
+covers has nowhere of its own to drive until a scene sends it, which is what
+a parked one already is.
 
 Missing NPC sheet = generic townsperson sprite, drawn from that person's
 `look` (§4) in their own accent color. Missing portrait = no portrait pane.
@@ -948,7 +951,21 @@ exit if that is where the road goes, and it slows for anybody standing in the
 road rather than steering round them, exactly as ambient traffic does (§2).
 The validator checks every leg of it for paved road, starting from the tile
 the episode (or the map, for one of its own cars — a `lost.arrive`, say)
-parked the car on.
+parked the car on, and from wherever a scene's own earlier `move` on that
+same car already sent it, leg by leg through the whole scene rather than only
+ever from where it started.
+
+A `move` whose own target tile is itself where the road runs out — the map's
+outer ring, or an `exits` rectangle that itself touches that ring, the same
+test a through-route ambient car's own last waypoint is read by (§2) — drives
+the car there and straight on past it, off the map, gone: the same
+`VANISH_TILES` drive off screen a through-route car takes between one lap and
+the next, except a scene-sent car has no route of its own to reappear at, so
+it simply stays gone (`onMap` false) rather than coming back, for as long as
+this visit to the map lasts. This is how the deputy's truck actually leaves
+Stamford rather than parking somewhere in town once the scene is done with
+it, and it costs a `lost.arrive` (or any other scene) nothing beyond naming
+the tile it already wanted to drive to.
 
 `player` hides or shows the player sprite: hidden, they draw nothing and are
 in nobody's way — not solid to a townsperson routing round them, not

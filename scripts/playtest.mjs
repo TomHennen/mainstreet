@@ -1467,7 +1467,7 @@ async function main() {
             return !s.scene && !s.locked && !s.dialogueOpen && s.playerVisible && x === lost.spawn[0] && y === lost.spawn[1];
           },
           'the arrival scene to actually finish, home at lost.spawn',
-          20000
+          25000
         );
         const landed = here(home);
         if (landed[0] !== lost.spawn[0] || landed[1] !== lost.spawn[1]) {

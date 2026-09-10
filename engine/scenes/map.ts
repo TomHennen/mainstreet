@@ -600,6 +600,10 @@ export class MapScene extends Phaser.Scene {
           this.stopWalk();
           this.sceneWalkSpeed = speed ? speed * TILE : SPEED;
           this.sceneWalk = this.aimWalk(to, null, 0);
+          // Nowhere to go: no walk actually started, so nothing of this
+          // scene's own pace should linger onto whatever tapped walk comes
+          // next.
+          if (!this.sceneWalk) this.sceneWalkSpeed = SPEED;
           return this.sceneWalk;
         }
         // A car takes the road rather than the pavement, and never routes
@@ -873,7 +877,9 @@ export class MapScene extends Phaser.Scene {
    * `ui.holler` in the world pack and a car simply never has anything to say
    * (hard rule 3). It never fires with the controls away from the player
    * (`locked`, or a dialogue box open — nobody is watching the road right
-   * then) and never while a toast is already up, `this.hollerUntil` or
+   * then), never while a scene is running (`state.sceneRunning`) — a scene's
+   * own car deserves better than a gruff holler over its own drop-off — and
+   * never while a toast is already up, `this.hollerUntil` or
    * `isToastShowing()` either one — a holler must never cut off a scene's or
    * a flag's own toast, only ever wait its own turn behind it.
    */
@@ -901,6 +907,7 @@ export class MapScene extends Phaser.Scene {
         lines?.length &&
         !state.locked &&
         !state.dialogueOpen &&
+        !state.sceneRunning &&
         this.clock >= this.hollerUntil &&
         !isToastShowing()
       ) {

@@ -253,6 +253,50 @@ describe('Driver', () => {
     });
   });
 
+  // A scene's own one-shot vanish (DESIGN.md §2/§3): a `move` whose target is
+  // itself where the road runs out drives the car there and straight on off
+  // the map, gone for good — the deputy's truck actually leaving Stamford
+  // rather than parking somewhere in town once the scene is done with it.
+  describe('a scene move to the map boundary', () => {
+    // Bounds matching ROAD's own extent exactly, so its last column (19) is
+    // the map's actual edge rather than merely somewhere mid-road.
+    const EDGE_BOUNDS = { width: 20, height: 3 };
+    const parkedAtEdgeMap = () =>
+      new Driver({ pos: [2, 1], speed: 6, drivable: ROAD, facing: 'down', bounds: EDGE_BOUNDS });
+
+    it('drives on past a boundary target and vanishes, rather than stopping there', () => {
+      const car = parkedAtEdgeMap();
+      expect(car.sendTo([19, 1])).toBe(true);
+      run(car, 4);
+      // Arrived and driven on off-map: gone, not parked at the edge.
+      expect(car.onMap).toBe(false);
+      expect(car.tiles()).toEqual([]);
+      // And it stays gone — no route of its own to reappear at.
+      run(car, 10);
+      expect(car.onMap).toBe(false);
+    });
+
+    it('leaves an ordinary mid-map target alone', () => {
+      const car = parkedAtEdgeMap();
+      expect(car.sendTo([10, 1])).toBe(true);
+      run(car, 3);
+      expect(car.onMap).toBe(true);
+      expect(car.tile()).toEqual([10, 1]);
+      run(car, 5);
+      expect(car.onMap).toBe(true);
+      expect(car.tile()).toEqual([10, 1]);
+    });
+
+    it('a hidden car sent straight to the edge is revealed only for the drive, then gone', () => {
+      const car = new Driver({ pos: [2, 1], speed: 6, drivable: ROAD, facing: 'down', bounds: EDGE_BOUNDS, hidden: true });
+      expect(car.onMap).toBe(false);
+      expect(car.sendTo([19, 1])).toBe(true);
+      expect(car.onMap).toBe(true);
+      run(car, 4);
+      expect(car.onMap).toBe(false);
+    });
+  });
+
   // "This isn't NYC — get out of the road!" A car that the player specifically
   // has held stopped for a moment has something to say about it.
   describe('takeHoller', () => {

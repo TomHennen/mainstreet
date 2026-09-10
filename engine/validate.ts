@@ -386,6 +386,7 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
           problems.push(`${where} "arrive" has no steps`);
         } else if (world.maps[lost.to]) {
           const noEpisode: Episode = { id: '', title: '', flags: [], npcs: [] };
+          const vehiclePositions = new Map<string, Vec2>();
           lost.arrive.forEach((step, index) => {
             checkStep(step, `${where} "arrive" step ${index}`, {
               episode: noEpisode,
@@ -393,7 +394,8 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
               map: maps[lost.to],
               mapId: lost.to,
               declared: new Set(),
-              problems
+              problems,
+              vehiclePositions
             });
           });
         }
@@ -647,8 +649,9 @@ function checkScenes(
       problems.push(`${at} has no steps`);
       continue;
     }
+    const vehiclePositions = new Map<string, Vec2>();
     scene.steps.forEach((step, index) => {
-      checkStep(step, `${at} step ${index}`, { episode, world, map, mapId, declared, problems });
+      checkStep(step, `${at} step ${index}`, { episode, world, map, mapId, declared, problems, vehiclePositions });
     });
   }
 }
@@ -683,10 +686,18 @@ interface StepContext {
   mapId: string | undefined;
   declared: Set<string>;
   problems: string[];
+  /**
+   * Where this scene's own earlier `move` steps have already driven each
+   * vehicle to, by id — so a second `move` on the same car is checked leg by
+   * leg from there, not from wherever it started the whole scene parked
+   * (DESIGN.md §3). Fresh per scene; a car's position between one scene and
+   * the next is not this validator's to track.
+   */
+  vehiclePositions: Map<string, Vec2>;
 }
 
 function checkStep(step: SceneStep, at: string, ctx: StepContext): void {
-  const { episode, world, map, mapId, declared, problems } = ctx;
+  const { episode, world, map, mapId, declared, problems, vehiclePositions } = ctx;
   if (!step || typeof step !== 'object' || Array.isArray(step)) {
     problems.push(`${at} is not a step object`);
     return;
@@ -777,26 +788,35 @@ function checkStep(step: SceneStep, at: string, ctx: StepContext): void {
       }
     });
     // And that there is paved road between the legs, starting from wherever
-    // the episode parked the car: a scene that cannot drive its truck out of
-    // the lot is a week of story where nothing happens (as `checkVehicle`).
-    if (ok && drives && paved) {
+    // this scene last left the car — an earlier `move` step's own target, if
+    // it had one — or else wherever it was parked: a scene that cannot drive
+    // its truck out of the lot is a week of story where nothing happens (as
+    // `checkVehicle`).
+    if (drives) {
       const vehicleId = who.slice(SCENE_VEHICLE.length);
-      // A vehicle this scene drives may be the episode's own, or the map's —
-      // a village's own car is exactly as much this scene's to move as one an
-      // episode brought with it (DESIGN.md §2/§3).
-      const parked =
-        (episode.vehicles ?? []).find((vehicle) => vehicle.id === vehicleId && vehicle.map === mapId) ??
-        (mapId ? (world.maps[mapId]?.vehicles ?? []).find((vehicle) => vehicle.id === vehicleId) : undefined);
-      const drive = driveable(map);
-      const legs = [...(parked?.pos ? [parked.pos] : []), ...(tiles as Vec2[])];
-      for (let i = 1; i < legs.length; i++) {
-        const from = legs[i - 1];
-        const to = legs[i];
-        if (from[0] === to[0] && from[1] === to[1]) continue;
-        if (!findPath(from, (x, y) => x === to[0] && y === to[1], drive)) {
-          problems.push(`${at} cannot drive from ${from.join(',')} to ${to.join(',')} — no paved way through`);
+      if (ok && paved) {
+        // A vehicle this scene drives may be the episode's own, or the map's
+        // — a village's own car is exactly as much this scene's to move as
+        // one an episode brought with it (DESIGN.md §2/§3).
+        const parked =
+          (episode.vehicles ?? []).find((vehicle) => vehicle.id === vehicleId && vehicle.map === mapId) ??
+          (mapId ? (world.maps[mapId]?.vehicles ?? []).find((vehicle) => vehicle.id === vehicleId) : undefined);
+        const startPos = vehiclePositions.get(vehicleId) ?? parked?.pos;
+        const drive = driveable(map);
+        const legs = [...(startPos ? [startPos] : []), ...(tiles as Vec2[])];
+        for (let i = 1; i < legs.length; i++) {
+          const from = legs[i - 1];
+          const to = legs[i];
+          if (from[0] === to[0] && from[1] === to[1]) continue;
+          if (!findPath(from, (x, y) => x === to[0] && y === to[1], drive)) {
+            problems.push(`${at} cannot drive from ${from.join(',')} to ${to.join(',')} — no paved way through`);
+          }
         }
       }
+      // Recorded regardless of whether this leg validated clean, so one bad
+      // step never cascades into every step after it also reading as
+      // unreachable from the wrong place.
+      if (ok) vehiclePositions.set(vehicleId, tiles[tiles.length - 1] as Vec2);
     }
     return;
   }

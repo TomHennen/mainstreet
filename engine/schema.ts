@@ -303,9 +303,12 @@ export interface Vehicle {
    * given way to, and not in anyone's way — as if it were not on the map at
    * all — until the first time a scene's `move` step sends it somewhere
    * (`Driver.sendTo`, `engine/vehicle.ts`). From that point on it behaves
-   * exactly like any other parked-then-sent car, for good — this is what lets
-   * a deputy's truck be waiting just out of sight at the edge of town rather
-   * than sitting there, ordinary and unexplained, every week before the story
+   * exactly like any other parked-then-sent car for as long as this visit to
+   * the map lasts — a fresh map rebuilds it hidden again, so a story that
+   * sends the same car out more than once (a `lost` reset replayed, say)
+   * always finds it waiting out of sight the same way. This is what lets a
+   * deputy's truck wait just out of sight at the edge of town rather than
+   * sitting there, ordinary and unexplained, every week before the story
    * ever calls on it. Default false. Meaningless (and refused) on a car with
    * a `path`: a car this covers has to have nowhere of its own to drive until
    * a scene sends it, which is what a parked one already is.
