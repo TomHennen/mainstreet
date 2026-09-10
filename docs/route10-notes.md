@@ -149,6 +149,9 @@ note above, after seeing the first room built. All of them are in the map now:
   takes the same tile for its week.
 - **The bartender is a woman** — she almost always is — and she has a name.
   Marnie: invented, not anybody, and not a name any other episode uses.
+- **The first bathroom is permanently out of order.** It's part of the
+  place's charm, not a passing mishap — the door stays "closed until further
+  notice" (CLAUDE.md hard rule 6).
 - **The yard's floor is grass**, not stone. The only paving out there is the
   small ring of pavers the fire sits on.
 - **The woodpile is a thing you use.** It was drawn small enough to miss. It
