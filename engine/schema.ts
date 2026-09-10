@@ -32,6 +32,13 @@ export interface BuildingPlacement {
    * plaque at all.
    */
   plaque?: Vec2 | false;
+  /**
+   * Walkable front-row tile the standing sign board is read from, for a
+   * building that also has an interior (see `signBoardTile`). Omitted means
+   * the default; meaningless — and never consulted — on a building with no
+   * interior, since the door itself still reads the sign there.
+   */
+  signAt?: Vec2;
 }
 
 /**
@@ -50,6 +57,36 @@ export function plaqueTile(placement: BuildingPlacement): Vec2 | null {
   const rightMost = placement.pos[0] + placement.size[0] - 1;
   const step = placement.door[0] >= rightMost ? -1 : 1;
   return [placement.door[0] + step, placement.door[1]];
+}
+
+/**
+ * Where a building's standing sign is read from, once it also has an
+ * interior (DESIGN.md §2). A door that opens is only ever the way in, so a
+ * building with both needs a second place for its day-to-day sign to live: a
+ * little board the engine draws beside the door. Its default side is the far
+ * side of the door from wherever `plaqueTile` actually put the plaque — so an
+ * explicit `plaque` that flips sides carries the board along with it, and the
+ * two never crowd the same tile — or, with no plaque to dodge at all
+ * (`"plaque": false`), the side `plaqueTile` would have defaulted to, which
+ * keeps the board clear of wherever a plaque could still go. Unlike the
+ * plaque, which may sit a tile beyond a narrow footprint, the board's column
+ * is clamped to the building's own — it never wanders onto a neighbour's
+ * frontage. A placement's `signAt` overrides the default outright, for the
+ * rare case it lands somewhere awkward (astride a road, or — since a door in
+ * an edge column leaves no far side inside the footprint to clamp to — on the
+ * door itself). Returns null for a building with no interior, where the door
+ * itself still reads the sign, and there is nothing beside it to draw.
+ */
+export function signBoardTile(placement: BuildingPlacement): Vec2 | null {
+  if (!placement.interior) return null;
+  if (placement.signAt) return [placement.signAt[0], placement.signAt[1]];
+
+  const left = placement.pos[0];
+  const right = placement.pos[0] + placement.size[0] - 1;
+  const plaque = plaqueTile(placement);
+  const step = plaque ? (plaque[0] > placement.door[0] ? -1 : 1) : placement.door[0] >= right ? -1 : 1;
+  const x = Math.min(right, Math.max(left, placement.door[0] + step));
+  return [x, placement.door[1]];
 }
 
 export interface MapLabel {
@@ -532,6 +569,17 @@ export interface WorldCopy {
   ui: {
     narrator: string;
     advance: string;
+    /**
+     * One-word verb stacked over the reach prompt's little bubble, for
+     * whichever kind of thing it is currently floating over (DESIGN.md §2):
+     * `enter` for a door with an interior behind it, `read` for everything
+     * else the prompt shows for — a sign board, a plaque, a prop, a fixture.
+     * Either or both missing means no label over the bubble for that kind
+     * (hard rule 3) — the glyph on the bubble itself (⌂ for a door, A for
+     * everything else) still tells the two apart on its own.
+     */
+    enter?: string;
+    read?: string;
     /**
      * The stand-in for an unpainted building with no sign copy at all — none
      * this episode, and none standing in `world.json` either — since without

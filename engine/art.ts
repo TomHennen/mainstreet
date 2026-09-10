@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { drawFigure, figureKey } from './figure';
 import { drawVehicle, VEHICLE_CELL } from './motor';
-import { FACINGS, plaqueTile } from './schema';
+import { FACINGS, plaqueTile, signBoardTile } from './schema';
 import { TILE } from './tiled';
 import type {
   BuildingDef,
@@ -912,6 +912,105 @@ export function plaqueArt(scene: Phaser.Scene, placement: BuildingPlacement): Pl
   };
 }
 
+// --- the doormat at an open door ----------------------------------------------
+
+/** The doormat, in pixels: wider than the plaque, and low to the ground. */
+const DOORMAT_W = 12;
+const DOORMAT_H = 4;
+/** How far its bottom edge sits above the bottom of the doorstep tile. */
+const DOORMAT_LIFT = 1;
+
+export interface DoormatArt {
+  key: string;
+  x: number;
+  y: number;
+  /** Draw at this depth so a player standing on the doorstep draws over it. */
+  depth: number;
+}
+
+/**
+ * The engine's own "come on in": a little woven mat laid on the doorstep of
+ * a door that actually opens (CLAUDE.md #4, DESIGN.md §2) — the very tile a
+ * player stands on to walk in — so an enterable building reads as one at a
+ * glance and a building that only carries a sign never grows one. It lives on
+ * the *tile*, not baked into the facade's own picture the way the plaque
+ * hangs on the wall above it: a player standing on the doorstep is meant to
+ * cover it, the way a rug disappears under a pair of feet, rather than the
+ * mat drawing over them. `depth` follows the tile-row convention items use
+ * (`itemTexture`'s caller), the top edge of the doorstep's own row, which
+ * always sits below a player on that row or any row further down the street.
+ * Returns null for a building with no interior.
+ */
+export function doormatArt(scene: Phaser.Scene, placement: BuildingPlacement): DoormatArt | null {
+  if (!placement.interior) return null;
+
+  const key = 'prop:doormat';
+  if (!scene.textures.exists(key)) {
+    const { texture, ctx } = canvas(scene, key, DOORMAT_W, DOORMAT_H);
+    ctx.fillStyle = '#6b4a35';
+    ctx.fillRect(0, 0, DOORMAT_W, DOORMAT_H);
+    ctx.fillStyle = '#caa06a';
+    ctx.fillRect(1, 1, DOORMAT_W - 2, 1);
+    texture.refresh();
+  }
+
+  const [dx, dy] = placement.door;
+  return {
+    key,
+    x: dx * TILE + (TILE - DOORMAT_W) / 2,
+    y: dy * TILE + TILE - DOORMAT_LIFT - DOORMAT_H,
+    depth: dy * TILE
+  };
+}
+
+// --- the sign board beside a door that opens -----------------------------------
+
+const SIGNBOARD_W = 8;
+const SIGNBOARD_H = 7;
+/** How far its bottom edge sits above the ground line at the facade's foot. */
+const SIGNBOARD_LIFT = 4;
+
+export interface SignBoardArt {
+  key: string;
+  x: number;
+  y: number;
+}
+
+/**
+ * The little board the engine hangs beside a door that also opens, so a
+ * building's day-to-day sign still has somewhere to live once the door itself
+ * is only ever the way in (DESIGN.md §2). A post, a shingle, and a scrap of
+ * paper pinned to it — deliberately plainer than the plaque's brass, and on
+ * the opposite side of the door from it (`signBoardTile`), so the two are
+ * never mistaken for each other at a glance. Returns null for a building
+ * with no interior, where the door itself still reads the sign.
+ */
+export function signBoardArt(scene: Phaser.Scene, placement: BuildingPlacement): SignBoardArt | null {
+  const tile = signBoardTile(placement);
+  if (!tile) return null;
+
+  const key = 'prop:signboard';
+  if (!scene.textures.exists(key)) {
+    const { texture, ctx } = canvas(scene, key, SIGNBOARD_W, SIGNBOARD_H);
+    ctx.fillStyle = '#5a4632';
+    ctx.fillRect(3, 0, 2, SIGNBOARD_H);
+    ctx.fillStyle = '#8a6a4a';
+    ctx.fillRect(0, 1, SIGNBOARD_W, 4);
+    ctx.fillStyle = 'rgba(0,0,0,.2)';
+    ctx.fillRect(0, 4, SIGNBOARD_W, 1);
+    ctx.fillStyle = '#f0e6cf';
+    ctx.fillRect(1, 2, SIGNBOARD_W - 2, 2);
+    texture.refresh();
+  }
+
+  const groundY = (placement.pos[1] + placement.size[1]) * TILE;
+  return {
+    key,
+    x: tile[0] * TILE + (TILE - SIGNBOARD_W) / 2,
+    y: groundY - SIGNBOARD_LIFT - SIGNBOARD_H
+  };
+}
+
 // --- street fixtures ---------------------------------------------------------
 
 /**
@@ -1134,16 +1233,48 @@ export function itemTexture(scene: Phaser.Scene): string {
   return key;
 }
 
-export function promptTexture(scene: Phaser.Scene, glyph: string): string {
-  const key = `prompt:${glyph}`;
+/** Rough monospace width of a one-word verb label, for sizing its little tag. */
+function promptLabelWidth(label: string): number {
+  const probe = document.createElement('canvas').getContext('2d');
+  if (probe) probe.font = `7px ${MONO}`;
+  return Math.ceil((probe?.measureText(label).width ?? label.length * 4) + 6);
+}
+
+/**
+ * The little "press A" bubble that floats over whatever is in reach, and —
+ * when the world gives it one (`copy.json` `ui.enter`/`ui.read`) — a one-word
+ * verb tag stacked above it: "Go in" over a door with an interior, "Read"
+ * over everything else the bubble shows for (DESIGN.md §2). The tag is
+ * optional per hard rule 3: with no `label`, this draws exactly the bare
+ * glyph bubble it always has, and the two are cached under one key so a
+ * repeated call for the same pair costs nothing after the first. Sized to
+ * the bubble alone when there is no label, and centred on the wider of the
+ * two when there is, so the bubble never has to move to make room for it.
+ */
+export function promptTexture(scene: Phaser.Scene, glyph: string, label?: string): string {
+  const key = `prompt:${glyph}:${label ?? ''}`;
   if (scene.textures.exists(key)) return key;
-  const { texture, ctx } = canvas(scene, key, TILE, 12);
+
+  const labelW = label ? promptLabelWidth(label) : 0;
+  const labelH = label ? 9 : 0;
+  const width = Math.max(TILE, labelW);
+  const { texture, ctx } = canvas(scene, key, width, 12 + labelH);
+
+  if (label) {
+    ctx.font = `7px ${MONO}`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(30,25,18,.82)';
+    ctx.fillRect(width / 2 - labelW / 2, 0, labelW, labelH - 1);
+    ctx.fillStyle = '#f3ead8';
+    ctx.fillText(label, width / 2, labelH - 2.5);
+  }
+
   ctx.fillStyle = '#f3ead8';
-  ctx.fillRect(2, 0, 12, 11);
+  ctx.fillRect(width / 2 - 6, labelH, 12, 11);
   ctx.fillStyle = '#2a231a';
   ctx.font = `8px ${MONO}`;
   ctx.textAlign = 'center';
-  ctx.fillText(glyph, 8, 8);
+  ctx.fillText(glyph, width / 2, labelH + 8);
   texture.refresh();
   return key;
 }

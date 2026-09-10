@@ -5,6 +5,7 @@ import {
   buildingArt,
   characterTexture,
   dashTexture,
+  doormatArt,
   fixtureArt,
   frameIndex,
   itemTexture,
@@ -15,6 +16,7 @@ import {
   plateLift,
   plaqueArt,
   promptTexture,
+  signBoardArt,
   TILE,
   vehicleFrame,
   vehicleTexture
@@ -49,7 +51,7 @@ import {
   vehiclesOn
 } from '../session';
 import { driveable, isSolid, moverWalkable } from '../validate';
-import { lookOf, plaqueTile, SCENE_PLAYER, SCENE_VEHICLE } from '../schema';
+import { lookOf, plaqueTile, SCENE_PLAYER, SCENE_VEHICLE, signBoardTile } from '../schema';
 import type { PlateBox } from '../art';
 import type {
   BuildingPlacement,
@@ -349,6 +351,16 @@ export class MapScene extends Phaser.Scene {
           h: brass.displayHeight + PLAQUE_PAD * 2
         };
       }
+
+      // A door that opens gets the engine's own "come on in" laid at its
+      // foot, and its standing sign moves to a little board beside it — the
+      // door stays the way in, and only the way in (CLAUDE.md #4, DESIGN.md
+      // §2). A door with nothing behind it keeps reading the sign itself, and
+      // grows neither.
+      const mat = doormatArt(this, placement);
+      if (mat) this.add.image(mat.x, mat.y, mat.key).setOrigin(0, 0).setDepth(mat.depth);
+      const board = signBoardArt(this, placement);
+      if (board) this.add.image(board.x, board.y, board.key).setOrigin(0, 0).setDepth(depth + 2);
 
       if (art.painted) {
         // The placeholder bakes its name plate into the facade texture itself;
@@ -1190,9 +1202,20 @@ export class MapScene extends Phaser.Scene {
       if (plaque) {
         consider({ kind: 'plaque', at: [plaque[0], plaque[1] - 1], building }, REACH.plaque, 3, plaque);
       }
-      const kind: Target['kind'] = building.interior ? 'enter' : 'sign';
-      if (kind === 'enter' && !this.enterArmed) continue;
-      consider({ kind, at: [building.door[0], building.door[1] - 1], building }, REACH.door, 3, building.door);
+      if (building.interior) {
+        // Once a door only opens, its sign moves to a board of its own — read
+        // whether or not the door is armed to open, since reading it again
+        // never has the doorstep problem the door itself does.
+        if (this.enterArmed) {
+          consider({ kind: 'enter', at: [building.door[0], building.door[1] - 1], building }, REACH.door, 3, building.door);
+        }
+        const board = signBoardTile(building);
+        if (board) {
+          consider({ kind: 'sign', at: [board[0], board[1] - 1], building }, REACH.door, 3, board);
+        }
+      } else {
+        consider({ kind: 'sign', at: [building.door[0], building.door[1] - 1], building }, REACH.door, 3, building.door);
+      }
     }
     return best;
   }
@@ -1431,6 +1454,8 @@ export class MapScene extends Phaser.Scene {
     for (const building of this.map.buildings) {
       const plaque = plaqueTile(building);
       if (plaque && plaque[0] === tx && plaque[1] === ty) return this.plaqueTap(building, plaque);
+      const board = signBoardTile(building);
+      if (board && board[0] === tx && board[1] === ty) return this.signBoardTap(building, board);
     }
 
     const hit = this.facadeAt(x, y);
@@ -1443,7 +1468,15 @@ export class MapScene extends Phaser.Scene {
         return this.doorTap(building, building.interior ? 'enter' : 'sign');
       }
     }
-    if (hit) return this.doorTap(hit.facade.building, 'sign');
+    if (hit) {
+      // Tapping the rest of the picture — roof, walls, floating name plate —
+      // is tapping the front of the place: walk up and read what it has to
+      // say. Once the door only opens, that means the sign board beside it
+      // rather than the door itself.
+      const board = signBoardTile(hit.facade.building);
+      if (board) return this.signBoardTap(hit.facade.building, board);
+      return this.doorTap(hit.facade.building, 'sign');
+    }
     return null;
   }
 
@@ -1473,6 +1506,15 @@ export class MapScene extends Phaser.Scene {
     return {
       target: { kind, at: [building.door[0], building.door[1] - 1], building },
       goal: [building.door[0], building.door[1]],
+      reach: REACH.door
+    };
+  }
+
+  /** The sign board beside a door that opens: where its standing sign moved to. */
+  private signBoardTap(building: BuildingPlacement, board: Vec2): { target: Target; goal: Vec2; reach: number } {
+    return {
+      target: { kind: 'sign', at: [board[0], board[1] - 1], building },
+      goal: [board[0], board[1]],
       reach: REACH.door
     };
   }
@@ -1601,17 +1643,26 @@ export class MapScene extends Phaser.Scene {
       return;
     }
     const target = this.findTarget();
-    // Props are found by looking, not by a bubble: the room stays uncluttered.
-    if (!target || target.kind === 'prop') {
+    // Every interactable in reach gets the same little bubble — a wall panel
+    // or a memorial sign is just as much a thing to press A on as a door or a
+    // fixture, and singling props out for silence was what made a room whose
+    // walls are all readable look like plain decoration instead.
+    if (!target) {
       this.prompt.setVisible(false);
       return;
     }
-    const glyph = target.kind === 'enter' ? '⌂' : 'A';
+    const entering = target.kind === 'enter';
+    const glyph = entering ? '⌂' : 'A';
+    // A one-word verb over the bubble, when the world bothers to write one
+    // (`copy.json` ui.enter/ui.read) — "Go in" over a door with an interior,
+    // "Read" over everything else the bubble shows for. Either missing means
+    // no label at all (hard rule 3); the glyph alone still tells them apart.
+    const label = entering ? state.copy.ui.enter : state.copy.ui.read;
     const bob = Math.sin(this.time.now / 167) * 1.5;
     // People are two tiles tall and stand on the tile they occupy, so their
     // head fills the tile above it; props and doors sit inside their own tile.
     const lift = target.kind === 'npc' ? TILE : 0;
-    this.prompt.setTexture(promptTexture(this, glyph));
+    this.prompt.setTexture(promptTexture(this, glyph, label));
     this.prompt.setPosition(target.at[0] * TILE + TILE / 2, target.at[1] * TILE - 2 - lift + bob);
     this.prompt.setVisible(true);
   }

@@ -2,6 +2,8 @@
   "ui": {
     "narrator": "You",
     "advance": "▼ tap / A",
+    "enter": "Go in",
+    "read": "Read",
     "unpainted": "Unpainted, for now. Somebody's going to draw this one.",
     "paint": "Paint it",
     "improve": "Improve it?",

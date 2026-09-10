@@ -104,11 +104,14 @@ walks to the nearest tile beside it, or, if there is no way through at all,
 blinks the ring once and stays put. Tapping a person, a door, a shopfront, a
 plaque, a street fixture or something lying about walks over and does the
 thing on arrival, with no A press: a door with an interior behind it opens,
-a door without one reads the sign, the plaque — the tile it is read from, or
-the little brass one drawn on the wall above it — thanks whoever painted the
-place, and anywhere else on a building's picture, roof and floating name
-plate included, is its front, which walks to the doorstep and reads the sign
-rather than walking in. What was tapped is what happens when the walk ends,
+and is only ever the way in, while a door with none reads the sign, exactly
+as it always did. The plaque — the tile it is read from, or the little brass
+one drawn on the wall above it — thanks whoever painted the place, and
+anywhere else on a building's picture, roof and floating name plate included,
+is its front, which walks up and reads the sign — at the little board beside
+the door, once a building has grown one (see "The doormat, and the sign board
+beside it," below), and at the door itself otherwise — rather than walking
+in. What was tapped is what happens when the walk ends,
 not whatever is in reach of where it ended; if the player is already standing
 in the right place it happens straight away. Somebody behind a counter, with
 no free tile beside them, is walked up to as close as that same reach
@@ -244,6 +247,46 @@ entirely to the story: no link, no credit, because meta text in the middle of
 the words gets in the way of reading. If the episode gives an unpainted
 building no sign copy at all, the box would open empty, so `copy.json`
 `ui.unpainted` supplies one short line instead.
+
+**The doormat, and the sign board beside it.** A door that also opens is
+confusing in two ways at once: nothing marks it as one before a player tries
+it, and once the door starts answering "enter," the sign it used to read has
+nowhere left to live. Both are engine-drawn fixes, not new art (CLAUDE.md
+hard rule 3, same as the plaque). The engine lays a small doormat right on the
+doorstep of any door with an interior behind it (`engine/art.ts` `doormatArt`)
+— nothing a world ever paints, and nothing a door with no interior grows — so
+an enterable building reads as one at a glance, the same "at a glance" the
+plaque and the "needs an artist" shimmer already give a building's facade. It
+lives on the tile itself rather than baked into the facade's picture the way
+the plaque hangs on the wall above it, and draws at that tile's own depth
+rather than the facade's, so a player standing on the doorstep draws over it
+— covering it the way a rug disappears under a pair of feet — instead of the
+mat drawing over the player.
+
+And because every building a map places carries a standing sign (§3, no
+exceptions), a door with an interior always has one to relocate: it moves to
+a little board (`signBoardTile` in `engine/schema.ts`, drawn by
+`signBoardArt`) on the far side of the door from wherever the plaque actually
+is — so an explicit `plaque` that flips sides carries the board along with
+it, and the two never crowd the same tile — clamped to the building's own
+columns, since unlike the plaque the board never wanders onto a neighbour's
+frontage. The board is read exactly the way the door used to be — its own
+reach, its own prompt — and the default sits there without a placement having
+to say so; `signAt` on a building's placement in `world.json` overrides the
+tile outright, for the rare case the default lands somewhere awkward (astride
+a road, or — since a door sitting in an edge column of a narrow footprint
+leaves no far side inside it to clamp to — squarely on the door itself, which
+the validator catches and names `signAt` as the fix for). A door with no
+interior keeps reading its sign the way it always has: it grows neither a
+doormat nor a board, because it was never mistaken for a way in.
+
+The bubble that floats over whatever is in reach can carry a one-word verb
+above it too — `copy.json` `ui.enter` ("Go in") over a door with an interior,
+`ui.read` ("Read") over everything else it shows for a plaque, a sign board or
+a prop — stacked over the bubble rather than moving it, so the glyph (⌂ for a
+door, A for everything else) stays exactly where it always has. Either string
+missing drops the label and leaves the bubble to speak for itself (hard rule
+3): a world that never writes them plays exactly as it did before.
 
 **Street fixtures, and the suggestion box.** A map may list engine-drawn
 furniture that belongs to no building and no episode:
@@ -636,7 +679,7 @@ and `effects` (applied when the node is shown/consumed). No code in content.
     { "building": "mill-pond-inn", "requires": [],   // read at the door, with a prompt
       "replace": false,                              // default: the standing sign reads after it
       "lines": ["Chalkboard: pizza night Monday and Wednesday. Underlined twice: RIBS SOLD OUT."] },
-    { "map": "stewarts-interior", "pos": [11, 4], "requires": [],   // a prop: no prompt
+    { "map": "stewarts-interior", "pos": [11, 4], "requires": [],   // a prop, with the same prompt
       "lines": ["The ice cream case hums along beside the shelves."] }
   ]
 }
@@ -653,8 +696,14 @@ goes true (usually the flag that closes out the story, the beat the item is
 handed back). No `until` and a picked-up item stays on the panel for good.
 
 A sign carries exactly one of `building` (read at that building's door, with
-the A prompt) or `map` + `pos` (a prop such as a shelf or a counter, examined by
-standing next to it, deliberately with no prompt).
+the A prompt, or at its sign board once it has grown one — see §2) or `map` +
+`pos` (a prop such as a shelf or a counter, examined by standing next to it).
+Every prop the validator lets onto a map carries `lines` to read, so —
+reversing this schema's earlier call to leave props out of it — it gets the
+same little prompt as anything else in reach: a wall somebody has drawn on is
+as much a thing to press A on as a door or a fixture, and singling props out
+for silence just made a room's walls read as decoration rather than as
+readable.
 
 A building may also carry a **standing sign** in `world.json`, on its entry in
 the `buildings` registry — what is chalked up at its door on an ordinary day,
