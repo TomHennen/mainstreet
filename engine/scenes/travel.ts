@@ -17,6 +17,14 @@ export interface TravelData {
   facing: Facing;
   /** How long the card sits on screen; the caller knows which way we're going. */
   hold?: number;
+  /**
+   * This trip is a `lost` reset (DESIGN.md §2), landing the player back on a
+   * map by the woods rather than through an ordinary exit or door — passed
+   * through explicitly rather than inferred on the far side, so the map
+   * scene knows to stage `lost.arrive`, if there is one, instead of simply
+   * setting the player down.
+   */
+  arrive?: boolean;
 }
 
 /**
@@ -82,7 +90,8 @@ export class TravelScene extends Phaser.Scene {
         this.scene.launch('Map', {
           mapId: this.travel.to,
           pos: this.travel.spawn,
-          facing: this.travel.facing
+          facing: this.travel.facing,
+          arrive: this.travel.arrive
         });
         this.scene.bringToTop('Travel');
         this.scene.bringToTop('Ui');

@@ -1406,8 +1406,69 @@ async function main() {
         await shot(page, 'lost-travel-card');
         log(`    the road card: "${cardCopy.big}" — "${(cardCopy.small ?? '').slice(0, 60)}…"`);
 
-        const home = await waitUntil(page, (s) => !s.locked, 'the ride home to finish', 20000);
-        if (home.map !== lost.to) fail('lost', `came home on "${home.map}", expected lost.to "${lost.to}"`);
+        // The card clears into the destination map — already staging
+        // `lost.arrive`, if there is one, with the player set down but
+        // hidden (DESIGN.md §2/§3). `!s.locked` fires the moment the map
+        // exists, well before an `arrive` scene has actually played out, so
+        // the real "home for good" wait below also asks for the player back
+        // on screen at `lost.spawn`, not just an unlocked session.
+        const arrived = await waitUntil(page, (s) => !s.locked, 'the destination map to load', 20000);
+        if (arrived.map !== lost.to) fail('lost', `came home on "${arrived.map}", expected lost.to "${lost.to}"`);
+
+        if (lost.arrive?.length) {
+          log('    watching the deputy pull in and drop you off');
+          // Wherever the scene's own first vehicle `move` sends it is the
+          // tile it stops beside the lot on — read off the data itself
+          // rather than hard-coded, so a redrawn arrival just moves this too.
+          const firstDrive = lost.arrive.find((step) => step.move?.who?.startsWith('vehicle:'));
+          const vehicleId = firstDrive?.move.who.slice('vehicle:'.length);
+          const dropoff = firstDrive?.move.to;
+          if (vehicleId && dropoff) {
+            await waitUntil(
+              page,
+              (s) => {
+                const truck = s.vehicles.find((v) => v.id === vehicleId);
+                return Boolean(truck) && Math.abs(truck.x - dropoff[0]) < 1 && Math.abs(truck.y - dropoff[1]) < 1;
+              },
+              "the truck to pull up beside Stewart's",
+              15000
+            );
+            await shot(page, 'sheriff-dropoff');
+          }
+
+          // The deputy's own line: a scene's `say` waits for the box same as
+          // any other, so this reads it and presses through it exactly as
+          // `playStagedScene` does for an episode's own staged scenes.
+          const say = lost.arrive.find((step) => step.say)?.say;
+          if (say) {
+            const line = await waitUntil(page, (s) => s.dialogueOpen, 'the deputy to say something', 10000);
+            if (line.dialogue?.speaker !== COPY.ui.narrator) {
+              fail('lost', `"${line.dialogue?.speaker}" says the deputy's line, expected the narrator "${COPY.ui.narrator}"`);
+            }
+            if (line.dialogue?.text !== say.lines[0]) {
+              fail('lost', `deputy's line reads "${line.dialogue?.text}", expected "${say.lines[0]}"`);
+            }
+            log(`    ${COPY.ui.narrator}: "${line.dialogue.text}"`);
+            await advanceDialogue(page, 'lost', say.lines.length);
+          }
+        }
+
+        // Not just "unlocked, visible and standing at spawn" — an `arrive`
+        // scene shows the player beside the truck and walks them onto the
+        // lot well before its own `say` and the truck's drive back out, and
+        // every one of those is a real (if one-frame) match for that on its
+        // own. `s.scene` (null once the whole thing has actually finished,
+        // engine/scene.ts `finished`) is the one condition nothing but the
+        // last step ever satisfies.
+        const home = await waitUntil(
+          page,
+          (s) => {
+            const [x, y] = here(s);
+            return !s.scene && !s.locked && !s.dialogueOpen && s.playerVisible && x === lost.spawn[0] && y === lost.spawn[1];
+          },
+          'the arrival scene to actually finish, home at lost.spawn',
+          20000
+        );
         const landed = here(home);
         if (landed[0] !== lost.spawn[0] || landed[1] !== lost.spawn[1]) {
           fail('lost', `came home at ${landed}, expected lost.spawn ${lost.spawn}`);

@@ -298,6 +298,19 @@ export interface Vehicle {
   speed?: number;
   /** Seconds spent standing at each waypoint. Default 0.8. */
   pause?: number;
+  /**
+   * This car exists only for a scene (DESIGN.md §2/§3): it is not drawn, not
+   * given way to, and not in anyone's way — as if it were not on the map at
+   * all — until the first time a scene's `move` step sends it somewhere
+   * (`Driver.sendTo`, `engine/vehicle.ts`). From that point on it behaves
+   * exactly like any other parked-then-sent car, for good — this is what lets
+   * a deputy's truck be waiting just out of sight at the edge of town rather
+   * than sitting there, ordinary and unexplained, every week before the story
+   * ever calls on it. Default false. Meaningless (and refused) on a car with
+   * a `path`: a car this covers has to have nowhere of its own to drive until
+   * a scene sends it, which is what a parked one already is.
+   */
+  hidden?: boolean;
 }
 
 export interface MapExit {
@@ -350,6 +363,26 @@ export interface MapLost {
   to: string;
   spawn: Vec2;
   facing: Facing;
+  /**
+   * A scene (DESIGN.md §3) that plays out the arrival itself, in place of
+   * simply setting the player down — the truck rolling in and pulling up
+   * rather than the player just standing there once the card clears. Same
+   * shape as an episode scene's own `steps`, run by the very same runner
+   * (`engine/scene.ts`), but it belongs to the map rather than to any one
+   * week's episode: it is not `once`, has no `on` trigger of its own, and
+   * plays every time this `lost` fires rather than being remembered.
+   *
+   * The map scene stages it itself (`engine/scenes/map.ts`): the player is
+   * placed at `spawn` already hidden (a `player` step of its own is rarely
+   * needed at the very start for exactly that reason) — invisible, and, like
+   * any hidden player, beyond walking, tapping or pressing A with until the
+   * scene shows them again, which is what keeps them from wandering off
+   * while a truck they cannot yet be seen in rolls up. If the scene never
+   * shows them again itself, they are shown regardless once it ends, at
+   * wherever they last stood. Optional: with no `arrive`, a `lost` reset
+   * behaves exactly as it always has.
+   */
+  arrive?: SceneStep[];
 }
 
 /**
@@ -945,7 +978,10 @@ export interface MoveStep {
   /** Exactly one of `to` or `path`. */
   to?: Vec2;
   path?: Vec2[];
-  /** Tiles per second, for this move only. */
+  /**
+   * Tiles per second, for this move only — the player's own walk too (an
+   * unhurried arrival, say), rather than their ordinary tapped-walk pace.
+   */
   speed?: number;
 }
 
@@ -964,6 +1000,22 @@ export interface CameraStep {
 }
 
 /**
+ * Show or hide the player sprite mid-scene (DESIGN.md §2/§3, generic to any
+ * scene rather than tied to `MapLost`): hidden, they draw nothing and are
+ * never in anyone's way — not solid to a townsperson routing round them, not
+ * something a car gives way to — exactly as if they had stepped off the map
+ * for a moment, which is what lets a scene stand somebody else up in their
+ * place (a truck pulling in with nobody in it yet). `show` puts them back:
+ * where they already stood, or at `show.at` when the scene means to place
+ * them fresh, as `MapLost`'s `arrive` does once the truck has stopped.
+ * Exactly one of `hide`/`show`, same as any other step.
+ */
+export interface PlayerStep {
+  hide?: true;
+  show?: { at?: Vec2 };
+}
+
+/**
  * One beat of a scene. Exactly one of these fields is set; anything else is a
  * malformed step and the validator says so. Every one of them is data — there
  * is no step that runs code (CLAUDE.md hard rule 2).
@@ -978,6 +1030,8 @@ export interface SceneStep {
   /** Sets an episode flag — which is also how a scene turns an overlay on. */
   set?: string;
   light?: LightSpec;
+  /** Show or hide the player sprite — see `PlayerStep`. */
+  player?: PlayerStep;
   /** Ends the scene here, whatever follows in the list. */
   end?: boolean;
 }

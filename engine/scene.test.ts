@@ -23,6 +23,8 @@ interface Recorded {
   lights: LightSpec[];
   /** Tiles `beginMove` should refuse to route to. */
   unreachable: Set<string>;
+  /** Whether the player sprite is hidden right now (`player` step). */
+  playerHidden: boolean;
 }
 
 function recorder(): Recorded {
@@ -34,6 +36,7 @@ function recorder(): Recorded {
     flags: new Set(),
     lights: [],
     unreachable: new Set(),
+    playerHidden: false,
     driver: null as unknown as SceneDriver
   };
 
@@ -74,6 +77,14 @@ function recorder(): Recorded {
     light(spec: LightSpec): void {
       rec.log.push(`light ${spec.mode}`);
       rec.lights.push(spec);
+    },
+    hidePlayer(): void {
+      rec.log.push('hide player');
+      rec.playerHidden = true;
+    },
+    showPlayer(at?: Vec2): void {
+      rec.log.push(at ? `show player at ${at.join(',')}` : 'show player');
+      rec.playerHidden = false;
     }
   };
   return rec;
@@ -205,6 +216,30 @@ describe('SceneRunner', () => {
     rec.panning = false;
     run(runner);
     expect(rec.log).toContain('camera player');
+  });
+
+  it('hides and shows the player, at their current spot or a given one', () => {
+    const rec = recorder();
+    const runner = new SceneRunner(
+      scene([
+        { player: { hide: true } },
+        { toast: 'mid' },
+        { player: { show: {} } },
+        { player: { hide: true } },
+        { player: { show: { at: [16, 15] } } }
+      ]),
+      rec.driver
+    );
+    run(runner);
+    expect(rec.log).toEqual([
+      'hide player',
+      'toast mid',
+      'show player',
+      'hide player',
+      'show player at 16,15',
+      `set ${sceneFlag('party')}`
+    ]);
+    expect(rec.playerHidden).toBe(false);
   });
 
   it('stops at an end step without running what follows it', () => {

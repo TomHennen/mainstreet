@@ -30,6 +30,12 @@
  *   un-solid — it simply never sets off, until a scene sends it somewhere
  *   (`sendTo`), which is how an episode's pickup pulls out of the forecourt
  *   and heads off down the road (DESIGN.md §3).
+ * - **A car that exists only for a scene.** `hidden` (`Vehicle.hidden`) is a
+ *   parked car nobody has met yet: not drawn, and nothing gives way to it —
+ *   as if it were not on the map at all — until the very first `sendTo`,
+ *   which is also what reveals it, for good. A deputy's truck waiting just
+ *   out of sight at the edge of town, say, rather than sitting there,
+ *   unexplained, every week the story never calls on it.
  * - **A route that runs off the map.** `loop` (default true) ordinarily
  *   sends a car back to its first waypoint once it reaches its last, over
  *   whatever paved way there is — fine for a route that is a loop in its own
@@ -106,6 +112,12 @@ export interface DriverOptions {
   bounds: { width: number; height: number };
   /** The map's own `exits`, so a route ending in one reads as "keeps going" too. */
   exits?: Rect[];
+  /**
+   * This car exists only for a scene (DESIGN.md §2/§3, `Vehicle.hidden`): it
+   * is drawn nowhere and given way to by nobody until the first time
+   * `sendTo` is called, from which point on it is an ordinary car for good.
+   */
+  hidden?: boolean;
 }
 
 /** Rectangle containment — the same test as `engine/edges.ts`'s, kept local here too so this module stays a single, independently-testable file. */
@@ -191,8 +203,14 @@ export class Driver {
   private hollered = false;
   /** How many times this car has hollered, so a world pack's lines can move on each time rather than repeat. */
   private hollerCount = 0;
+  /**
+   * False only for a `hidden` car that has never yet been sent anywhere: see
+   * `onMap`. A car with no `hidden` option starts (and stays) revealed.
+   */
+  private revealed: boolean;
 
   constructor(options: DriverOptions) {
+    this.revealed = !options.hidden;
     // A car with no waypoints is a parked one: it is given no route at all, so
     // the mover stands it exactly where the world pack put it, for ever. It is
     // still a Driver, so the scene draws it and gives way around it in one
@@ -254,17 +272,20 @@ export class Driver {
    * nothing ever sits waiting on a car that has already left.
    */
   tiles(): Vec2[] {
-    return this.phase === 'driving' ? this.mover.tiles() : [];
+    return this.onMap ? this.mover.tiles() : [];
   }
 
   /**
    * False for exactly as long as a through-route car is off the map between
    * one lap and the next (`vanishing`, `off`, `arriving`) — what the scene
    * hides the sprite on (`drawCars` in engine/scenes/map.ts), so it never
-   * draws wherever the maths happens to have parked `x`/`y` meanwhile.
+   * draws wherever the maths happens to have parked `x`/`y` meanwhile — and
+   * false the whole time a `hidden` car is still waiting for its first
+   * `sendTo`, for the same reason: nowhere on the map reads as where it is
+   * yet, so nothing should draw it or give way to it there.
    */
   get onMap(): boolean {
-    return this.phase === 'driving';
+    return this.phase === 'driving' && this.revealed;
   }
 
   /** True while the car is standing still — parked, waiting, or between legs. */
@@ -294,8 +315,13 @@ export class Driver {
    * in `update` and nothing to do with the route. Returns false when there is
    * no paved way there, so the scene carries on rather than waiting on a car
    * that is never going to arrive.
+   *
+   * This is also the one thing that ever reveals a `hidden` car (see `onMap`):
+   * once a scene has sent it anywhere, for good, it is an ordinary car from
+   * then on, whether or not this particular errand succeeds.
    */
   sendTo(goal: Vec2, speed?: number): boolean {
+    this.revealed = true;
     return this.mover.sendTo(goal, speed);
   }
 

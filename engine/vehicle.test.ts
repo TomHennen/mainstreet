@@ -167,6 +167,36 @@ describe('Driver', () => {
     expect(car.facing).toBe('left');
   });
 
+  // A car that exists only for a scene (DESIGN.md §2/§3, Vehicle.hidden): a
+  // deputy's truck waiting out of sight until it is sent somewhere.
+  describe('hidden', () => {
+    it('is nowhere on the map — not drawn, not in anyone\'s way — until it is sent somewhere', () => {
+      const car = new Driver({ pos: [4, 1], speed: 6, drivable: ROAD, facing: 'left', bounds: FAR_BOUNDS, hidden: true });
+      expect(car.onMap).toBe(false);
+      expect(car.tiles()).toEqual([]);
+      run(car, 5);
+      expect(car.onMap).toBe(false);
+
+      expect(car.sendTo([15, 1])).toBe(true);
+      expect(car.onMap).toBe(true);
+      run(car, 4);
+      // Arrived, and an ordinary car for good from here on.
+      expect(car.onMap).toBe(true);
+      expect(car.tiles()).toEqual([[15, 1]]);
+    });
+
+    it('stays revealed even when the errand it is first sent on fails', () => {
+      const car = new Driver({ pos: [4, 1], speed: 6, drivable: ROAD, facing: 'left', bounds: FAR_BOUNDS, hidden: true });
+      expect(car.sendTo([5, 9])).toBe(false);
+      expect(car.onMap).toBe(true);
+    });
+
+    it('is an ordinary always-visible car with no `hidden` option', () => {
+      const car = new Driver({ pos: [4, 1], speed: 6, drivable: ROAD, facing: 'left', bounds: FAR_BOUNDS });
+      expect(car.onMap).toBe(true);
+    });
+  });
+
   // A scene sending a car somewhere (engine/scene.ts, DESIGN.md §3): the
   // parked pickup that pulls out of the lot and drives off down the road.
   describe('sendTo', () => {
