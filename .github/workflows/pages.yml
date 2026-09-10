@@ -1,10 +1,24 @@
-# Builds the game and publishes dist/ to GitHub Pages on every push to main.
+# Builds the game and publishes it to GitHub Pages. Two builds go out together:
+#
+#   https://<owner>.github.io/<repo>/      the latest release (highest v* tag)
+#   https://<owner>.github.io/<repo>/dev/  whatever is on main right now
+#
+# Pages publishes one artifact as the whole site, so both are built fresh from
+# git on every run — a push to main, a pushed v* tag, or a manual run — and
+# stitched together. Until the first tag exists, main is at the root too.
+#
+# To release: tag main (`git tag v1.0.0 && git push origin v1.0.0`, or a
+# GitHub Release that creates the tag). The highest version tag wins, so a
+# late tag for an older version never rolls the site back; tags with a
+# suffix (v1.1.0-rc1) are left out and never reach the root.
+#
 # One-time setup: repo Settings → Pages → Source: "GitHub Actions".
 name: pages
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -20,23 +34,74 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # main goes to /dev/. The full history is fetched here so the tags are
+      # in it, and the release checkout below can be named from them.
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+          fetch-depth: 0
+
+      - name: Find the latest release tag
+        id: release
+        run: |
+          tag=$(git -C main tag --list 'v[0-9]*' --sort=-v:refname | grep -v -- '-' | head -n 1)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [ -n "$tag" ]; then echo "Release: $tag"; else echo "No release tag yet; main goes to the root as well"; fi
+
+      - uses: actions/checkout@v4
+        if: steps.release.outputs.tag != ''
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+          path: release
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+          cache-dependency-path: '*/package-lock.json'
+
       # Pages serves a project site at https://<owner>.github.io/<repo>/, so
-      # every world's build has to know that sub-path. Using the repo name
-      # keeps forks working. build:site builds each world under worlds/ into
-      # its own dist/<id>/ and writes a landing page at dist/index.html that
-      # links to them (scripts/build-site.mjs).
-      - run: npm run build:site
+      # every build has to know its sub-path. Using the repo name keeps forks
+      # working. build:site builds each world under worlds/ into its own
+      # dist/<id>/ and writes a landing page at dist/index.html that links to
+      # them (scripts/build-site.mjs). The release is built from its own
+      # checkout, so it ships with the build script it was tagged with.
+      - name: Build the release (site root)
+        if: steps.release.outputs.tag != ''
+        working-directory: release
+        run: npm ci && npm run build:site
         env:
           SITE_BASE: /${{ github.event.repository.name }}
+          SITE_DEV_BASE: /${{ github.event.repository.name }}/dev
+
+      - run: npm ci
+        working-directory: main
+
+      - name: Build main (site root, until the first release)
+        if: steps.release.outputs.tag == ''
+        working-directory: main
+        run: npm run build:site && mv dist ../root-from-main
+        env:
+          SITE_BASE: /${{ github.event.repository.name }}
+          SITE_DEV_BASE: /${{ github.event.repository.name }}/dev
+
+      - name: Build main (dev path)
+        working-directory: main
+        run: npm run build:site
+        env:
+          SITE_BASE: /${{ github.event.repository.name }}/dev
+          SITE_RELEASE_BASE: /${{ github.event.repository.name }}
+
+      - name: Put the site together
+        run: |
+          if [ -d release/dist ]; then mv release/dist site; else mv root-from-main site; fi
+          mv main/dist site/dev
+          find site -maxdepth 2 -name index.html | sort
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site
 
   deploy:
     needs: build

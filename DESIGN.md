@@ -1126,8 +1126,9 @@ Stewart's, Saturday crossword devotee. Hannah — Stewart's counter.
 - **M1 — Parity + foundations.** M0 hardened: Tiled maps replace array maps,
   Vitest coverage for schema/loader/flags, validate-episodes script, GitHub
   Actions (typecheck, tests, validation), devcontainer. (The public URL
-  already exists: GitHub Pages deploys `main` on every push, see
-  `.github/workflows/pages.yml`. Cloudflare Pages is deferred.)
+  already exists: GitHub Pages deploys `main` to `/dev/` on every push and
+  the latest `v*` tag to the site root, see `.github/workflows/pages.yml`.
+  Cloudflare Pages is deferred.)
 - **M2 — Pipeline. Done.** Asset conventions live (drop a PNG → building
   painted), validate-assets + validate-episodes in CI, art credits in-game,
   save/load with episode completion, title screen.
