@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { bus, EV } from '../bus';
-import { noteDialogue, noteToast } from '../debug';
+import { noteDialogue, noteInventory, noteToast } from '../debug';
 import type { SayRequest } from '../bus';
 import { isMailto } from '../feedback';
 import { withYou } from '../inventory';
@@ -249,6 +249,9 @@ export class UiScene extends Phaser.Scene {
     if (open) document.body.dataset.dialogue = 'open';
     else delete document.body.dataset.dialogue;
     this.invEntries = open ? withYou(state) : [];
+    if (import.meta.env.DEV) {
+      noteInventory(open ? this.invEntries.map((entry) => ({ id: entry.id, name: entry.name })) : null);
+    }
     this.layout();
   }
 

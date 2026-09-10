@@ -16,12 +16,11 @@ import {
   plateLift,
   plaqueArt,
   promptTexture,
-  signBoardArt,
   TILE,
   vehicleFrame,
   vehicleTexture
 } from '../art';
-import { currentDialogue, currentToast, publishDebug, publishFlagSetter } from '../debug';
+import { currentDialogue, currentInventory, currentToast, publishDebug, publishFlagSetter } from '../debug';
 import { edgeAt, lostAt, roadEndLine } from '../edges';
 import { isHeld, onAction, onTap } from '../input';
 import { feedbackUrl } from '../feedback';
@@ -52,7 +51,7 @@ import {
   vehiclesOn
 } from '../session';
 import { driveable, isSolid, moverWalkable } from '../validate';
-import { lookOf, plaqueTile, SCENE_PLAYER, SCENE_VEHICLE, signBoardTile } from '../schema';
+import { lookOf, plaqueTile, SCENE_PLAYER, SCENE_VEHICLE } from '../schema';
 import type { PlateBox } from '../art';
 import type {
   BuildingPlacement,
@@ -127,7 +126,7 @@ export interface MapSceneData {
 }
 
 interface Target {
-  kind: 'npc' | 'item' | 'prop' | 'enter' | 'sign' | 'plaque' | 'fixture';
+  kind: 'npc' | 'item' | 'prop' | 'sign' | 'plaque' | 'fixture';
   at: Vec2;
   /** Index into `walkers` when this is somebody rather than something. */
   person?: number;
@@ -369,14 +368,12 @@ export class MapScene extends Phaser.Scene {
       }
 
       // A door that opens gets the engine's own "come on in" laid at its
-      // foot, and its standing sign moves to a little board beside it — the
-      // door stays the way in, and only the way in (CLAUDE.md #4, DESIGN.md
-      // §2). A door with nothing behind it keeps reading the sign itself, and
-      // grows neither.
+      // foot: walking onto the doorstep is what opens it, and the mat marks
+      // it as that kind of door before a player ever tries. Its door still
+      // reads the standing sign to an A press or a tap, same as any door
+      // with nothing behind it (CLAUDE.md #4, DESIGN.md §2).
       const mat = doormatArt(this, placement);
       if (mat) this.add.image(mat.x, mat.y, mat.key).setOrigin(0, 0).setDepth(mat.depth);
-      const board = signBoardArt(this, placement);
-      if (board) this.add.image(board.x, board.y, board.key).setOrigin(0, 0).setDepth(depth + 2);
 
       if (art.painted) {
         // The placeholder bakes its name plate into the facade texture itself;
@@ -456,7 +453,7 @@ export class MapScene extends Phaser.Scene {
     this.player = this.add.sprite(0, 0, playerKey, frameIndex(this.facing, 0)).setOrigin(0.5, 1);
     this.syncPlayerSprite();
 
-    this.prompt = this.add.image(0, 0, promptTexture(this, 'A')).setOrigin(0.5, 1).setDepth(9000).setVisible(false);
+    this.prompt = this.add.image(0, 0, promptTexture(this)).setOrigin(0.5, 1).setDepth(9000).setVisible(false);
     // Sits under the A prompt and over the town, so a destination behind a
     // porch roof is still findable while the player walks to it.
     this.marker = this.add.image(0, 0, markerTexture(this)).setOrigin(0, 0).setDepth(8500).setVisible(false);
@@ -1019,7 +1016,8 @@ export class MapScene extends Phaser.Scene {
       light: this.lighting.describe(),
       held: this.held,
       overlays: overlaysOn(this.mapId).map((overlay) => overlay.id),
-      toast: currentToast()
+      toast: currentToast(),
+      withYou: currentInventory()
     });
   }
 
@@ -1076,9 +1074,10 @@ export class MapScene extends Phaser.Scene {
 
     // The d-pad and the movement keys always win: taking hold of a direction
     // calls off a tapped walk on the frame it is seen.
-    if (dx !== 0 || dy !== 0) this.stopWalk();
+    const viaKeys = dx !== 0 || dy !== 0;
+    if (viaKeys) this.stopWalk();
 
-    this.moving = dx !== 0 || dy !== 0;
+    this.moving = viaKeys;
     if (dx !== 0) this.facing = dx < 0 ? 'left' : 'right';
     else if (dy !== 0) this.facing = dy < 0 ? 'up' : 'down';
 
@@ -1107,6 +1106,7 @@ export class MapScene extends Phaser.Scene {
     this.updateMarker();
     this.checkExits();
     this.checkEdges();
+    this.checkDoors(viaKeys);
   }
 
   /**
@@ -1133,9 +1133,10 @@ export class MapScene extends Phaser.Scene {
   }
 
   /**
-   * Coming out of a door drops the player on the doorstep. Offering that door
-   * straight back would send the next A press through it, so doors stay silent
-   * until half a tile of daylight is between the player and where they landed.
+   * Coming out of a door drops the player on the doorstep. Leaving `checkDoors`
+   * free to fire from the very first frame would walk them straight back in
+   * before they had taken a step, so a door stays quiet until half a tile of
+   * daylight is between the player and where they landed.
    */
   private armEnters(): void {
     if (this.enterArmed) return;
@@ -1249,26 +1250,17 @@ export class MapScene extends Phaser.Scene {
     for (const building of this.map.buildings) {
       // The plaque is considered first so that standing exactly on the line
       // between it and the door still reads the plaque, as it looks like it
-      // should. A building with an interior has one too: its door opens, and
-      // the plaque beside it is still where its painter is thanked.
+      // should. A building with an interior has one too: its door opens
+      // underfoot when the player walks onto it (checkDoors), and the plaque
+      // beside it is still where its painter is thanked.
       const plaque = plaqueTile(building);
       if (plaque) {
         consider({ kind: 'plaque', at: [plaque[0], plaque[1] - 1], building }, REACH.plaque, 3, plaque);
       }
-      if (building.interior) {
-        // Once a door only opens, its sign moves to a board of its own — read
-        // whether or not the door is armed to open, since reading it again
-        // never has the doorstep problem the door itself does.
-        if (this.enterArmed) {
-          consider({ kind: 'enter', at: [building.door[0], building.door[1] - 1], building }, REACH.door, 3, building.door);
-        }
-        const board = signBoardTile(building);
-        if (board) {
-          consider({ kind: 'sign', at: [board[0], board[1] - 1], building }, REACH.door, 3, board);
-        }
-      } else {
-        consider({ kind: 'sign', at: [building.door[0], building.door[1] - 1], building }, REACH.door, 3, building.door);
-      }
+      // A door reads its standing sign to an A press or a tap whether or not
+      // it also opens — interior or none, this is the one thing A ever does
+      // at a door (DESIGN.md §2).
+      consider({ kind: 'sign', at: [building.door[0], building.door[1] - 1], building }, REACH.door, 3, building.door);
     }
     return best;
   }
@@ -1507,8 +1499,6 @@ export class MapScene extends Phaser.Scene {
     for (const building of this.map.buildings) {
       const plaque = plaqueTile(building);
       if (plaque && plaque[0] === tx && plaque[1] === ty) return this.plaqueTap(building, plaque);
-      const board = signBoardTile(building);
-      if (board && board[0] === tx && board[1] === ty) return this.signBoardTap(building, board);
     }
 
     const hit = this.facadeAt(x, y);
@@ -1518,17 +1508,14 @@ export class MapScene extends Phaser.Scene {
     }
     for (const building of this.map.buildings) {
       if (building.door[0] === tx && (building.door[1] === ty || building.door[1] - 1 === ty)) {
-        return this.doorTap(building, building.interior ? 'enter' : 'sign');
+        return this.doorTap(building);
       }
     }
     if (hit) {
       // Tapping the rest of the picture — roof, walls, floating name plate —
-      // is tapping the front of the place: walk up and read what it has to
-      // say. Once the door only opens, that means the sign board beside it
-      // rather than the door itself.
-      const board = signBoardTile(hit.facade.building);
-      if (board) return this.signBoardTap(hit.facade.building, board);
-      return this.doorTap(hit.facade.building, 'sign');
+      // is tapping the front of the place: walk up and read the sign, exactly
+      // what tapping the door itself does.
+      return this.doorTap(hit.facade.building);
     }
     return null;
   }
@@ -1554,20 +1541,17 @@ export class MapScene extends Phaser.Scene {
     };
   }
 
-  /** The front step: where a sign is read from, and where a door is opened. */
-  private doorTap(building: BuildingPlacement, kind: 'enter' | 'sign'): { target: Target; goal: Vec2; reach: number } {
+  /**
+   * The front step: where the sign is read from. A tap walks the player onto
+   * the door tile itself and reads it there, whether or not the building has
+   * an interior — walking onto it this deliberately, through `followPath`'s
+   * own arrival press, never opens it (`checkDoors` only answers to a held
+   * direction, DESIGN.md §2).
+   */
+  private doorTap(building: BuildingPlacement): { target: Target; goal: Vec2; reach: number } {
     return {
-      target: { kind, at: [building.door[0], building.door[1] - 1], building },
+      target: { kind: 'sign', at: [building.door[0], building.door[1] - 1], building },
       goal: [building.door[0], building.door[1]],
-      reach: REACH.door
-    };
-  }
-
-  /** The sign board beside a door that opens: where its standing sign moved to. */
-  private signBoardTap(building: BuildingPlacement, board: Vec2): { target: Target; goal: Vec2; reach: number } {
-    return {
-      target: { kind: 'sign', at: [board[0], board[1] - 1], building },
-      goal: [board[0], board[1]],
       reach: REACH.door
     };
   }
@@ -1704,18 +1688,16 @@ export class MapScene extends Phaser.Scene {
       this.prompt.setVisible(false);
       return;
     }
-    const entering = target.kind === 'enter';
-    const glyph = entering ? '⌂' : 'A';
     // A one-word verb over the bubble, when the world bothers to write one
-    // (`copy.json` ui.enter/ui.read) — "Go in" over a door with an interior,
-    // "Read" over everything else the bubble shows for. Either missing means
-    // no label at all (hard rule 3); the glyph alone still tells them apart.
-    const label = entering ? state.copy.ui.enter : state.copy.ui.read;
+    // (`copy.json` ui.read) — "Read" over everything the bubble shows for,
+    // a door included: A only ever reads the standing sign there now, never
+    // opens it (DESIGN.md §2). Missing means no label at all (hard rule 3).
+    const label = state.copy.ui.read;
     const bob = Math.sin(this.time.now / 167) * 1.5;
     // People are two tiles tall and stand on the tile they occupy, so their
     // head fills the tile above it; props and doors sit inside their own tile.
     const lift = target.kind === 'npc' ? TILE : 0;
-    this.prompt.setTexture(promptTexture(this, glyph, label));
+    this.prompt.setTexture(promptTexture(this, label));
     this.prompt.setPosition(target.at[0] * TILE + TILE / 2, target.at[1] * TILE - 2 - lift + bob);
     this.prompt.setVisible(true);
   }
@@ -1883,20 +1865,35 @@ export class MapScene extends Phaser.Scene {
       if (lines.length) bus.emit(EV.say, { speaker: name, lines });
       return;
     }
+  }
 
-    if (target.kind === 'enter' && target.building?.interior && target.building.enter) {
-      // The doorstep rule findTarget() keeps too (see armEnters): stepping out
-      // of a door and tapping it straight back must not go in again.
-      if (!this.enterArmed) return;
-      this.leave({
-        style: 'door',
-        hold: HOLD.enter,
-        copyKey: `enter:${target.building.id}`,
-        to: target.building.interior,
-        spawn: target.building.enter,
-        facing: 'up'
-      });
-    }
+  /**
+   * A door with an interior behind it opens the moment the player actually
+   * walks onto it — the doormat is the only warning it gets (DESIGN.md §2).
+   * Keyed to `viaKeys`, the same held-direction movement `update()` drove
+   * this frame's step with: a tap that lands the walk on the doorstep is
+   * `followPath`'s own arrival press, which reads the standing sign like any
+   * other A press, never this. `enterArmed` is `armEnters`'s guard against
+   * the doorstep a player was just dropped on by leaving the very same way.
+   */
+  private checkDoors(viaKeys: boolean): void {
+    if (!viaKeys || !this.enterArmed) return;
+    const state = session();
+    if (state.locked || state.dialogueOpen) return;
+    const tx = Math.floor((this.px + TILE / 2) / TILE);
+    const ty = Math.floor((this.py + TILE / 2) / TILE);
+    const building = this.map.buildings.find(
+      (b) => b.interior && b.enter && b.door[0] === tx && b.door[1] === ty
+    );
+    if (!building) return;
+    this.leave({
+      style: 'door',
+      hold: HOLD.enter,
+      copyKey: `enter:${building.id}`,
+      to: building.interior as string,
+      spawn: building.enter as Vec2,
+      facing: 'up'
+    });
   }
 
   private checkExits(): void {

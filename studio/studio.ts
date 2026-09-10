@@ -53,11 +53,6 @@ const PLAQUE_LIFT = 4;
 const DOORMAT_W = 12;
 const DOORMAT_H = 4;
 const DOORMAT_LIFT = 1;
-/** The sign board the engine hangs beside such a door (engine/art.ts
- *  signBoardArt), where its standing sign moves to once the door only opens. */
-const SIGNBOARD_W = 8;
-const SIGNBOARD_H = 7;
-const SIGNBOARD_LIFT = 4;
 /** Most spare rows of 16px an artist may add above the footprint. */
 const MAX_EXTRA_ROWS = 3;
 const DEFAULT_EXTRA_ROWS = 1;
@@ -179,7 +174,6 @@ interface Placement {
   plaque?: [number, number] | false;
   /** Map id of this building's interior, if it has one yet — engine/schema.ts. */
   interior?: string;
-  signAt?: [number, number];
 }
 
 /**
@@ -193,24 +187,6 @@ function plaqueTile(placement: Placement): [number, number] | null {
   if (placement.plaque) return placement.plaque;
   const rightMost = placement.pos[0] + placement.size[0] - 1;
   return [placement.door[0] + (placement.door[0] >= rightMost ? -1 : 1), placement.door[1]];
-}
-
-/**
- * Where a building's standing sign moves to once it also has an interior —
- * a small copy of engine/schema.ts's `signBoardTile`, same reason as
- * `plaqueTile` above. Reference only: nothing here moves it, so this is
- * only ever the default, on the far side of the door from the plaque and
- * clamped to the building's own columns.
- */
-function signBoardTile(placement: Placement): [number, number] | null {
-  if (!placement.interior) return null;
-  if (placement.signAt) return placement.signAt;
-  const left = placement.pos[0];
-  const right = placement.pos[0] + placement.size[0] - 1;
-  const plaque = plaqueTile(placement);
-  const step = plaque ? (plaque[0] > placement.door[0] ? -1 : 1) : placement.door[0] >= right ? -1 : 1;
-  const x = Math.min(right, Math.max(left, placement.door[0] + step));
-  return [x, placement.door[1]];
 }
 
 interface MapDef {
@@ -426,11 +402,9 @@ function hueFamily(hex: string): number {
  * `doorCol` and `plaqueCol` are tile columns across the front of the building,
  * counting from 0 at its left edge — wherever the artist has put the markers,
  * which is where the town will end up putting them too. `plaqueCol` is null
- * for a building that has no plaque. `hasInterior` and `signCol` add the
- * doormat and sign board a door with an interior gets (DESIGN.md §2):
- * neither marker moves, since nothing here drags them, so `signCol` is only
- * ever the default `signBoardTile` lands on for this placement as it stands
- * in `world.json`.
+ * for a building that has no plaque. `hasInterior` adds the doormat a door
+ * with an interior gets (DESIGN.md §2); the marker doesn't move, since
+ * nothing here drags it.
  */
 function referenceCanvas(
   placement: Placement,
@@ -439,8 +413,7 @@ function referenceCanvas(
   height: number,
   doorCol: number,
   plaqueCol: number | null,
-  hasInterior: boolean,
-  signCol: number | null
+  hasInterior: boolean
 ): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -484,10 +457,10 @@ function referenceCanvas(
     ctx.fillRect(plaqueX, plaqueY, PLAQUE_W, 1);
   }
 
-  // A door with an interior gets the engine's own doormat on its doorstep,
-  // and its sign moves off the door to a little board beside it — same as
-  // the plaque, over whatever is painted beneath, so nobody has to draw
-  // either one (DESIGN.md §2).
+  // A door with an interior gets the engine's own doormat on its doorstep —
+  // over whatever is painted beneath, so nobody has to draw one (DESIGN.md
+  // §2). The door still reads the standing sign to an A press or a tap; it
+  // grows no second marker.
   if (hasInterior) {
     const matX = doorX + (TILE - DOORMAT_W) / 2;
     const matY = height - DOORMAT_LIFT - DOORMAT_H;
@@ -495,18 +468,6 @@ function referenceCanvas(
     ctx.fillRect(matX, matY, DOORMAT_W, DOORMAT_H);
     ctx.fillStyle = '#caa06a';
     ctx.fillRect(matX + 1, matY + 1, DOORMAT_W - 2, 1);
-  }
-  if (signCol !== null) {
-    const boardX = signCol * TILE + (TILE - SIGNBOARD_W) / 2;
-    const boardY = height - SIGNBOARD_LIFT - SIGNBOARD_H;
-    ctx.fillStyle = '#5a4632';
-    ctx.fillRect(boardX + 3, boardY, 2, SIGNBOARD_H);
-    ctx.fillStyle = '#8a6a4a';
-    ctx.fillRect(boardX, boardY + 1, SIGNBOARD_W, 4);
-    ctx.fillStyle = 'rgba(0,0,0,.2)';
-    ctx.fillRect(boardX, boardY + 4, SIGNBOARD_W, 1);
-    ctx.fillStyle = '#f0e6cf';
-    ctx.fillRect(boardX + 1, boardY + 2, SIGNBOARD_W - 2, 2);
   }
 
   ctx.font = '8px ui-monospace, Menlo, Consolas, monospace';
@@ -625,11 +586,9 @@ interface EditorState {
   /** Where the town has them today, so "Reset" and the code both know. */
   defaultDoorCol: number;
   defaultPlaqueCol: number | null;
-  /** Whether this building has an interior yet — the doormat and sign board
-   *  the reference draws only for one that does (DESIGN.md §2). */
+  /** Whether this building has an interior yet — the doormat the reference
+   *  draws only for one that does (DESIGN.md §2). */
   hasInterior: boolean;
-  /** Where the sign board lands for a building with an interior, or null. */
-  signCol: number | null;
   undo: Uint8Array[];
   redo: Uint8Array[];
   /**
@@ -722,7 +681,6 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
   const doorCol = inFront(placement.door) ?? 0;
   const plaqueDefault = columns > 1 ? inFront(plaqueTile(placement)) : null;
   const hasInterior = Boolean(placement.interior);
-  const signDefault = hasInterior ? inFront(signBoardTile(placement)) : null;
 
   const state: EditorState = {
     world,
@@ -747,7 +705,6 @@ function renderEditor(world: World, entry: Entry, palette: (string | null)[], au
     defaultDoorCol: doorCol,
     defaultPlaqueCol: plaqueDefault,
     hasInterior,
-    signCol: signDefault,
     undo: [],
     redo: [],
     autoImprove
@@ -1114,8 +1071,7 @@ function wireEditor(state: EditorState): void {
       state.height,
       state.doorCol,
       state.plaqueCol,
-      state.hasInterior,
-      state.signCol
+      state.hasInterior
     );
   }
 

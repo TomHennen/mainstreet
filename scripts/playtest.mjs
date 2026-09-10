@@ -175,21 +175,6 @@ function plaqueOf(placement) {
 }
 
 /**
- * The tile a building's standing sign is read from once it also has an
- * interior — a second implementation of engine/schema.ts's `signBoardTile`,
- * deliberately, like plaqueOf() above. Default: the opposite side of the
- * door from the plaque. `null` for a building with no interior, where the
- * door itself still reads the sign.
- */
-function signBoardOf(placement) {
-  if (!placement.interior) return null;
-  if (placement.signAt) return placement.signAt;
-  const rightMost = placement.pos[0] + placement.size[0] - 1;
-  const plaqueStep = placement.door[0] >= rightMost ? -1 : 1;
-  return [placement.door[0] - plaqueStep, placement.door[1]];
-}
-
-/**
  * What a door reads, mirroring engine/session.ts's `signLinesFor` the way
  * isSolid() and plaqueOf() mirror their engine counterparts: the episode's
  * first matching sign for the building, then the building's standing sign in
@@ -390,16 +375,6 @@ async function pointOfTile(page, tile, milestone = 'tap-walk') {
     fail(milestone, `tile ${tile} is off screen (${JSON.stringify(p)})`);
   }
   return p;
-}
-
-/**
- * A click on a tile. Mouse and finger come down the one pointer path
- * (CLAUDE.md hard rule 4, engine/input.ts), so this is the same tap the touch
- * pages make — it is only aimed with a mouse, on a page that has no touch.
- */
-async function clickTile(page, tile, milestone) {
-  const p = await pointOfTile(page, tile, milestone);
-  await page.mouse.click(p.x, p.y);
 }
 
 async function shot(page, slug, options = {}) {
@@ -1432,10 +1407,25 @@ async function main() {
     expectFlag(await snap(page), 'earl', 'metEarl');
 
     // --- Stewart's ----------------------------------------------------------
-    log("  enter Stewart's");
+    // A door with an interior no longer opens to an A press: pressing A there
+    // reads the standing sign, same as anywhere else, and the door only opens
+    // when the player actually walks onto it (DESIGN.md §2). One step short of
+    // it, in reach but not on it yet, is exactly the shot Tom asked for: the
+    // doormat marking the door as one that opens, and the "Read" prompt
+    // floating over it, side by side, so the two glyphs can be told apart.
+    log("  see Stewart's doormat");
     const stewarts = WORLD.maps.stamford.buildings.find((b) => b.id === 'stewarts');
-    await walkTo(page, 'stewarts', stewarts.door);
-    await pressA(page);
+    // Far enough off that no prompt bubble is up yet — the doormat on its own,
+    // marking the door as one that opens.
+    await walkTo(page, 'stewarts-doormat', [stewarts.door[0], stewarts.door[1] + 3]);
+    await shot(page, 'stewarts-doormat');
+
+    log("  approach Stewart's door");
+    await walkTo(page, 'stewarts-approach', [stewarts.door[0], stewarts.door[1] + 1]);
+    await shot(page, 'stewarts-door-prompt');
+
+    log("  walk into Stewart's");
+    await walkTo(page, 'stewarts', stewarts.door, { allowInterrupt: true });
     await waitUntil(page, (s) => s.map === stewarts.interior && !s.locked, "Stewart's interior");
     await shot(page, 'stewarts-interior');
 
@@ -1470,38 +1460,22 @@ async function main() {
     // is asked the same three things: does its door let you in where the
     // placement says, is its furniture something you walk round rather than
     // through, and does the way out put you back on the doorstep facing the
-    // street. Entered with a tap on the door, which is how the game is meant
-    // to be played (CLAUDE.md hard rule 4).
+    // street. Entered by walking onto the door, which is what opens it now
+    // (DESIGN.md §2) — a tap gets its own coverage, reading the sign rather
+    // than walking in, over in the tap-targets section below.
     for (const place of WORLD.maps.stamford.buildings.filter((b) => b.interior && b.enter && b.id !== stewarts.id)) {
       const name = WORLD.buildings[place.id].name;
       const room = WORLD.maps[place.interior];
-      const doorstep = [[0, 2], [0, 3], [-2, 0], [2, 0], [0, 1]]
-        .map(([dx, dy]) => [place.door[0] + dx, place.door[1] + dy])
-        .find(
-          (tile) =>
-            !isSolid(WORLD.maps.stamford, tile[0], tile[1]) &&
-            !WORLD.maps.stamford.buildings.some((b) => {
-              const plaque = plaqueOf(b);
-              const board = signBoardOf(b);
-              return (
-                (b.door[0] === tile[0] && b.door[1] === tile[1]) ||
-                (plaque && plaque[0] === tile[0] && plaque[1] === tile[1]) ||
-                (board && board[0] === tile[0] && board[1] === tile[1])
-              );
-            })
-        );
-      if (!doorstep) fail(`${place.id}-enter`, `nowhere to stand outside ${name} to tap its door from`);
 
-      log(`  into ${name}, on a tap`);
-      await walkTo(page, `${place.id}-enter`, doorstep);
-      await clickTile(page, place.door, `${place.id}-enter`);
+      log(`  walk into ${name}`);
+      await walkTo(page, `${place.id}-enter`, place.door, { allowInterrupt: true });
       const inside = await waitUntil(page, (s) => s.map === place.interior && !s.locked, `${name}'s room`);
       const landed = here(inside);
       if (landed[0] !== place.enter[0] || landed[1] !== place.enter[1]) {
         fail(`${place.id}-enter`, `${name} put the player down on ${landed}, not its "enter" tile ${place.enter}`);
       }
       await shot(page, `${place.id}-interior`);
-      log(`    tapped ${place.door} from ${doorstep} -> in at ${landed}, ${room.width}x${room.height} tiles`);
+      log(`    walked onto ${place.door} -> in at ${landed}, ${room.width}x${room.height} tiles`);
 
       // Anybody posted behind the counter (DESIGN.md §2): a world person with
       // their own `lines`, standing in a staff strip the player can never walk
@@ -1884,6 +1858,31 @@ async function main() {
     expectFlag(await snap(page), 'pen', 'hasPen');
     await shot(page, 'pen-toast');
 
+    // --- the "with you" panel -------------------------------------------------
+    // Opened with "i" (or #withyou-btn on a touch page) — the one glance-at-it
+    // list of what the player is carrying, with the pen freshly in hand.
+    // Skipped where a world hasn't written copy.ui.withYou at all (hard rule
+    // 3): no feature, nothing to test.
+    if (COPY.ui?.withYou) {
+      log('  open "with you" with the pen in hand');
+      await page.keyboard.press('i');
+      await sleep(320);
+      const open = await waitUntil(page, (s) => s.dialogueOpen && s.withYou !== null, 'the "with you" panel to open');
+      const names = (open.withYou ?? []).map((e) => e.name);
+      if (!names.includes(pen.name ?? pen.id)) {
+        fail('with-you', `the "with you" panel listed ${JSON.stringify(names)}, expected "${pen.name ?? pen.id}" on it`);
+      }
+      log(`    with you: ${names.join(', ')}`);
+      await shot(page, 'with-you-panel');
+
+      await pressA(page);
+      await waitUntil(page, (s) => !s.dialogueOpen && s.withYou === null, 'the "with you" panel to close');
+      await walkTo(page, 'with-you-after', [pen.pos[0] - 1, pen.pos[1]]);
+      log('    closed, and walking again');
+    } else {
+      log('  (this world has no ui.withYou — skipping the "with you" panel)');
+    }
+
     // --- the suggestion box --------------------------------------------------
     // The engine's own street fixture: a solid little post box standing on a
     // tile of its own, read from beside it, with a "write to us" link riding
@@ -1898,7 +1897,7 @@ async function main() {
       // Read from alongside rather than from below: the box is a low thing on
       // its own tile, and a player standing south of it stands in front of it.
       const jefferson = WORLD.maps.jefferson;
-      const taken = jefferson.buildings.flatMap((b) => [b.door, plaqueOf(b), signBoardOf(b)].filter(Boolean));
+      const taken = jefferson.buildings.flatMap((b) => [b.door, plaqueOf(b)].filter(Boolean));
       const beside = [[-1, 0], [1, 0], [0, 1], [0, -1]]
         .map(([dx, dy]) => [box.pos[0] + dx, box.pos[1] + dy])
         .find(
@@ -2244,8 +2243,6 @@ async function main() {
         add(b.door[0], b.door[1] - 1);
         const p = plaqueOf(b);
         if (p) add(p[0], p[1]);
-        const sb = signBoardOf(b);
-        if (sb) add(sb[0], sb[1]);
       }
       return set;
     }
@@ -2447,14 +2444,12 @@ async function main() {
     function standable(mapId, from, offsets) {
       const map = WORLD.maps[mapId];
       const exits = exitTiles(map);
-      // A door, a plaque or a sign board is somewhere to read, not somewhere
-      // to stand and watch from: standing on one would make the next tap a
-      // no-op.
+      // A door or a plaque is somewhere to read, not somewhere to stand and
+      // watch from: standing on one would make the next tap a no-op.
       const taken = new Set(
         map.buildings.flatMap((b) => {
           const p = plaqueOf(b);
-          const sb = signBoardOf(b);
-          return [`${b.door[0]},${b.door[1]}`, ...(p ? [`${p[0]},${p[1]}`] : []), ...(sb ? [`${sb[0]},${sb[1]}`] : [])];
+          return [`${b.door[0]},${b.door[1]}`, ...(p ? [`${p[0]},${p[1]}`] : [])];
         })
       );
       for (const [dx, dy] of offsets) {
@@ -2490,9 +2485,9 @@ async function main() {
     await walkTo(wp, 'tap-targets', shopStand);
 
     // The facade: a tile of the picture that is neither the door nor the
-    // plaque. Tapping a shopfront walks to its sign board and reads the sign
-    // — it does not walk in, even where there is an interior to walk into,
-    // because the door is only ever the way in once a building has one
+    // plaque. Tapping a shopfront walks up to the door and reads its sign —
+    // it does not walk in, even where there is an interior behind the door,
+    // because a tap only ever reads a sign, the same as an A press
     // (DESIGN.md §2).
     const wallColumn = Array.from({ length: shop.size[0] }, (_, i) => shop.pos[0] + i).find(
       (x) => x !== shop.door[0] && x !== shopPlaque[0]
@@ -2524,14 +2519,25 @@ async function main() {
       await advanceDialogue(wp, 'tap-plaque', 1);
     }
 
-    // The door of a building with an interior opens it. No A press, no
-    // stopping on the doorstep to press anything.
+    // The door of a building with an interior reads its standing sign to a
+    // tap, exactly like its facade — walking onto it is the one thing that
+    // opens it now, and a tap never does (DESIGN.md §2).
     await tapTarget('tap-door', shop.door, `${shop.id}'s door`);
+    const doorRead = await waitUntil(wp, (s) => s.dialogueOpen, `${shop.id}'s sign after a tap on its door`, 12000);
+    if (doorRead.map !== 'stamford') fail('tap-door', `tapping the door of ${shop.id} walked in instead of reading it`);
+    if (doorRead.dialogue?.text !== signTextOf(shop)) {
+      fail('tap-door', `${shop.id}'s door read "${doorRead.dialogue?.text}", expected "${signTextOf(shop)}"`);
+    }
+    log(`    ${shop.door} (${shop.id}'s door, tapped) -> its sign, standing at ${here(doorRead)}`);
     await shot(wp, 'tap-door');
-    await waitUntil(wp, (s) => s.map === shop.interior, `${shop.id}'s door to open on a tap`, 15000);
-    await handsBack(wp, 'the shop to settle');
-    log(`    ${shop.door} (${shop.id}'s door) -> inside`);
-    await shot(wp, 'tap-entered');
+    await advanceDialogue(wp, 'tap-door', 3);
+
+    // Walking onto the same door, held key by held key, is what actually
+    // opens it — the doormat's own promise kept.
+    await walkTo(wp, 'walk-in', shop.door, { allowInterrupt: true });
+    await waitUntil(wp, (s) => s.map === shop.interior && !s.locked, `${shop.id}'s door to open on a walk`, 15000);
+    log(`    ${shop.door} (${shop.id}'s door, walked onto) -> inside`);
+    await shot(wp, 'walked-in');
 
     // And the way out is a tap too.
     const back = WORLD.maps[shop.interior].exits[0];
@@ -3636,17 +3642,14 @@ async function main() {
         (o) => expectOverlays.includes(o.id) && (o.props ?? []).length
       )?.props?.[0];
       if (prop) {
-        // Somewhere beside it to read it from: not a doorstep, a plaque tile
-        // or a sign board tile, all of which answer A themselves (DESIGN.md
-        // §2).
+        // Somewhere beside it to read it from: not a doorstep or a plaque
+        // tile, both of which answer A themselves (DESIGN.md §2).
         const meta = WORLD.maps[outsideMap];
         const taken = new Set();
         for (const b of meta.buildings) {
           taken.add(`${b.door[0]},${b.door[1]}`);
           const pl = plaqueOf(b);
           if (pl) taken.add(`${pl[0]},${pl[1]}`);
-          const sb = signBoardOf(b);
-          if (sb) taken.add(`${sb[0]},${sb[1]}`);
         }
         const away = exitTiles(meta);
         const beside = [[1, 0], [-1, 0], [0, 1], [0, -1]]
@@ -4338,8 +4341,6 @@ async function main() {
         taken.add(`${b.door[0]},${b.door[1]}`);
         const pl = plaqueOf(b);
         if (pl) taken.add(`${pl[0]},${pl[1]}`);
-        const sb = signBoardOf(b);
-        if (sb) taken.add(`${sb[0]},${sb[1]}`);
       }
       const away = exitTiles(meta);
       const beside = [[0, 1], [1, 0], [-1, 0], [0, -1]]

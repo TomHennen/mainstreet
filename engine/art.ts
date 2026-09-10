@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { drawFigure, figureKey } from './figure';
 import { drawVehicle, VEHICLE_CELL } from './motor';
-import { FACINGS, plaqueTile, signBoardTile } from './schema';
+import { FACINGS, plaqueTile } from './schema';
 import { TILE } from './tiled';
 import type {
   BuildingDef,
@@ -963,54 +963,6 @@ export function doormatArt(scene: Phaser.Scene, placement: BuildingPlacement): D
   };
 }
 
-// --- the sign board beside a door that opens -----------------------------------
-
-const SIGNBOARD_W = 8;
-const SIGNBOARD_H = 7;
-/** How far its bottom edge sits above the ground line at the facade's foot. */
-const SIGNBOARD_LIFT = 4;
-
-export interface SignBoardArt {
-  key: string;
-  x: number;
-  y: number;
-}
-
-/**
- * The little board the engine hangs beside a door that also opens, so a
- * building's day-to-day sign still has somewhere to live once the door itself
- * is only ever the way in (DESIGN.md §2). A post, a shingle, and a scrap of
- * paper pinned to it — deliberately plainer than the plaque's brass, and on
- * the opposite side of the door from it (`signBoardTile`), so the two are
- * never mistaken for each other at a glance. Returns null for a building
- * with no interior, where the door itself still reads the sign.
- */
-export function signBoardArt(scene: Phaser.Scene, placement: BuildingPlacement): SignBoardArt | null {
-  const tile = signBoardTile(placement);
-  if (!tile) return null;
-
-  const key = 'prop:signboard';
-  if (!scene.textures.exists(key)) {
-    const { texture, ctx } = canvas(scene, key, SIGNBOARD_W, SIGNBOARD_H);
-    ctx.fillStyle = '#5a4632';
-    ctx.fillRect(3, 0, 2, SIGNBOARD_H);
-    ctx.fillStyle = '#8a6a4a';
-    ctx.fillRect(0, 1, SIGNBOARD_W, 4);
-    ctx.fillStyle = 'rgba(0,0,0,.2)';
-    ctx.fillRect(0, 4, SIGNBOARD_W, 1);
-    ctx.fillStyle = '#f0e6cf';
-    ctx.fillRect(1, 2, SIGNBOARD_W - 2, 2);
-    texture.refresh();
-  }
-
-  const groundY = (placement.pos[1] + placement.size[1]) * TILE;
-  return {
-    key,
-    x: tile[0] * TILE + (TILE - SIGNBOARD_W) / 2,
-    y: groundY - SIGNBOARD_LIFT - SIGNBOARD_H
-  };
-}
-
 // --- street fixtures ---------------------------------------------------------
 
 /**
@@ -1241,18 +1193,35 @@ function promptLabelWidth(label: string): number {
 }
 
 /**
- * The little "press A" bubble that floats over whatever is in reach, and —
- * when the world gives it one (`copy.json` `ui.enter`/`ui.read`) — a one-word
- * verb tag stacked above it: "Go in" over a door with an interior, "Read"
- * over everything else the bubble shows for (DESIGN.md §2). The tag is
- * optional per hard rule 3: with no `label`, this draws exactly the bare
- * glyph bubble it always has, and the two are cached under one key so a
- * repeated call for the same pair costs nothing after the first. Sized to
+ * The little bubble that floats over whatever is in reach — a small speech
+ * bubble with three dashes in it, standing for "something here to press A
+ * on," whether that means talking, reading or picking up. It used to be the
+ * bare letter "A", which put the exact same letterform on screen twice at
+ * once: once here, floating over the world, and once for real on the touch
+ * A button a thumb's width below it (`#btnA` in `style.css`) — easy to catch
+ * on each other at a glance, which was Tom's playtest complaint. A bubble has
+ * no letter in it at all now, so the two can never be confused, painted or
+ * not, on any world's palette (the shapes below are the engine's own paper
+ * and ink, `#f3ead8`/`#2a231a`, the same pair the say box itself uses — never
+ * a colour a world hands in, per hard rule 1).
+ *
+ * A door with an interior used to grow a second, different glyph here — a
+ * little house, for "this presses A to walk in" — back when pressing A at
+ * such a door opened it. It no longer does (DESIGN.md §2: walking through the
+ * door is what opens it now, and A only ever reads the standing sign there,
+ * same as everywhere else), so there is only ever one glyph to show, and the
+ * doormat alone marks a door as one you can walk into.
+ *
+ * A one-word verb tag can stack above the bubble too, when the world gives it
+ * one (`copy.json` `ui.read`) — "Read" over everything the bubble shows for.
+ * The tag is optional per hard rule 3: with no `label`, this draws exactly
+ * the bare bubble it always has, and the two are cached under one key so a
+ * repeated call for the same label costs nothing after the first. Sized to
  * the bubble alone when there is no label, and centred on the wider of the
  * two when there is, so the bubble never has to move to make room for it.
  */
-export function promptTexture(scene: Phaser.Scene, glyph: string, label?: string): string {
-  const key = `prompt:${glyph}:${label ?? ''}`;
+export function promptTexture(scene: Phaser.Scene, label?: string): string {
+  const key = `prompt:${label ?? ''}`;
   if (scene.textures.exists(key)) return key;
 
   const labelW = label ? promptLabelWidth(label) : 0;
@@ -1269,12 +1238,26 @@ export function promptTexture(scene: Phaser.Scene, glyph: string, label?: string
     ctx.fillText(label, width / 2, labelH - 2.5);
   }
 
+  const bx = width / 2 - 6;
+  const by = labelH;
   ctx.fillStyle = '#f3ead8';
-  ctx.fillRect(width / 2 - 6, labelH, 12, 11);
-  ctx.fillStyle = '#2a231a';
-  ctx.font = `8px ${MONO}`;
-  ctx.textAlign = 'center';
-  ctx.fillText(glyph, width / 2, labelH + 8);
+  ctx.fillRect(bx, by, 12, 11);
+
+  // A small dark speech bubble, tail down-left, with three paper-coloured
+  // dashes standing in for words — a silhouette that reads as "something to
+  // say" rather than as any single letter.
+  const ink = '#2a231a';
+  ctx.fillStyle = ink;
+  ctx.fillRect(bx + 2, by + 2, 8, 5);
+  ctx.fillRect(bx + 1, by + 3, 1, 3);
+  ctx.fillRect(bx + 10, by + 3, 1, 3);
+  ctx.fillRect(bx + 3, by + 7, 2, 1);
+  ctx.fillRect(bx + 2, by + 8, 1, 1);
+  ctx.fillStyle = '#f3ead8';
+  ctx.fillRect(bx + 3, by + 4, 1, 2);
+  ctx.fillRect(bx + 6, by + 4, 1, 2);
+  ctx.fillRect(bx + 9, by + 4, 1, 2);
+
   texture.refresh();
   return key;
 }

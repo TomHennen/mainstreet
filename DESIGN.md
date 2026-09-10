@@ -103,15 +103,14 @@ they are headed until they get there. A tap on a blocked or unreachable tile
 walks to the nearest tile beside it, or, if there is no way through at all,
 blinks the ring once and stays put. Tapping a person, a door, a shopfront, a
 plaque, a street fixture or something lying about walks over and does the
-thing on arrival, with no A press: a door with an interior behind it opens,
-and is only ever the way in, while a door with none reads the sign, exactly
-as it always did. The plaque — the tile it is read from, or the little brass
+thing on arrival, with no A press: a door — with an interior behind it or
+without one — reads its standing sign, same as an A press does everywhere
+else (see "The doormat, and reading a door," below, for why walking straight
+in is not this). The plaque — the tile it is read from, or the little brass
 one drawn on the wall above it — thanks whoever painted the place, and
 anywhere else on a building's picture, roof and floating name plate included,
-is its front, which walks up and reads the sign — at the little board beside
-the door, once a building has grown one (see "The doormat, and the sign board
-beside it," below), and at the door itself otherwise — rather than walking
-in. What was tapped is what happens when the walk ends,
+is its front, which walks up to the door and reads the sign, exactly like
+tapping the door itself. What was tapped is what happens when the walk ends,
 not whatever is in reach of where it ended; if the player is already standing
 in the right place it happens straight away. Somebody behind a counter, with
 no free tile beside them, is walked up to as close as that same reach
@@ -248,45 +247,44 @@ the words gets in the way of reading. If the episode gives an unpainted
 building no sign copy at all, the box would open empty, so `copy.json`
 `ui.unpainted` supplies one short line instead.
 
-**The doormat, and the sign board beside it.** A door that also opens is
-confusing in two ways at once: nothing marks it as one before a player tries
-it, and once the door starts answering "enter," the sign it used to read has
-nowhere left to live. Both are engine-drawn fixes, not new art (CLAUDE.md
-hard rule 3, same as the plaque). The engine lays a small doormat right on the
-doorstep of any door with an interior behind it (`engine/art.ts` `doormatArt`)
-— nothing a world ever paints, and nothing a door with no interior grows — so
-an enterable building reads as one at a glance, the same "at a glance" the
-plaque and the "needs an artist" shimmer already give a building's facade. It
-lives on the tile itself rather than baked into the facade's picture the way
-the plaque hangs on the wall above it, and draws at that tile's own depth
-rather than the facade's, so a player standing on the doorstep draws over it
-— covering it the way a rug disappears under a pair of feet — instead of the
-mat drawing over the player.
+**The doormat, and reading a door.** A door with an interior behind it does
+two things, never confused for each other because they answer to two
+different kinds of touch. Walking onto it — a held direction, one tile at a
+time, the same movement that crosses every other tile in town — opens it, no
+button and no tap involved. An A press or a tap only ever reads the door's
+standing sign, exactly like a door with no interior at all; the two have
+never behaved differently to a button, only to a footstep. Tapping walks the
+player up to the door and presses A on arrival on their behalf, the same as
+tapping anything else (Controls, above), so a tap on a door never opens it
+either — a deliberate difference from the held-direction case, since a
+tapped walk is a promise to arrive and read, not to barge in.
 
-And because every building a map places carries a standing sign (§3, no
-exceptions), a door with an interior always has one to relocate: it moves to
-a little board (`signBoardTile` in `engine/schema.ts`, drawn by
-`signBoardArt`) on the far side of the door from wherever the plaque actually
-is — so an explicit `plaque` that flips sides carries the board along with
-it, and the two never crowd the same tile — clamped to the building's own
-columns, since unlike the plaque the board never wanders onto a neighbour's
-frontage. The board is read exactly the way the door used to be — its own
-reach, its own prompt — and the default sits there without a placement having
-to say so; `signAt` on a building's placement in `world.json` overrides the
-tile outright, for the rare case the default lands somewhere awkward (astride
-a road, or — since a door sitting in an edge column of a narrow footprint
-leaves no far side inside it to clamp to — squarely on the door itself, which
-the validator catches and names `signAt` as the fix for). A door with no
-interior keeps reading its sign the way it always has: it grows neither a
-doormat nor a board, because it was never mistaken for a way in.
+Nothing marked an opening door as one before a player tried it, so the engine
+lays a small doormat right on the doorstep of any door with an interior
+behind it (`engine/art.ts` `doormatArt`) — nothing a world ever paints, and
+nothing a door with no interior grows — the same "at a glance" the plaque and
+the "needs an artist" shimmer already give a building's facade. It lives on
+the tile itself rather than baked into the facade's picture the way the
+plaque hangs on the wall above it, and draws at that tile's own depth rather
+than the facade's, so a player standing on the doorstep draws over it —
+covering it the way a rug disappears under a pair of feet — instead of the
+mat drawing over the player. It carries the whole "you can walk in here"
+meaning on its own: the reach prompt at a door never says anything about
+entering, only about reading, so there is only ever the one glyph and the one
+label at a door, not two competing for the same small space.
 
 The bubble that floats over whatever is in reach can carry a one-word verb
-above it too — `copy.json` `ui.enter` ("Go in") over a door with an interior,
-`ui.read` ("Read") over everything else it shows for a plaque, a sign board or
-a prop — stacked over the bubble rather than moving it, so the glyph (⌂ for a
-door, A for everything else) stays exactly where it always has. Either string
-missing drops the label and leaves the bubble to speak for itself (hard rule
-3): a world that never writes them plays exactly as it did before.
+above it too — `copy.json` `ui.read` ("Read") over everything it shows for,
+door included, since A only ever reads there now. Missing it drops the label
+and leaves the bubble to speak for itself (hard rule 3): a world that never
+writes it plays exactly as it did before. The bubble itself used to be the
+bare letter "A" — the same letterform as the real A button sitting a thumb's
+width below it on screen, easy to mistake for one another at a glance, which
+was Tom's playtest complaint. It is now a small dark speech bubble with three
+paper-coloured dashes in it (`engine/art.ts` `promptTexture`), in the same
+paper and ink the say box itself is built from rather than any colour a world
+hands the engine (hard rule 1) — a shape with no letter in it at all, so it
+can never again be confused with the A button, painted or not.
 
 **Street fixtures, and the suggestion box.** A map may list engine-drawn
 furniture that belongs to no building and no episode:
@@ -740,8 +738,8 @@ goes true (usually the flag that closes out the story, the beat the item is
 handed back). No `until` and a picked-up item stays on the panel for good.
 
 A sign carries exactly one of `building` (read at that building's door, with
-the A prompt, or at its sign board once it has grown one — see §2) or `map` +
-`pos` (a prop such as a shelf or a counter, examined by standing next to it).
+the A prompt — see §2) or `map` + `pos` (a prop such as a shelf or a counter,
+examined by standing next to it).
 A prop's reach is deliberately tight: only an orthogonally adjacent tile
 counts as touching it, not a diagonal one and not one tile further off.
 Every prop the validator lets onto a map carries `lines` to read, so —
