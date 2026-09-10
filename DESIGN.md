@@ -103,17 +103,20 @@ they are headed until they get there. A tap on a blocked or unreachable tile
 walks to the nearest tile beside it, or, if there is no way through at all,
 blinks the ring once and stays put. Tapping a person, a door, a shopfront, a
 plaque, a street fixture or something lying about walks over and does the
-thing on arrival, with no A press: a door — with an interior behind it or
-without one — reads its standing sign, same as an A press does everywhere
-else (see "The doormat, and reading a door," below, for why walking straight
-in is not this). The plaque — the tile it is read from, or the little brass
-one drawn on the wall above it — thanks whoever painted the place, and
-anywhere else on a building's picture, roof and floating name plate included,
-is its front, which walks up to the door and reads the sign, exactly like
-tapping the door itself. What was tapped is what happens when the walk ends,
-not whatever is in reach of where it ended; if the player is already standing
-in the right place it happens straight away. Somebody behind a counter, with
-no free tile beside them, is walked up to as close as that same reach
+thing on arrival, with no A press: a door with an interior behind it opens,
+and is only ever the way in — tap-to-go is the primary way to play (hard
+rule 4), so a phone has to be able to walk in the front door the same way
+the keyboard's held "up" can (see "The doormat, and reading a door," below)
+— while a door with none reads the sign, exactly as it always did. The
+plaque — the tile it is read from, or the little brass one drawn on the
+wall above it — thanks whoever painted the place, and anywhere else on a
+building's picture, roof and floating name plate included, is its front,
+which walks up and reads the sign — rather than walking in, even where
+there is an interior to walk into, since only the door tile itself is the
+way in. What was tapped is what happens when the walk ends, not whatever
+is in reach of where it ended; if the player is already standing in the
+right place it happens straight away. Somebody behind a counter, with no
+free tile beside them, is walked up to as close as that same reach
 allows. Any d-pad or movement key
 calls the walk off on the spot, and a new tap replaces the destination; A
 waits until the walk is over rather than stranding the player half way.
@@ -247,28 +250,25 @@ the words gets in the way of reading. If the episode gives an unpainted
 building no sign copy at all, the box would open empty, so `copy.json`
 `ui.unpainted` supplies one short line instead.
 
-**The doormat, and reading a door.** A door with an interior behind it does
-two things, never confused for each other because they answer to two
-different kinds of touch. Walking *into* it — a held "up" onto the door
-tile itself, the direction that would otherwise walk the player into the
-solid wall behind it, since every building sits one row north of its own
-door (`MapScene.checkDoors`) — opens it, no button and no tap involved. An
-A press or a tap only ever reads the door's standing sign, exactly like a
-door with no interior at all; the two have never behaved differently to a
-button, only to a footstep, and only to that one direction of footstep. It
-takes "up" specifically, not merely landing on the tile at all, because a
-door sits on the street a player is forever crossing on their way past a
-shopfront to somewhere else, and a straight walk elsewhere can clip a
-doorstep's tile for a single frame while lining up a turn — indistinguishable,
-in that one frame, from actually walking in. `checkDoors` asks for a held
-"up" against the door for `DOOR_PRESS_MS` (180ms) running, comfortably past
-how long that coincidental frame ever lasts and comfortably under anything
-that reads as a wait, so a door only opens once a player is genuinely
-pressed up against it, not merely on their way past it. Tapping walks the
-player up to the door and presses A on arrival on their behalf, the same as
-tapping anything else (Controls, above), so a tap on a door never opens it
-either — a deliberate difference from the held-"up" case, since a tapped
-walk is a promise to arrive and read, not to barge in.
+**The doormat, and reading a door.** A door with an interior behind it opens
+two ways and reads its standing sign a third, never confused for each other.
+A tap on the door tile itself — or the doormat sitting on it, the same tile
+— walks the player there and opens it on arrival, no A press involved, the
+same as tapping always has (CLAUDE.md hard rule 4: tap-to-go is the primary
+way to play, so a phone has to be able to walk in a front door the same way
+the keyboard can). Holding "up" onto that tile at the keyboard or the touch
+d-pad opens it too — the direction that would otherwise walk the player into
+the solid wall behind it, since every building sits one row north of its own
+door — but only once the press has genuinely been leaning into it for
+`DOOR_PRESS_MS` (180ms, `MapScene.checkDoors`): a door sits on the street a
+player is forever crossing on their way past a shopfront to somewhere else,
+and a straight walk elsewhere can clip the doorstep for a single frame while
+lining up a turn — indistinguishable, in that one frame, from actually
+walking in, and comfortably shorter than 180ms even so. An A press, or a
+tap anywhere else on the building's picture — its facade, roof or floating
+name plate — reads the door's standing sign instead, exactly like a door
+with no interior at all, walking the player up to the door to do it, the
+same as tapping anything else (Controls, above).
 
 Nothing marked an opening door as one before a player tried it, so the engine
 lays a small doormat right on the doorstep of any door with an interior

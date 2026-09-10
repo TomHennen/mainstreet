@@ -2511,8 +2511,8 @@ async function main() {
     // The facade: a tile of the picture that is neither the door nor the
     // plaque. Tapping a shopfront walks up to the door and reads its sign —
     // it does not walk in, even where there is an interior behind the door,
-    // because a tap only ever reads a sign, the same as an A press
-    // (DESIGN.md §2).
+    // because only the door tile itself opens on a tap; anywhere else on the
+    // picture is tapping the front of the place to read it (DESIGN.md §2).
     const wallColumn = Array.from({ length: shop.size[0] }, (_, i) => shop.pos[0] + i).find(
       (x) => x !== shop.door[0] && x !== shopPlaque[0]
     );
@@ -2543,34 +2543,37 @@ async function main() {
       await advanceDialogue(wp, 'tap-plaque', 1);
     }
 
-    // The door of a building with an interior reads its standing sign to a
-    // tap, exactly like its facade — walking onto it is the one thing that
-    // opens it now, and a tap never does (DESIGN.md §2).
+    // The door of a building with an interior opens on a tap — same as it
+    // always did before this branch, and same as a held "up" does at the
+    // keyboard: `followPath`'s own arrival on a door target opens it
+    // directly, no A press involved. Tap-to-go is the primary way to play
+    // (CLAUDE.md hard rule 4), so a phone has to be able to walk in the front
+    // door the same way the d-pad can (DESIGN.md §2).
     await tapTarget('tap-door', shop.door, `${shop.id}'s door`);
-    const doorRead = await waitUntil(wp, (s) => s.dialogueOpen, `${shop.id}'s sign after a tap on its door`, 12000);
-    if (doorRead.map !== 'stamford') fail('tap-door', `tapping the door of ${shop.id} walked in instead of reading it`);
-    if (doorRead.dialogue?.text !== signTextOf(shop)) {
-      fail('tap-door', `${shop.id}'s door read "${doorRead.dialogue?.text}", expected "${signTextOf(shop)}"`);
-    }
-    log(`    ${shop.door} (${shop.id}'s door, tapped) -> its sign, standing at ${here(doorRead)}`);
+    await waitUntil(wp, (s) => s.map === shop.interior && !s.locked, `${shop.id}'s door to open on a tap`, 15000);
+    log(`    ${shop.door} (${shop.id}'s door, tapped) -> inside`);
     await shot(wp, 'tap-door');
-    await advanceDialogue(wp, 'tap-door', 3);
 
-    // Walking up onto the same door, held key by held key, is what actually
-    // opens it (checkDoors, DESIGN.md §2) — never merely landing on its tile,
-    // which is all the tap above did.
+    // Back out, the way this whole loop leaves a room: a tap on its mat.
+    const back = WORLD.maps[shop.interior].exits[0];
+    if (!back) fail('tap-targets', `${shop.interior} has no way out`);
+    const tapOut = async (milestone) => {
+      await tapTarget(milestone, [back.at[0], back.at[1]], 'the way out');
+      await waitUntil(wp, (s) => s.map === back.to && !s.locked, 'the way out to be taken on a tap', 15000);
+      await handsBack(wp, 'the street to settle');
+      log(`    ${[back.at[0], back.at[1]]} (the way out) -> back on the street`);
+    };
+    await tapOut('tap-exit');
+
+    // Holding "up" onto the same door opens it too — the keyboard/d-pad path
+    // `checkDoors` answers to, with its own 180ms of genuinely leaning into
+    // it so a step that merely crosses the tile in passing never counts
+    // (DESIGN.md §2). Unrelated to the tap above, which needs no such wait.
     await walkUpInto(wp, 'walk-in', shop.door);
     await waitUntil(wp, (s) => s.map === shop.interior && !s.locked, `${shop.id}'s door to open on a walk`, 15000);
     log(`    ${shop.door} (${shop.id}'s door, walked into) -> inside`);
     await shot(wp, 'walked-in');
-
-    // And the way out is a tap too.
-    const back = WORLD.maps[shop.interior].exits[0];
-    if (!back) fail('tap-targets', `${shop.interior} has no way out`);
-    await tapTarget('tap-exit', [back.at[0], back.at[1]], 'the way out');
-    await waitUntil(wp, (s) => s.map === back.to && !s.locked, 'the way out to be taken on a tap', 15000);
-    await handsBack(wp, 'the street to settle');
-    log(`    ${[back.at[0], back.at[1]]} (the way out) -> back on the street`);
+    await tapOut('tap-exit-again');
 
     // A building with no interior has no door to open, so its door reads the
     // sign like the rest of the front.

@@ -134,7 +134,7 @@ export interface MapSceneData {
 }
 
 interface Target {
-  kind: 'npc' | 'item' | 'prop' | 'sign' | 'plaque' | 'fixture';
+  kind: 'npc' | 'item' | 'prop' | 'enter' | 'sign' | 'plaque' | 'fixture';
   at: Vec2;
   /** Index into `walkers` when this is somebody rather than something. */
   person?: number;
@@ -1521,14 +1521,16 @@ export class MapScene extends Phaser.Scene {
     }
     for (const building of this.map.buildings) {
       if (building.door[0] === tx && (building.door[1] === ty || building.door[1] - 1 === ty)) {
-        return this.doorTap(building);
+        return this.doorTap(building, building.interior ? 'enter' : 'sign');
       }
     }
     if (hit) {
       // Tapping the rest of the picture — roof, walls, floating name plate —
-      // is tapping the front of the place: walk up and read the sign, exactly
-      // what tapping the door itself does.
-      return this.doorTap(hit.facade.building);
+      // is tapping the front of the place: walk up and read the sign. Only
+      // the door tile itself walks in (CLAUDE.md hard rule 4, tap-to-go has
+      // to be able to do everything the d-pad can, including opening a door
+      // — DESIGN.md §2).
+      return this.doorTap(hit.facade.building, 'sign');
     }
     return null;
   }
@@ -1555,15 +1557,18 @@ export class MapScene extends Phaser.Scene {
   }
 
   /**
-   * The front step: where the sign is read from. A tap walks the player onto
-   * the door tile itself and reads it there, whether or not the building has
-   * an interior — arriving through `followPath`'s own press of A, never a
-   * held "up" (`checkDoors` answers to nothing else, DESIGN.md §2), so it
-   * never opens the door.
+   * The front step. A tap walks the player onto the door tile itself either
+   * way; what happens on arrival is `kind` — `'enter'` opens a door with an
+   * interior behind it, the same as a held "up" does at the keyboard (never
+   * an A press), and `'sign'` reads the standing sign, same as everywhere
+   * else a door answers to a tap or an A press. Tap-to-go is the primary way
+   * to play (CLAUDE.md hard rule 4): a phone has to be able to walk in the
+   * front door the same way the d-pad can, so the door tile itself is the
+   * one tap that opens rather than reads (DESIGN.md §2).
    */
-  private doorTap(building: BuildingPlacement): { target: Target; goal: Vec2; reach: number } {
+  private doorTap(building: BuildingPlacement, kind: 'enter' | 'sign'): { target: Target; goal: Vec2; reach: number } {
     return {
-      target: { kind: 'sign', at: [building.door[0], building.door[1] - 1], building },
+      target: { kind, at: [building.door[0], building.door[1] - 1], building },
       goal: [building.door[0], building.door[1]],
       reach: REACH.door
     };
@@ -1877,6 +1882,24 @@ export class MapScene extends Phaser.Scene {
 
       if (lines.length) bus.emit(EV.say, { speaker: name, lines });
       return;
+    }
+
+    if (target.kind === 'enter' && target.building?.interior && target.building.enter) {
+      // A tap on the door itself opens it directly, exactly like a held "up"
+      // does at the keyboard (`checkDoors`) — never an A press, and never
+      // debounced the way a held key is, since a completed, deliberate walk
+      // here is already the whole gesture (DESIGN.md §2). `enterArmed` is
+      // the same doorstep guard `checkDoors` uses: stepping out of a door
+      // and tapping it straight back must not go in again.
+      if (!this.enterArmed) return;
+      this.leave({
+        style: 'door',
+        hold: HOLD.enter,
+        copyKey: `enter:${target.building.id}`,
+        to: target.building.interior,
+        spawn: target.building.enter,
+        facing: 'up'
+      });
     }
   }
 
