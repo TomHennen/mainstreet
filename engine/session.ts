@@ -59,6 +59,14 @@ export interface Session {
    * in its own right so a save can say plainly what is gone (DESIGN.md §2).
    */
   taken: Set<string>;
+  /**
+   * The carry-verb token the player is holding, if any — a split log off the
+   * pile, nothing else (DESIGN.md §2). Mirrors the map scene's own `held`
+   * field so `engine/inventory.ts`'s `withYou` can read it without a scene
+   * reference; kept exactly the same way — this map only, never saved, and
+   * cleared whenever a map loads.
+   */
+  held: string | null;
   /** Where the player is standing, kept current by the map scene for the save. */
   place: { map: string; pos: Vec2; facing: Facing };
   /**
@@ -172,9 +180,13 @@ export const vehiclesOn = (mapId: string): Vehicle[] => [
 export const itemsOn = (mapId: string): EpisodeItem[] =>
   (session().episode.items ?? []).filter((item) => item.map === mapId);
 
-/** An item is gone once it has been picked up, or once every flag it sets is true. */
-export function itemTaken(item: EpisodeItem): boolean {
-  const state = session();
+/**
+ * An item is gone once it has been picked up, or once every flag it sets is
+ * true. `state` defaults to the running session; `engine/inventory.ts` passes
+ * one explicitly so `withYou` stays a pure function over a session it's handed
+ * rather than the global one.
+ */
+export function itemTaken(item: EpisodeItem, state: Session = session()): boolean {
   if (state.taken.has(item.id)) return true;
   return item.effects.every((effect) => !effect.set || state.flags.get(effect.set));
 }

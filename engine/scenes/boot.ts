@@ -170,6 +170,7 @@ export function startEpisode(
     locked: false,
     introShown: false,
     taken: new Set<string>(),
+    held: null,
     place,
     light: null,
     save,

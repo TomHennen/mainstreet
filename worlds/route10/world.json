@@ -1414,7 +1414,8 @@
           ],
           "otherwise": [
             "You've already got one under your arm. One at a time is how the fire likes it."
-          ]
+          ],
+          "heldBlurb": "A split log off the Belvedere's pile, tucked under your arm for the fire."
         },
         {
           "kind": "firepit",

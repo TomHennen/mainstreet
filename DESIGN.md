@@ -363,6 +363,29 @@ which breathes and fades and never strobes) and, where the kind has one, the
 lit variant of its art. It is the only thing in the game that a player's doing
 changes about a map, and it puts itself back.
 
+**With you.** A small HUD button opens a panel that is a glance at what the
+player has on them right now — not an inventory: no counts, no slots, nothing
+to manage (`engine/inventory.ts`'s `withYou`, a pure derivation over the
+session and the world data, unit-tested on its own). Two things can be on it:
+the carry-verb token above, while it's held, and every episode item picked up
+and not yet handed back (§3) — the pen, Scout. There is no companion
+mechanic here: a dog that's been found is an ordinary episode item, walked to
+whoever is waiting for it like anything else picked up off the ground, not
+something that follows the player around a map. The panel draws each entry's
+name — its id, title-cased — beside an engine-drawn placeholder swatch (there
+is no per-item sprite convention yet, so every entry uses the same one) and,
+where the world pack wrote one, a one-line blurb underneath: `EpisodeItem`'s
+own `blurb`, or a `give` fixture's `heldBlurb` for the token it hands over.
+Leaving a blurb out still shows the entry by its name, just with no second
+line. The button and its own keyboard shortcut ("i", `engine/input.ts`'s
+`onToggle`) both open and close it; tapping anywhere or pressing A closes it
+without opening it, the same way the say box is dismissed. It pauses walking
+exactly like the say box, and — like the say box — it can never open over
+the say box or during a scene. `copy.json`'s `ui.withYou.button` labels the
+HUD button, `.title` heads the open panel, and `.empty` is the one line it
+shows with nothing on the list; no `button` and none of it draws at all —
+the button, the panel, the keyboard shortcut (hard rule 3).
+
 **Townspeople who walk.** Nothing on a map moves but the player unless the
 data says otherwise, and two shapes of data say otherwise. Both belong to a
 person — an episode NPC (§3) or one of a village's own people, below — and

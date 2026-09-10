@@ -57,6 +57,11 @@
       "paint": "Paint a building",
       "back": "Back"
     },
+    "withYou": {
+      "button": "With you",
+      "title": "What you've got with you",
+      "empty": "Nothing on you right now — just yourself, out for a walk."
+    },
     "suggest": {
       "lines": [
         "Jefferson Town Hall keeps a suggestion box by the door, with a slot worn smooth by years of good ideas.",

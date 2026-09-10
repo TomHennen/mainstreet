@@ -267,6 +267,7 @@ export class MapScene extends Phaser.Scene {
     this.itemSprites = new Map();
     this.fixtureSprites = new Map();
     this.held = null;
+    session().held = null;
     this.litFixtures = new Map();
     this.clock = 0;
     this.facades = [];
@@ -1675,6 +1676,7 @@ export class MapScene extends Phaser.Scene {
         const done = fixture.give ? this.held !== fixture.give : this.held === fixture.take;
         if (done) {
           this.held = fixture.give ? (fixture.give ?? null) : null;
+          state.held = this.held;
           if (fixture.take) this.lightFixture(fixture);
         }
         const lines = done ? fixture.lines : fixture.otherwise;
