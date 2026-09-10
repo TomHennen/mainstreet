@@ -29,6 +29,14 @@ const EPS = 1e-6;
 /** One tile in each facing, for looking along the way ahead. */
 const STEPS: Record<Facing, Vec2> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
+/** The axis-aligned unit step from one tile towards another, favouring the longer axis — the same rule `headingTo` (engine/vehicle.ts) turns to face. */
+function stepToward(from: Vec2, to: Vec2): Vec2 {
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  if (Math.abs(dx) >= Math.abs(dy)) return [dx < 0 ? -1 : dx > 0 ? 1 : 0, 0];
+  return [0, dy < 0 ? -1 : 1];
+}
+
 export interface MoverOptions {
   /** The tile the person is placed on, and the middle of a wander. */
   home: Vec2;
@@ -171,16 +179,33 @@ export class Mover {
 
   /**
    * The next `count` tiles of the way ahead: the planned leg while there is
-   * one, and otherwise the tiles straight on from where this mover is facing,
-   * so somebody standing at a waypoint still knows what is in front of them.
-   * Nothing here says whether they may be walked on — it is what the road
-   * ahead *is*, which is what a driver looks at before pulling away
+   * one, then — for a route, which knows where it turns next even before it
+   * has planned that far — straight on towards its next waypoint, so a car
+   * a short leg or a paused wait away from a corner still sees the tile it
+   * is about to turn into rather than only the tiles straight on from its
+   * current facing (which is what "ahead" fell back to for anyone without a
+   * route to consult, and still does). Nothing here says whether these
+   * tiles may be walked on — it is what the road ahead *is*, which is what
+   * a driver looks at before pulling away, and before it pulls away at all
    * (engine/vehicle.ts).
    */
   ahead(count: number): Vec2[] {
     const out: Vec2[] = [];
     for (let i = 0; i < count && i < this.path.length; i++) out.push([this.path[i][0], this.path[i][1]]);
     if (out.length >= count) return out;
+
+    const turningTo = this.nextWaypoint();
+    if (turningTo) {
+      let [x, y] = out.length ? out[out.length - 1] : this.tile();
+      const [dx, dy] = stepToward([x, y], turningTo);
+      while (out.length < count && (x !== turningTo[0] || y !== turningTo[1])) {
+        x += dx;
+        y += dy;
+        out.push([x, y]);
+      }
+      if (out.length >= count) return out;
+    }
+
     const [dx, dy] = STEPS[this.facing];
     let [x, y] = out.length ? out[out.length - 1] : this.tile();
     while (out.length < count) {
@@ -189,6 +214,22 @@ export class Mover {
       out.push([x, y]);
     }
     return out;
+  }
+
+  /**
+   * The waypoint this mover turns towards next, once the leg already under
+   * way (or, paused at a waypoint, the leg about to be planned) is done —
+   * `undefined` for a wander, or a route that has genuinely run out (no
+   * more waypoints, and not set to loop). `next` already points past
+   * whichever waypoint is the current goal by the time either of `ahead`'s
+   * two callers would ask, in both the "mid-leg" and the "paused" case, so
+   * this is exactly "what comes after" either way.
+   */
+  private nextWaypoint(): Vec2 | undefined {
+    if (!this.route) return undefined;
+    const path = this.route.path;
+    if (this.next < path.length) return path[this.next];
+    return this.route.loop !== false ? path[0] : undefined;
   }
 
   /** True while this person has somewhere to be. */
@@ -267,6 +308,31 @@ export class Mover {
   /** True while somebody is on their way over. */
   get hailed(): boolean {
     return this.waiting;
+  }
+
+  /**
+   * Places this person exactly as if they had just been dropped at `pos`,
+   * already pointed `facing`, with their whole route ahead of them again.
+   * This is the jump a through-route car takes off the edge of the map and
+   * back in at the start of its route rather than turning around
+   * (engine/vehicle.ts, DESIGN.md §2) — done while the car is off screen, so
+   * nobody sees it happen. Unlike arriving anywhere else, it skips the usual
+   * pause: by the time anything calls this the car is already under way, so
+   * it is given the second waypoint to head for rather than the first (which
+   * is where it is standing), and no reason to stand still first.
+   */
+  warpTo(pos: Vec2, facing: Facing): void {
+    this.anchor = [pos[0], pos[1]];
+    this.x = pos[0];
+    this.y = pos[1];
+    this.facing = facing;
+    this.path = [];
+    this.wait = 0;
+    this.held = 0;
+    this.next = this.route && this.route.path.length > 1 ? 1 : 0;
+    this.waiting = false;
+    this.errandGoal = null;
+    this.errandSpeed = undefined;
   }
 
   /** Turn to look at a point in tile space — what being spoken to does. */

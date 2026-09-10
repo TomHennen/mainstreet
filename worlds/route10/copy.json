@@ -31,6 +31,12 @@
         "That's as far as this week's story goes — might as well turn back.",
         "Nothing more to find this way just yet. The village is waiting behind you."
     ],
+    "honk": [
+      "Hey! This isn't the city — out of the road, pal!",
+      "Sidewalk's right there, friend!",
+      "Whole road to yourself out here — mind letting me by?",
+      "Careful now — folks still drive on this street!"
+    ],
     "plaque": {
       "painted": "A little plaque by the door: {building}, painted by {credit}. Thank you, {credit}!",
       "anonymous": "A little plaque by the door: somebody painted {building} for everyone to enjoy. Thank you, whoever you are.",

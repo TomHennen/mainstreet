@@ -472,7 +472,7 @@ paved routes, so a state route reads as a road rather than a grey stripe:
 "vehicles": [
   { "id": "stamford-main-car", "kind": "car",     // car | pickup | van
     "colour": "#9babb2",                          // muted; the drawn car's paint
-    "path": [[2, 18], [88, 18], [88, 16], [2, 16]],
+    "path": [[2, 18], [88, 18], [88, 16], [0, 16]],
     "loop": true,                                 // default: back to the first
     "pause": 1.2,                                 // seconds at each waypoint, default 0.8
     "speed": 19.1 },                              // tiles/s, default walking x 3
@@ -490,19 +490,50 @@ sandy side streets unmarked, so NY 10 and NY 23 carry traffic and the back
 streets stay quiet. `validate-episodes` walks every leg of a path over that
 rule, the closing leg of a loop included.
 
+`loop` (default true) is what sends a car back to its first waypoint once it
+reaches its last, over whatever paved way there is — fine when that closing
+leg is a loop in its own right, the way `stamford-main-car` above uses two
+lanes two tiles apart to run the length of NY 23 and back without ever facing
+the way it came. It stops being fine the moment the *last* waypoint is
+somewhere the road runs out from under it — the map's own edge, or one of its
+`exits` — because the only way back then is the way it came, and a car
+retracing its own tracks reads as a U-turn right at the edge of town. The
+engine reads this off the path itself (`runsOffMap` in engine/vehicle.ts)
+rather than a flag a world pack has to set: a car whose last waypoint
+qualifies drives straight past it instead, off the map, out of sight for a
+beat, and reappears already under way at its first waypoint — never visibly
+turning around. It is why `stamford-main-car`'s own last waypoint above is
+`[0, 16]`, the tile at Stamford's own western edge, rather than a couple of
+tiles short of it. A route that ends somewhere ordinary mid-map, or is
+explicitly `loop: false`, is unaffected: that is a car legitimately parking,
+and keeps doing exactly that.
+
 Cars are **never a hazard, and never anything else either** (§1): not solid,
 nothing to say, not a tap target — a tap on one lands on the road under it —
 and nothing a save ever hears about. Rather than the player giving way, the
-car does: it looks three tiles up its own route, and if anybody is standing
-there it closes the throttle and coasts to a stop, waits for as long as they
-stay, and pulls away again when the way clears. Its braking ramp comes off its
-own speed, so it always stops within two tiles — inside the three it looks
-ahead, which puts the stop behind whoever it stopped for. It never routes
-around anybody: a car that swerved past somebody in the road would read as
-impatience. Somebody who steps into the road right in front of one is simply
-passed under, with nothing happening to either of them. A car gives way to any
-car listed *before* it on the map as well, which is one-way on purpose, so two
-of them can never sit waiting on each other at a crossroads.
+car does: it looks three tiles up its own route — round the next corner too,
+not only straight on, so nobody standing just past a turn is missed — and if
+anybody is standing there it closes the throttle and coasts to a stop, waits
+for as long as they stay, and pulls away again when the way clears. Its
+braking ramp comes off its own speed, so it always stops within two tiles —
+inside the three it looks ahead, which puts the stop a clear tile behind
+whoever it stopped for, never on top of them. It never routes around anybody:
+a car that swerved past somebody in the road would read as impatience.
+Somebody who steps into the road right in front of one is simply passed
+under, with nothing happening to either of them. A car gives way to any car
+listed *before* it on the map as well, which is one-way on purpose, so two of
+them can never sit waiting on each other at a crossroads.
+
+Held stopped by the player specifically — never by another car ahead of it,
+which has nobody to holler at — for about a second, a car has something to
+say about it: one of `copy.json`'s `ui.honk` lines, out the window, in the
+same toast an effect's own `toast` already raises rather than a box to
+dismiss, so a brief crossing never earns a word and nobody's walk is
+interrupted to read one. Picked so the same car does not repeat itself right
+after saying it, at most one on screen at a time, and nothing at all from a
+world pack with no `ui.honk` (hard rule 3) — Route 10's few lines are the
+kind of ribbing everyone in the scene would smile at ("Hey! This isn't the
+city — out of the road, pal!"), never a real scold.
 
 Drawn, a car sits at its own centre line — half a tile above the ground line
 of the row it is in — capped just under the player's depth, so it draws over

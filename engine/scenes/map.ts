@@ -88,6 +88,12 @@ const CHASE_MS = 250;
 const MAX_REPLANS = 32;
 /** A scene's camera pan, in tiles a second, when the step names no speed. */
 const PAN_SPEED = 8;
+/**
+ * How long a holler stays up (`UiScene`'s own toast timer, matched here so a
+ * second car never cuts the first one off mid-line) — one on screen at a
+ * time is the whole debounce; which car gets to go is otherwise first-come.
+ */
+const HOLLER_DISPLAY = 3.8;
 
 /**
  * Which tiles of each baked map texture an overlay is currently painted over.
@@ -207,6 +213,8 @@ export class MapScene extends Phaser.Scene {
   private litFixtures = new Map<string, number>();
   /** Seconds this scene has been running, for the fixture glows above. */
   private clock = 0;
+  /** `this.clock` a holler is allowed again — one on screen at a time (DESIGN.md §2). */
+  private hollerUntil = 0;
   private exitArmed = false;
   private enterArmed = false;
   /** id of the `edges` entry (or a `road-end:<x>,<y>` key) currently shown, so it says its line once per visit rather than every frame. */
@@ -763,7 +771,9 @@ export class MapScene extends Phaser.Scene {
         // any screen and at any frame rate.
         speed: vehicle.speed ?? (SPEED * DRIVE_FACTOR) / TILE,
         drivable,
-        facing: vehicle.facing
+        facing: vehicle.facing,
+        bounds: { width: this.map.width, height: this.map.height },
+        exits: this.map.exits.map((exit) => exit.at)
       });
       // Origin at the middle of the car, which is what its tile position
       // means: a car lies along the lane it is in rather than standing on it.
@@ -781,10 +791,19 @@ export class MapScene extends Phaser.Scene {
    * That last rule is one-way on purpose: a car only ever waits for cars
    * *earlier* in the list, so two of them can never sit waiting on each other
    * at a crossroads. Nobody waits for a car, which is the whole point of them.
+   *
+   * A car the player specifically has held stopped for a moment gets to say
+   * so — the holler (DESIGN.md §2) — in `copy.json`'s `ui.honk`, shown the
+   * lightest way the engine already shows an ambient line: the same toast a
+   * flag's own effect can raise, never a box the player has to dismiss. No
+   * `ui.honk` in the world pack and a car simply never has anything to say
+   * (hard rule 3); only one is ever on screen at a time, so a second car due
+   * to holler just waits its own turn.
    */
   private updateCars(delta: number): void {
     if (!this.cars.length) return;
     const dt = delta / 1000;
+    const honk = session().copy.ui.honk;
     this.cars.forEach((car, index) => {
       car.driver.update(dt, {
         blocked: (x, y) => {
@@ -792,13 +811,21 @@ export class MapScene extends Phaser.Scene {
             if (tile[0] === x && tile[1] === y) return true;
           }
           for (let i = 0; i < index; i++) {
-            for (const tile of this.cars[i].driver.mover.tiles()) {
+            for (const tile of this.cars[i].driver.tiles()) {
               if (tile[0] === x && tile[1] === y) return true;
             }
           }
           return false;
-        }
+        },
+        player: (x, y) => this.playerTiles().some((tile) => tile[0] === x && tile[1] === y)
       });
+      if (honk?.length && this.clock >= this.hollerUntil) {
+        const line = car.driver.takeHoller();
+        if (line !== null) {
+          bus.emit(EV.toast, honk[line % honk.length]);
+          this.hollerUntil = this.clock + HOLLER_DISPLAY;
+        }
+      }
     });
     this.drawCars();
   }
