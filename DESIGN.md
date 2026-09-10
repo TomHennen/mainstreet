@@ -249,15 +249,21 @@ building no sign copy at all, the box would open empty, so `copy.json`
 
 **The doormat, and reading a door.** A door with an interior behind it does
 two things, never confused for each other because they answer to two
-different kinds of touch. Walking onto it — a held direction, one tile at a
-time, the same movement that crosses every other tile in town — opens it, no
-button and no tap involved. An A press or a tap only ever reads the door's
-standing sign, exactly like a door with no interior at all; the two have
-never behaved differently to a button, only to a footstep. Tapping walks the
-player up to the door and presses A on arrival on their behalf, the same as
+different kinds of touch. Walking *into* it — a held "up" onto the door
+tile itself, the direction that would otherwise walk the player into the
+solid wall behind it, since every building sits one row north of its own
+door (`MapScene.checkDoors`) — opens it, no button and no tap involved. An
+A press or a tap only ever reads the door's standing sign, exactly like a
+door with no interior at all; the two have never behaved differently to a
+button, only to a footstep, and only to that one direction of footstep. It
+takes "up" specifically, not merely landing on the tile at all, because a
+door sits on the street a player is forever crossing on their way past a
+shopfront to somewhere else — a door that opened for any step that touched
+it would swallow anyone walking along Main Street. Tapping walks the player
+up to the door and presses A on arrival on their behalf, the same as
 tapping anything else (Controls, above), so a tap on a door never opens it
-either — a deliberate difference from the held-direction case, since a
-tapped walk is a promise to arrive and read, not to barge in.
+either — a deliberate difference from the held-"up" case, since a tapped
+walk is a promise to arrive and read, not to barge in.
 
 Nothing marked an opening door as one before a player tried it, so the engine
 lays a small doormat right on the doorstep of any door with an interior

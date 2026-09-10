@@ -1106,7 +1106,7 @@ export class MapScene extends Phaser.Scene {
     this.updateMarker();
     this.checkExits();
     this.checkEdges();
-    this.checkDoors(viaKeys);
+    this.checkDoors(dy);
   }
 
   /**
@@ -1544,9 +1544,9 @@ export class MapScene extends Phaser.Scene {
   /**
    * The front step: where the sign is read from. A tap walks the player onto
    * the door tile itself and reads it there, whether or not the building has
-   * an interior — walking onto it this deliberately, through `followPath`'s
-   * own arrival press, never opens it (`checkDoors` only answers to a held
-   * direction, DESIGN.md §2).
+   * an interior — arriving through `followPath`'s own press of A, never a
+   * held "up" (`checkDoors` answers to nothing else, DESIGN.md §2), so it
+   * never opens the door.
    */
   private doorTap(building: BuildingPlacement): { target: Target; goal: Vec2; reach: number } {
     return {
@@ -1869,15 +1869,22 @@ export class MapScene extends Phaser.Scene {
 
   /**
    * A door with an interior behind it opens the moment the player actually
-   * walks onto it — the doormat is the only warning it gets (DESIGN.md §2).
-   * Keyed to `viaKeys`, the same held-direction movement `update()` drove
-   * this frame's step with: a tap that lands the walk on the doorstep is
-   * `followPath`'s own arrival press, which reads the standing sign like any
-   * other A press, never this. `enterArmed` is `armEnters`'s guard against
-   * the doorstep a player was just dropped on by leaving the very same way.
+   * walks into it — the doormat is the only warning it gets (DESIGN.md §2).
+   * "Into," not merely "onto": every door sits one row south of its own
+   * building, on the street a player is forever walking along and across, so
+   * a door that opened for any step that so much as touched its tile would
+   * swallow anyone passing a shopfront on their way somewhere else. It takes
+   * a held "up" to open one — the direction that would otherwise walk the
+   * player straight into the wall behind it — the same `dy` `update()` drove
+   * this frame's step with, so it never fires from a sideways step along the
+   * street or a diagonal one just clipping the tile's corner. A tap that
+   * lands the walk on the doorstep is `followPath`'s own arrival press,
+   * which reads the standing sign like any other A press, never this.
+   * `enterArmed` is `armEnters`'s guard against the doorstep a player was
+   * just dropped on by leaving the very same way.
    */
-  private checkDoors(viaKeys: boolean): void {
-    if (!viaKeys || !this.enterArmed) return;
+  private checkDoors(dy: number): void {
+    if (dy >= 0 || !this.enterArmed) return;
     const state = session();
     if (state.locked || state.dialogueOpen) return;
     const tx = Math.floor((this.px + TILE / 2) / TILE);
