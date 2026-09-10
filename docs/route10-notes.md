@@ -182,6 +182,24 @@ readable as the whole set. The doorway to 80 Main is a two-tile-tall open
 gap in the right wall at rows 6–7, matched by the same gap in 80 Main's left
 wall, so the two rooms read as one opening.
 
+*Tom, Sep 10 2026 (built Sep 2026):* a doorway in the **upper left** of the
+room leads out the back to two bathrooms and a kitchen — the kitchen is
+worth having now because more will happen in it later. The counter now runs
+**all the way to the right wall**, and the opening on its **left**, past the
+counter's end, is how customers get to the bathrooms and the kitchen. On the
+right side of the counter, **bottles on display behind it**: beers and wine
+to buy and take home (readable only for now, like the fridge). A **female
+baker with silver hair** works out back. As built: the doorway is the
+two-tile gap in the top wall at x1–2 (floor showing through, like the 80
+Main opening), the counter is x4–18 on row 2 with Ronnie, the coffee-maker
+shelf, the menu board and the bottle shelf in the strip behind it, and the
+back rooms are their own map, `stamford-coffee-back` (14×10, spec
+`worlds/route10/rooms/stamford-coffee-back.json`): a prep counter with the
+oven, a cooler and a cooling rack behind it, shelves of dry goods on the
+left wall, and a short hall along the top right with the two bathroom doors
+in the back wall. The baker is **Lorna** (invented), silver hair in a bun,
+behind the prep counter. Nothing is bought yet.
+
 **80 Main interior (Tom, Sep 2026; built Sep 2026).** High-end goods, lots
 of Catskills-logo wear. They once (maybe still do) sold a high-end coffee
 table made out of coal. They sometimes host oyster-and-wine nights.

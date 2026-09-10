@@ -30,6 +30,7 @@ import { patchFor, withOverlays } from '../overlay';
 import { Driver, DRIVE_FACTOR } from '../vehicle';
 import { findPath, pathToTile } from '../path';
 import { autosave } from '../progress';
+import { REACH } from '../reach';
 import { introLineFor } from '../season';
 import { SceneRunner, sceneTriggered } from '../scene';
 import type { SceneDriver } from '../scene';
@@ -73,12 +74,6 @@ const MARGIN = 4;
 /** A map smaller than the view may be scaled up this far before it looks coarse. */
 const MAX_ZOOM = 4;
 
-// Reach in tiles. Interiors are tight, so an NPC behind a counter needs more.
-// The plaque is the exception: it is read standing at it, on its own tile, so
-// the building's sign keeps the rest of the front to itself.
-// A fixture is solid, so unlike the plaque it is read from the tile beside it:
-// far enough to take in a diagonal neighbour, not far enough to reach past one.
-const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 2.1, plaque: 0.75, fixture: 1.5 };
 /** How long the travel card holds, by what we are walking through. */
 const HOLD = { road: 900, enter: 500, exit: 400 };
 const WALK_FRAME_MS = 133;

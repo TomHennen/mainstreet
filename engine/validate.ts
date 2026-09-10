@@ -2,6 +2,7 @@
 // needs under Node's type stripping (see that file's header).
 import { rectsOverlap } from './edges.ts';
 import { findPath } from './path.ts';
+import { offsetsWithin, REACH } from './reach.ts';
 import { canCoOccur, combinations, overlapsIn, patchFor, withOverlays } from './overlay.ts';
 import {
   BUILDS,
@@ -191,8 +192,10 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
     }
 
     // A sign that belongs to the map rather than to a story (DESIGN.md §2).
-    // It is read from beside it, so it needs somewhere to be read from — the
-    // tile itself where that is walkable, and otherwise a neighbour.
+    // It is read from within a prop's reach (engine/reach.ts), so it needs
+    // somewhere that close to be read from — the tile itself where that is
+    // walkable, and otherwise a tile beside it or two tiles straight on,
+    // which is how a shelf on the back wall is read across the counter.
     for (const sign of map.signs ?? []) {
       const where = `map "${mapId}" sign at ${sign.pos.join(',')}`;
       const [sx, sy] = sign.pos;
@@ -203,13 +206,7 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
       if (!sign.lines?.length || sign.lines.some((line) => typeof line !== 'string' || !line.trim())) {
         problems.push(`${where} has nothing to read on it`);
       }
-      const reachable = [
-        [sx, sy],
-        [sx - 1, sy],
-        [sx + 1, sy],
-        [sx, sy - 1],
-        [sx, sy + 1]
-      ].some(([x, y]) => !isSolid(map, x, y));
+      const reachable = [[0, 0], ...offsetsWithin(REACH.prop)].some(([dx, dy]) => !isSolid(map, sx + dx, sy + dy));
       if (!reachable) problems.push(`${where} has nowhere beside it to read it from`);
     }
 

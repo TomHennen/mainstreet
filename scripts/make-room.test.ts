@@ -385,6 +385,16 @@ describe('buildRoom: halls, doors, panels and a second way out', () => {
     });
   });
 
+  it('cuts a way out through the top wall too, floor showing through if the spec says', () => {
+    // A doorway to the rooms out back, the way Stamford Coffee's is: in the
+    // top wall, clear of the corner, with the floor running through it.
+    const r = long([{ kind: 'exit', rect: [1, 0, 2, 1], tiles: [PALETTE.floor[0]], id: 'a-room-back', to: 'back', spawn: [3, 6], facing: 'up' }]);
+    expect(tileAt(r, 1, 0)).toBe(PALETTE.floor[0]);
+    expect(tileAt(r, 2, 0)).toBe(PALETTE.floor[0]);
+    expect(tileAt(r, 0, 0)).toBe(PALETTE.wall);
+    expect(r.meta.exits[1]).toEqual({ id: 'a-room-back', at: [1, 0, 2, 1], to: 'back', spawn: [3, 6], facing: 'up', style: 'door' });
+  });
+
   it('asks a way out for everything world.json would', () => {
     expect(() => long([{ kind: 'exit', at: [[13, 4]] }])).toThrow(/needs an "id", a "to", a "spawn" and a "facing"/);
   });
@@ -443,7 +453,13 @@ describe('paletteOf', () => {
 describe('the rooms route10 ships', () => {
   const tileset = () => parseTileset(readJson(join(PACK, 'assets', 'tiles', 'route10.json')), 'route10');
 
-  for (const id of ['stamford-coffee-interior', 'eighty-main-interior', 'the-belvedere-interior', 'the-belvedere-yard']) {
+  for (const id of [
+    'stamford-coffee-interior',
+    'stamford-coffee-back',
+    'eighty-main-interior',
+    'the-belvedere-interior',
+    'the-belvedere-yard'
+  ]) {
     it(`${id} on disk is what its spec builds`, () => {
       const spec: RoomSpec = readJson(join(PACK, 'rooms', `${id}.json`));
       const built = buildRoom(spec, paletteOf(tileset()));

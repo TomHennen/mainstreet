@@ -589,10 +589,24 @@ describe('validateWorld', () => {
     expect(runWorld(blank).join('\n')).toContain('has nothing to read on it');
   });
 
+  // Read at a prop's reach (engine/reach.ts): two tiles straight on is close
+  // enough, which is how a shelf on the back wall is read across the counter.
+  it('accepts a map sign behind a counter, read from two tiles away', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({ signs: [{ pos: [3, 3], lines: ['Bottles, behind the counter.'] }] }, ['.....', '.....', '#####', '#####', '#####'])
+      }
+    });
+    expect(runWorld(world)).toEqual([]);
+  });
+
   it('flags a map sign walled in on every side', () => {
     const world = makeWorld({
       maps: {
-        town: makeMap({ signs: [{ pos: [2, 1], lines: ['Nobody can get to this.'] }] }, ['..#.', '.###', '..#.', '....'])
+        town: makeMap(
+          { signs: [{ pos: [2, 4], lines: ['Nobody can get to this.'] }] },
+          ['.....', '.....', '#####', '#####', '#####', '#####', '#####']
+        )
       }
     });
     expect(runWorld(world).join('\n')).toContain('nowhere beside it to read it from');

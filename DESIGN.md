@@ -1080,7 +1080,11 @@ Hobart — "Jewel of the West Branch."
   mac-n-cheese burger; pup cups.
 - `stamford-coffee` (Stamford, 79 Main St): coffee shop; Maple Smoke latte
   (maple, liquid smoke, sea salt); the shop attached next door is
-  `eighty-main`, below, reached through an open doorway inside.
+  `eighty-main`, below, reached through an open doorway inside. A doorway
+  in the room's upper left leads out back (`stamford-coffee-back`) to two
+  bathrooms and a kitchen, where the baker **Lorna** (fictional) works
+  behind the prep counter; bottles of beer and wine to take home sit behind
+  the right end of the counter (readable, nothing bought yet).
 - `eighty-main` (Stamford): the shop through the open doorway on
   Stamford Coffee's right, sharing its patio; Catskills-logo wear, candles
   and mugs, a very good sweater; once (maybe still) sold a coffee table made

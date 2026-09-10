@@ -1,0 +1,78 @@
+{
+  "name": "Stamford Coffee, out back",
+  "size": [14, 10],
+  "wall": 14,
+  "floor": [11, 24],
+  "door": { "side": "bottom", "column": 9, "width": 2 },
+  "exit": { "id": "stamford-coffee-back-exit", "to": "stamford-coffee-interior", "spawn": [2, 1], "facing": "down" },
+  "props": [
+    {
+      "kind": "counter",
+      "rect": [1, 2, 7, 1],
+      "behind": "top",
+      "lines": [
+        "The prep counter: a big stand mixer at one end, a bowl of flour ready by the scale, and a bench scraper worn smooth from years of good use.",
+        "The recipes are on index cards in a tin, and the cards are older than some of the customers."
+      ]
+    },
+    {
+      "kind": "shelf",
+      "rect": [1, 1, 2, 1],
+      "tiles": [22, 22],
+      "lines": [
+        "The oven, two big decks of it, ticking as it warms. Whatever is in there this morning, the whole back room smells of it.",
+        "Lorna keeps a timer on a string round her neck, and has never once needed it."
+      ]
+    },
+    { "kind": "shelf", "at": [[3, 1]], "tiles": [21] },
+    {
+      "kind": "shelf",
+      "at": [[7, 1]],
+      "tiles": [18],
+      "lines": [
+        "A tall rolling rack of trays, cooling: scones, a slab of something with apples in it, and croissants still settling into themselves.",
+        "They go out front a tray at a time, still warm."
+      ]
+    },
+    {
+      "kind": "shelf",
+      "rect": [1, 4, 1, 3],
+      "tiles": [19, 17, 23],
+      "lines": [
+        "Shelves of the dry goods: sacks of flour, a tub of sugar, jars of oats and raisins and walnuts, all labelled in the same neat hand.",
+        "Somewhere in here is the good chocolate, and everybody knows exactly where."
+      ]
+    },
+    { "kind": "hall", "rect": [10, 1, 3, 1] },
+    {
+      "kind": "door",
+      "at": [[10, 0]],
+      "lines": [
+        "A single bathroom, and a good one: clean, a plant on the cistern, and a hand-lettered sign asking you kindly to jiggle the handle.",
+        "Anyone can use it. There is a hook for your coat, and the soap smells like lemons."
+      ]
+    },
+    {
+      "kind": "door",
+      "at": [[12, 0]],
+      "lines": [
+        "The other one, just the same, with a changing table folded against the wall and a stack of the good paper towels.",
+        "Whichever is free is yours."
+      ]
+    }
+  ],
+  "people": [
+    {
+      "id": "stamford-coffee-baker",
+      "name": "Lorna",
+      "pos": [6, 1],
+      "facing": "down",
+      "look": { "hair": "bun", "hairColor": "#b4b9c3", "skin": "#e0b48c", "shirt": "#8f6a4a" },
+      "lines": [
+        "Morning! Mind the warm air off the oven — there's a tray of scones in there and an apple cake right behind them, both about ten minutes off.",
+        "I've been in since four. The street's dark and quiet and the whole town's asleep, and by the time the sun is up the first tray is out. Best hours of the day, honestly.",
+        "Looking for the bathrooms? They're the two doors in the hall there, just to your right. Either one — whichever's free."
+      ]
+    }
+  ]
+}
