@@ -84,9 +84,11 @@ const MAX_ZOOM = 4;
 // far enough to take in a diagonal neighbour, not far enough to reach past one.
 // A prop (a wall panel, a bathroom door, the chalkboard) only prompts when the
 // player is actually touching it: an orthogonally adjacent tile centre is
-// exactly 1 tile away, a diagonal one is √2 (~1.41) away, so 1.05 clears the
-// former (with a hair of slack) and excludes the latter.
-const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 1.05, plaque: 0.75, fixture: 1.5 };
+// exactly 1 tile away, a diagonal one is √2 (~1.41) away. 1.1 clears the
+// former with enough slack for a walk that settles a little off the grid
+// (movement measured in headless play lands as far as ~1.05 off-centre) while
+// staying well clear of the latter.
+const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 1.1, plaque: 0.75, fixture: 1.5 };
 /**
  * How long the travel card holds, by what we are walking through. `lost` is
  * the road card again, held a little longer: its line is a story, not a
