@@ -34,10 +34,10 @@
         "Nothing more to find this way just yet. The village is waiting behind you."
     ],
     "holler": [
-      "Whole road to yourself out here — mind letting me by?",
-      "Morning! Just need to squeeze past you there.",
-      "Hey, friend — this isn't the city! Mind hopping out of the road?",
-      "No rush. The truck's just wider than it looks."
+      "Hey! This isn't New York City — get out of the road!",
+      "You planning on standing there all day? Move it!",
+      "Road's for trucks, pal. Sidewalk's for people.",
+      "C'mon! Some of us have got places to be!"
     ],
     "plaque": {
       "painted": "A little plaque by the door: {building}, painted by {credit}. Thank you, {credit}!",

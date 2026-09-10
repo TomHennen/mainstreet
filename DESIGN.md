@@ -655,9 +655,10 @@ player, and never over a toast already on screen — a holler waits its turn
 behind a scene's or a flag's own, never cuts one off. Picked so the same car
 does not repeat itself right after saying it, at most one on screen at a
 time, and nothing at all from a world pack with no `ui.holler` (hard rule 3)
-— Route 10's few lines are the kind of ribbing everyone in the scene would
-smile at ("Hey, friend — this isn't the city! Mind hopping out of the
-road?"), never a real scold.
+— Route 10's lines are gruff on purpose, by Tom's call (CLAUDE.md hard rule
+6): a driver hollering out the window ("Hey! This isn't New York City — get
+out of the road!") is meant to sound genuinely put out, not to deliver a
+gentle joke.
 
 Drawn, a car sits at its own centre line — half a tile above the ground line
 of the row it is in — capped just under the player's depth, so it draws over
@@ -741,6 +742,8 @@ handed back). No `until` and a picked-up item stays on the panel for good.
 A sign carries exactly one of `building` (read at that building's door, with
 the A prompt, or at its sign board once it has grown one — see §2) or `map` +
 `pos` (a prop such as a shelf or a counter, examined by standing next to it).
+A prop's reach is deliberately tight: only an orthogonally adjacent tile
+counts as touching it, not a diagonal one and not one tile further off.
 Every prop the validator lets onto a map carries `lines` to read, so —
 reversing this schema's earlier call to leave props out of it — it gets the
 same little prompt as anything else in reach: a wall somebody has drawn on is
