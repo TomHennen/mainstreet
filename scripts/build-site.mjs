@@ -43,12 +43,12 @@ const rawBase = process.env.SITE_BASE ?? '/';
 const SITE_BASE = rawBase.replace(/\/+$/, '');
 
 // The Pages workflow publishes two builds side by side: the latest release at
-// the site root and main at /dev/ (.github/workflows/pages.yml). Each is told
-// where the other one is, and the front page says so in a line at the foot.
-// Both are optional: a local build, or a site with one build, says nothing.
-const asBase = (value) => (value ? value.replace(/\/+$/, '') : null);
-const SITE_DEV_BASE = asBase(process.env.SITE_DEV_BASE);
-const SITE_RELEASE_BASE = asBase(process.env.SITE_RELEASE_BASE);
+// the site root and main at /dev/ (.github/workflows/pages.yml). The dev build
+// is told where the release is, and its front page says so in a line at the
+// foot, so nobody who lands there mistakes it for the game. The release says
+// nothing about the dev build: players are never pointed at it. Optional: a
+// local build, or the release, leaves it unset.
+const SITE_RELEASE_BASE = process.env.SITE_RELEASE_BASE?.replace(/\/+$/, '') || null;
 
 function worldIds() {
   const requested = process.argv.slice(2);
@@ -594,15 +594,11 @@ ${world.credits.map((p) => `          <li>${escapeHtml(p.name)} &mdash; ${escape
     .map((p) => (p.link ? `<a href="${escapeHtml(p.link)}">${escapeHtml(p.name)}</a>` : escapeHtml(p.name)))
     .join(', ');
 
-  // Which of the two builds this is, and where the other one lives. The
-  // release keeps the quieter line; the dev build says plainly that it is
-  // the one still being worked on, so nobody mistakes a half-finished map
-  // for the game.
+  // On the dev build only: say plainly that this is the one still being
+  // worked on, and point at the released game.
   const builds = SITE_RELEASE_BASE
     ? `      <p>This is the in-progress build &mdash; whatever is being worked on right now, before it is finished and released. <a href="${escapeHtml(`${SITE_RELEASE_BASE}/`)}">The released game is here &rarr;</a></p>`
-    : SITE_DEV_BASE
-      ? `      <p>Curious what is coming next? <a href="${escapeHtml(`${SITE_DEV_BASE}/`)}">The in-progress build &rarr;</a></p>`
-      : '';
+    : '';
 
   return `<!doctype html>
 <html lang="en">

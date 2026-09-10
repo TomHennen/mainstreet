@@ -73,7 +73,6 @@ jobs:
         run: npm ci && npm run build:site
         env:
           SITE_BASE: /${{ github.event.repository.name }}
-          SITE_DEV_BASE: /${{ github.event.repository.name }}/dev
 
       - run: npm ci
         working-directory: main
@@ -84,7 +83,6 @@ jobs:
         run: npm run build:site && mv dist ../root-from-main
         env:
           SITE_BASE: /${{ github.event.repository.name }}
-          SITE_DEV_BASE: /${{ github.event.repository.name }}/dev
 
       - name: Build main (dev path)
         working-directory: main

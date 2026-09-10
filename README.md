@@ -131,9 +131,10 @@ own `dist/<id>/` output — a single Vite build only ever ships one world, see
 `world.json` `title`/`subtitle`. `SITE_BASE` sets the path the whole site is
 served under (default `/`; the Pages workflow passes
 `/${{ github.event.repository.name }}` for the release and
-`/${{ github.event.repository.name }}/dev` for the dev build). `SITE_DEV_BASE`
-and `SITE_RELEASE_BASE` are optional: whichever one is set gets a line at the
-foot of the landing page pointing at the other build. To try it locally:
+`/${{ github.event.repository.name }}/dev` for the dev build). The dev build
+is also passed `SITE_RELEASE_BASE`, which puts a line at the foot of its
+landing page saying it is the in-progress build and pointing at the release.
+The release never links to the dev build. To try it locally:
 
 ```sh
 SITE_BASE=/mainstreet npm run build:site
