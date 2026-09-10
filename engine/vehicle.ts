@@ -30,6 +30,15 @@
  *   un-solid — it simply never sets off, until a scene sends it somewhere
  *   (`sendTo`), which is how an episode's pickup pulls out of the forecourt
  *   and heads off down the road (DESIGN.md §3).
+ * - **A car that exists only for a scene.** `hidden` (`Vehicle.hidden`) is a
+ *   parked car nobody has met yet: not drawn, and nothing gives way to it —
+ *   as if it were not on the map at all — until the very first `sendTo`,
+ *   which is also what reveals it, for as long as this `Driver` exists (one
+ *   visit to the map — a fresh one, `hidden` and all, is built the next time
+ *   it is, so a story that sends the same car out more than once always
+ *   finds it waiting out of sight again). A deputy's truck waiting just
+ *   out of sight at the edge of town, say, rather than sitting there,
+ *   unexplained, every week the story never calls on it.
  * - **A route that runs off the map.** `loop` (default true) ordinarily
  *   sends a car back to its first waypoint once it reaches its last, over
  *   whatever paved way there is — fine for a route that is a loop in its own
@@ -106,6 +115,13 @@ export interface DriverOptions {
   bounds: { width: number; height: number };
   /** The map's own `exits`, so a route ending in one reads as "keeps going" too. */
   exits?: Rect[];
+  /**
+   * This car exists only for a scene (DESIGN.md §2/§3, `Vehicle.hidden`): it
+   * is drawn nowhere and given way to by nobody until the first time
+   * `sendTo` is called, from which point on it is an ordinary car for as long
+   * as this `Driver` exists — a fresh one next time the map is rebuilt.
+   */
+  hidden?: boolean;
 }
 
 /** Rectangle containment — the same test as `engine/edges.ts`'s, kept local here too so this module stays a single, independently-testable file. */
@@ -117,14 +133,27 @@ const touchesBoundary = (rect: Rect, bounds: { width: number; height: number }):
   rect[0] === 0 || rect[1] === 0 || rect[0] + rect[2] === bounds.width || rect[1] + rect[3] === bounds.height;
 
 /**
- * Whether a route's last waypoint is where the road runs out, rather than
- * somewhere mid-map a car might plausibly stop or turn (see "A route that
- * runs off the map" above). True when that waypoint sits on the map's
- * outermost ring of tiles, or when it lies inside one of the map's own
- * `exits` — but only one that itself touches that same outer edge: `exits`
- * also covers a building's own door mid-map (`style: 'door'`), which is
- * never "the road running out". A path shorter than two waypoints has no
- * direction of travel to read, so it never counts.
+ * Whether a tile is where the road runs out, rather than somewhere mid-map a
+ * car might plausibly stop or turn (see "A route that runs off the map" and
+ * "A scene's own one-shot vanish" below). True on the map's outermost ring of
+ * tiles, or inside one of the map's own `exits` — but only one that itself
+ * touches that same outer edge: `exits` also covers a building's own door
+ * mid-map (`style: 'door'`), which is never "the road running out".
+ */
+export function atMapBoundary(
+  tile: Vec2,
+  bounds: { width: number; height: number },
+  exits: readonly Rect[] = []
+): boolean {
+  const [tx, ty] = tile;
+  if (tx === 0 || ty === 0 || tx === bounds.width - 1 || ty === bounds.height - 1) return true;
+  return exits.some((rect) => touchesBoundary(rect, bounds) && within(rect, tx, ty));
+}
+
+/**
+ * Whether a route's last waypoint is where the road runs out — see
+ * `atMapBoundary`. A path shorter than two waypoints has no direction of
+ * travel to read, so it never counts.
  */
 export function runsOffMap(
   path: Vec2[] | undefined,
@@ -132,9 +161,7 @@ export function runsOffMap(
   exits: readonly Rect[] = []
 ): boolean {
   if (!path || path.length < 2) return false;
-  const [lx, ly] = path[path.length - 1];
-  if (lx === 0 || ly === 0 || lx === bounds.width - 1 || ly === bounds.height - 1) return true;
-  return exits.some((rect) => touchesBoundary(rect, bounds) && within(rect, lx, ly));
+  return atMapBoundary(path[path.length - 1], bounds, exits);
 }
 
 /** What the road looks like on the frame being stepped. */
@@ -191,8 +218,26 @@ export class Driver {
   private hollered = false;
   /** How many times this car has hollered, so a world pack's lines can move on each time rather than repeat. */
   private hollerCount = 0;
+  /**
+   * False only for a `hidden` car that has never yet been sent anywhere: see
+   * `onMap`. A car with no `hidden` option starts (and stays) revealed.
+   */
+  private revealed: boolean;
+  /** The map's own size and `exits`, kept for `sendTo`'s own boundary check below. */
+  private readonly bounds: { width: number; height: number };
+  private readonly exits: readonly Rect[];
+  /**
+   * Set by `sendTo` when the goal it was just sent to is itself where the
+   * road runs out (`atMapBoundary`) — a scene driving this car off for good,
+   * never to return, as opposed to an ordinary errand that ends in a stop
+   * mid-map. Cleared the moment that arrival is actually seen and acted on.
+   */
+  private vanishGoal: Vec2 | null = null;
 
   constructor(options: DriverOptions) {
+    this.revealed = !options.hidden;
+    this.bounds = options.bounds;
+    this.exits = options.exits ?? [];
     // A car with no waypoints is a parked one: it is given no route at all, so
     // the mover stands it exactly where the world pack put it, for ever. It is
     // still a Driver, so the scene draws it and gives way around it in one
@@ -254,17 +299,20 @@ export class Driver {
    * nothing ever sits waiting on a car that has already left.
    */
   tiles(): Vec2[] {
-    return this.phase === 'driving' ? this.mover.tiles() : [];
+    return this.onMap ? this.mover.tiles() : [];
   }
 
   /**
    * False for exactly as long as a through-route car is off the map between
    * one lap and the next (`vanishing`, `off`, `arriving`) — what the scene
    * hides the sprite on (`drawCars` in engine/scenes/map.ts), so it never
-   * draws wherever the maths happens to have parked `x`/`y` meanwhile.
+   * draws wherever the maths happens to have parked `x`/`y` meanwhile — and
+   * false the whole time a `hidden` car is still waiting for its first
+   * `sendTo`, for the same reason: nowhere on the map reads as where it is
+   * yet, so nothing should draw it or give way to it there.
    */
   get onMap(): boolean {
-    return this.phase === 'driving';
+    return this.phase === 'driving' && this.revealed;
   }
 
   /** True while the car is standing still — parked, waiting, or between legs. */
@@ -294,9 +342,26 @@ export class Driver {
    * in `update` and nothing to do with the route. Returns false when there is
    * no paved way there, so the scene carries on rather than waiting on a car
    * that is never going to arrive.
+   *
+   * This is also the one thing that ever reveals a `hidden` car (see `onMap`):
+   * once a scene has sent it anywhere it is an ordinary car from then on,
+   * whether or not this particular errand succeeds — for as long as this
+   * `Driver` exists, which is one map's worth; a fresh one is built the next
+   * time the map is (`MapScene.create`), `hidden` and all, so a `lost` reset
+   * that plays the same `arrive` again finds the truck waiting out of sight
+   * once more.
+   *
+   * A goal that is itself where the road runs out (`atMapBoundary`) is a
+   * scene driving this car off the map for good rather than to an ordinary
+   * stop mid-town — see `vanishGoal` and "A scene's own one-shot vanish"
+   * above: once it gets there, it keeps going the same `VANISH_TILES` an
+   * ambient through-route car does, and simply stays gone.
    */
   sendTo(goal: Vec2, speed?: number): boolean {
-    return this.mover.sendTo(goal, speed);
+    this.revealed = true;
+    const ok = this.mover.sendTo(goal, speed);
+    this.vanishGoal = ok && atMapBoundary(goal, this.bounds, this.exits) ? goal : null;
+    return ok;
   }
 
   /** True on the frames a car is giving way to somebody in the road. */
@@ -332,6 +397,19 @@ export class Driver {
     this.mover.update(dt * this.throttle, { held: false, blocked: () => false });
 
     if (this.throughRoute && !this.mover.busy && this.atLastWaypoint()) {
+      this.phase = 'vanishing';
+      this.vanishLeft = VANISH_TILES;
+      this.throttle = 1;
+      return;
+    }
+
+    // A scene sent this car somewhere the road runs out, and it just got
+    // there: the same drive off screen a through-route car takes, except
+    // there is no `routeStart` to reappear at (a scene-driven car has no
+    // route of its own), so `driveOffMap`'s "off" phase simply never moves
+    // on to "arriving" — gone for good, until the map itself is rebuilt.
+    if (this.vanishGoal && !this.mover.busy) {
+      this.vanishGoal = null;
       this.phase = 'vanishing';
       this.vanishLeft = VANISH_TILES;
       this.throttle = 1;

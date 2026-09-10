@@ -375,6 +375,31 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
         problems.push(`${where} has an unknown "facing" — expected one of ${FACINGS.join(', ')}`);
       }
       checkSaid(lost.lines, where, problems);
+
+      // `arrive` (DESIGN.md §2/§3) is a scene, staged on `to` — where the
+      // player is actually set down — validated exactly like an episode
+      // scene's own `steps`, against a stand-in episode with none of its own:
+      // everything an `arrive` step may move belongs to the map itself (the
+      // player, or one of `to`'s own vehicles), never to any one week's story.
+      if (lost.arrive !== undefined) {
+        if (!Array.isArray(lost.arrive) || lost.arrive.length === 0) {
+          problems.push(`${where} "arrive" has no steps`);
+        } else if (world.maps[lost.to]) {
+          const noEpisode: Episode = { id: '', title: '', flags: [], npcs: [] };
+          const vehiclePositions = new Map<string, Vec2>();
+          lost.arrive.forEach((step, index) => {
+            checkStep(step, `${where} "arrive" step ${index}`, {
+              episode: noEpisode,
+              world,
+              map: maps[lost.to],
+              mapId: lost.to,
+              declared: new Set(),
+              problems,
+              vehiclePositions
+            });
+          });
+        }
+      }
     }
   }
 
@@ -562,7 +587,7 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
 // --- scenes (DESIGN.md §3) ---------------------------------------------------
 
 /** The action fields a step may carry. Exactly one of them, always. */
-const STEP_ACTIONS = ['move', 'say', 'toast', 'wait', 'camera', 'set', 'light', 'end'] as const;
+const STEP_ACTIONS = ['move', 'say', 'toast', 'wait', 'camera', 'set', 'light', 'player', 'end'] as const;
 const LIGHT_MODES = ['off', 'dim', 'party'] as const;
 
 /**
@@ -624,8 +649,9 @@ function checkScenes(
       problems.push(`${at} has no steps`);
       continue;
     }
+    const vehiclePositions = new Map<string, Vec2>();
     scene.steps.forEach((step, index) => {
-      checkStep(step, `${at} step ${index}`, { episode, world, map, mapId, declared, problems });
+      checkStep(step, `${at} step ${index}`, { episode, world, map, mapId, declared, problems, vehiclePositions });
     });
   }
 }
@@ -660,10 +686,18 @@ interface StepContext {
   mapId: string | undefined;
   declared: Set<string>;
   problems: string[];
+  /**
+   * Where this scene's own earlier `move` steps have already driven each
+   * vehicle to, by id — so a second `move` on the same car is checked leg by
+   * leg from there, not from wherever it started the whole scene parked
+   * (DESIGN.md §3). Fresh per scene; a car's position between one scene and
+   * the next is not this validator's to track.
+   */
+  vehiclePositions: Map<string, Vec2>;
 }
 
 function checkStep(step: SceneStep, at: string, ctx: StepContext): void {
-  const { episode, world, map, mapId, declared, problems } = ctx;
+  const { episode, world, map, mapId, declared, problems, vehiclePositions } = ctx;
   if (!step || typeof step !== 'object' || Array.isArray(step)) {
     problems.push(`${at} is not a step object`);
     return;
@@ -754,22 +788,35 @@ function checkStep(step: SceneStep, at: string, ctx: StepContext): void {
       }
     });
     // And that there is paved road between the legs, starting from wherever
-    // the episode parked the car: a scene that cannot drive its truck out of
-    // the lot is a week of story where nothing happens (as `checkVehicle`).
-    if (ok && drives && paved) {
-      const parked = (episode.vehicles ?? []).find(
-        (vehicle) => vehicle.id === who.slice(SCENE_VEHICLE.length) && vehicle.map === mapId
-      );
-      const drive = driveable(map);
-      const legs = [...(parked?.pos ? [parked.pos] : []), ...(tiles as Vec2[])];
-      for (let i = 1; i < legs.length; i++) {
-        const from = legs[i - 1];
-        const to = legs[i];
-        if (from[0] === to[0] && from[1] === to[1]) continue;
-        if (!findPath(from, (x, y) => x === to[0] && y === to[1], drive)) {
-          problems.push(`${at} cannot drive from ${from.join(',')} to ${to.join(',')} — no paved way through`);
+    // this scene last left the car — an earlier `move` step's own target, if
+    // it had one — or else wherever it was parked: a scene that cannot drive
+    // its truck out of the lot is a week of story where nothing happens (as
+    // `checkVehicle`).
+    if (drives) {
+      const vehicleId = who.slice(SCENE_VEHICLE.length);
+      if (ok && paved) {
+        // A vehicle this scene drives may be the episode's own, or the map's
+        // — a village's own car is exactly as much this scene's to move as
+        // one an episode brought with it (DESIGN.md §2/§3).
+        const parked =
+          (episode.vehicles ?? []).find((vehicle) => vehicle.id === vehicleId && vehicle.map === mapId) ??
+          (mapId ? (world.maps[mapId]?.vehicles ?? []).find((vehicle) => vehicle.id === vehicleId) : undefined);
+        const startPos = vehiclePositions.get(vehicleId) ?? parked?.pos;
+        const drive = driveable(map);
+        const legs = [...(startPos ? [startPos] : []), ...(tiles as Vec2[])];
+        for (let i = 1; i < legs.length; i++) {
+          const from = legs[i - 1];
+          const to = legs[i];
+          if (from[0] === to[0] && from[1] === to[1]) continue;
+          if (!findPath(from, (x, y) => x === to[0] && y === to[1], drive)) {
+            problems.push(`${at} cannot drive from ${from.join(',')} to ${to.join(',')} — no paved way through`);
+          }
         }
       }
+      // Recorded regardless of whether this leg validated clean, so one bad
+      // step never cascades into every step after it also reading as
+      // unreachable from the wrong place.
+      if (ok) vehiclePositions.set(vehicleId, tiles[tiles.length - 1] as Vec2);
     }
     return;
   }
@@ -827,6 +874,37 @@ function checkStep(step: SceneStep, at: string, ctx: StepContext): void {
   }
 
   if (step.light) checkLight(step.light, at, map, problems);
+
+  if (step.player) {
+    const player = step.player;
+    if (typeof player !== 'object' || Array.isArray(player)) {
+      problems.push(`${at} has a "player" that isn't an object`);
+      return;
+    }
+    if (Boolean(player.hide) === Boolean(player.show)) {
+      problems.push(`${at} "player" needs exactly one of "hide" or "show"`);
+      return;
+    }
+    if (player.hide !== undefined && player.hide !== true) {
+      problems.push(`${at} "player" "hide" has to be true`);
+    }
+    if (player.show !== undefined) {
+      if (typeof player.show !== 'object' || Array.isArray(player.show)) {
+        problems.push(`${at} "player" "show" isn't an object`);
+      } else if (player.show.at !== undefined) {
+        const showAt = player.show.at;
+        if (!Array.isArray(showAt) || showAt.length !== 2 || !showAt.every((n) => Number.isInteger(n))) {
+          problems.push(`${at} "player" "show.at" is not a tile like [12, 4]`);
+        } else if (map) {
+          if (showAt[0] < 0 || showAt[1] < 0 || showAt[0] >= map.width || showAt[1] >= map.height) {
+            problems.push(`${at} "player" "show.at" ${showAt.join(',')} is outside the map`);
+          } else if (isSolid(map, showAt[0], showAt[1])) {
+            problems.push(`${at} "player" "show.at" ${showAt.join(',')} is on a solid tile`);
+          }
+        }
+      }
+    }
+  }
 }
 
 function checkLight(light: LightSpec, at: string, map: GameMap | undefined, problems: string[]): void {
@@ -1161,10 +1239,17 @@ function checkVehicle(vehicle: Vehicle, map: GameMap, context: string, problems:
   if (vehicle.pause !== undefined && (typeof vehicle.pause !== 'number' || !(vehicle.pause >= 0))) {
     problems.push(`${context} has a "pause" that isn't a number of seconds`);
   }
+  if (vehicle.hidden !== undefined && typeof vehicle.hidden !== 'boolean') {
+    problems.push(`${context} has a "hidden" that isn't a boolean`);
+  }
 
   const drive = driveable(map);
   const path = vehicle.path;
   const parked = path === undefined;
+
+  if (vehicle.hidden && !parked) {
+    problems.push(`${context} is "hidden" but also has a "path" — a car nobody has met yet has nowhere of its own to drive until a scene sends it, which is what a parked car already is`);
+  }
 
   if (parked) {
     if (vehicle.pos === undefined) {

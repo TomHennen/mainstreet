@@ -428,6 +428,44 @@ a tile inside that map that is not solid and is not itself lost-eligible on
 `facing` is one of the four, and `lines` is a non-empty list of non-empty
 strings. A map without `lost` keeps its quiet boundary, as before.
 
+`lost` may also carry `arrive`: a scene (§3) that plays out the arrival
+itself, staged on `to`, in place of the player simply appearing at `spawn` —
+the deputy's truck actually rolling in and pulling up, say, rather than the
+ride home happening entirely off screen:
+
+```jsonc
+"lost": {
+  "lines": ["…"], "to": "stamford", "spawn": [16, 15], "facing": "left",
+  "arrive": [
+    { "camera": { "to": [16, 16], "speed": 10 } },
+    { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [16, 16] } },
+    { "wait": 1.4 },
+    { "player": { "show": { "at": [17, 15] } } },
+    { "move": { "who": "player", "to": [16, 15], "speed": 3.5 } },
+    { "say": { "lines": ["…"] } },
+    { "camera": { "to": "player" } },
+    { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [95, 18] } }
+  ]
+}
+```
+
+`arrive` is the same `steps` a scene's own are (§3), run by the very same
+runner, but it is the map's, not any one week's episode's: it is not `once`
+and has no `on` of its own, so it plays every single time this `lost` fires
+rather than being remembered. The player is placed at `spawn` already
+hidden — invisible, and, like any hidden player, beyond walking, tapping or
+pressing A with (§3) — so a truck driving in around them cannot be wandered
+away from before they can even be seen. Once the scene shows them again (or,
+failing that, once it ends — the player is always shown again by the time a
+scene is over) their controls are back, exactly as any other scene's ordinary
+rules already say: everything past that point, the truck driving on out of
+town included, happens around a player free to walk off toward Stewart's
+door. A `lost` with no `arrive` behaves exactly as it always has. The
+validator checks `arrive`'s steps exactly like an episode scene's own,
+against `to`'s map, with no episode of its own to draw an NPC or a vehicle
+from — only the player, and `to`'s own `vehicles` (never one an episode
+brought, since `lost` is not any one episode's to touch).
+
 **The carry verbs: taking something and putting it somewhere.** A fixture may
 also hand the player a thing, and another may take it off them again. That is
 the whole mechanic — the log on the Belvedere's fire — and it is two fields:
@@ -702,6 +740,19 @@ along NY 10 there, a van along Jefferson's Main Street, and a car along
 Hobart's. Keep waypoints — where a car pauses — off junction tiles, so nobody
 is ever left idling in the middle of a crossroads.
 
+A parked vehicle may also carry `"hidden": true`: a car that exists only for
+a scene, drawn nowhere and given way to by nobody — as if it were not on the
+map at all — until the first time a scene's `move` sends it somewhere
+(`Driver.sendTo`, engine/vehicle.ts), which reveals it for as long as this
+visit to the map lasts. A fresh map rebuilds it hidden again, so a story that
+sends the same car out more than once (a `lost` reset played again, say)
+always finds it waiting out of sight the same way. This is how Stamford's
+deputy truck (§2 "Getting lost") sits waiting at the edge of town rather than
+being an ordinary, unexplained parked truck every week the story never calls
+on it. Refused on anything but a parked vehicle (no `path`): a car this
+covers has nowhere of its own to drive until a scene sends it, which is what
+a parked one already is.
+
 Missing NPC sheet = generic townsperson sprite, drawn from that person's
 `look` (§4) in their own accent color. Missing portrait = no portrait pane.
 The floating name plate stays above a building once it's painted too,
@@ -900,13 +951,14 @@ The steps, one per entry, exactly one field each:
 
 | step | what it does | the scene waits for |
 | --- | --- | --- |
-| `move` | `who` walks to `to`, or along `path` waypoint by waypoint. `who` is an episode NPC's id, `"player"`, or `"vehicle:<id>"`. `speed` is tiles/second. | arrival |
+| `move` | `who` walks to `to`, or along `path` waypoint by waypoint. `who` is an episode NPC's id, `"player"`, or `"vehicle:<id>"`. `speed` is tiles/second — the player's own walk may take one too, for an arrival unhurried enough to actually watch. | arrival |
 | `say` | one dialogue box. `who` is an episode NPC; leave it out and the world's narrator speaks. | the box being dismissed |
 | `toast` | the little banner | nothing |
 | `wait` | a beat, at most 3 seconds | the beat, or A |
 | `camera` | look at a tile, or `"player"` to hand the camera back. `speed` is tiles/second. | the pan |
 | `set` | sets a declared flag — also how a scene turns an overlay on | nothing |
 | `light` | see below | nothing |
+| `player` | `{ "hide": true }` or `{ "show": {} }` (or `{ "show": { "at": [x, y] } }`) — see below | nothing |
 | `end` | stops the scene, whatever follows | — |
 
 A `move` on a `"vehicle:<id>"` names a car on that map — the village's own or
@@ -914,11 +966,39 @@ this episode's — and it *drives*: over drivable tiles only, out through an
 exit if that is where the road goes, and it slows for anybody standing in the
 road rather than steering round them, exactly as ambient traffic does (§2).
 The validator checks every leg of it for paved road, starting from the tile
-the episode parked the car on.
+the episode (or the map, for one of its own cars — a `lost.arrive`, say)
+parked the car on, and from wherever a scene's own earlier `move` on that
+same car already sent it, leg by leg through the whole scene rather than only
+ever from where it started.
+
+A `move` whose own target tile is itself where the road runs out — the map's
+outer ring, or an `exits` rectangle that itself touches that ring, the same
+test a through-route ambient car's own last waypoint is read by (§2) — drives
+the car there and straight on past it, off the map, gone: the same
+`VANISH_TILES` drive off screen a through-route car takes between one lap and
+the next, except a scene-sent car has no route of its own to reappear at, so
+it simply stays gone (`onMap` false) rather than coming back, for as long as
+this visit to the map lasts. This is how the deputy's truck actually leaves
+Stamford rather than parking somewhere in town once the scene is done with
+it, and it costs a `lost.arrive` (or any other scene) nothing beyond naming
+the tile it already wanted to drive to.
+
+`player` hides or shows the player sprite: hidden, they draw nothing and are
+in nobody's way — not solid to a townsperson routing round them, not
+something a car gives way to — exactly as if they had stepped off the map for
+a moment, which is what lets a scene stand somebody else up in their place (a
+truck pulling in with nobody in it yet, `lost.arrive`, §2). `show` puts them
+back, at their current position, or at `show.at` when the scene means to
+place them fresh. Generic to any scene, not only `lost.arrive` — nothing else
+in the schema hides the player, so most scenes never touch it. A scene that
+ends without showing a player it hid shows them anyway, wherever they last
+stood, rather than stranding them invisible for good.
 
 The player keeps the controls between steps: townspeople crossing the room, the
 lights coming up and a toast all happen around somebody still free to walk
-about. The two exceptions are a `say` and a `move` of the player themselves.
+about. The exceptions are a `say`, a `move` of the player themselves, and a
+hidden player (above) — not something to walk, tap, or press A with, exactly
+the way a dialogue box holds them, until `show` puts them back.
 **A** cuts a `wait` short, and is swallowed while the scene has the controls, so
 a press meant to hurry a line along never strikes up a conversation with
 whoever happens to be standing there.

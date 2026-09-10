@@ -1687,6 +1687,38 @@ describe('scenes', () => {
     expect(stranded([0, 4])).toContain('no paved way through');
   });
 
+  it("checks a second leg from where the scene's own first move actually left the car, not from its original parked pos", () => {
+    // A paved run along the top (0,0)-(5,0), and one isolated paved tile at
+    // (0,4) with no drivable neighbour at all — reachable from nowhere. The
+    // first move parks the car at the far end of the top run; the second
+    // asks for the isolated tile, which has no way in from anywhere, the
+    // original parked pos included. Both report "no paved way through"
+    // either way (paved.pos and the first move's target are themselves
+    // connected, so one failing means the other does too) — what threading
+    // changes is which tile the message says the car was leaving from.
+    const paved = makeWorld({
+      maps: {
+        town: makeMap({}, ['======....', '..........', '..........', '..........', '='.padEnd(10, '.')])
+      }
+    });
+    const episode = makeEpisode({
+      vehicles: [{ id: 'pickup', map: 'town', kind: 'pickup', colour: '#8a6b48', pos: [0, 0] }] as never,
+      scenes: [
+        {
+          id: 'off',
+          on: { flag: 'done' },
+          steps: [
+            { move: { who: 'vehicle:pickup', to: [5, 0] } },
+            { move: { who: 'vehicle:pickup', to: [0, 4] } }
+          ]
+        } as never
+      ]
+    });
+    const problems = runEpisode(episode, paved).join('\n');
+    expect(problems).toContain('cannot drive from 5,0 to 0,4');
+    expect(problems).not.toContain('cannot drive from 0,0 to 0,4');
+  });
+
   it('flags a speaker who is not in the episode, and empty lines', () => {
     expect(runEpisode(withScene([{ say: { who: 'ghost', lines: ['hi'] } }]), world()).join('\n')).toContain(
       'has "ghost" speaking, who is not in this episode'

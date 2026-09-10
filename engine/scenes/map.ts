@@ -124,7 +124,12 @@ export interface MapSceneData {
   pos: Vec2;
   facing: Facing;
   intro?: boolean;
+  /** This arrival is a `lost` reset (DESIGN.md §2) — see `TravelData.arrive`. */
+  arrive?: boolean;
 }
+
+/** id `runScene` gives the map's own `lost.arrive` scene, run outside any episode. */
+const LOST_ARRIVE_SCENE = '__lost-arrive__';
 
 interface Target {
   kind: 'npc' | 'item' | 'prop' | 'enter' | 'sign' | 'plaque' | 'fixture';
@@ -275,6 +280,17 @@ export class MapScene extends Phaser.Scene {
   private lighting!: Lighting;
   /** True while the scene has walked the player somewhere they may not leave. */
   private sceneWalk = false;
+  /** Tiles per second `sceneWalk`'s own move is covering ground at. */
+  private sceneWalkSpeed = SPEED;
+  /**
+   * True while the player sprite is hidden — invisible, and in nobody's way
+   * (DESIGN.md §3 `player` step). A hidden player is not something to walk,
+   * tap, or press A with either, which is the one bit of control this holds
+   * beyond what an ordinary scene already does with `holds` — everything
+   * else about a scene (a truck driving in or out) happens around a player
+   * free to move the moment they can be seen again.
+   */
+  private playerHidden = false;
 
   constructor() {
     super('Map');
@@ -315,6 +331,8 @@ export class MapScene extends Phaser.Scene {
     session().sceneRunning = false;
     this.queued = [];
     this.sceneWalk = false;
+    this.sceneWalkSpeed = SPEED;
+    this.playerHidden = false;
     // An overlay's tiles are part of the ground from here on: collision,
     // routing and the baked texture all read them off the map (DESIGN.md §3).
     this.map = withOverlays(this.map, overlaysOn(data.mapId));
@@ -522,6 +540,18 @@ export class MapScene extends Phaser.Scene {
       bus.emit(EV.say, { speaker: state.copy.intro.speaker, lines });
     }
 
+    // A `lost` reset with its own `arrive` (DESIGN.md §2/§3): the player is
+    // set down already hidden — invisible, and (like any hidden player)
+    // beyond walking, tapping or pressing A with, until the scene shows them
+    // again — and it is queued ahead of anything the episode itself stages
+    // here so the truck has come and gone before an ordinary "enter" scene
+    // assumes the player is just standing there as usual.
+    const arrive = data.arrive ? this.map.lost?.arrive : undefined;
+    if (arrive?.length) {
+      this.hidePlayer();
+      this.queued.push({ id: LOST_ARRIVE_SCENE, on: {}, once: false, steps: arrive });
+    }
+
     // Anything this episode stages on arriving here (DESIGN.md §3). It queues
     // rather than starting outright, so a scene never talks over the opening
     // card the player is still reading.
@@ -561,7 +591,12 @@ export class MapScene extends Phaser.Scene {
       beginMove: (who, to, speed) => {
         if (who === SCENE_PLAYER) {
           this.stopWalk();
+          this.sceneWalkSpeed = speed ? speed * TILE : SPEED;
           this.sceneWalk = this.aimWalk(to, null, 0);
+          // Nowhere to go: no walk actually started, so nothing of this
+          // scene's own pace should linger onto whatever tapped walk comes
+          // next.
+          if (!this.sceneWalk) this.sceneWalkSpeed = SPEED;
           return this.sceneWalk;
         }
         // A car takes the road rather than the pavement, and never routes
@@ -610,7 +645,9 @@ export class MapScene extends Phaser.Scene {
         // what keeps a `once` scene from playing twice (DESIGN.md §2).
         autosave();
       },
-      light: (spec) => this.applyLight(spec)
+      light: (spec) => this.applyLight(spec),
+      hidePlayer: () => this.hidePlayer(),
+      showPlayer: (at) => this.showPlayer(at)
     };
   }
 
@@ -806,7 +843,8 @@ export class MapScene extends Phaser.Scene {
         drivable,
         facing: vehicle.facing,
         bounds: { width: this.map.width, height: this.map.height },
-        exits: this.map.exits.map((exit) => exit.at)
+        exits: this.map.exits.map((exit) => exit.at),
+        hidden: vehicle.hidden
       });
       // Origin at the middle of the car, which is what its tile position
       // means: a car lies along the lane it is in rather than standing on it.
@@ -832,7 +870,9 @@ export class MapScene extends Phaser.Scene {
    * `ui.holler` in the world pack and a car simply never has anything to say
    * (hard rule 3). It never fires with the controls away from the player
    * (`locked`, or a dialogue box open — nobody is watching the road right
-   * then) and never while a toast is already up, `this.hollerUntil` or
+   * then), never while a scene is running (`state.sceneRunning`) — a scene's
+   * own car deserves better than a gruff holler over its own drop-off — and
+   * never while a toast is already up, `this.hollerUntil` or
    * `isToastShowing()` either one — a holler must never cut off a scene's or
    * a flag's own toast, only ever wait its own turn behind it.
    */
@@ -860,6 +900,7 @@ export class MapScene extends Phaser.Scene {
         lines?.length &&
         !state.locked &&
         !state.dialogueOpen &&
+        !state.sceneRunning &&
         this.clock >= this.hollerUntil &&
         !isToastShowing()
       ) {
@@ -969,8 +1010,9 @@ export class MapScene extends Phaser.Scene {
     return false;
   }
 
-  /** The tiles the player's hitbox is over — one, two, or four at a corner. */
+  /** The tiles the player's hitbox is over — one, two, or four at a corner. Empty while hidden (`hidePlayer`): nothing is in a hidden player's way, and a hidden player is in nobody else's. */
   private playerTiles(): Vec2[] {
+    if (this.playerHidden) return [];
     const tiles: Vec2[] = [];
     for (const ox of [MARGIN, HITBOX - MARGIN]) {
       for (const oy of [MARGIN, HITBOX - MARGIN]) {
@@ -999,6 +1041,7 @@ export class MapScene extends Phaser.Scene {
       facing: this.facing,
       dialogueOpen: state.dialogueOpen,
       locked: state.locked,
+      playerVisible: !this.playerHidden,
       walkTo: this.walkGoal ? [this.walkGoal[0], this.walkGoal[1]] : null,
       view: { x: view.x, y: view.y, width: view.width, height: view.height, tile: TILE },
       art: this.artBoxes,
@@ -1053,11 +1096,16 @@ export class MapScene extends Phaser.Scene {
         copyKey: `lost:${this.mapId}`,
         to: lost.to,
         spawn: lost.spawn,
-        facing: lost.facing
+        facing: lost.facing,
+        arrive: true
       });
       return;
     }
-    if (state.locked || (state.dialogueOpen && !this.sceneWalk)) {
+    // A hidden player (DESIGN.md §3 `player` step) is held exactly like a
+    // dialogue box would hold them — a sceneWalk still runs, since that is
+    // the scene moving the player itself, and a scene never hides the player
+    // mid-walk.
+    if (state.locked || ((state.dialogueOpen || this.playerHidden) && !this.sceneWalk)) {
       // A card or a box means the trip is over: the walk does not pick itself
       // back up behind the player's back once they have read the line.
       this.stopWalk();
@@ -1106,7 +1154,10 @@ export class MapScene extends Phaser.Scene {
     } else if (this.walkPath) {
       // Somebody the walk is aimed at may have strolled on since it started.
       this.chase();
-      this.moving = this.followPath((SPEED * delta) / 1000);
+      // An ordinary tapped walk keeps the usual pace; a scene's own move on
+      // the player (DESIGN.md §3) may ask for a different one — `stopWalk`
+      // puts `sceneWalkSpeed` back before anything else can start a new walk.
+      this.moving = this.followPath((this.sceneWalkSpeed * delta) / 1000);
     }
 
     if (this.moving) this.walkTime += delta;
@@ -1137,6 +1188,10 @@ export class MapScene extends Phaser.Scene {
       this.runner = null;
       state.sceneRunning = false;
       this.sceneWalk = false;
+      // The last-resort "show the player": a scene that hid them and ended
+      // without showing them again would otherwise strand them invisible for
+      // good (DESIGN.md §2/§3).
+      if (this.playerHidden) this.showPlayer();
     }
     if (!this.queued.length || state.locked || state.dialogueOpen) return;
     const next = this.queued.shift();
@@ -1144,6 +1199,30 @@ export class MapScene extends Phaser.Scene {
     this.stopWalk();
     this.runner = new SceneRunner(next, this.driver());
     state.sceneRunning = true;
+  }
+
+  /**
+   * A `player` step (DESIGN.md §3): invisible, and out of everyone else's way
+   * — `playerTiles()` reads empty while this is true, so a townsperson routes
+   * straight through where the player stood and a car never gives way to
+   * them there. `this.playerHidden` also holds the player's own controls —
+   * a hidden player is not something to walk, tap, or press A with — exactly
+   * the way a dialogue box does, until `showPlayer` puts them back.
+   */
+  private hidePlayer(): void {
+    this.playerHidden = true;
+    this.player.setVisible(false);
+  }
+
+  /** The other half of `hidePlayer`: shown again, at `at` if the scene gives one. */
+  private showPlayer(at?: Vec2): void {
+    this.playerHidden = false;
+    if (at) {
+      this.px = at[0] * TILE;
+      this.py = at[1] * TILE;
+      this.syncPlayerSprite();
+    }
+    this.player.setVisible(true);
   }
 
   /**
@@ -1299,7 +1378,7 @@ export class MapScene extends Phaser.Scene {
    */
   private tap(clientX: number, clientY: number): void {
     const state = session();
-    if (state.locked || state.dialogueOpen) return;
+    if (state.locked || state.dialogueOpen || this.playerHidden) return;
     // Where the scene is walking the player is where they are going.
     if (this.runner?.holds) return;
 
@@ -1675,6 +1754,7 @@ export class MapScene extends Phaser.Scene {
 
   private stopWalk(): void {
     this.sceneWalk = false;
+    this.sceneWalkSpeed = SPEED;
     this.walkPath = null;
     this.walkGoal = null;
     this.walkTarget = null;
@@ -1703,7 +1783,7 @@ export class MapScene extends Phaser.Scene {
 
   private updatePrompt(): void {
     const state = session();
-    if (state.dialogueOpen || state.locked) {
+    if (state.dialogueOpen || state.locked || this.playerHidden) {
       this.prompt.setVisible(false);
       return;
     }
@@ -1736,6 +1816,8 @@ export class MapScene extends Phaser.Scene {
     // while the scene is speaking or walking the player somewhere, so a press
     // meant to hurry a line along never starts a conversation (DESIGN.md §3).
     if (this.runner?.skip()) return;
+    // A hidden player (DESIGN.md §3) has nothing to press A on.
+    if (this.playerHidden) return;
     // A tapped walk is a promise to arrive. A press part-way there would either
     // strand the player or strike up a conversation with somebody they were
     // only walking past, so A waits until the walk is done — and the walk
@@ -1944,7 +2026,7 @@ export class MapScene extends Phaser.Scene {
     const tx = Math.floor((this.px + TILE / 2) / TILE);
     const ty = Math.floor((this.py + TILE / 2) / TILE);
     const building =
-      dy < 0 && !state.locked && !state.dialogueOpen && !this.runner
+      dy < 0 && !state.locked && !state.dialogueOpen && !this.runner && !this.playerHidden
         ? this.map.buildings.find((b) => b.interior && b.enter && b.door[0] === tx && b.door[1] === ty)
         : undefined;
 
@@ -2066,6 +2148,8 @@ export class MapScene extends Phaser.Scene {
     to: string;
     spawn: Vec2;
     facing: Facing;
+    /** This trip is a `lost` reset (DESIGN.md §2) — see `TravelData.arrive`. */
+    arrive?: boolean;
   }): void {
     const state = session();
     state.locked = true;
@@ -2077,7 +2161,8 @@ export class MapScene extends Phaser.Scene {
       small: copy.small ?? '',
       to: opts.to,
       spawn: opts.spawn,
-      facing: opts.facing
+      facing: opts.facing,
+      arrive: opts.arrive
     });
   }
 

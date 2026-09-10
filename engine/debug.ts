@@ -23,6 +23,8 @@ export interface DebugSnapshot {
   facing: Facing;
   dialogueOpen: boolean;
   locked: boolean;
+  /** False while the player sprite is hidden (a scene's `player` step, DESIGN.md §3 — e.g. mid `lost.arrive`). */
+  playerVisible: boolean;
   /** Destination tile of a tapped walk while one is running, else null. */
   walkTo: [number, number] | null;
   /**

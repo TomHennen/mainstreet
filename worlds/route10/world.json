@@ -847,12 +847,24 @@
       "lost": {
         "lines": [
           "You keep going past the last of the houses, and the trees close in behind you, and after a while every direction starts to look like the same direction.",
-          "You call the Delaware County Sheriff's Office. The dispatcher couldn't be kinder: happens to the best of us, those woods go on for miles, stay right where you are.",
-          "A deputy is out your way before long, and holds the truck door open for you. \"Stewart's?\" \"Stewart's.\""
+          "You call the Delaware County Sheriff's Office. The dispatcher couldn't be kinder: happens to the best of us, those woods go on for miles, stay right where you are."
         ],
         "to": "stamford",
         "spawn": [16, 15],
-        "facing": "up"
+        "facing": "left",
+        "arrive": [
+          { "camera": { "to": [16, 16], "speed": 10 } },
+          { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [16, 16] } },
+          { "wait": 1.4 },
+          { "player": { "show": { "at": [17, 15] } } },
+          { "move": { "who": "player", "to": [16, 15], "speed": 3.5 } },
+          { "say": { "lines": [
+            "The deputy waits until you're steady on your feet, then nods toward the door.",
+            "\"Get yourself a coffee,\" they say. \"And maybe stick to the sidewalks for a while.\""
+          ] } },
+          { "camera": { "to": "player" } },
+          { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [95, 18] } }
+        ]
       },
       "people": [
         {
@@ -931,6 +943,15 @@
         }
       ],
       "vehicles": [
+        {
+          "id": "stamford-sheriff-truck",
+          "kind": "pickup",
+          "colour": "#6b7a5e",
+          "pos": [0, 18],
+          "facing": "right",
+          "hidden": true,
+          "speed": 6
+        },
         {
           "id": "stamford-main-car",
           "kind": "car",
