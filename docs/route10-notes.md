@@ -311,6 +311,12 @@ name), and a name already in use by a different character in the pack (the
 Belvedere party's neighbour was a second "Priya" while ep002 already had
 one). Both were renamed to something clearly invented and unlikely to land
 on anybody: Wren and Thea. When in doubt, pick further from ordinary.
+Third thing, Sep 2026: a character who works at a real business gets
+checked against the real people who work there too — the first name given
+to Stamford Coffee's baker landed right next to the real baker's, by pure
+coincidence (nobody looked anything up; it was picked as "unused in the
+pack"), and Tom caught it. Ask Tom before naming anyone who stands behind a
+real counter.
 
 ## Art policy
 
