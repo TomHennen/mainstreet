@@ -81,6 +81,12 @@ for (const [mapId, map] of Object.entries(WORLD.maps)) {
   const file = resolve(PACK, 'maps', `${mapId}.json`);
   const tiled = readJson(file);
   const solidGid = new Set();
+  // Every tile's own Tiled class ("grass", "road", …), by gid — the same
+  // thing `tileAt()` reads to tell open country from a road (engine/edges.ts
+  // `lostAt`/`roadEndLine`), kept per gid like `solidGid` rather than per
+  // local id so a map's own map.kind lookup never has to know a tileset's
+  // firstgid.
+  const kindGid = new Map();
   // Which local tile ids are solid, per tileset: an overlay names a tile that
   // way rather than by gid (DESIGN.md §3), so both spellings are kept.
   map.id = mapId;
@@ -93,16 +99,25 @@ for (const [mapId, map] of Object.entries(WORLD.maps)) {
         solidGid.add(ref.firstgid + tile.id);
         ids.add(tile.id);
       }
+      if (tile.type) kindGid.set(ref.firstgid + tile.id, tile.type);
     }
     map.tilesetSolid.set(tileset.name, ids);
   }
   map.width = tiled.width;
   map.height = tiled.height;
   map.solid = new Array(tiled.width * tiled.height).fill(false);
+  // The topmost non-empty layer's kind wins per cell, mirroring tileAt()'s
+  // "topmost non-empty" rule for a map drawn ground-then-props: later layers
+  // are drawn over earlier ones, so a later kind simply overwrites.
+  map.kind = new Array(tiled.width * tiled.height).fill('');
   for (const layer of tiled.layers) {
     if (layer.type !== 'tilelayer' || layer.visible === false) continue;
     layer.data.forEach((gid, i) => {
-      if (solidGid.has(gid & GID_MASK)) map.solid[i] = true;
+      const id = gid & GID_MASK;
+      if (!id) return;
+      if (solidGid.has(id)) map.solid[i] = true;
+      const kind = kindGid.get(id);
+      if (kind) map.kind[i] = kind;
     });
   }
 }
@@ -1268,6 +1283,129 @@ async function main() {
     }
     log(`    intro: ${introPages} page(s), ending on "${introLines[introLines.length - 1]}"`);
     await shot(page, 'boot-dismissed');
+
+    // --- getting lost (DESIGN.md §2) -----------------------------------------
+    // A map may carry a `lost` entry: wander onto a boundary tile of open
+    // ground (grass or flowers, never a road) and the narrator brings you up
+    // short, then a road card carries you home. Run right here, the moment
+    // the player is first free and before any step below leans on exactly
+    // where they are standing, because the reset can put them down anywhere
+    // the world pack says to (`engine/edges.ts` `lostAt`, `MapScene.checkEdges`
+    // and the `lost` hand-off in `update`). Everything after this walks to
+    // wherever it needs via `walkTo`'s own pathfinding, so the reset costs
+    // nothing further down the run.
+    {
+      const start = await snap(page);
+      const lost = WORLD.maps[start.map]?.lost;
+      if (!lost) {
+        log(`  (no "lost" entry on "${start.map}" — skipping the getting-lost check)`);
+      } else {
+        log('  wander off into the woods');
+        const map = WORLD.maps[start.map];
+        const onExit = exitTiles(map);
+        const onEdge = new Set();
+        for (const e of map.edges ?? []) {
+          for (let x = e.at[0]; x < e.at[0] + e.at[2]; x++) {
+            for (let y = e.at[1]; y < e.at[1] + e.at[3]; y++) onEdge.add(`${x},${y}`);
+          }
+        }
+        // Mirrors engine/edges.ts's own QUIET_KINDS and lostAt(): a boundary
+        // tile of bare ground, with no `exits` or `edges` entry standing on
+        // it already — a road at the edge is a road end, and says so instead.
+        const QUIET_KINDS = new Set(['grass', 'tree', 'flowers']);
+        const candidates = [];
+        for (let y = 0; y < map.height; y++) {
+          for (let x = 0; x < map.width; x++) {
+            if (x !== 0 && y !== 0 && x !== map.width - 1 && y !== map.height - 1) continue;
+            if (!QUIET_KINDS.has(map.kind[y * map.width + x])) continue;
+            if (isSolid(map, x, y) || onExit.has(`${x},${y}`) || onEdge.has(`${x},${y}`)) continue;
+            candidates.push([x, y]);
+          }
+        }
+        if (!candidates.length) {
+          fail('lost', `"${start.map}" has a "lost" entry but no boundary tile of open ground to walk off over`);
+        }
+
+        // The nearest one actually reachable from here — ties broken toward
+        // fewer turns, so a straight corridor wins over an equally short walk
+        // that has to bend. No coordinate is hard-coded, so a map redraw just
+        // moves where this heads.
+        const from = here(start);
+        const turnsIn = (path) => {
+          let turns = 0;
+          for (let i = 2; i < path.length; i++) {
+            const d1 = [path[i - 1][0] - path[i - 2][0], path[i - 1][1] - path[i - 2][1]];
+            const d2 = [path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]];
+            if (d1[0] !== d2[0] || d1[1] !== d2[1]) turns++;
+          }
+          return turns;
+        };
+        let best = null;
+        for (const goal of candidates) {
+          const path = findPath(start.map, from, goal);
+          if (!path) continue;
+          const turns = turnsIn(path);
+          if (!best || path.length < best.path.length || (path.length === best.path.length && turns < best.turns)) {
+            best = { goal, path, turns };
+          }
+        }
+        if (!best) {
+          fail('lost', `none of "${start.map}"'s ${candidates.length} boundary tile(s) of open ground is reachable from ${from}`);
+        }
+        log(
+          `    heading for the tree line at ${best.goal}, ${best.path.length - 1} tile(s) off` +
+            (best.turns ? ` (${best.turns} turn(s))` : ' (a straight walk)')
+        );
+
+        await walkTo(page, 'lost', best.goal, { allowInterrupt: true });
+
+        const said = await waitUntil(page, (s) => s.dialogueOpen, 'the narrator to say we are lost');
+        if (!said.locked) fail('lost', 'the narrator is talking but the controls are not locked — walking away should not work');
+        if (said.dialogue?.speaker !== COPY.ui.narrator) {
+          fail('lost', `"${said.dialogue?.speaker}" says it, expected the narrator "${COPY.ui.narrator}"`);
+        }
+        if (said.dialogue?.text !== lost.lines[0]) {
+          fail('lost', `first line reads "${said.dialogue?.text}", expected "${lost.lines[0]}"`);
+        }
+        log(`    ${COPY.ui.narrator}: "${said.dialogue.text}"`);
+        await shot(page, 'lost-in-the-woods');
+
+        // Every line, checked as it is read, and locked throughout — the one
+        // cheap way to tell this apart from an ordinary line of dialogue,
+        // which never sets `locked` at all.
+        const pages = await readDialogue(page, 'lost', lost.lines.length, async (i) => {
+          const on = await snap(page);
+          if (on.dialogue?.text !== lost.lines[i]) {
+            fail('lost', `page ${i + 1} reads "${on.dialogue?.text}", expected "${lost.lines[i]}"`);
+          }
+          if (!on.locked) fail('lost', `page ${i + 1}: controls came unlocked before the ride home`);
+        });
+        if (pages !== lost.lines.length) {
+          fail('lost', `read ${pages} page(s) for ${lost.lines.length} line(s) of "lost.lines"`);
+        }
+
+        // The say box closes into the road card, not back to a free walk —
+        // still locked, only the box is gone now.
+        await waitUntil(page, (s) => !s.dialogueOpen && s.locked, 'the road card home');
+        await sleep(420); // let the card's fade-in land before the shot, as the other travel cards do
+        const cardCopy = COPY.transitions?.[`lost:${start.map}`];
+        if (!cardCopy?.big) fail('lost', `copy.json has no transitions["lost:${start.map}"] for the road card`);
+        await shot(page, 'lost-travel-card');
+        log(`    the road card: "${cardCopy.big}" — "${(cardCopy.small ?? '').slice(0, 60)}…"`);
+
+        const home = await waitUntil(page, (s) => !s.locked, 'the ride home to finish', 20000);
+        if (home.map !== lost.to) fail('lost', `came home on "${home.map}", expected lost.to "${lost.to}"`);
+        const landed = here(home);
+        if (landed[0] !== lost.spawn[0] || landed[1] !== lost.spawn[1]) {
+          fail('lost', `came home at ${landed}, expected lost.spawn ${lost.spawn}`);
+        }
+        if (home.facing !== lost.facing) {
+          fail('lost', `came home facing "${home.facing}", expected lost.facing "${lost.facing}"`);
+        }
+        log(`    home at ${landed} on "${home.map}", facing ${home.facing}`);
+        await shot(page, 'lost-home');
+      }
+    }
 
     // --- Earl ---------------------------------------------------------------
     log('  talk to Earl');
