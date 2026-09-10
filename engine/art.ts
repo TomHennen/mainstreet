@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { drawFigure, figureKey } from './figure';
 import { drawVehicle, VEHICLE_CELL } from './motor';
-import { FACINGS, plaqueTile } from './schema';
+import { FACINGS, plaqueTile, signBoardTile } from './schema';
 import { TILE } from './tiled';
 import type {
   BuildingDef,
@@ -909,6 +909,97 @@ export function plaqueArt(scene: Phaser.Scene, placement: BuildingPlacement): Pl
     key,
     x: tile[0] * TILE + (TILE - PLAQUE_W) / 2,
     y: groundY - PLAQUE_LIFT - PLAQUE_H
+  };
+}
+
+// --- the doormat at an open door ----------------------------------------------
+
+/** The doormat, in pixels: wider than the plaque, and low to the ground. */
+const DOORMAT_W = 12;
+const DOORMAT_H = 4;
+/** How far its bottom edge sits above the ground line at the facade's foot. */
+const DOORMAT_LIFT = 1;
+
+export interface DoormatArt {
+  key: string;
+  x: number;
+  y: number;
+}
+
+/**
+ * The engine's own "come on in": a little woven mat laid right at the foot of
+ * a door that actually opens (CLAUDE.md #4, DESIGN.md §2), so an enterable
+ * building reads as one at a glance and a building that only carries a sign
+ * never grows one. Drawn the same way the plaque is — its own small texture,
+ * sitting over whatever is behind it, painted or not — so no artist ever has
+ * to paint a doormat either. Returns null for a building with no interior.
+ */
+export function doormatArt(scene: Phaser.Scene, placement: BuildingPlacement): DoormatArt | null {
+  if (!placement.interior) return null;
+
+  const key = 'prop:doormat';
+  if (!scene.textures.exists(key)) {
+    const { texture, ctx } = canvas(scene, key, DOORMAT_W, DOORMAT_H);
+    ctx.fillStyle = '#6b4a35';
+    ctx.fillRect(0, 0, DOORMAT_W, DOORMAT_H);
+    ctx.fillStyle = '#caa06a';
+    ctx.fillRect(1, 1, DOORMAT_W - 2, 1);
+    texture.refresh();
+  }
+
+  const groundY = (placement.pos[1] + placement.size[1]) * TILE;
+  return {
+    key,
+    x: placement.door[0] * TILE + (TILE - DOORMAT_W) / 2,
+    y: groundY - DOORMAT_LIFT - DOORMAT_H
+  };
+}
+
+// --- the sign board beside a door that opens -----------------------------------
+
+const SIGNBOARD_W = 8;
+const SIGNBOARD_H = 7;
+/** How far its bottom edge sits above the ground line at the facade's foot. */
+const SIGNBOARD_LIFT = 4;
+
+export interface SignBoardArt {
+  key: string;
+  x: number;
+  y: number;
+}
+
+/**
+ * The little board the engine hangs beside a door that also opens, so a
+ * building's day-to-day sign still has somewhere to live once the door itself
+ * is only ever the way in (DESIGN.md §2). A post, a shingle, and a scrap of
+ * paper pinned to it — deliberately plainer than the plaque's brass, and on
+ * the opposite side of the door from it (`signBoardTile`), so the two are
+ * never mistaken for each other at a glance. Returns null for a building
+ * with no interior, where the door itself still reads the sign.
+ */
+export function signBoardArt(scene: Phaser.Scene, placement: BuildingPlacement): SignBoardArt | null {
+  const tile = signBoardTile(placement);
+  if (!tile) return null;
+
+  const key = 'prop:signboard';
+  if (!scene.textures.exists(key)) {
+    const { texture, ctx } = canvas(scene, key, SIGNBOARD_W, SIGNBOARD_H);
+    ctx.fillStyle = '#5a4632';
+    ctx.fillRect(3, 0, 2, SIGNBOARD_H);
+    ctx.fillStyle = '#8a6a4a';
+    ctx.fillRect(0, 1, SIGNBOARD_W, 4);
+    ctx.fillStyle = 'rgba(0,0,0,.2)';
+    ctx.fillRect(0, 4, SIGNBOARD_W, 1);
+    ctx.fillStyle = '#f0e6cf';
+    ctx.fillRect(1, 2, SIGNBOARD_W - 2, 2);
+    texture.refresh();
+  }
+
+  const groundY = (placement.pos[1] + placement.size[1]) * TILE;
+  return {
+    key,
+    x: tile[0] * TILE + (TILE - SIGNBOARD_W) / 2,
+    y: groundY - SIGNBOARD_LIFT - SIGNBOARD_H
   };
 }
 

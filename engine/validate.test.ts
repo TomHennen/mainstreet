@@ -6,7 +6,7 @@ import { parseTiledMap, parseTileset, tilesetSources } from './tiled';
 import type { TilesetDef } from './tiled';
 import { driveable, isSolid, moverWalkable, overlayNotes, validateEpisode, validateWorld } from './validate';
 import { hashId, Mover } from './mover';
-import { plaqueTile } from './schema';
+import { plaqueTile, signBoardTile } from './schema';
 import type { BuildingDef, BuildingPlacement, Episode, Fixture, GameMap, MapMeta, World } from './schema';
 
 // --- small fixture builders --------------------------------------------------
@@ -447,6 +447,68 @@ describe('validateWorld', () => {
     });
     world.maps['shop-interior'] = makeMap({ kind: 'interior' });
     expect(runWorld(world)).toEqual([]);
+  });
+
+  // Once a door opens, its standing sign moves to a board beside it — the
+  // engine's own new tile, held to the same "can stand here" rules the door
+  // and the plaque already are (DESIGN.md §2).
+  const withInterior = (over: Partial<BuildingPlacement> = {}) => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          buildings: [
+            { id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1], interior: 'shop-interior', enter: [0, 0], ...over }
+          ]
+        })
+      }
+    });
+    world.maps['shop-interior'] = makeMap({ kind: 'interior' });
+    return world;
+  };
+
+  it('accepts the sign board tile the engine puts beside a door with an interior', () => {
+    // Default: [2,1], the opposite side of the door from the plaque at [0,1] —
+    // both walkable on this footprint.
+    expect(runWorld(withInterior())).toEqual([]);
+  });
+
+  it('flags a sign board tile that is solid', () => {
+    // The default sign board lands at [2,1]; walling off that one tile
+    // leaves the door at [1,1] and the plaque at [0,1] untouched.
+    const world = withInterior();
+    world.maps.town = makeMap({ buildings: world.maps.town.buildings }, ['....', '..#.', '....', '....']);
+    const problems = runWorld(world);
+    expect(problems.join('\n')).toContain('building "shop" has its sign board on a solid tile');
+  });
+
+  it('flags a sign board placed outside the map', () => {
+    const world = withInterior({ signAt: [99, 99] });
+    const problems = runWorld(world);
+    expect(problems.join('\n')).toContain('building "shop" has its sign board outside the map');
+  });
+
+  it('flags a sign board sitting on its own door tile', () => {
+    const world = withInterior({ signAt: [1, 1] });
+    const problems = runWorld(world);
+    expect(problems.join('\n')).toContain('building "shop" has its sign board on its own door tile');
+  });
+
+  it('flags a sign board sitting on its own plaque tile', () => {
+    const world = withInterior({ signAt: [0, 1] });
+    const problems = runWorld(world);
+    expect(problems.join('\n')).toContain('building "shop" has its sign board on its own plaque tile');
+  });
+
+  it('flags a "signAt" on a building with no interior', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          buildings: [{ id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1], signAt: [2, 1] }]
+        })
+      }
+    });
+    const problems = runWorld(world);
+    expect(problems.join('\n')).toContain('building "shop" has a "signAt" but no interior — its door already reads the sign');
   });
 
   it('flags an exit leading to an unknown map', () => {
@@ -1090,6 +1152,36 @@ describe('plaqueTile', () => {
 
   it('returns null when the placement opts out', () => {
     expect(plaqueTile(place({ plaque: false }))).toBeNull();
+  });
+});
+
+describe('signBoardTile', () => {
+  const place = (over: Partial<BuildingPlacement>): BuildingPlacement => ({
+    id: 'shop',
+    pos: [2, 2],
+    size: [3, 2],
+    door: [3, 4],
+    ...over
+  });
+
+  it('returns null for a building with no interior — the door still reads the sign', () => {
+    expect(signBoardTile(place({}))).toBeNull();
+  });
+
+  it('defaults to the opposite side of the door from the plaque', () => {
+    // door at [3,4]: plaqueTile lands on [4,4] (right of the door), so the
+    // sign board takes the other side.
+    expect(signBoardTile(place({ interior: 'shop-interior' }))).toEqual([2, 4]);
+  });
+
+  it('defaults to the right of the door when the door is in the right-most column', () => {
+    // door in the right-most column: plaqueTile lands on the left, so the
+    // sign board takes the right.
+    expect(signBoardTile(place({ door: [4, 4], interior: 'shop-interior' }))).toEqual([5, 4]);
+  });
+
+  it('uses an explicit signAt tile when the placement gives one', () => {
+    expect(signBoardTile(place({ interior: 'shop-interior', signAt: [9, 9] }))).toEqual([9, 9]);
   });
 });
 

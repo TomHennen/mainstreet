@@ -160,6 +160,21 @@ function plaqueOf(placement) {
 }
 
 /**
+ * The tile a building's standing sign is read from once it also has an
+ * interior — a second implementation of engine/schema.ts's `signBoardTile`,
+ * deliberately, like plaqueOf() above. Default: the opposite side of the
+ * door from the plaque. `null` for a building with no interior, where the
+ * door itself still reads the sign.
+ */
+function signBoardOf(placement) {
+  if (!placement.interior) return null;
+  if (placement.signAt) return placement.signAt;
+  const rightMost = placement.pos[0] + placement.size[0] - 1;
+  const plaqueStep = placement.door[0] >= rightMost ? -1 : 1;
+  return [placement.door[0] - plaqueStep, placement.door[1]];
+}
+
+/**
  * What a door reads, mirroring engine/session.ts's `signLinesFor` the way
  * isSolid() and plaqueOf() mirror their engine counterparts: the episode's
  * first matching sign for the building, then the building's standing sign in
@@ -1330,9 +1345,11 @@ async function main() {
             !isSolid(WORLD.maps.stamford, tile[0], tile[1]) &&
             !WORLD.maps.stamford.buildings.some((b) => {
               const plaque = plaqueOf(b);
+              const board = signBoardOf(b);
               return (
                 (b.door[0] === tile[0] && b.door[1] === tile[1]) ||
-                (plaque && plaque[0] === tile[0] && plaque[1] === tile[1])
+                (plaque && plaque[0] === tile[0] && plaque[1] === tile[1]) ||
+                (board && board[0] === tile[0] && board[1] === tile[1])
               );
             })
         );
@@ -1744,7 +1761,7 @@ async function main() {
       // Read from alongside rather than from below: the box is a low thing on
       // its own tile, and a player standing south of it stands in front of it.
       const jefferson = WORLD.maps.jefferson;
-      const taken = jefferson.buildings.flatMap((b) => [b.door, plaqueOf(b)].filter(Boolean));
+      const taken = jefferson.buildings.flatMap((b) => [b.door, plaqueOf(b), signBoardOf(b)].filter(Boolean));
       const beside = [[-1, 0], [1, 0], [0, 1], [0, -1]]
         .map(([dx, dy]) => [box.pos[0] + dx, box.pos[1] + dy])
         .find(
@@ -2090,6 +2107,8 @@ async function main() {
         add(b.door[0], b.door[1] - 1);
         const p = plaqueOf(b);
         if (p) add(p[0], p[1]);
+        const sb = signBoardOf(b);
+        if (sb) add(sb[0], sb[1]);
       }
       return set;
     }
@@ -2291,12 +2310,14 @@ async function main() {
     function standable(mapId, from, offsets) {
       const map = WORLD.maps[mapId];
       const exits = exitTiles(map);
-      // A door or a plaque is somewhere to read, not somewhere to stand and
-      // watch from: standing on one would make the next tap a no-op.
+      // A door, a plaque or a sign board is somewhere to read, not somewhere
+      // to stand and watch from: standing on one would make the next tap a
+      // no-op.
       const taken = new Set(
         map.buildings.flatMap((b) => {
           const p = plaqueOf(b);
-          return [`${b.door[0]},${b.door[1]}`, ...(p ? [`${p[0]},${p[1]}`] : [])];
+          const sb = signBoardOf(b);
+          return [`${b.door[0]},${b.door[1]}`, ...(p ? [`${p[0]},${p[1]}`] : []), ...(sb ? [`${sb[0]},${sb[1]}`] : [])];
         })
       );
       for (const [dx, dy] of offsets) {
@@ -2332,8 +2353,10 @@ async function main() {
     await walkTo(wp, 'tap-targets', shopStand);
 
     // The facade: a tile of the picture that is neither the door nor the
-    // plaque. Tapping a shopfront walks to the front and reads the sign — it
-    // does not walk in, even where there is an interior to walk into.
+    // plaque. Tapping a shopfront walks to its sign board and reads the sign
+    // — it does not walk in, even where there is an interior to walk into,
+    // because the door is only ever the way in once a building has one
+    // (DESIGN.md §2).
     const wallColumn = Array.from({ length: shop.size[0] }, (_, i) => shop.pos[0] + i).find(
       (x) => x !== shop.door[0] && x !== shopPlaque[0]
     );
@@ -3476,14 +3499,17 @@ async function main() {
         (o) => expectOverlays.includes(o.id) && (o.props ?? []).length
       )?.props?.[0];
       if (prop) {
-        // Somewhere beside it to read it from: not a doorstep and not a
-        // plaque tile, both of which answer A themselves (DESIGN.md §2).
+        // Somewhere beside it to read it from: not a doorstep, a plaque tile
+        // or a sign board tile, all of which answer A themselves (DESIGN.md
+        // §2).
         const meta = WORLD.maps[outsideMap];
         const taken = new Set();
         for (const b of meta.buildings) {
           taken.add(`${b.door[0]},${b.door[1]}`);
           const pl = plaqueOf(b);
           if (pl) taken.add(`${pl[0]},${pl[1]}`);
+          const sb = signBoardOf(b);
+          if (sb) taken.add(`${sb[0]},${sb[1]}`);
         }
         const away = exitTiles(meta);
         const beside = [[1, 0], [-1, 0], [0, 1], [0, -1]]
@@ -4175,6 +4201,8 @@ async function main() {
         taken.add(`${b.door[0]},${b.door[1]}`);
         const pl = plaqueOf(b);
         if (pl) taken.add(`${pl[0]},${pl[1]}`);
+        const sb = signBoardOf(b);
+        if (sb) taken.add(`${sb[0]},${sb[1]}`);
       }
       const away = exitTiles(meta);
       const beside = [[0, 1], [1, 0], [-1, 0], [0, -1]]

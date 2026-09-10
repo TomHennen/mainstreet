@@ -10,6 +10,7 @@ import {
   HAIR_STYLES,
   MAX_WAIT,
   plaqueTile,
+  signBoardTile,
   SCENE_PLAYER,
   SCENE_VEHICLE,
   sceneFlags,
@@ -115,6 +116,26 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
         } else if (!placement.enter) {
           problems.push(`building "${placement.id}" has an interior but no "enter" spawn`);
         }
+        // Once the door only opens, the sign board beside it is where the
+        // player actually reads the place's standing sign — so it needs the
+        // same "can stand here" guarantees the door and the plaque get.
+        const board = signBoardTile(placement);
+        if (board) {
+          const [bx, by] = board;
+          if (bx < 0 || by < 0 || bx >= map.width || by >= map.height) {
+            problems.push(`building "${placement.id}" has its sign board outside the map`);
+          } else if (isSolid(map, bx, by)) {
+            problems.push(`building "${placement.id}" has its sign board on a solid tile`);
+          }
+          if (bx === placement.door[0] && by === placement.door[1]) {
+            problems.push(`building "${placement.id}" has its sign board on its own door tile`);
+          }
+          if (plaque && bx === plaque[0] && by === plaque[1]) {
+            problems.push(`building "${placement.id}" has its sign board on its own plaque tile`);
+          }
+        }
+      } else if (placement.signAt) {
+        problems.push(`building "${placement.id}" has a "signAt" but no interior — its door already reads the sign`);
       }
     }
 
@@ -962,6 +983,8 @@ function unreachableWith(
     if (!canReach(placement.door)) out.push(`building "${placement.id}"'s door at ${placement.door.join(',')} cannot be reached`);
     const plaque = plaqueTile(placement);
     if (plaque && !canReach(plaque)) out.push(`building "${placement.id}"'s plaque at ${plaque.join(',')} cannot be reached`);
+    const board = signBoardTile(placement);
+    if (board && !canReach(board)) out.push(`building "${placement.id}"'s sign board at ${board.join(',')} cannot be reached`);
   }
   for (const fixture of map.fixtures ?? []) {
     if (!canReachBeside(fixture.pos)) out.push(`the ${fixture.kind} at ${fixture.pos.join(',')} cannot be walked up to`);
@@ -1013,9 +1036,10 @@ const MAX_VEHICLES = 3;
 
 /**
  * Every tile somebody walking may stand on. Deliberately stricter than the
- * player's own walkability: a doorstep and a plaque tile are read by standing
- * exactly there, so a townsperson parked on one would take a building's door
- * away, and a road out of the village is the player's to take, not theirs.
+ * player's own walkability: a doorstep, a plaque tile and a sign board tile
+ * are read by standing exactly there, so a townsperson parked on one would
+ * take a building's door — or its sign — away, and a road out of the village
+ * is the player's to take, not theirs.
  */
 export function moverWalkable(map: GameMap): (x: number, y: number) => boolean {
   const taken = new Set<string>();
@@ -1023,6 +1047,8 @@ export function moverWalkable(map: GameMap): (x: number, y: number) => boolean {
     taken.add(`${placement.door[0]},${placement.door[1]}`);
     const plaque = plaqueTile(placement);
     if (plaque) taken.add(`${plaque[0]},${plaque[1]}`);
+    const board = signBoardTile(placement);
+    if (board) taken.add(`${board[0]},${board[1]}`);
   }
   for (const fixture of map.fixtures ?? []) taken.add(`${fixture.pos[0]},${fixture.pos[1]}`);
   const exits = map.exits;

@@ -32,6 +32,13 @@ export interface BuildingPlacement {
    * plaque at all.
    */
   plaque?: Vec2 | false;
+  /**
+   * Walkable front-row tile the standing sign board is read from, for a
+   * building that also has an interior (see `signBoardTile`). Omitted means
+   * the default; meaningless — and never consulted — on a building with no
+   * interior, since the door itself still reads the sign there.
+   */
+  signAt?: Vec2;
 }
 
 /**
@@ -50,6 +57,24 @@ export function plaqueTile(placement: BuildingPlacement): Vec2 | null {
   const rightMost = placement.pos[0] + placement.size[0] - 1;
   const step = placement.door[0] >= rightMost ? -1 : 1;
   return [placement.door[0] + step, placement.door[1]];
+}
+
+/**
+ * Where a building's standing sign is read from, once it also has an
+ * interior (DESIGN.md §2). A door that opens is only ever the way in, so a
+ * building with both needs a second place for its day-to-day sign to live: a
+ * little board the engine draws beside the door, on the opposite side from
+ * the plaque so the two never crowd the same tile — a placement's `signAt`
+ * overrides that default when it lands somewhere awkward (astride a road, off
+ * the footprint). Returns null for a building with no interior, where the
+ * door itself still reads the sign, and there is nothing beside it to draw.
+ */
+export function signBoardTile(placement: BuildingPlacement): Vec2 | null {
+  if (!placement.interior) return null;
+  if (placement.signAt) return [placement.signAt[0], placement.signAt[1]];
+  const rightMost = placement.pos[0] + placement.size[0] - 1;
+  const plaqueStep = placement.door[0] >= rightMost ? -1 : 1;
+  return [placement.door[0] - plaqueStep, placement.door[1]];
 }
 
 export interface MapLabel {
