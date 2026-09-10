@@ -517,16 +517,23 @@ async function walkTo(page, milestone, goal, { allowInterrupt = false, episode =
 }
 
 /**
- * Walks up onto a door and keeps holding "up" until the engine opens it
- * (`MapScene.checkDoors`, DESIGN.md §2) — a real, sustained press into the
- * wall behind the door, not the single tile-aligning step an unrelated walk
- * elsewhere might clip in passing. The caller has to already be standing
- * one tile south of the door (its own doorstep); this aims three tiles past
- * the door itself so the hold never stops on its own — the building's own
- * solid wall stops the player's feet at the door tile long before that, and
- * the door opening (which locks the controls) is what actually ends the hold.
+ * Walks onto a door and, once there, keeps holding "up" until the engine
+ * opens it (`MapScene.checkDoors`, DESIGN.md §2) — a real, sustained press
+ * into the wall behind the door, not the single tile-aligning step an
+ * unrelated walk elsewhere might clip in passing. `walkTo` takes whatever
+ * route gets there — some doors are only approached from the side, an
+ * outdoor table or a planter box sitting on the tile directly south of one
+ * — so the extra press afterwards is aimed three tiles further "up" than
+ * the door itself, past where the building's own solid wall stops the
+ * player's feet, and never stops on its own: the door opening (which locks
+ * the controls) is what ends the hold. Already open by the time `walkTo`
+ * itself arrives — its whole final leg held "up", say — is just as good a
+ * result, so this only reaches for the extra press when it's still needed.
  */
-async function walkUpInto(page, milestone, door) {
+async function walkUpInto(page, milestone, door, { episode = EPISODE } = {}) {
+  await walkTo(page, milestone, door, { allowInterrupt: true, episode });
+  const at = await snap(page);
+  if (at.locked || here(at)[0] !== door[0] || here(at)[1] !== door[1]) return;
   const result = await hold(page, 'up', 'y', door[1] - 3, -1);
   if (result.reason !== 'interrupted') {
     fail(milestone, `holding "up" into the door at ${door} ended with "${result.reason}", not the door opening`);
@@ -1485,11 +1492,6 @@ async function main() {
       const room = WORLD.maps[place.interior];
 
       log(`  walk into ${name}`);
-      // A door opens to a held "up" onto it, not to merely crossing its tile
-      // (engine/scenes/map.ts checkDoors, DESIGN.md §2) — every door sits one
-      // row south of its own building, so the doorstep just below it is where
-      // the final, deliberate step up has to start from.
-      await walkTo(page, `${place.id}-approach`, [place.door[0], place.door[1] + 1]);
       await walkUpInto(page, `${place.id}-enter`, place.door);
       const inside = await waitUntil(page, (s) => s.map === place.interior && !s.locked, `${name}'s room`);
       const landed = here(inside);
@@ -2554,15 +2556,12 @@ async function main() {
     await shot(wp, 'tap-door');
     await advanceDialogue(wp, 'tap-door', 3);
 
-    // Walking up onto the same door, held key by held key from its own
-    // doorstep, is what actually opens it — the doormat's own promise kept.
-    // A held "up" onto the door is what opens it (checkDoors, DESIGN.md §2),
-    // never merely landing on its tile, so this steps off it and back on
-    // rather than reusing wherever the tap above left the player standing.
-    await walkTo(wp, 'walk-in-approach', [shop.door[0], shop.door[1] + 1]);
+    // Walking up onto the same door, held key by held key, is what actually
+    // opens it (checkDoors, DESIGN.md §2) — never merely landing on its tile,
+    // which is all the tap above did.
     await walkUpInto(wp, 'walk-in', shop.door);
     await waitUntil(wp, (s) => s.map === shop.interior && !s.locked, `${shop.id}'s door to open on a walk`, 15000);
-    log(`    ${shop.door} (${shop.id}'s door, walked onto from the south) -> inside`);
+    log(`    ${shop.door} (${shop.id}'s door, walked into) -> inside`);
     await shot(wp, 'walked-in');
 
     // And the way out is a tap too.
@@ -3541,11 +3540,8 @@ async function main() {
       // worth finding here rather than as a walk mysteriously interrupted.
       await playStagedScene(cp, sceneEp, outsideMap, scene.id);
       // A held "up" onto the door is what opens it now (checkDoors,
-      // DESIGN.md §2), never an A press, so this steps onto the doorstep
-      // south of it first and walks up from there, same as every other door
-      // this harness walks into.
-      await walkTo(cp, 'scene-approach', [building.door[0], building.door[1] + 1], { episode: sceneEp });
-      await walkUpInto(cp, 'scene', building.door);
+      // DESIGN.md §2), never an A press.
+      await walkUpInto(cp, 'scene', building.door, { episode: sceneEp });
       const inside = await waitUntil(cp, (st) => st.map === scene.on.enter, `the door into "${scene.on.enter}"`, 25000);
       log(`    walked in: ${inside.map} at ${here(inside)}`);
 
