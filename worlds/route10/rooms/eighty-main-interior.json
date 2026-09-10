@@ -76,7 +76,7 @@
       "tiles": [11, 24],
       "id": "eighty-main-to-stamford-coffee",
       "to": "stamford-coffee-interior",
-      "spawn": [18, 12],
+      "spawn": [18, 9],
       "facing": "left"
     }
   ],

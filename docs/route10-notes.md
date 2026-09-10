@@ -224,12 +224,13 @@ Stamford Coffee's employee — the cake orders are hers, and the shop lets her
 bake in here after hours by arrangement, which suits them both. Her business
 stays unnamed (hard rule 5).
 
-As built (`worlds/route10/rooms/stamford-coffee-interior.json`, a 20×18
-box with a `plan` — see DESIGN.md §2): the hallway bay is x1–3, rows 1–6,
-open into the cafe at row 7, with the bathroom doors in the top wall at
-[1,0] and [3,0] and the steel door at [4,2] in the bay's right-hand wall —
-an exit into the kitchen's own map; the cafe is x1–18, rows 7–16, with the
-counter on row 8 and Ronnie, the coffee-maker shelf, the menu board and the
+As built (`worlds/route10/rooms/stamford-coffee-interior.json`, a 20×15
+box with a `plan` — see DESIGN.md §2): the hallway bay is x1–3, rows 1–3
+(Tom, Sep 10: the first cut was six rows and "too long — cut its length in
+half"), open into the cafe at row 4, with the bathroom doors in the top
+wall at [1,0] and [3,0] and the steel door at [4,2] in the bay's right-hand
+wall — an exit into the kitchen's own map; the cafe is x1–18, rows 4–13,
+with the counter on row 5 and Ronnie, the coffee-maker shelf, the menu board and the
 bottle shelf in the strip behind it, the record player and the LP crates
 down the left wall, the tables, the fridge by the door. The kitchen
 (`stamford-coffee-kitchen`, 12×9, spec

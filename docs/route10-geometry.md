@@ -406,12 +406,13 @@ Both doorways are two tiles wide in the bottom wall, matted, with the exit
 trigger on the mat and the spawn tile the mat just inside it — the way out of
 Stewart's, and the reason a room's door reads as a door.
 
-- **Stamford Coffee** (a 20 × 18 box, not a rectangle; exposed brick, light
+- **Stamford Coffee** (a 20 × 15 box, not a rectangle; exposed brick, light
   floor; rebuilt to Tom's sketch, Sep 10 2026): the first room built from a
   `plan` — the floor is a union of rectangles and everything outside it is
-  wall (DESIGN.md §2). The cafe is x1–18, rows 7–16, entered from the
+  wall (DESIGN.md §2). The cafe is x1–18, rows 4–13, entered from the
   bottom; a walkway up its left side leads into a hallway bay in the top
-  left (x1–3, rows 1–6) with the **two bathroom doors in its top wall** and
+  left (x1–3, rows 1–3 — three rows, halved from six at Tom's word) with
+  the **two bathroom doors in its top wall** and
   the **steel kitchen door** cut through the bay's right-hand wall at
   [4,2]. The counter runs along the cafe's top wall all the way to the
   right wall, with Ronnie, the coffee-maker collection, the menu board and

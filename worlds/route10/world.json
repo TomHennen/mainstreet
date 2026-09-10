@@ -623,7 +623,7 @@
           "interior": "stamford-coffee-interior",
           "enter": [
             9,
-            16
+            13
           ]
         },
         {
@@ -1256,7 +1256,7 @@
           "id": "stamford-coffee-exit",
           "at": [
             9,
-            17,
+            14,
             2,
             1
           ],
@@ -1288,7 +1288,7 @@
           "id": "stamford-coffee-to-eighty-main",
           "at": [
             19,
-            12,
+            9,
             1,
             2
           ],
@@ -1325,7 +1325,7 @@
         {
           "pos": [
             7,
-            7
+            4
           ],
           "lines": [
             "A whole shelf of coffee makers, every kind there is: a glass pour-over, a stovetop moka pot, a siphon like something out of a science set, a percolator with a few decades on it.",
@@ -1335,7 +1335,7 @@
         {
           "pos": [
             12,
-            7
+            4
           ],
           "lines": [
             "The menu, in chalk: coffee every way you could want it, the Maple Smoke latte in a box of its own, and a row of paninis pressed to order — the kind you smell before you see.",
@@ -1345,7 +1345,7 @@
         {
           "pos": [
             16,
-            7
+            4
           ],
           "lines": [
             "Bottles behind the right end of the counter: a cooler of beer from breweries an easy drive from here, and a few bottles of wine to take home, each with a little card in Ronnie's hand saying what it goes with.",
@@ -1355,7 +1355,7 @@
         {
           "pos": [
             1,
-            13
+            10
           ],
           "lines": [
             "A record player on the left wall, lid up, something warm and a little crackly turning on it.",
@@ -1365,7 +1365,7 @@
         {
           "pos": [
             1,
-            16
+            13
           ],
           "lines": [
             "Crates of LPs, spread out so you can flip through them: jazz, old country, soul, and a few things nobody can quite place.",
@@ -1375,7 +1375,7 @@
         {
           "pos": [
             4,
-            11
+            8
           ],
           "lines": [
             "The furniture is mid-century modern, all of it: low tables, tapered legs, chairs that look like they came off a magazine cover in 1958 and have been sat in happily ever since.",
@@ -1385,7 +1385,7 @@
         {
           "pos": [
             13,
-            16
+            13
           ],
           "lines": [
             "A self-serve fridge up by the door: cold drinks, snacks, and ready-made dinners for anyone who would rather not cook tonight.",
@@ -1399,7 +1399,7 @@
           "name": "Ronnie",
           "pos": [
             10,
-            7
+            4
           ],
           "facing": "down",
           "look": {
@@ -1550,7 +1550,7 @@
           "to": "stamford-coffee-interior",
           "spawn": [
             18,
-            12
+            9
           ],
           "facing": "left",
           "style": "door"
