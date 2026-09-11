@@ -1,16 +1,45 @@
-# Builds the game and publishes dist/ to GitHub Pages on every push to main.
-# One-time setup: repo Settings → Pages → Source: "GitHub Actions".
+# Builds the game and publishes it to GitHub Pages. Three kinds of build go
+# out together:
+#
+#   https://<owner>.github.io/<repo>/         the latest release (highest v* tag)
+#   https://<owner>.github.io/<repo>/dev/     whatever is on main right now
+#   https://<owner>.github.io/<repo>/pr/<n>/  every open pull request, to try
+#                                             a change before it is merged
+#
+# Pages publishes one artifact as the whole site, so all of them are built
+# fresh from git on every run — a push to main, a pushed v* tag, a pull
+# request opened or updated, or a manual run — and stitched together. Until
+# the first tag exists, main is at the root too. A closed PR simply isn't in
+# the next build, so its path goes away on its own: on the merge push for a
+# merged one, on the next deploy of any kind for one closed without merging.
+# (A closed event doesn't trigger a run of its own: on a merge it would race
+# the push run, and the concurrency group would cancel one of the two, which
+# shows up as a red mark on the main commit for no reason.)
+#
+# To release: tag main (`git tag v1.0.0 && git push origin v1.0.0`, or a
+# GitHub Release that creates the tag). The highest version tag wins, so a
+# late tag for an older version never rolls the site back; tags with a
+# suffix (v1.1.0-rc1) are left out and never reach the root.
+#
+# One-time setup: repo Settings → Pages → Source: "GitHub Actions", and
+# Settings → Environments → github-pages → Deployment branches and tags:
+# allow all branches (a pull request run deploys from refs/pull/<n>/merge,
+# which the default main-only policy refuses).
 name: pages
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
+  pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  pull-requests: write
 
 concurrency:
   group: pages
@@ -18,25 +47,123 @@ concurrency:
 
 jobs:
   build:
+    # A pull request from a fork runs with a read-only token and could not
+    # deploy anyway; only branches in this repository get previews. Every run
+    # rebuilds every open same-repo PR, so nothing is lost by skipping here.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    outputs:
+      built: ${{ steps.prs.outputs.built }}
     steps:
+      # main goes to /dev/. The full history is fetched here so the tags are
+      # in it, and the release checkout below can be named from them.
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+          fetch-depth: 0
+
+      - name: Find the latest release tag
+        id: release
+        run: |
+          tag=$(git -C main tag --list 'v[0-9]*' --sort=-v:refname | grep -v -- '-' | head -n 1 || true)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [ -n "$tag" ]; then echo "Release: $tag"; else echo "No release tag yet; main goes to the root as well"; fi
+
+      - uses: actions/checkout@v4
+        if: steps.release.outputs.tag != ''
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+          path: release
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+          cache-dependency-path: '*/package-lock.json'
+
       # Pages serves a project site at https://<owner>.github.io/<repo>/, so
-      # every world's build has to know that sub-path. Using the repo name
-      # keeps forks working. build:site builds each world under worlds/ into
-      # its own dist/<id>/ and writes a landing page at dist/index.html that
-      # links to them (scripts/build-site.mjs).
-      - run: npm run build:site
+      # every build has to know its sub-path. Using the repo name keeps forks
+      # working. build:site builds each world under worlds/ into its own
+      # dist/<id>/ and writes a landing page at dist/index.html that links to
+      # them (scripts/build-site.mjs). The release is built from its own
+      # checkout, so it ships with the build script it was tagged with.
+      - name: Build the release (site root)
+        if: steps.release.outputs.tag != ''
+        working-directory: release
+        run: npm ci && npm run build:site
         env:
           SITE_BASE: /${{ github.event.repository.name }}
+
+      - run: npm ci
+        working-directory: main
+
+      - name: Build main (site root, until the first release)
+        if: steps.release.outputs.tag == ''
+        working-directory: main
+        run: npm run build:site && mv dist ../root-from-main
+        env:
+          SITE_BASE: /${{ github.event.repository.name }}
+
+      # SITE_CHANNEL keeps this build's saves apart from the release's
+      # (engine/save.ts): everything on the site shares one localStorage.
+      - name: Build main (dev path)
+        working-directory: main
+        run: npm run build:site
+        env:
+          SITE_BASE: /${{ github.event.repository.name }}/dev
+          SITE_RELEASE_BASE: /${{ github.event.repository.name }}
+          SITE_CHANNEL: dev
+
+      # Every open pull request from a branch in this repository, each built
+      # from its own head commit into pr/<number>/. One that fails to build is
+      # left out with a warning rather than holding up the rest of the site;
+      # its own CI run will say what is wrong. Ten at a time is plenty here
+      # and keeps a deploy to a few minutes.
+      - name: Build the open pull requests
+        id: prs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SITE_ROOT: /${{ github.event.repository.name }}
+        run: |
+          mkdir -p prs
+          gh api "repos/$REPO/pulls?state=open&per_page=100" \
+            --jq '.[] | select(.head.repo.full_name == env.REPO) | "\(.number) \(.head.sha)"' \
+            | head -n 10 > prs/list.txt
+          built=""
+          if [ ! -s prs/list.txt ]; then echo "No open pull requests to preview"; fi
+          while read -r number sha; do
+            echo "::group::PR #$number ($sha)"
+            if git -C main fetch --quiet origin "$sha" \
+              && git -C main worktree add --quiet "../prs/$number" "$sha" \
+              && (cd "prs/$number" && npm ci --silent && SITE_BASE="$SITE_ROOT/pr/$number" SITE_RELEASE_BASE="$SITE_ROOT" SITE_CHANNEL="pr-$number" npm run build:site); then
+              echo "built PR #$number"
+              built="$built $number:$sha"
+            else
+              echo "::warning::PR #$number did not build; it is left out of this deploy"
+              rm -rf "prs/$number/dist"
+            fi
+            echo "::endgroup::"
+          done < prs/list.txt
+          # Handed to the comment job: which PRs made it in, and from what.
+          echo "built=${built# }" >> "$GITHUB_OUTPUT"
+
+      - name: Put the site together
+        run: |
+          if [ -d release/dist ]; then mv release/dist site; else mv root-from-main site; fi
+          mv main/dist site/dev
+          for built in prs/*/dist; do
+            [ -d "$built" ] || continue
+            number=$(basename "$(dirname "$built")")
+            mkdir -p site/pr
+            mv "$built" "site/pr/$number"
+          done
+          find site -maxdepth 4 -name index.html | sort
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site
 
   deploy:
     needs: build
@@ -47,3 +174,37 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # Tell each pull request where to play it. Every deploy rebuilds every open
+  # PR, so every one of them gets told, not just the one that triggered the
+  # run. One comment per PR, updated in place so the thread doesn't fill up.
+  comment:
+    needs: [build, deploy]
+    if: needs.build.outputs.built != ''
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          NAME: ${{ github.event.repository.name }}
+          BUILT: ${{ needs.build.outputs.built }}
+        run: |
+          # Pages hostnames are lower-case; the owner name as GitHub reports it
+          # may not be.
+          site="https://$(echo "$OWNER" | tr '[:upper:]' '[:lower:]').github.io/$NAME"
+          marker='<!-- mainstreet-preview -->'
+          for entry in $BUILT; do
+            number="${entry%%:*}"
+            sha="${entry#*:}"
+            url="$site/pr/$number/"
+            body=$(printf '%s\n\n**Playable preview:** %s\n\nBuilt from %s. Updated on every push; it goes away when the PR closes. Pages can take a minute to catch up after a deploy.' "$marker" "$url" "$sha")
+            existing=$(gh api "repos/$REPO/issues/$number/comments?per_page=100" --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n 1)
+            if [ -n "$existing" ]; then
+              gh api --method PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" > /dev/null
+              echo "Updated the preview comment on PR #$number"
+            else
+              gh api --method POST "repos/$REPO/issues/$number/comments" -f body="$body" > /dev/null
+              echo "Posted the preview comment on PR #$number"
+            fi
+          done

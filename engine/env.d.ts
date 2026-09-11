@@ -10,4 +10,11 @@
  */
 interface ImportMetaEnv {
   readonly VITE_REPOSITORY: string;
+  /**
+   * The save channel of a build that is not the release (`dev`, `pr-108`),
+   * so its localStorage save stays apart from the released game's. Set by
+   * `scripts/build-site.mjs` from `SITE_CHANNEL`; absent in the release, in
+   * `npm run dev`, and in tests. See engine/save.ts.
+   */
+  readonly VITE_SAVE_CHANNEL?: string;
 }

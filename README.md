@@ -24,9 +24,9 @@ plays it, or carries on where you left off — progress lives in `localStorage`
 under `mainstreet.<worldId>` and nothing leaves the browser. Add
 `?episode=<id>` to the URL to skip the title and play any episode file under
 `worlds/<id>/episodes/` for review, listed in `world.json` or not (a shelved
-draft, or a fixture like route10's `ep000`) — e.g.
-`http://localhost:5173/?episode=ep000`. A review run starts from the beginning
-and writes no save. See DESIGN.md §2 and §3.
+draft, or a fixture like route10's `ep000`) — e.g. `?episode=ep000` appended
+to whatever URL `npm run dev` is serving. A review run starts from the
+beginning and writes no save. See DESIGN.md §2 and §3.
 
 ```sh
 npx playwright install chromium   # once
@@ -39,7 +39,12 @@ story needs, checks the flags each step is supposed to set, screenshots every
 milestone, and exercises tap-to-walk, the touch d-pad and the A-button debounce
 on a phone sized viewport. Screenshots and a run log land in `playtest-out/`, and it exits
 non-zero with the milestone, the state and the screenshot path on the first
-failure. It starts a dev server itself if one is not already on :5173.
+failure. It always starts its own Vite — on the first free port from 5173 up,
+or `PLAYTEST_PORT` if set — rather than attaching to one already running, so
+two agents playtesting from different checkouts at once never test each
+other's code; the chosen URL is logged at the top of
+`playtest-out/playtest.log`. Set `PLAYTEST_URL` to opt into an existing
+server instead (nothing is started or probed in that case).
 
 ```sh
 npm test               # Vitest: engine logic only, plain Node, no jsdom
@@ -91,16 +96,53 @@ in Codespaces.
 
 ## Deploy
 
-Every push to `main` builds every world pack and publishes them to GitHub
-Pages, each at its own path, plus a small landing page at the site root that
-links to them (`.github/workflows/pages.yml` runs `npm run build:site`). With
-one world (`route10`) live, that's:
+The site on GitHub Pages carries two builds side by side, and
+`.github/workflows/pages.yml` publishes both on every push to `main`, every
+pushed `v*` tag, and on demand:
 
-- `https://<owner>.github.io/mainstreet/` — the landing page
-- `https://<owner>.github.io/mainstreet/route10/` — Route 10
+- the **release** at the site root — the highest `v*` tag (`v1.2.0`; a tag
+  with a suffix like `v1.2.0-rc1` is left out), so a late tag for an older
+  version never rolls the site back. Until the first tag exists, `main` is
+  here too.
+- the **dev build** at `/dev/` — whatever is on `main` right now.
+- a **preview of every open pull request** at `/pr/<number>/`, built from
+  the PR's head commit, so a change can be played before it is merged. The
+  workflow posts the link as a comment on each open PR and updates it on
+  every deploy. Only PRs from branches in this repository get one (a fork's PR runs
+  with a read-only token); a PR that fails to build is left out with a
+  warning rather than holding up the site; and a closed PR is simply not in
+  the next build, so its path goes away on its own (with the merge push, or
+  with the next deploy of any kind if it was closed without merging).
 
-One-time setup on a fresh repo: Settings → Pages → Source: "GitHub Actions".
-Nothing else to configure; there are no secrets.
+Each build is every world pack at its own path plus a small landing page
+that links to them (`npm run build:site`). With one world (`route10`) live:
+
+- `https://<owner>.github.io/mainstreet/` — the release's landing page
+- `https://<owner>.github.io/mainstreet/route10/` — Route 10, released
+- `https://<owner>.github.io/mainstreet/dev/` — the dev build's landing page
+- `https://<owner>.github.io/mainstreet/dev/route10/` — Route 10 from `main`
+- `https://<owner>.github.io/mainstreet/pr/106/route10/` — Route 10 as PR #106 would have it
+
+To release, tag `main` and push the tag (`git tag v1.0.0 && git push origin
+v1.0.0`, or create a GitHub Release that makes the tag). The release is
+built from its own checkout, so it ships with the build script it was tagged
+with. Pages publishes one artifact as the whole site, so every build is
+built fresh from git on every run (a push to `main`, a pushed tag, a PR
+opened or updated, or a manual run) — nothing is kept between deploys.
+
+Saves are one `localStorage` key per world (`mainstreet.<worldId>`). All the
+builds are on the same origin, so the dev build and each PR preview are
+built with a save channel (`SITE_CHANNEL`, reaching the engine as
+`VITE_SAVE_CHANNEL`) that suffixes their key — `mainstreet.route10.dev`,
+`mainstreet.route10.pr-108` — and none of them touches the release's save.
+A PR preview therefore starts fresh unless you have played that preview
+before.
+
+One-time setup on a fresh repo: Settings → Pages → Source: "GitHub Actions",
+and Settings → Environments → `github-pages` → Deployment branches and tags:
+allow all branches (a pull request run deploys from `refs/pull/<n>/merge`,
+which the default `main`-only policy refuses). Nothing else to configure;
+there are no secrets.
 
 `scripts/build-site.mjs` does the work: it runs a separate `vite build` per
 world under `worlds/` (each with `VITE_WORLD=<id>`, its own `--base` and its
@@ -108,7 +150,13 @@ own `dist/<id>/` output — a single Vite build only ever ships one world, see
 `vite.config.ts`), then writes `dist/index.html` from each world's
 `world.json` `title`/`subtitle`. `SITE_BASE` sets the path the whole site is
 served under (default `/`; the Pages workflow passes
-`/${{ github.event.repository.name }}`). To try it locally:
+`/${{ github.event.repository.name }}` for the release and
+`/${{ github.event.repository.name }}/dev` for the dev build,
+`/${{ github.event.repository.name }}/pr/<n>` for a PR preview). The dev
+build and the previews are also passed `SITE_RELEASE_BASE`, which puts a
+line at the foot of the landing page saying it is the in-progress build and
+pointing at the release. The release never links to any of them. To try it
+locally:
 
 ```sh
 SITE_BASE=/mainstreet npm run build:site
