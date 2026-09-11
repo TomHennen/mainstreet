@@ -42,9 +42,11 @@ What the rein sandbox lets an agent session do in this repo. Updated 2026-09-06.
 
 ## Parallel agents share ports
 
-`npm run playtest` reuses any Vite already listening on 5173. When two
-agents work in separate worktrees at the same time, the second one silently
-playtests the first one's code. Give each parallel agent its own port
-(start Vite by hand on 5199, 5200, ... and point the harness at it with
-`PLAYTEST_URL`) and confirm the server it hit belongs to its own tree before
-trusting a pass or a failure.
+Fixed: `npm run playtest` now always starts its own Vite rather than
+attaching to whatever is already listening — it picks the first free TCP
+port from 5173 up (or `PLAYTEST_PORT`, if set) and starts Vite there with
+`--strictPort`, so two agents in separate worktrees each get their own
+server. Set `PLAYTEST_URL` only to opt all the way in to testing an existing
+server this script did not start (nothing is probed or started in that
+case) — confirm by hand that it belongs to the tree you mean to test before
+trusting a pass or a failure against it.

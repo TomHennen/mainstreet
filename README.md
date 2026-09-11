@@ -24,9 +24,9 @@ plays it, or carries on where you left off — progress lives in `localStorage`
 under `mainstreet.<worldId>` and nothing leaves the browser. Add
 `?episode=<id>` to the URL to skip the title and play any episode file under
 `worlds/<id>/episodes/` for review, listed in `world.json` or not (a shelved
-draft, or a fixture like route10's `ep000`) — e.g.
-`http://localhost:5173/?episode=ep000`. A review run starts from the beginning
-and writes no save. See DESIGN.md §2 and §3.
+draft, or a fixture like route10's `ep000`) — e.g. `?episode=ep000` appended
+to whatever URL `npm run dev` is serving. A review run starts from the
+beginning and writes no save. See DESIGN.md §2 and §3.
 
 ```sh
 npx playwright install chromium   # once
@@ -39,7 +39,12 @@ story needs, checks the flags each step is supposed to set, screenshots every
 milestone, and exercises tap-to-walk, the touch d-pad and the A-button debounce
 on a phone sized viewport. Screenshots and a run log land in `playtest-out/`, and it exits
 non-zero with the milestone, the state and the screenshot path on the first
-failure. It starts a dev server itself if one is not already on :5173.
+failure. It always starts its own Vite — on the first free port from 5173 up,
+or `PLAYTEST_PORT` if set — rather than attaching to one already running, so
+two agents playtesting from different checkouts at once never test each
+other's code; the chosen URL is logged at the top of
+`playtest-out/playtest.log`. Set `PLAYTEST_URL` to opt into an existing
+server instead (nothing is started or probed in that case).
 
 ```sh
 npm test               # Vitest: engine logic only, plain Node, no jsdom
