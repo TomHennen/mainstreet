@@ -36,6 +36,7 @@ import {
   settleCode,
   snapToPalette
 } from './artwork';
+import { DOOR_ARROW_H, DOOR_ARROW_W, paintDoorArrow } from '../engine/glyphs';
 
 // --- constants ---------------------------------------------------------------
 
@@ -47,12 +48,11 @@ const OVERHEAD = 20;
 const PLAQUE_W = 6;
 const PLAQUE_H = 5;
 const PLAQUE_LIFT = 4;
-/** The doormat the engine lays on the doorstep of a door with an interior
- *  (engine/art.ts doormatArt) — reference only, since it lives on the tile
+/** How far the arrow's bottom edge sits above the bottom of the doorstep tile
+ *  — reference only, since the arrow itself (`engine/glyphs.ts`
+ *  `paintDoorArrow`, also engine/art.ts `doorArrowArt`) lives on the tile
  *  rather than baked into the facade the way this preview is. */
-const DOORMAT_W = 12;
-const DOORMAT_H = 4;
-const DOORMAT_LIFT = 1;
+const DOOR_ARROW_LIFT = 1;
 /** Most spare rows of 16px an artist may add above the footprint. */
 const MAX_EXTRA_ROWS = 3;
 const DEFAULT_EXTRA_ROWS = 1;
@@ -402,8 +402,8 @@ function hueFamily(hex: string): number {
  * `doorCol` and `plaqueCol` are tile columns across the front of the building,
  * counting from 0 at its left edge — wherever the artist has put the markers,
  * which is where the town will end up putting them too. `plaqueCol` is null
- * for a building that has no plaque. `hasInterior` adds the doormat a door
- * with an interior gets (DESIGN.md §2); the marker doesn't move, since
+ * for a building that has no plaque. `hasInterior` adds the door arrow a
+ * door with an interior gets (DESIGN.md §2); the marker doesn't move, since
  * nothing here drags it.
  */
 function referenceCanvas(
@@ -457,17 +457,15 @@ function referenceCanvas(
     ctx.fillRect(plaqueX, plaqueY, PLAQUE_W, 1);
   }
 
-  // A door with an interior gets the engine's own doormat on its doorstep —
-  // over whatever is painted beneath, so nobody has to draw one (DESIGN.md
-  // §2). The door still reads the standing sign to an A press or a tap; it
-  // grows no second marker.
+  // A door with an interior gets the engine's own arrow on its doorstep,
+  // pointing up into the door — over whatever is painted beneath, so nobody
+  // has to draw one (DESIGN.md §2). The door still reads the standing sign
+  // to an A press or a tap; it grows no second marker.
   if (hasInterior) {
-    const matX = doorX + (TILE - DOORMAT_W) / 2;
-    const matY = height - DOORMAT_LIFT - DOORMAT_H;
-    ctx.fillStyle = '#6b4a35';
-    ctx.fillRect(matX, matY, DOORMAT_W, DOORMAT_H);
-    ctx.fillStyle = '#caa06a';
-    ctx.fillRect(matX + 1, matY + 1, DOORMAT_W - 2, 1);
+    const arrowX = doorX + (TILE - DOOR_ARROW_W) / 2;
+    const arrowY = height - DOOR_ARROW_LIFT - DOOR_ARROW_H;
+    // engine/glyphs.ts paintDoorArrow, so the two can never drift apart.
+    paintDoorArrow(ctx, arrowX, arrowY);
   }
 
   ctx.font = '8px ui-monospace, Menlo, Consolas, monospace';
@@ -586,8 +584,8 @@ interface EditorState {
   /** Where the town has them today, so "Reset" and the code both know. */
   defaultDoorCol: number;
   defaultPlaqueCol: number | null;
-  /** Whether this building has an interior yet — the doormat the reference
-   *  draws only for one that does (DESIGN.md §2). */
+  /** Whether this building has an interior yet — the door arrow the
+   *  reference draws only for one that does (DESIGN.md §2). */
   hasInterior: boolean;
   undo: Uint8Array[];
   redo: Uint8Array[];

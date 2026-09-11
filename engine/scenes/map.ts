@@ -5,7 +5,7 @@ import {
   buildingArt,
   characterTexture,
   dashTexture,
-  doormatArt,
+  doorArrowArt,
   fixtureArt,
   frameIndex,
   itemTexture,
@@ -398,12 +398,12 @@ export class MapScene extends Phaser.Scene {
       }
 
       // A door that opens gets the engine's own "come on in" laid at its
-      // foot: walking onto the doorstep is what opens it, and the mat marks
-      // it as that kind of door before a player ever tries. Its door still
-      // reads the standing sign to an A press or a tap, same as any door
-      // with nothing behind it (CLAUDE.md #4, DESIGN.md §2).
-      const mat = doormatArt(this, placement);
-      if (mat) this.add.image(mat.x, mat.y, mat.key).setOrigin(0, 0).setDepth(mat.depth);
+      // foot: walking onto the doorstep is what opens it, and the arrow
+      // marks it as that kind of door before a player ever tries. Its door
+      // still reads the standing sign to an A press or a tap, same as any
+      // door with nothing behind it (CLAUDE.md #4, DESIGN.md §2).
+      const arrow = doorArrowArt(this, placement);
+      if (arrow) this.add.image(arrow.x, arrow.y, arrow.key).setOrigin(0, 0).setDepth(arrow.depth);
 
       if (art.painted) {
         // The placeholder bakes its name plate into the facade texture itself;
@@ -483,7 +483,7 @@ export class MapScene extends Phaser.Scene {
     this.player = this.add.sprite(0, 0, playerKey, frameIndex(this.facing, 0)).setOrigin(0.5, 1);
     this.syncPlayerSprite();
 
-    this.prompt = this.add.image(0, 0, promptTexture(this)).setOrigin(0.5, 1).setDepth(9000).setVisible(false);
+    this.prompt = this.add.image(0, 0, promptTexture(this, 'A')).setOrigin(0.5, 1).setDepth(9000).setVisible(false);
     // Sits under the A prompt and over the town, so a destination behind a
     // porch roof is still findable while the player walks to it.
     this.marker = this.add.image(0, 0, markerTexture(this)).setOrigin(0, 0).setDepth(8500).setVisible(false);
@@ -1802,16 +1802,14 @@ export class MapScene extends Phaser.Scene {
       this.prompt.setVisible(false);
       return;
     }
-    // A one-word verb over the bubble, when the world bothers to write one
-    // (`copy.json` ui.read) — "Read" over everything the bubble shows for,
-    // a door included: A only ever reads the standing sign there now, never
-    // opens it (DESIGN.md §2). Missing means no label at all (hard rule 3).
-    const label = state.copy.ui.read;
     const bob = Math.sin(this.time.now / 167) * 1.5;
     // People are two tiles tall and stand on the tile they occupy, so their
     // head fills the tile above it; props and doors sit inside their own tile.
     const lift = target.kind === 'npc' ? TILE : 0;
-    this.prompt.setTexture(promptTexture(this, label));
+    // One glyph for everything the bubble shows for: a door only ever reads
+    // its standing sign to an A press, same as everywhere else (DESIGN.md
+    // §2), so there is nothing here that needs a second glyph.
+    this.prompt.setTexture(promptTexture(this, 'A'));
     this.prompt.setPosition(target.at[0] * TILE + TILE / 2, target.at[1] * TILE - 2 - lift + bob);
     this.prompt.setVisible(true);
   }
@@ -2007,7 +2005,8 @@ export class MapScene extends Phaser.Scene {
 
   /**
    * A door with an interior behind it opens once the player actually walks
-   * into it — the doormat is the only warning it gets (DESIGN.md §2).
+   * into it — the arrow on the doorstep is the only warning it gets
+   * (DESIGN.md §2).
    * "Into," not merely "onto": every door sits one row south of its own
    * building, on the street a player is forever walking along and across, so
    * a door that opened the instant a step so much as touched its tile would
