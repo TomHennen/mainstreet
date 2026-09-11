@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { BAR_BLUE, BAR_OUTLINE, BAR_RED, drawVehicle, VEHICLE_CELL } from './motor';
+import { BAR_BLUE, BAR_OUTLINE, BAR_RED, drawVehicle, GLASS, VEHICLE_CELL } from './motor';
 import { FACINGS } from './schema';
-import type { Facing } from './schema';
+import type { Facing, VehicleKind } from './schema';
 
 /**
  * `drawVehicle` is drawn with nothing but `fillStyle` and `fillRect`
@@ -35,7 +35,7 @@ function parse(color: string): [number, number, number, number] {
 
 const rgb = (color: string) => parse(color).slice(0, 3).join(',');
 
-function render(dir: Facing, accent?: string, lights?: 'a' | 'b'): Frame {
+function render(dir: Facing, accent?: string, lights?: 'a' | 'b', kind: VehicleKind = 'pickup'): Frame {
   const px: (string | null)[] = new Array(W * H).fill(null);
   let current: [number, number, number, number] = [0, 0, 0, 1];
 
@@ -59,7 +59,7 @@ function render(dir: Facing, accent?: string, lights?: 'a' | 'b'): Frame {
     }
   };
 
-  drawVehicle(ctx, 0, 0, dir, 'pickup', BODY, accent, lights);
+  drawVehicle(ctx, 0, 0, dir, kind, BODY, accent, lights);
   return {
     where(color) {
       const want = rgb(color);
@@ -104,5 +104,12 @@ describe('drawVehicle light bar', () => {
     const b = render('down', undefined, 'b');
     expect(a.where(BAR_RED)).toEqual(b.where(BAR_BLUE));
     expect(a.where(BAR_BLUE)).toEqual(b.where(BAR_RED));
+  });
+
+  it('never lands on the van windscreen, the kind whose glass sits highest', () => {
+    const bar = render('down', undefined, 'a', 'van');
+    const glass = render('down', undefined, undefined, 'van').where(GLASS);
+    const barPixels = new Set([...bar.where(BAR_OUTLINE), ...bar.where(BAR_RED), ...bar.where(BAR_BLUE)]);
+    for (const pixel of barPixels) expect(glass.has(pixel)).toBe(false);
   });
 });

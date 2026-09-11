@@ -180,6 +180,8 @@ interface Car {
   sprite: Phaser.GameObjects.Sprite;
   /** The two textures a light bar (`Vehicle.lights`) flips between; unset for a car with none. */
   lit?: [string, string];
+  /** Which of `lit` is on screen right now, so `drawCars` only calls `setTexture` on a real change. */
+  litOn?: boolean;
 }
 
 /** A rectangle of world pixels. */
@@ -955,7 +957,9 @@ export class MapScene extends Phaser.Scene {
     // every flashing car in town is in step with every other one, the same
     // way a run of real ones would be. `driver.onDuty` is what keeps a car
     // simply parked from the start out of the flash entirely (DESIGN.md §2):
-    // it always shows `lit[0]`, lit but steady.
+    // it always shows `lit[0]`, lit but steady. `car.litOn` remembers which
+    // one is up so `setTexture` is only ever called on an actual change,
+    // never once a frame for every lit car in town.
     const flash = Math.floor(this.clock / LIGHT_FLASH) % 2 === 1;
     for (const car of this.cars) {
       const { driver, sprite, lit } = car;
@@ -965,7 +969,13 @@ export class MapScene extends Phaser.Scene {
       sprite.setDepth(Math.min((driver.y + 0.5) * TILE, under));
       const frame = vehicleFrame(driver.facing);
       if (lit) {
-        sprite.setTexture(flash && driver.onDuty ? lit[1] : lit[0], frame);
+        const on = flash && driver.onDuty;
+        if (on !== car.litOn) {
+          sprite.setTexture(lit[on ? 1 : 0], frame);
+          car.litOn = on;
+        } else {
+          sprite.setFrame(frame);
+        }
       } else {
         sprite.setFrame(frame);
       }

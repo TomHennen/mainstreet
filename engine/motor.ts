@@ -27,7 +27,9 @@ export const VEHICLE_CELL = 32;
 export const VEHICLE_W = 16;
 export const VEHICLE_L = 32;
 
-const GLASS = '#3e3546';
+// Exported only for engine/motor.test.ts, same as the light bar's own colours
+// below.
+export const GLASS = '#3e3546';
 const TYRE = '#2e222f';
 const LAMP = '#c7dcd0';
 const TAIL = '#6e2727';
@@ -46,11 +48,12 @@ export const BAR_BLUE = '#3366ff';
  * the tile recipes shade themselves, so one recipe works for any colour a
  * world hands it.
  *
- * `accent` (`Vehicle.accent`) is a second body colour: one stripe, in car
- * space, that `put` turns into a lengthways stripe down the side on a car
- * drawn sideways and a crossways band on one drawn nose-on — the same trick
- * as everything else here, so there is only the one stripe to place rather
- * than four. `lights` (`Vehicle.lights`) is undefined for no
+ * `accent` (`Vehicle.accent`) is a second body colour: one full-width, thin
+ * band across the body in car space, which `put` rotates with the rest of
+ * the sprite — a lengthways stripe down the side on a car drawn sideways, a
+ * crossways band on one drawn nose-on — the same trick as everything else
+ * here, so there is only the one band to place rather than four. `lights`
+ * (`Vehicle.lights`) is undefined for no
  * light bar at all, or which of its two flashing variants to paint: `'a'`
  * and `'b'` swap which cell is red and which is blue, which is the whole of
  * the flash — `engine/scenes/map.ts` `drawCars` is what picks a variant
@@ -124,11 +127,13 @@ export function drawVehicle(
       break;
 
     case 'van':
-      // Roof nearly the whole length, windows only at the front.
+      // Roof nearly the whole length, windows only at the front. The
+      // windscreen sits one row lower than it would otherwise (5 rather than
+      // 4) so it starts clear of the light bar's own rows 1-4 above it.
       fill('rgba(255,255,255,.20)');
       put(2, 7, 12, 22);
       fill(GLASS);
-      put(2, 4, 12, 3);
+      put(2, 5, 12, 3);
       put(2, 8, 1, 5);
       put(13, 8, 1, 5);
       break;
