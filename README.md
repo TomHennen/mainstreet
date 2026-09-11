@@ -102,8 +102,8 @@ pushed `v*` tag, and on demand:
 - the **dev build** at `/dev/` — whatever is on `main` right now.
 - a **preview of every open pull request** at `/pr/<number>/`, built from
   the PR's head commit, so a change can be played before it is merged. The
-  workflow posts the link as a comment on the PR and updates it on every
-  push. Only PRs from branches in this repository get one (a fork's PR runs
+  workflow posts the link as a comment on each open PR and updates it on
+  every deploy. Only PRs from branches in this repository get one (a fork's PR runs
   with a read-only token); a PR that fails to build is left out with a
   warning rather than holding up the site; and a closed PR is simply not in
   the next build, so its path goes away on its own (with the merge push, or
