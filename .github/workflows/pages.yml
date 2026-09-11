@@ -8,9 +8,13 @@
 #
 # Pages publishes one artifact as the whole site, so all of them are built
 # fresh from git on every run — a push to main, a pushed v* tag, a pull
-# request opened, updated or closed, or a manual run — and stitched together.
-# Until the first tag exists, main is at the root too. A closed PR simply
-# isn't in the next build, so its path goes away on its own.
+# request opened or updated, or a manual run — and stitched together. Until
+# the first tag exists, main is at the root too. A closed PR simply isn't in
+# the next build, so its path goes away on its own: on the merge push for a
+# merged one, on the next deploy of any kind for one closed without merging.
+# (A closed event doesn't trigger a run of its own: on a merge it would race
+# the push run, and the concurrency group would cancel one of the two, which
+# shows up as a red mark on the main commit for no reason.)
 #
 # To release: tag main (`git tag v1.0.0 && git push origin v1.0.0`, or a
 # GitHub Release that creates the tag). The highest version tag wins, so a
@@ -28,7 +32,7 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -48,6 +52,8 @@ jobs:
     # rebuilds every open same-repo PR, so nothing is lost by skipping here.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    outputs:
+      built: ${{ steps.prs.outputs.built }}
     steps:
       # main goes to /dev/. The full history is fetched here so the tags are
       # in it, and the release checkout below can be named from them.
@@ -112,6 +118,7 @@ jobs:
       # its own CI run will say what is wrong. Ten at a time is plenty here
       # and keeps a deploy to a few minutes.
       - name: Build the open pull requests
+        id: prs
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -121,19 +128,23 @@ jobs:
           gh api "repos/$REPO/pulls?state=open&per_page=100" \
             --jq '.[] | select(.head.repo.full_name == env.REPO) | "\(.number) \(.head.sha)"' \
             | head -n 10 > prs/list.txt
-          if [ ! -s prs/list.txt ]; then echo "No open pull requests to preview"; exit 0; fi
+          built=""
+          if [ ! -s prs/list.txt ]; then echo "No open pull requests to preview"; fi
           while read -r number sha; do
             echo "::group::PR #$number ($sha)"
             if git -C main fetch --quiet origin "$sha" \
               && git -C main worktree add --quiet "../prs/$number" "$sha" \
               && (cd "prs/$number" && npm ci --silent && SITE_BASE="$SITE_ROOT/pr/$number" SITE_RELEASE_BASE="$SITE_ROOT" npm run build:site); then
               echo "built PR #$number"
+              built="$built $number:$sha"
             else
               echo "::warning::PR #$number did not build; it is left out of this deploy"
               rm -rf "prs/$number/dist"
             fi
             echo "::endgroup::"
           done < prs/list.txt
+          # Handed to the comment job: which PRs made it in, and from what.
+          echo "built=${built# }" >> "$GITHUB_OUTPUT"
 
       - name: Put the site together
         run: |
@@ -161,31 +172,36 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v4
 
-  # Tell the pull request where to play it. One comment per PR, updated in
-  # place on every push so the thread doesn't fill up.
+  # Tell each pull request where to play it. Every deploy rebuilds every open
+  # PR, so every one of them gets told, not just the one that triggered the
+  # run. One comment per PR, updated in place so the thread doesn't fill up.
   comment:
-    needs: deploy
-    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    needs: [build, deploy]
+    if: needs.build.outputs.built != ''
     runs-on: ubuntu-latest
     steps:
       - env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          NUMBER: ${{ github.event.pull_request.number }}
-          SHA: ${{ github.event.pull_request.head.sha }}
           OWNER: ${{ github.repository_owner }}
           NAME: ${{ github.event.repository.name }}
+          BUILT: ${{ needs.build.outputs.built }}
         run: |
           # Pages hostnames are lower-case; the owner name as GitHub reports it
           # may not be.
-          URL="https://$(echo "$OWNER" | tr '[:upper:]' '[:lower:]').github.io/$NAME/pr/$NUMBER/"
+          site="https://$(echo "$OWNER" | tr '[:upper:]' '[:lower:]').github.io/$NAME"
           marker='<!-- mainstreet-preview -->'
-          body=$(printf '%s\n\n**Playable preview:** %s\n\nBuilt from %s. Updated on every push; it goes away when the PR closes. Pages can take a minute to catch up after a deploy.' "$marker" "$URL" "$SHA")
-          existing=$(gh api "repos/$REPO/issues/$NUMBER/comments?per_page=100" --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n 1)
-          if [ -n "$existing" ]; then
-            gh api --method PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" > /dev/null
-            echo "Updated the preview comment on PR #$NUMBER"
-          else
-            gh api --method POST "repos/$REPO/issues/$NUMBER/comments" -f body="$body" > /dev/null
-            echo "Posted the preview comment on PR #$NUMBER"
-          fi
+          for entry in $BUILT; do
+            number="${entry%%:*}"
+            sha="${entry#*:}"
+            url="$site/pr/$number/"
+            body=$(printf '%s\n\n**Playable preview:** %s\n\nBuilt from %s. Updated on every push; it goes away when the PR closes. Pages can take a minute to catch up after a deploy.' "$marker" "$url" "$sha")
+            existing=$(gh api "repos/$REPO/issues/$number/comments?per_page=100" --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n 1)
+            if [ -n "$existing" ]; then
+              gh api --method PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" > /dev/null
+              echo "Updated the preview comment on PR #$number"
+            else
+              gh api --method POST "repos/$REPO/issues/$number/comments" -f body="$body" > /dev/null
+              echo "Posted the preview comment on PR #$number"
+            fi
+          done

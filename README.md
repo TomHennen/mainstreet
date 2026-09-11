@@ -102,11 +102,12 @@ pushed `v*` tag, and on demand:
 - the **dev build** at `/dev/` — whatever is on `main` right now.
 - a **preview of every open pull request** at `/pr/<number>/`, built from
   the PR's head commit, so a change can be played before it is merged. The
-  workflow posts the link as a comment on the PR and updates it on every
-  push. Only PRs from branches in this repository get one (a fork's PR runs
+  workflow posts the link as a comment on each open PR and updates it on
+  every deploy. Only PRs from branches in this repository get one (a fork's PR runs
   with a read-only token); a PR that fails to build is left out with a
   warning rather than holding up the site; and a closed PR is simply not in
-  the next build, so its path goes away on its own.
+  the next build, so its path goes away on its own (with the merge push, or
+  with the next deploy of any kind if it was closed without merging).
 
 Each build is every world pack at its own path plus a small landing page
 that links to them (`npm run build:site`). With one world (`route10`) live:
@@ -122,8 +123,7 @@ v1.0.0`, or create a GitHub Release that makes the tag). The release is
 built from its own checkout, so it ships with the build script it was tagged
 with. Pages publishes one artifact as the whole site, so every build is
 built fresh from git on every run (a push to `main`, a pushed tag, a PR
-opened, updated or closed, or a manual run) — nothing is kept between
-deploys.
+opened or updated, or a manual run) — nothing is kept between deploys.
 
 Saves are one `localStorage` key per world (`mainstreet.<worldId>`), and
 all the builds are on the same origin, so a save made in the dev build or a
