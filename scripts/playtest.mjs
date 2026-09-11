@@ -25,6 +25,7 @@
 import { chromium } from 'playwright';
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 // The codec is deliberately DOM- and Node-free (studio/codec.ts's own header),
@@ -38,7 +39,38 @@ import { introLineFor } from '../engine/season.ts';
 import { clearBetween, offsetsWithin, REACH } from '../engine/reach.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const BASE = process.env.PLAYTEST_URL ?? 'http://localhost:5173/';
+
+/**
+ * Whether a TCP port is free to bind on localhost, checked the same way the
+ * server we then start will bind it: `net.createServer().listen()`, closed
+ * again immediately. Never trusts a port merely because nothing answered an
+ * HTTP request on it — that is how a previous run's stuck Vite got mistaken
+ * for a free port.
+ */
+function portIsFree(port) {
+  return new Promise((done) => {
+    const probe = createServer();
+    probe.once('error', () => done(false));
+    probe.listen(port, '127.0.0.1', () => probe.close(() => done(true)));
+  });
+}
+
+async function firstFreePort(start) {
+  for (let port = start; port < start + 200; port++) {
+    if (await portIsFree(port)) return port;
+  }
+  throw new Error(`no free TCP port found from ${start} up`);
+}
+
+// Two agents running playtests from different checkouts at once must never
+// share a port: reusing whatever answers on 5173 means one run silently
+// tests the other checkout's code (docs/sandbox-constraints.md "Parallel
+// agents share ports"). So, unless the caller opts all the way in with
+// PLAYTEST_URL (an existing server this script does not own, used as-is),
+// this run always starts its own Vite, on PLAYTEST_PORT if given, otherwise
+// the first free port from 5173 up.
+const PORT = process.env.PLAYTEST_URL ? null : Number(process.env.PLAYTEST_PORT) || (await firstFreePort(5173));
+const BASE = process.env.PLAYTEST_URL ?? `http://localhost:${PORT}/`;
 const OUT = process.env.PLAYTEST_OUT ?? resolve(ROOT, 'playtest-out');
 const SHOTS = OUT;
 const LOG = resolve(OUT, 'playtest.log');
@@ -807,6 +839,41 @@ async function tapEl(cdp, page, selector) {
 // --- dev server --------------------------------------------------------------
 
 async function ensureServer() {
+  // PLAYTEST_URL is an explicit opt-in to a server this script did not start
+  // and does not own — used as-is, never probed or attached to otherwise.
+  if (process.env.PLAYTEST_URL) return null;
+  log(`  starting vite on port ${PORT} …`);
+  // Vite's own entry point rather than `npx vite`: npx is a wrapper, and
+  // killing a wrapper leaves the server it started holding the port, which
+  // the next run then quietly reuses. stdout stays ignored; stderr is piped
+  // into a small buffer purely so a `--strictPort` bind failure has something
+  // to say beyond "it never came up".
+  const vite = resolve(ROOT, 'node_modules/vite/bin/vite.js');
+  const spawnOpts = { cwd: ROOT, stdio: ['ignore', 'ignore', 'pipe'], detached: false };
+  const child = existsSync(vite)
+    ? spawn(process.execPath, [vite, '--port', String(PORT), '--strictPort'], spawnOpts)
+    : spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], spawnOpts);
+
+  let stderr = '';
+  child.stderr.on('data', (chunk) => {
+    if (stderr.length < 4000) stderr += chunk.toString();
+  });
+
+  // With stdio otherwise silent, a child that exits early — the port was
+  // taken out from under it after all, say — would otherwise just look like
+  // the generic 30s timeout below. Fail the moment it happens instead, with
+  // whatever stderr it managed to say and a pointer at the way out.
+  const crashed = new Promise((_, reject) => {
+    child.on('exit', (code, signal) => {
+      reject(
+        new Error(
+          `vite exited (code ${code}, signal ${signal}) before coming up on port ${PORT} — if something else ` +
+            `is already using it, set PLAYTEST_PORT to a free one.${stderr.trim() ? `\n${stderr.trim()}` : ''}`
+        )
+      );
+    });
+  });
+
   const up = async () => {
     try {
       const r = await fetch(BASE, { signal: AbortSignal.timeout(1500) });
@@ -815,21 +882,16 @@ async function ensureServer() {
       return false;
     }
   };
-  if (await up()) return null;
-  log('  starting vite …');
-  // Vite's own entry point rather than `npx vite`: npx is a wrapper, and
-  // killing a wrapper leaves the server it started holding port 5173, which
-  // the next run then quietly reuses.
-  const vite = resolve(ROOT, 'node_modules/vite/bin/vite.js');
-  const child = existsSync(vite)
-    ? spawn(process.execPath, [vite, '--port', '5173', '--strictPort'], { cwd: ROOT, stdio: 'ignore', detached: false })
-    : spawn('npx', ['vite', '--port', '5173', '--strictPort'], { cwd: ROOT, stdio: 'ignore', detached: false });
-  for (let i = 0; i < 60; i++) {
-    await sleep(500);
-    if (await up()) return child;
-  }
-  child.kill();
-  throw new Error('vite did not come up on 5173');
+  const waitForUp = (async () => {
+    for (let i = 0; i < 60; i++) {
+      await sleep(500);
+      if (await up()) return child;
+    }
+    child.kill();
+    throw new Error(`vite did not come up on port ${PORT}`);
+  })();
+
+  return Promise.race([waitForUp, crashed]);
 }
 
 // --- the watchdog ------------------------------------------------------------
@@ -872,7 +934,10 @@ function startWatchdog() {
 async function main() {
   startWatchdog();
   mkdirSync(OUT, { recursive: true });
-  writeFileSync(LOG, `mainstreet playtest — ${new Date().toISOString()}\n  world: ${WORLD_ID}  episode: ${EPISODE.id} \u201c${EPISODE.title}\u201d\n  url: ${GAME_URL}\n\n`);
+  const serverNote = process.env.PLAYTEST_URL
+    ? `${BASE} (PLAYTEST_URL, not started by this run)`
+    : `${BASE} (started fresh on port ${PORT})`;
+  writeFileSync(LOG, `mainstreet playtest — ${new Date().toISOString()}\n  world: ${WORLD_ID}  episode: ${EPISODE.id} \u201c${EPISODE.title}\u201d\n  server: ${serverNote}\n  url: ${GAME_URL}\n\n`);
   const server = await ensureServer();
   runningServer = server;
 
