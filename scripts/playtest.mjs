@@ -700,11 +700,35 @@ async function ensureServer() {
   log(`  starting vite on port ${PORT} …`);
   // Vite's own entry point rather than `npx vite`: npx is a wrapper, and
   // killing a wrapper leaves the server it started holding the port, which
-  // the next run then quietly reuses.
+  // the next run then quietly reuses. stdout stays ignored; stderr is piped
+  // into a small buffer purely so a `--strictPort` bind failure has something
+  // to say beyond "it never came up".
   const vite = resolve(ROOT, 'node_modules/vite/bin/vite.js');
+  const spawnOpts = { cwd: ROOT, stdio: ['ignore', 'ignore', 'pipe'], detached: false };
   const child = existsSync(vite)
-    ? spawn(process.execPath, [vite, '--port', String(PORT), '--strictPort'], { cwd: ROOT, stdio: 'ignore', detached: false })
-    : spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { cwd: ROOT, stdio: 'ignore', detached: false });
+    ? spawn(process.execPath, [vite, '--port', String(PORT), '--strictPort'], spawnOpts)
+    : spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], spawnOpts);
+
+  let stderr = '';
+  child.stderr.on('data', (chunk) => {
+    if (stderr.length < 4000) stderr += chunk.toString();
+  });
+
+  // With stdio otherwise silent, a child that exits early — the port was
+  // taken out from under it after all, say — would otherwise just look like
+  // the generic 30s timeout below. Fail the moment it happens instead, with
+  // whatever stderr it managed to say and a pointer at the way out.
+  const crashed = new Promise((_, reject) => {
+    child.on('exit', (code, signal) => {
+      reject(
+        new Error(
+          `vite exited (code ${code}, signal ${signal}) before coming up on port ${PORT} — if something else ` +
+            `is already using it, set PLAYTEST_PORT to a free one.${stderr.trim() ? `\n${stderr.trim()}` : ''}`
+        )
+      );
+    });
+  });
+
   const up = async () => {
     try {
       const r = await fetch(BASE, { signal: AbortSignal.timeout(1500) });
@@ -713,12 +737,16 @@ async function ensureServer() {
       return false;
     }
   };
-  for (let i = 0; i < 60; i++) {
-    await sleep(500);
-    if (await up()) return child;
-  }
-  child.kill();
-  throw new Error(`vite did not come up on port ${PORT}`);
+  const waitForUp = (async () => {
+    for (let i = 0; i < 60; i++) {
+      await sleep(500);
+      if (await up()) return child;
+    }
+    child.kill();
+    throw new Error(`vite did not come up on port ${PORT}`);
+  })();
+
+  return Promise.race([waitForUp, crashed]);
 }
 
 // --- the watchdog ------------------------------------------------------------
