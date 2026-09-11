@@ -91,13 +91,35 @@ in Codespaces.
 
 ## Deploy
 
-Every push to `main` builds every world pack and publishes them to GitHub
-Pages, each at its own path, plus a small landing page at the site root that
-links to them (`.github/workflows/pages.yml` runs `npm run build:site`). With
-one world (`route10`) live, that's:
+The site on GitHub Pages carries two builds side by side, and
+`.github/workflows/pages.yml` publishes both on every push to `main`, every
+pushed `v*` tag, and on demand:
 
-- `https://<owner>.github.io/mainstreet/` — the landing page
-- `https://<owner>.github.io/mainstreet/route10/` — Route 10
+- the **release** at the site root — the highest `v*` tag (`v1.2.0`; a tag
+  with a suffix like `v1.2.0-rc1` is left out), so a late tag for an older
+  version never rolls the site back. Until the first tag exists, `main` is
+  here too.
+- the **dev build** at `/dev/` — whatever is on `main` right now.
+
+Each build is every world pack at its own path plus a small landing page
+that links to them (`npm run build:site`). With one world (`route10`) live:
+
+- `https://<owner>.github.io/mainstreet/` — the release's landing page
+- `https://<owner>.github.io/mainstreet/route10/` — Route 10, released
+- `https://<owner>.github.io/mainstreet/dev/` — the dev build's landing page
+- `https://<owner>.github.io/mainstreet/dev/route10/` — Route 10 from `main`
+
+To release, tag `main` and push the tag (`git tag v1.0.0 && git push origin
+v1.0.0`, or create a GitHub Release that makes the tag). The release is
+built from its own checkout, so it ships with the build script it was tagged
+with. Pages publishes one artifact as the whole site, so both builds are
+built fresh from git on every run — nothing is kept between deploys.
+
+Saves are one `localStorage` key per world (`mainstreet.<worldId>`), and
+both builds are on the same origin, so a save made in the dev build is the
+same save the release reads. That is fine while the save format holds still;
+a save-format change on `main` will meet a release build that treats it as
+"no save yet".
 
 One-time setup on a fresh repo: Settings → Pages → Source: "GitHub Actions".
 Nothing else to configure; there are no secrets.
@@ -108,7 +130,11 @@ own `dist/<id>/` output — a single Vite build only ever ships one world, see
 `vite.config.ts`), then writes `dist/index.html` from each world's
 `world.json` `title`/`subtitle`. `SITE_BASE` sets the path the whole site is
 served under (default `/`; the Pages workflow passes
-`/${{ github.event.repository.name }}`). To try it locally:
+`/${{ github.event.repository.name }}` for the release and
+`/${{ github.event.repository.name }}/dev` for the dev build). The dev build
+is also passed `SITE_RELEASE_BASE`, which puts a line at the foot of its
+landing page saying it is the in-progress build and pointing at the release.
+The release never links to the dev build. To try it locally:
 
 ```sh
 SITE_BASE=/mainstreet npm run build:site
