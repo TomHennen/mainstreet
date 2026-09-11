@@ -21,7 +21,8 @@ for feel and behavior*, not code to reuse.
 
 - Phaser 4 + TypeScript + Vite. Static output, no backend.
 - Maps authored in Tiled, exported JSON.
-- Saves in localStorage, namespaced per world.
+- Saves in localStorage, namespaced per world (and, off the release, per
+  build channel: dev and each PR preview keep their own).
 - Deploy: GitHub Pages via `.github/workflows/pages.yml`. `main` goes to
   `/mainstreet/dev/` on every push; the highest `v*` tag goes to the root;
   every open PR gets a playable preview at `/mainstreet/pr/<n>/`, linked
