@@ -105,12 +105,15 @@ jobs:
         env:
           SITE_BASE: /${{ github.event.repository.name }}
 
+      # SITE_CHANNEL keeps this build's saves apart from the release's
+      # (engine/save.ts): everything on the site shares one localStorage.
       - name: Build main (dev path)
         working-directory: main
         run: npm run build:site
         env:
           SITE_BASE: /${{ github.event.repository.name }}/dev
           SITE_RELEASE_BASE: /${{ github.event.repository.name }}
+          SITE_CHANNEL: dev
 
       # Every open pull request from a branch in this repository, each built
       # from its own head commit into pr/<number>/. One that fails to build is
@@ -134,7 +137,7 @@ jobs:
             echo "::group::PR #$number ($sha)"
             if git -C main fetch --quiet origin "$sha" \
               && git -C main worktree add --quiet "../prs/$number" "$sha" \
-              && (cd "prs/$number" && npm ci --silent && SITE_BASE="$SITE_ROOT/pr/$number" SITE_RELEASE_BASE="$SITE_ROOT" npm run build:site); then
+              && (cd "prs/$number" && npm ci --silent && SITE_BASE="$SITE_ROOT/pr/$number" SITE_RELEASE_BASE="$SITE_ROOT" SITE_CHANNEL="pr-$number" npm run build:site); then
               echo "built PR #$number"
               built="$built $number:$sha"
             else

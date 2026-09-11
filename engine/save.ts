@@ -1,6 +1,14 @@
 /**
  * Saves (DESIGN.md §2): one localStorage key per world, `mainstreet.<worldId>`.
  *
+ * A build that is not the release — the dev build at /dev/, a pull request's
+ * preview at /pr/<n>/ — is given a *channel* at build time
+ * (`VITE_SAVE_CHANNEL`, set by scripts/build-site.mjs from `SITE_CHANNEL`),
+ * and its key is `mainstreet.<worldId>.<channel>` instead. All the builds
+ * share one origin, so without this a half-finished change would be reading
+ * and writing the same save as the released game. The release itself has no
+ * channel and keeps the plain key, so nobody's save moves.
+ *
  * Pure and world-agnostic — it stores episode ids, flag names and a tile, and
  * nothing else. No names, no times, no counts, nothing personal, nothing sent
  * anywhere (CLAUDE.md hard rule 7).
@@ -39,7 +47,17 @@ export interface StorageLike {
   removeItem(key: string): void;
 }
 
-export const saveKey = (worldId: string): string => `mainstreet.${worldId}`;
+/**
+ * The build's save channel: empty for the release, `dev` or `pr-<n>` for the
+ * builds beside it. Only ever set by the site build, and only ever a short
+ * lower-case slug (build-site.mjs checks); anything else is treated as none.
+ */
+export const SAVE_CHANNEL: string = /^[a-z0-9-]+$/.test(import.meta.env.VITE_SAVE_CHANNEL ?? '')
+  ? (import.meta.env.VITE_SAVE_CHANNEL as string)
+  : '';
+
+export const saveKey = (worldId: string, channel: string = SAVE_CHANNEL): string =>
+  channel ? `mainstreet.${worldId}.${channel}` : `mainstreet.${worldId}`;
 
 export const emptySave = (): SaveFile => ({ v: SAVE_VERSION, completed: [], episodes: {} });
 

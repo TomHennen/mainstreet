@@ -163,7 +163,10 @@ ordinary Tiled maps afterwards — an artist opens one in Tiled and refines it,
 and the script is not the owner of the file.
 
 **Saves:** localStorage, one key per world — `mainstreet.<worldId>` — holding a
-versioned file:
+versioned file. The dev build and the PR previews live on the same origin as
+the release, so each is built with a *channel* (`VITE_SAVE_CHANNEL`: `dev`,
+`pr-108`) and keys its save `mainstreet.<worldId>.<channel>`; the release has
+no channel and keeps the plain key.
 
 ```jsonc
 { "v": 1,

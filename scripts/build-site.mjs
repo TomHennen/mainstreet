@@ -25,6 +25,11 @@
  * user/org Pages site or local preview). The Pages workflow passes
  * "/${{ github.event.repository.name }}" because a project site is served at
  * https://<owner>.github.io/<repo>/.
+ *
+ * SITE_CHANNEL names a build that is not the release ("dev", "pr-108") so
+ * that its saves stay apart from the released game's: it reaches the engine
+ * as VITE_SAVE_CHANNEL and becomes a suffix on the localStorage key
+ * (engine/save.ts). Unset for the release, which keeps the plain key.
  */
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -50,6 +55,13 @@ const SITE_BASE = rawBase.replace(/\/+$/, '');
 // local build, or the release, leaves it unset.
 const SITE_RELEASE_BASE = process.env.SITE_RELEASE_BASE === undefined ? null : process.env.SITE_RELEASE_BASE.replace(/\/+$/, '');
 
+// A short lower-case slug, or nothing. Checked here so a typo in a workflow
+// fails the build loudly instead of quietly giving every build the same key.
+const SITE_CHANNEL = process.env.SITE_CHANNEL ?? '';
+if (SITE_CHANNEL && !/^[a-z0-9-]+$/.test(SITE_CHANNEL)) {
+  throw new Error(`SITE_CHANNEL must be a short lower-case slug like "dev" or "pr-108", not "${SITE_CHANNEL}"`);
+}
+
 function worldIds() {
   const requested = process.argv.slice(2);
   if (requested.length > 0) return requested;
@@ -62,7 +74,7 @@ function worldIds() {
 function buildWorld(id) {
   const outDir = resolve(DIST_DIR, id);
   const base = `${SITE_BASE}/${id}/`;
-  console.log(`\n> building world "${id}" (base ${base})`);
+  console.log(`\n> building world "${id}" (base ${base}${SITE_CHANNEL ? `, save channel ${SITE_CHANNEL}` : ''})`);
 
   const result = spawnSync(
     process.execPath,
@@ -70,7 +82,7 @@ function buildWorld(id) {
     {
       cwd: ROOT,
       stdio: 'inherit',
-      env: { ...process.env, VITE_WORLD: id }
+      env: { ...process.env, VITE_WORLD: id, ...(SITE_CHANNEL ? { VITE_SAVE_CHANNEL: SITE_CHANNEL } : {}) }
     }
   );
 

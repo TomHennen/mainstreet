@@ -125,11 +125,13 @@ with. Pages publishes one artifact as the whole site, so every build is
 built fresh from git on every run (a push to `main`, a pushed tag, a PR
 opened or updated, or a manual run) — nothing is kept between deploys.
 
-Saves are one `localStorage` key per world (`mainstreet.<worldId>`), and
-all the builds are on the same origin, so a save made in the dev build or a
-PR preview is the same save the release reads. That is fine while the save format holds still;
-a save-format change on `main` will meet a release build that treats it as
-"no save yet".
+Saves are one `localStorage` key per world (`mainstreet.<worldId>`). All the
+builds are on the same origin, so the dev build and each PR preview are
+built with a save channel (`SITE_CHANNEL`, reaching the engine as
+`VITE_SAVE_CHANNEL`) that suffixes their key — `mainstreet.route10.dev`,
+`mainstreet.route10.pr-108` — and none of them touches the release's save.
+A PR preview therefore starts fresh unless you have played that preview
+before.
 
 One-time setup on a fresh repo: Settings → Pages → Source: "GitHub Actions",
 and Settings → Environments → `github-pages` → Deployment branches and tags:

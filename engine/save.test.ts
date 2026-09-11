@@ -49,6 +49,15 @@ describe('the save key', () => {
   it('is one localStorage key per world (DESIGN.md §2)', () => {
     expect(saveKey('route10')).toBe('mainstreet.route10');
   });
+
+  it('keeps a dev or PR build apart from the release with a channel suffix', () => {
+    expect(saveKey('route10', 'dev')).toBe('mainstreet.route10.dev');
+    expect(saveKey('route10', 'pr-108')).toBe('mainstreet.route10.pr-108');
+  });
+
+  it('is the plain release key when no channel is set (tests, npm run dev)', () => {
+    expect(saveKey('route10', '')).toBe('mainstreet.route10');
+  });
 });
 
 describe('writeSave / loadSave', () => {
