@@ -1417,12 +1417,22 @@ async function main() {
 
         if (lost.arrive?.length) {
           log('    watching the deputy pull in and drop you off');
-          // Wherever the scene's own first vehicle `move` sends it is the
-          // tile it stops beside the lot on — read off the data itself
-          // rather than hard-coded, so a redrawn arrival just moves this too.
+          // The tile it stops beside the lot on is wherever the last of the
+          // scene's own leading run of `move`s on that vehicle sends it —
+          // read off the data itself, rather than hard-coded, so a redrawn
+          // arrival just moves this too. The approach may be more than one
+          // leg (a fast one from off in the distance, then an ordinary one
+          // into the stop), so it's the last leg before the first step that
+          // isn't also driving this same vehicle that actually reads as
+          // "arrived", not the first `move` in the scene.
           const firstDrive = lost.arrive.find((step) => step.move?.who?.startsWith('vehicle:'));
           const vehicleId = firstDrive?.move.who.slice('vehicle:'.length);
-          const dropoff = firstDrive?.move.to;
+          let dropoff;
+          for (const step of lost.arrive) {
+            if (step.move?.who === firstDrive?.move.who) {
+              dropoff = step.move.path ? step.move.path[step.move.path.length - 1] : step.move.to;
+            } else if (dropoff) break;
+          }
           if (vehicleId && dropoff) {
             await waitUntil(
               page,
@@ -1431,11 +1441,7 @@ async function main() {
                 return Boolean(truck) && Math.abs(truck.x - dropoff[0]) < 1 && Math.abs(truck.y - dropoff[1]) < 1;
               },
               "the truck to pull up beside Stewart's",
-              // The truck now drives the length of Main Street from the east
-              // edge of town, not just in from the nearest boundary tile, so
-              // this leg alone can take ~13s at its own top speed — well
-              // short of 20s, but 15s left too little margin.
-              20000
+              15000
             );
             await shot(page, 'sheriff-dropoff');
           }
