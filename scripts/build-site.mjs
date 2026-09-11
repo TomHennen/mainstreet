@@ -25,6 +25,11 @@
  * user/org Pages site or local preview). The Pages workflow passes
  * "/${{ github.event.repository.name }}" because a project site is served at
  * https://<owner>.github.io/<repo>/.
+ *
+ * SITE_CHANNEL names a build that is not the release ("dev", "pr-108") so
+ * that its saves stay apart from the released game's: it reaches the engine
+ * as VITE_SAVE_CHANNEL and becomes a suffix on the localStorage key
+ * (engine/save.ts). Unset for the release, which keeps the plain key.
  */
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -42,6 +47,21 @@ const VITE_BIN = resolve(ROOT, 'node_modules', 'vite', 'bin', 'vite.js');
 const rawBase = process.env.SITE_BASE ?? '/';
 const SITE_BASE = rawBase.replace(/\/+$/, '');
 
+// The Pages workflow publishes two builds side by side: the latest release at
+// the site root and main at /dev/ (.github/workflows/pages.yml). The dev build
+// is told where the release is, and its front page says so in a line at the
+// foot, so nobody who lands there mistakes it for the game. The release says
+// nothing about the dev build: players are never pointed at it. Optional: a
+// local build, or the release, leaves it unset.
+const SITE_RELEASE_BASE = process.env.SITE_RELEASE_BASE === undefined ? null : process.env.SITE_RELEASE_BASE.replace(/\/+$/, '');
+
+// A short lower-case slug, or nothing. Checked here so a typo in a workflow
+// fails the build loudly instead of quietly giving every build the same key.
+const SITE_CHANNEL = process.env.SITE_CHANNEL ?? '';
+if (SITE_CHANNEL && !/^[a-z0-9-]+$/.test(SITE_CHANNEL)) {
+  throw new Error(`SITE_CHANNEL must be a short lower-case slug like "dev" or "pr-108", not "${SITE_CHANNEL}"`);
+}
+
 function worldIds() {
   const requested = process.argv.slice(2);
   if (requested.length > 0) return requested;
@@ -54,7 +74,7 @@ function worldIds() {
 function buildWorld(id) {
   const outDir = resolve(DIST_DIR, id);
   const base = `${SITE_BASE}/${id}/`;
-  console.log(`\n> building world "${id}" (base ${base})`);
+  console.log(`\n> building world "${id}" (base ${base}${SITE_CHANNEL ? `, save channel ${SITE_CHANNEL}` : ''})`);
 
   const result = spawnSync(
     process.execPath,
@@ -62,7 +82,7 @@ function buildWorld(id) {
     {
       cwd: ROOT,
       stdio: 'inherit',
-      env: { ...process.env, VITE_WORLD: id }
+      env: { ...process.env, VITE_WORLD: id, ...(SITE_CHANNEL ? { VITE_SAVE_CHANNEL: SITE_CHANNEL } : {}) }
     }
   );
 
@@ -586,6 +606,12 @@ ${world.credits.map((p) => `          <li>${escapeHtml(p.name)} &mdash; ${escape
     .map((p) => (p.link ? `<a href="${escapeHtml(p.link)}">${escapeHtml(p.name)}</a>` : escapeHtml(p.name)))
     .join(', ');
 
+  // On the dev build only: say plainly that this is the one still being
+  // worked on, and point at the released game.
+  const builds = SITE_RELEASE_BASE !== null
+    ? `      <p>This is the in-progress build &mdash; whatever is being worked on right now, before it is finished and released. <a href="${escapeHtml(`${SITE_RELEASE_BASE}/`)}">The released game is here &rarr;</a></p>`
+    : '';
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -716,6 +742,7 @@ ${writeHref ? `
     <footer>
 ${said}
 ${paletteCredits ? `      <p>Painted with the ${paletteCredits} palette.</p>` : ''}
+${builds}
     </footer>
   </main>
 </body>

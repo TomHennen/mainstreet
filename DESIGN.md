@@ -178,7 +178,10 @@ ordinary Tiled maps afterwards — an artist opens one in Tiled and refines it,
 and the script is not the owner of the file.
 
 **Saves:** localStorage, one key per world — `mainstreet.<worldId>` — holding a
-versioned file:
+versioned file. The dev build and the PR previews live on the same origin as
+the release, so each is built with a *channel* (`VITE_SAVE_CHANNEL`: `dev`,
+`pr-108`) and keys its save `mainstreet.<worldId>.<channel>`; the release has
+no channel and keeps the plain key.
 
 ```jsonc
 { "v": 1,
@@ -1168,8 +1171,9 @@ Stewart's, Saturday crossword devotee. Hannah — Stewart's counter.
 - **M1 — Parity + foundations.** M0 hardened: Tiled maps replace array maps,
   Vitest coverage for schema/loader/flags, validate-episodes script, GitHub
   Actions (typecheck, tests, validation), devcontainer. (The public URL
-  already exists: GitHub Pages deploys `main` on every push, see
-  `.github/workflows/pages.yml`. Cloudflare Pages is deferred.)
+  already exists: GitHub Pages deploys `main` to `/dev/` on every push and
+  the latest `v*` tag to the site root, see `.github/workflows/pages.yml`.
+  Cloudflare Pages is deferred.)
 - **M2 — Pipeline. Done.** Asset conventions live (drop a PNG → building
   painted), validate-assets + validate-episodes in CI, art credits in-game,
   save/load with episode completion, title screen.

@@ -21,9 +21,13 @@ for feel and behavior*, not code to reuse.
 
 - Phaser 4 + TypeScript + Vite. Static output, no backend.
 - Maps authored in Tiled, exported JSON.
-- Saves in localStorage, namespaced per world.
-- Deploy: GitHub Pages via `.github/workflows/pages.yml` on every push to
-  `main`. `npm run build:site` builds each world at its own path
+- Saves in localStorage, namespaced per world (and, off the release, per
+  build channel: dev and each PR preview keep their own).
+- Deploy: GitHub Pages via `.github/workflows/pages.yml`. `main` goes to
+  `/mainstreet/dev/` on every push; the highest `v*` tag goes to the root;
+  every open PR gets a playable preview at `/mainstreet/pr/<n>/`, linked
+  from a comment on the PR.
+  `npm run build:site` builds each world at its own path
   (`/mainstreet/route10/`) with a landing page at the root. Cloudflare Pages
   is deferred until there is a reason for it.
 - Keep dependencies minimal. Every new dependency needs a one-line
