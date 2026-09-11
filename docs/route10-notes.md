@@ -216,7 +216,9 @@ how kitchens work**: work tables round the perimeter, an oven, fridges and
 freezers, the middle left open, and the baker moving freely about it with
 the player. She may not always be there; an empty kitchen is fine. She is
 **Laura** (Tom's own choice for the name; the first one tried was too
-close to the real baker's), silver hair in a bun. She makes **lemon shortbread cookies**,
+close to the real baker's), silver hair worn down, long (Tom, Sep 10: she'd
+been coded as an older woman, in a bun — that was a mistake; she may have
+silver hair, but it's down, not pinned up). She makes **lemon shortbread cookies**,
 which people can't get enough of, and **custom cakes**, and she is more
 likely to be found there **late at night** than early in the morning. **The
 baker runs her own business out of this kitchen** (Tom, Sep 10): she is not

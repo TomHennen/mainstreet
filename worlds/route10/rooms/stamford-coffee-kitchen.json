@@ -58,7 +58,7 @@
       "name": "Laura",
       "pos": [6, 5],
       "facing": "down",
-      "look": { "hair": "bun", "hairColor": "#b4b9c3", "skin": "#e0b48c", "shirt": "#8f6a4a" },
+      "look": { "hair": "long", "hairColor": "#b4b9c3", "skin": "#e0b48c", "shirt": "#8f6a4a" },
       "wander": { "radius": 2, "pause": 2 },
       "lines": [
         "Lemon shortbread — that's the batch cooling. Third one today, and it still won't be enough; they go about as fast as they get out front.",
