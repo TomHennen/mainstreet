@@ -569,14 +569,6 @@ export interface WorldCopy {
     narrator: string;
     advance: string;
     /**
-     * One-word verb stacked over the reach prompt's little bubble — "Read,"
-     * for whatever the bubble shows for: a door (which only ever reads to an
-     * A press or a tap; walking into one is what opens it, DESIGN.md §2), a
-     * plaque, a prop, a fixture. Missing means no label over the bubble
-     * (hard rule 3) — the bubble on its own still says something is there.
-     */
-    read?: string;
-    /**
      * The stand-in for an unpainted building with no sign copy at all — none
      * this episode, and none standing in `world.json` either — since without
      * it the box would open empty. Keep it short and kind: a building with

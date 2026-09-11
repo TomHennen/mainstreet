@@ -912,15 +912,15 @@ export function plaqueArt(scene: Phaser.Scene, placement: BuildingPlacement): Pl
   };
 }
 
-// --- the doormat at an open door ----------------------------------------------
+// --- the arrow at an open door -------------------------------------------------
 
-/** The doormat, in pixels: wider than the plaque, and low to the ground. */
-const DOORMAT_W = 12;
-const DOORMAT_H = 4;
+/** The arrow, in pixels: a stubby arrowhead over a short stem. */
+const DOOR_ARROW_W = 10;
+const DOOR_ARROW_H = 9;
 /** How far its bottom edge sits above the bottom of the doorstep tile. */
-const DOORMAT_LIFT = 1;
+const DOOR_ARROW_LIFT = 1;
 
-export interface DoormatArt {
+export interface DoorArrowArt {
   key: string;
   x: number;
   y: number;
@@ -929,36 +929,61 @@ export interface DoormatArt {
 }
 
 /**
- * The engine's own "come on in": a little woven mat laid on the doorstep of
- * a door that actually opens (CLAUDE.md #4, DESIGN.md §2) — the very tile a
- * player stands on to walk in — so an enterable building reads as one at a
- * glance and a building that only carries a sign never grows one. It lives on
- * the *tile*, not baked into the facade's own picture the way the plaque
- * hangs on the wall above it: a player standing on the doorstep is meant to
- * cover it, the way a rug disappears under a pair of feet, rather than the
- * mat drawing over them. `depth` follows the tile-row convention items use
- * (`itemTexture`'s caller), the top edge of the doorstep's own row, which
- * always sits below a player on that row or any row further down the street.
- * Returns null for a building with no interior.
+ * The engine's own "come on in": a small chunky arrow, pointing up into the
+ * door, painted on the doorstep of a door that actually opens (CLAUDE.md #4,
+ * DESIGN.md §2) — the very tile a player stands on to walk in — so an
+ * enterable building reads as one at a glance and a building that only
+ * carries a sign never grows one. Two-tone like a stencilled road marking —
+ * a light fill outlined in the engine's own dark ink — using the same pair
+ * the doormat this replaced was painted in (`#caa06a` on `#6b4a35`), never a
+ * colour a world hands in (hard rule 1). It lives on the *tile*, not baked
+ * into the facade's own picture the way the plaque hangs on the wall above
+ * it: a player standing on the doorstep is meant to cover it, the way a road
+ * marking disappears under a car, rather than the arrow drawing over them.
+ * `depth` follows the tile-row convention items use (`itemTexture`'s
+ * caller), the top edge of the doorstep's own row, which always sits below
+ * a player on that row or any row further down the street. Returns null for
+ * a building with no interior.
  */
-export function doormatArt(scene: Phaser.Scene, placement: BuildingPlacement): DoormatArt | null {
+export function doorArrowArt(scene: Phaser.Scene, placement: BuildingPlacement): DoorArrowArt | null {
   if (!placement.interior) return null;
 
-  const key = 'prop:doormat';
+  const key = 'prop:door-arrow';
   if (!scene.textures.exists(key)) {
-    const { texture, ctx } = canvas(scene, key, DOORMAT_W, DOORMAT_H);
+    const { texture, ctx } = canvas(scene, key, DOOR_ARROW_W, DOOR_ARROW_H);
+    // The arrowhead over its stem, one row at a time (y, x, w) — widest at
+    // the base of the head, pointing up toward the door above.
+    const rows: Array<[number, number, number]> = [
+      [1, 4, 2], // tip
+      [2, 3, 4],
+      [3, 2, 6],
+      [4, 1, 8], // base of the head
+      [5, 3, 4], // stem
+      [6, 3, 4],
+      [7, 3, 4]
+    ];
+    // The outline: each row's own span widened by a pixel either side, plus
+    // its unwidened span copied a pixel above and below, which — drawn for
+    // every row before any fill goes down — leaves a clean one-pixel border
+    // all the way round, corners and steps included.
     ctx.fillStyle = '#6b4a35';
-    ctx.fillRect(0, 0, DOORMAT_W, DOORMAT_H);
+    for (const [y, x, w] of rows) {
+      ctx.fillRect(x - 1, y, w + 2, 1);
+      ctx.fillRect(x, y - 1, w, 1);
+      ctx.fillRect(x, y + 1, w, 1);
+    }
     ctx.fillStyle = '#caa06a';
-    ctx.fillRect(1, 1, DOORMAT_W - 2, 1);
+    for (const [y, x, w] of rows) {
+      ctx.fillRect(x, y, w, 1);
+    }
     texture.refresh();
   }
 
   const [dx, dy] = placement.door;
   return {
     key,
-    x: dx * TILE + (TILE - DOORMAT_W) / 2,
-    y: dy * TILE + TILE - DOORMAT_LIFT - DOORMAT_H,
+    x: dx * TILE + (TILE - DOOR_ARROW_W) / 2,
+    y: dy * TILE + TILE - DOOR_ARROW_LIFT - DOOR_ARROW_H,
     depth: dy * TILE
   };
 }
@@ -1185,79 +1210,24 @@ export function itemTexture(scene: Phaser.Scene): string {
   return key;
 }
 
-/** Rough monospace width of a one-word verb label, for sizing its little tag. */
-function promptLabelWidth(label: string): number {
-  const probe = document.createElement('canvas').getContext('2d');
-  if (probe) probe.font = `7px ${MONO}`;
-  return Math.ceil((probe?.measureText(label).width ?? label.length * 4) + 6);
-}
-
 /**
- * The little bubble that floats over whatever is in reach — a small speech
- * bubble with three dashes in it, standing for "something here to press A
- * on," whether that means talking, reading or picking up. It used to be the
- * bare letter "A", which put the exact same letterform on screen twice at
- * once: once here, floating over the world, and once for real on the touch
- * A button a thumb's width below it (`#btnA` in `style.css`) — easy to catch
- * on each other at a glance, which was Tom's playtest complaint. A bubble has
- * no letter in it at all now, so the two can never be confused, painted or
- * not, on any world's palette (the shapes below are the engine's own paper
- * and ink, `#f3ead8`/`#2a231a`, the same pair the say box itself uses — never
- * a colour a world hands in, per hard rule 1).
- *
- * A door with an interior used to grow a second, different glyph here — a
- * little house, for "this presses A to walk in" — back when pressing A at
- * such a door opened it. It no longer does (DESIGN.md §2: walking through the
- * door is what opens it now, and A only ever reads the standing sign there,
- * same as everywhere else), so there is only ever one glyph to show, and the
- * doormat alone marks a door as one you can walk into.
- *
- * A one-word verb tag can stack above the bubble too, when the world gives it
- * one (`copy.json` `ui.read`) — "Read" over everything the bubble shows for.
- * The tag is optional per hard rule 3: with no `label`, this draws exactly
- * the bare bubble it always has, and the two are cached under one key so a
- * repeated call for the same label costs nothing after the first. Sized to
- * the bubble alone when there is no label, and centred on the wider of the
- * two when there is, so the bubble never has to move to make room for it.
+ * The little "press A" bubble that floats over whatever is in reach — a
+ * door, a person, a plaque, a prop. One glyph for everything it shows for: a
+ * door only ever reads its standing sign to an A press (DESIGN.md §2, same
+ * as anywhere else), so there is nothing here that needs a second glyph, and
+ * the bubble never carries a word label either — the bare letter is the
+ * whole of it, in the world's own accent font (`MONO`).
  */
-export function promptTexture(scene: Phaser.Scene, label?: string): string {
-  const key = `prompt:${label ?? ''}`;
+export function promptTexture(scene: Phaser.Scene, glyph: string): string {
+  const key = `prompt:${glyph}`;
   if (scene.textures.exists(key)) return key;
-
-  const labelW = label ? promptLabelWidth(label) : 0;
-  const labelH = label ? 9 : 0;
-  const width = Math.max(TILE, labelW);
-  const { texture, ctx } = canvas(scene, key, width, 12 + labelH);
-
-  if (label) {
-    ctx.font = `7px ${MONO}`;
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(30,25,18,.82)';
-    ctx.fillRect(width / 2 - labelW / 2, 0, labelW, labelH - 1);
-    ctx.fillStyle = '#f3ead8';
-    ctx.fillText(label, width / 2, labelH - 2.5);
-  }
-
-  const bx = width / 2 - 6;
-  const by = labelH;
+  const { texture, ctx } = canvas(scene, key, TILE, 12);
   ctx.fillStyle = '#f3ead8';
-  ctx.fillRect(bx, by, 12, 11);
-
-  // A small dark speech bubble, tail down-left, with three paper-coloured
-  // dashes standing in for words — a silhouette that reads as "something to
-  // say" rather than as any single letter.
-  const ink = '#2a231a';
-  ctx.fillStyle = ink;
-  ctx.fillRect(bx + 2, by + 2, 8, 5);
-  ctx.fillRect(bx + 1, by + 3, 1, 3);
-  ctx.fillRect(bx + 10, by + 3, 1, 3);
-  ctx.fillRect(bx + 3, by + 7, 2, 1);
-  ctx.fillRect(bx + 2, by + 8, 1, 1);
-  ctx.fillStyle = '#f3ead8';
-  ctx.fillRect(bx + 3, by + 4, 1, 2);
-  ctx.fillRect(bx + 6, by + 4, 1, 2);
-  ctx.fillRect(bx + 9, by + 4, 1, 2);
-
+  ctx.fillRect(2, 0, 12, 11);
+  ctx.fillStyle = '#2a231a';
+  ctx.font = `8px ${MONO}`;
+  ctx.textAlign = 'center';
+  ctx.fillText(glyph, 8, 8);
   texture.refresh();
   return key;
 }

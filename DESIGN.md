@@ -106,7 +106,7 @@ plaque, a street fixture or something lying about walks over and does the
 thing on arrival, with no A press: a door with an interior behind it opens,
 and is only ever the way in — tap-to-go is the primary way to play (hard
 rule 4), so a phone has to be able to walk in the front door the same way
-the keyboard's held "up" can (see "The doormat, and reading a door," below)
+the keyboard's held "up" can (see "The door arrow, and reading a door," below)
 — while a door with none reads the sign, exactly as it always did. The
 plaque — the tile it is read from, or the little brass one drawn on the
 wall above it — thanks whoever painted the place, and anywhere else on a
@@ -250,9 +250,9 @@ the words gets in the way of reading. If the episode gives an unpainted
 building no sign copy at all, the box would open empty, so `copy.json`
 `ui.unpainted` supplies one short line instead.
 
-**The doormat, and reading a door.** A door with an interior behind it opens
+**The door arrow, and reading a door.** A door with an interior behind it opens
 two ways and reads its standing sign a third, never confused for each other.
-A tap on the door tile itself — or the doormat sitting on it, the same tile
+A tap on the door tile itself — or the arrow painted on it, the same tile
 — walks the player there and opens it on arrival, no A press involved, the
 same as tapping always has (CLAUDE.md hard rule 4: tap-to-go is the primary
 way to play, so a phone has to be able to walk in a front door the same way
@@ -287,31 +287,32 @@ at a disarmed door still answers, reading the sign instead of doing
 nothing, since a tap always answers something.
 
 Nothing marked an opening door as one before a player tried it, so the engine
-lays a small doormat right on the doorstep of any door with an interior
-behind it (`engine/art.ts` `doormatArt`) — nothing a world ever paints, and
-nothing a door with no interior grows — the same "at a glance" the plaque and
-the "needs an artist" shimmer already give a building's facade. It lives on
-the tile itself rather than baked into the facade's picture the way the
-plaque hangs on the wall above it, and draws at that tile's own depth rather
-than the facade's, so a player standing on the doorstep draws over it —
-covering it the way a rug disappears under a pair of feet — instead of the
-mat drawing over the player. It carries the whole "you can walk in here"
-meaning on its own: the reach prompt at a door never says anything about
-entering, only about reading, so there is only ever the one glyph and the one
-label at a door, not two competing for the same small space.
+paints a small arrow right on the doorstep of any door with an interior
+behind it, pointing up into the door (`engine/art.ts` `doorArrowArt`) —
+nothing a world ever paints, and nothing a door with no interior grows — the
+same "at a glance" the plaque and the "needs an artist" shimmer already give
+a building's facade. A small chunky arrowhead over a short stem, about ten
+pixels wide at its base, two-tone like a stencilled road marking — a light
+fill outlined in the engine's own dark ink, never a colour a world hands in
+(hard rule 1) — sized to read at the game's base zoom the same way the
+plaque and the reach prompt do. It lives on the tile itself rather than baked
+into the facade's picture the way the plaque hangs on the wall above it, and
+draws at that tile's own depth rather than the facade's, so a player standing
+on the doorstep draws over it — covering it the way a road marking disappears
+under a car — instead of the arrow drawing over the player. It carries the
+whole "you can walk in here" meaning on its own: the reach prompt at a door
+never says anything about entering, only about reading, so there is only
+ever the one prompt at a door, not two competing for the same small space.
 
-The bubble that floats over whatever is in reach can carry a one-word verb
-above it too — `copy.json` `ui.read` ("Read") over everything it shows for,
-door included, since A only ever reads there now. Missing it drops the label
-and leaves the bubble to speak for itself (hard rule 3): a world that never
-writes it plays exactly as it did before. The bubble itself used to be the
-bare letter "A" — the same letterform as the real A button sitting a thumb's
-width below it on screen, easy to mistake for one another at a glance, which
-was Tom's playtest complaint. It is now a small dark speech bubble with three
-paper-coloured dashes in it (`engine/art.ts` `promptTexture`), in the same
-paper and ink the say box itself is built from rather than any colour a world
-hands the engine (hard rule 1) — a shape with no letter in it at all, so it
-can never again be confused with the A button, painted or not.
+The bubble that floats over whatever is in reach is the plain letter "A" —
+the same glyph on every kind of thing it shows for, door included, since A
+only ever reads the standing sign there, never opens it, so there is nothing
+here that needs a second glyph (`engine/art.ts` `promptTexture`). A branch
+once swapped it for a wordless speech bubble with a "Read" tag stacked above
+it (`copy.json` `ui.read`), reasoning that the bare "A" looked too much like
+the real A button a thumb's width below it on screen; Tom's playtest verdict
+was the opposite — he wanted the letter back — so the bubble is the "A" it
+always was, and the tag is gone along with the schema field that named it.
 
 **Street fixtures, and the suggestion box.** A map may list engine-drawn
 furniture that belongs to no building and no episode:

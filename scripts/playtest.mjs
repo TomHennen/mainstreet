@@ -1496,14 +1496,14 @@ async function main() {
     // reads the standing sign, same as anywhere else, and the door only opens
     // when the player actually walks onto it (DESIGN.md §2). One step short of
     // it, in reach but not on it yet, is exactly the shot Tom asked for: the
-    // doormat marking the door as one that opens, and the "Read" prompt
-    // floating over it, side by side, so the two glyphs can be told apart.
-    log("  see Stewart's doormat");
+    // arrow on the doorstep marking the door as one that opens, and the "A"
+    // prompt floating over it once in reach, side by side.
+    log("  see Stewart's door arrow");
     const stewarts = WORLD.maps.stamford.buildings.find((b) => b.id === 'stewarts');
-    // Far enough off that no prompt bubble is up yet — the doormat on its own,
+    // Far enough off that no prompt bubble is up yet — the arrow on its own,
     // marking the door as one that opens.
-    await walkTo(page, 'stewarts-doormat', [stewarts.door[0], stewarts.door[1] + 3]);
-    await shot(page, 'stewarts-doormat');
+    await walkTo(page, 'stewarts-door-arrow', [stewarts.door[0], stewarts.door[1] + 3]);
+    await shot(page, 'stewarts-door-arrow');
 
     log("  approach Stewart's door");
     await walkTo(page, 'stewarts-approach', [stewarts.door[0], stewarts.door[1] + 1]);
