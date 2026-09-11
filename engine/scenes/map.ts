@@ -114,6 +114,8 @@ const PAN_SPEED = 8;
  * time is the whole debounce; which car gets to go is otherwise first-come.
  */
 const HOLLER_DISPLAY = 3.8;
+/** How long a lit roof bar (`Vehicle.lights`) shows each colour before it swaps — `drawCars`. */
+const LIGHT_FLASH = 0.25;
 
 /**
  * Which tiles of each baked map texture an overlay is currently painted over.
@@ -176,6 +178,8 @@ interface Car {
   id: string;
   driver: Driver;
   sprite: Phaser.GameObjects.Sprite;
+  /** The two textures a light bar (`Vehicle.lights`) flips between; unset for a car with none. */
+  lit?: [string, string];
 }
 
 /** A rectangle of world pixels. */
@@ -835,9 +839,18 @@ export class MapScene extends Phaser.Scene {
     const { assets } = session();
     const drivable = driveable(this.map);
     for (const vehicle of vehiclesOn(this.mapId)) {
-      const key = assets.vehicles.has(vehicle.id)
+      const painted = assets.vehicles.has(vehicle.id);
+      // A painted sheet has no light-bar variants of its own (hard rule 3:
+      // `lights` and `accent` are placeholder-only, same as `colour`), so a
+      // painted car never flashes — only the engine-drawn one gets a `lit`
+      // pair of textures.
+      const key = painted
         ? `art:vehicle:${vehicle.id}`
-        : vehicleTexture(this, vehicle.kind, vehicle.colour);
+        : vehicleTexture(this, vehicle.kind, vehicle.colour, vehicle.accent, vehicle.lights ? 'a' : undefined);
+      const lit: [string, string] | undefined =
+        !painted && vehicle.lights
+          ? [key, vehicleTexture(this, vehicle.kind, vehicle.colour, vehicle.accent, 'b')]
+          : undefined;
       const driver = new Driver({
         pos: vehicle.pos,
         path: vehicle.path,
@@ -855,7 +868,7 @@ export class MapScene extends Phaser.Scene {
       // Origin at the middle of the car, which is what its tile position
       // means: a car lies along the lane it is in rather than standing on it.
       const sprite = this.add.sprite(0, 0, key, vehicleFrame(driver.facing)).setOrigin(0.5, 0.5);
-      this.cars.push({ id: vehicle.id, driver, sprite });
+      this.cars.push({ id: vehicle.id, driver, sprite, lit });
     }
     if (this.cars.length) this.drawCars();
   }
@@ -938,13 +951,24 @@ export class MapScene extends Phaser.Scene {
    */
   private drawCars(): void {
     const under = this.py + HITBOX - 1;
+    // A lit bar's two textures (`Car.lit`) swap on this one shared beat, so
+    // every flashing car in town is in step with every other one, the same
+    // way a run of real ones would be. `driver.onDuty` is what keeps a car
+    // simply parked from the start out of the flash entirely (DESIGN.md §2):
+    // it always shows `lit[0]`, lit but steady.
+    const flash = Math.floor(this.clock / LIGHT_FLASH) % 2 === 1;
     for (const car of this.cars) {
-      const { driver, sprite } = car;
+      const { driver, sprite, lit } = car;
       sprite.setVisible(driver.onMap);
       if (!driver.onMap) continue;
       sprite.setPosition(Math.round(driver.x * TILE) + TILE / 2, Math.round(driver.y * TILE) + TILE / 2);
       sprite.setDepth(Math.min((driver.y + 0.5) * TILE, under));
-      sprite.setFrame(vehicleFrame(driver.facing));
+      const frame = vehicleFrame(driver.facing);
+      if (lit) {
+        sprite.setTexture(flash && driver.onDuty ? lit[1] : lit[0], frame);
+      } else {
+        sprite.setFrame(frame);
+      }
     }
   }
 

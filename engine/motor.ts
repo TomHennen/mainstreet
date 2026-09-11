@@ -32,13 +32,40 @@ const TYRE = '#2e222f';
 const LAMP = '#c7dcd0';
 const TAIL = '#6e2727';
 
+// A light bar is a light bar in any world (`Vehicle.lights`): its outline and
+// its red and blue are engine constants, never a colour a world pack hands
+// in, unlike the body and its accent stripe around it. Exported only for
+// engine/motor.test.ts to check the right pixels turn up.
+export const BAR_OUTLINE = '#20242b';
+export const BAR_RED = '#d33333';
+export const BAR_BLUE = '#3366ff';
+
 /**
  * One frame: a `kind` in `colour` at `ox, oy` in the cell, pointing `dir`.
  * Shading is translucent white and black over the body colour, the same way
  * the tile recipes shade themselves, so one recipe works for any colour a
  * world hands it.
+ *
+ * `accent` (`Vehicle.accent`) is a second body colour: one stripe, in car
+ * space, that `put` turns into a lengthways stripe down the side on a car
+ * drawn sideways and a crossways band on one drawn nose-on — the same trick
+ * as everything else here, so there is only the one stripe to place rather
+ * than four. `lights` (`Vehicle.lights`) is undefined for no
+ * light bar at all, or which of its two flashing variants to paint: `'a'`
+ * and `'b'` swap which cell is red and which is blue, which is the whole of
+ * the flash — `engine/scenes/map.ts` `drawCars` is what picks a variant
+ * frame to frame, on a clock, never this.
  */
-export function drawVehicle(ctx: Paint, ox: number, oy: number, dir: Facing, kind: VehicleKind, colour: string): void {
+export function drawVehicle(
+  ctx: Paint,
+  ox: number,
+  oy: number,
+  dir: Facing,
+  kind: VehicleKind,
+  colour: string,
+  accent?: string,
+  lights?: 'a' | 'b'
+): void {
   const fill = (color: string) => {
     ctx.fillStyle = color;
   };
@@ -117,6 +144,14 @@ export function drawVehicle(ctx: Paint, ox: number, oy: number, dir: Facing, kin
       break;
   }
 
+  // The accent stripe, under the windows and clear of them on all three
+  // kinds — edge to edge, same as the body itself, so it reads as paint
+  // rather than a decal.
+  if (accent !== undefined) {
+    fill(accent);
+    put(0, 25, VEHICLE_W, 2);
+  }
+
   // Sills: lit down the driver's left, shaded down the right.
   fill('rgba(255,255,255,.14)');
   put(0, 2, 1, 28);
@@ -129,4 +164,18 @@ export function drawVehicle(ctx: Paint, ox: number, oy: number, dir: Facing, kin
   fill(TAIL);
   put(1, 31, 3, 1);
   put(VEHICLE_W - 4, 31, 3, 1);
+
+  // The roof light bar: two cells, red and blue, in a dark outline, mounted
+  // just ahead of the windscreen so it sits on the roof on every kind. `dir`
+  // already turns it with the rest of the car by way of `put`.
+  if (lights !== undefined) {
+    fill(BAR_OUTLINE);
+    put(3, 1, 10, 4);
+    const left = lights === 'a' ? BAR_RED : BAR_BLUE;
+    const right = lights === 'a' ? BAR_BLUE : BAR_RED;
+    fill(left);
+    put(4, 2, 4, 2);
+    fill(right);
+    put(8, 2, 4, 2);
+  }
 }

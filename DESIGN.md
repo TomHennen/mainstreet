@@ -747,6 +747,15 @@ along NY 10 there, a van along Jefferson's Main Street, and a car along
 Hobart's. Keep waypoints — where a car pauses — off junction tiles, so nobody
 is ever left idling in the middle of a crossroads.
 
+A vehicle may also carry `"accent"`, a second hex colour for the engine-drawn
+placeholder: a stripe along the body's sides, under the windows, in the same
+place on every facing. And it may carry `"lights": true` for a small roof
+light bar, red and blue, alternating about every quarter second while the car
+is actually in service — driving, or standing still mid-scene between one
+`move` and the next — and lit but steady on a car simply parked from the
+start with nothing ever sending it anywhere. Both are ignored once a vehicle
+is painted, same as `colour`.
+
 A parked vehicle may also carry `"hidden": true`: a car that exists only for
 a scene, drawn nowhere and given way to by nobody — as if it were not on the
 map at all — until the first time a scene's `move` sends it somewhere

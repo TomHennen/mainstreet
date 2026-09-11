@@ -233,6 +233,8 @@ export class Driver {
    * mid-map. Cleared the moment that arrival is actually seen and acted on.
    */
   private vanishGoal: Vec2 | null = null;
+  /** True from this car's first `sendTo` on, for as long as this `Driver` exists — see `onDuty`. */
+  private everSent = false;
 
   constructor(options: DriverOptions) {
     this.revealed = !options.hidden;
@@ -334,6 +336,21 @@ export class Driver {
   }
 
   /**
+   * True for a car actually in service for the rest of this visit to the
+   * map, rather than simply left somewhere: one with a route of its own
+   * (`parked` is never true for those), or — for one with none — a car a
+   * scene has sent somewhere at least once, even once it arrives and stands
+   * waiting for the next `move`. False only for a car parked from the start
+   * with no route and never sent anywhere by a scene at all. The one thing
+   * this is for today is a light bar (`Vehicle.lights`, `drawCars` in
+   * engine/scenes/map.ts): it flashes on a car that is on duty, and stays
+   * lit but steady on one that is well and truly just parked.
+   */
+  get onDuty(): boolean {
+    return !this.parked || this.everSent;
+  }
+
+  /**
    * Drive to one tile, now — the scene runner's `move` step for a
    * `"vehicle:<id>"` (engine/scene.ts, DESIGN.md §3). It is the mover's own
    * `sendTo`, with one thing deliberately left out: no "and nobody standing
@@ -359,6 +376,7 @@ export class Driver {
    */
   sendTo(goal: Vec2, speed?: number): boolean {
     this.revealed = true;
+    this.everSent = true;
     const ok = this.mover.sendTo(goal, speed);
     this.vanishGoal = ok && atMapBoundary(goal, this.bounds, this.exits) ? goal : null;
     return ok;

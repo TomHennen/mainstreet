@@ -1227,6 +1227,12 @@ function checkVehicle(vehicle: Vehicle, map: GameMap, context: string, problems:
   if (typeof vehicle.colour !== 'string' || !HEX.test(vehicle.colour)) {
     problems.push(`${context} has a "colour" that isn't a hex colour like "#9babb2"`);
   }
+  if (vehicle.accent !== undefined && (typeof vehicle.accent !== 'string' || !HEX.test(vehicle.accent))) {
+    problems.push(`${context} has an "accent" that isn't a hex colour like "#9babb2"`);
+  }
+  if (vehicle.lights !== undefined && typeof vehicle.lights !== 'boolean') {
+    problems.push(`${context} has a "lights" that isn't a boolean`);
+  }
   if (vehicle.facing !== undefined && !(FACINGS as readonly string[]).includes(vehicle.facing)) {
     problems.push(`${context} has an unknown "facing" — expected one of ${FACINGS.join(', ')}`);
   }

@@ -1147,14 +1147,25 @@ export { VEHICLE_CELL };
  * `assets/vehicles/<id>.png` is therefore 32x128.
  *
  * The recipe itself lives in engine/motor.ts, which needs no browser; this
- * wraps it in a Phaser texture, one per kind-and-colour.
+ * wraps it in a Phaser texture, one per kind, colour, accent and light-bar
+ * variant a world's vehicles actually use. `lights` is undefined for a car
+ * with no light bar, or which of its two flashing variants (`'a'`/`'b'`) this
+ * particular texture paints — `engine/scenes/map.ts` `addCars` asks for both
+ * of a lit car's variants once and flips the sprite between the two keys
+ * itself, on a clock, rather than this ever being asked to redraw one.
  */
-export function vehicleTexture(scene: Phaser.Scene, kind: VehicleKind, colour: string): string {
-  const key = `vehicle:${kind}:${colour}`;
+export function vehicleTexture(
+  scene: Phaser.Scene,
+  kind: VehicleKind,
+  colour: string,
+  accent?: string,
+  lights?: 'a' | 'b'
+): string {
+  const key = `vehicle:${kind}:${colour}:${accent ?? ''}:${lights ?? ''}`;
   if (scene.textures.exists(key)) return key;
 
   const { texture, ctx } = canvas(scene, key, VEHICLE_CELL, VEHICLE_CELL * FACINGS.length);
-  FACINGS.forEach((dir, row) => drawVehicle(ctx, 0, row * VEHICLE_CELL, dir, kind, colour));
+  FACINGS.forEach((dir, row) => drawVehicle(ctx, 0, row * VEHICLE_CELL, dir, kind, colour, accent, lights));
   texture.refresh();
 
   FACINGS.forEach((_, row) => {

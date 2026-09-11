@@ -2037,6 +2037,18 @@ describe('vehicles', () => {
     expect(runWorld(townWith([car({ colour: 'green' })])).join('\n')).toContain("a \"colour\" that isn't a hex colour");
   });
 
+  it('accepts an accent stripe and a lit roof bar', () => {
+    expect(runWorld(townWith([car({ accent: '#2b3a55', lights: true })]))).toEqual([]);
+  });
+
+  it('rejects an accent that is not a colour', () => {
+    expect(runWorld(townWith([car({ accent: 'navy' })])).join('\n')).toContain("an \"accent\" that isn't a hex colour");
+  });
+
+  it('rejects a lights that is not a boolean', () => {
+    expect(runWorld(townWith([car({ lights: 'yes' })])).join('\n')).toContain("a \"lights\" that isn't a boolean");
+  });
+
   it('rejects a speed that is not a number of tiles per second', () => {
     expect(runWorld(townWith([car({ speed: 0 })])).join('\n')).toContain("a \"speed\" that isn't");
   });

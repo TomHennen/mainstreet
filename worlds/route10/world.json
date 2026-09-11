@@ -947,7 +947,9 @@
         {
           "id": "stamford-sheriff-truck",
           "kind": "pickup",
-          "colour": "#6b7a5e",
+          "colour": "#f2efe6",
+          "accent": "#2b3a55",
+          "lights": true,
           "pos": [95, 16],
           "facing": "left",
           "hidden": true,

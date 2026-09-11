@@ -286,6 +286,23 @@ export interface Vehicle {
   kind: VehicleKind;
   /** Body colour of the engine-drawn placeholder. Ignored once painted. */
   colour: string;
+  /**
+   * A second colour for the engine-drawn placeholder: a stripe along the
+   * body's sides, under the windows, in the same place on every facing.
+   * Optional — with none the body is one plain colour. Ignored once painted,
+   * same as `colour`.
+   */
+  accent?: string;
+  /**
+   * A small roof light bar on the engine-drawn placeholder — red and blue,
+   * alternating about every quarter second while the car is actually in
+   * service: driving, or standing still mid-scene between one `move` and the
+   * next. A car simply parked from the start, with no `path` and never sent
+   * anywhere by a scene, shows the bar lit but steady rather than flashing —
+   * there is nothing going on to flash about. Optional; with none, no bar is
+   * drawn at all. Ignored once painted, same as `colour`.
+   */
+  lights?: boolean;
   /** The tile it sits on. Defaults to the first waypoint; required when parked. */
   pos?: Vec2;
   /** Which way it points. Default 'down'; a moving car turns as it drives. */
