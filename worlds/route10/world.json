@@ -863,7 +863,7 @@
             "\"Get yourself a coffee,\" they say. \"And maybe stick to the sidewalks for a while.\""
           ] } },
           { "camera": { "to": "player" } },
-          { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [95, 18] } }
+          { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [0, 16] } }
         ]
       },
       "people": [
@@ -947,8 +947,8 @@
           "id": "stamford-sheriff-truck",
           "kind": "pickup",
           "colour": "#6b7a5e",
-          "pos": [0, 18],
-          "facing": "right",
+          "pos": [95, 16],
+          "facing": "left",
           "hidden": true,
           "speed": 6
         },

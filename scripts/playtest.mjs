@@ -1431,7 +1431,11 @@ async function main() {
                 return Boolean(truck) && Math.abs(truck.x - dropoff[0]) < 1 && Math.abs(truck.y - dropoff[1]) < 1;
               },
               "the truck to pull up beside Stewart's",
-              15000
+              // The truck now drives the length of Main Street from the east
+              // edge of town, not just in from the nearest boundary tile, so
+              // this leg alone can take ~13s at its own top speed — well
+              // short of 20s, but 15s left too little margin.
+              20000
             );
             await shot(page, 'sheriff-dropoff');
           }

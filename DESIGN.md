@@ -412,8 +412,10 @@ A tile within one tile of any `exits` or `edges` rectangle counts as that
 road's shoulder rather than the woods, so landing a step off a doorway out of
 town — the way tap-to-walk often does — is still the road, never lost.
 
-The controls lock, the narrator says `lines` in the say box, and when the
-last one is dismissed the road card plays — held 1600ms rather than an
+The controls lock, the map fades to black (a 500ms camera fade, so the still
+lively town never shows through the words), the narrator says `lines` in the
+say box on top of that black, and when the last one is dismissed the road
+card plays — held 1600ms rather than an
 ordinary road's 900ms, since this line is a story, not a road name — its
 copy is `copy.transitions["lost:<map id>"]`, the same shape every other card
 has — and the player is set down at `spawn` on `to`, facing `facing`,
@@ -444,7 +446,7 @@ ride home happening entirely off screen:
     { "move": { "who": "player", "to": [16, 15], "speed": 3.5 } },
     { "say": { "lines": ["…"] } },
     { "camera": { "to": "player" } },
-    { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [95, 18] } }
+    { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [0, 16] } }
   ]
 }
 ```
