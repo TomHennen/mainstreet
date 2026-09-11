@@ -219,8 +219,9 @@ the player. She may not always be there; an empty kitchen is fine. She is
 close to the real baker's), silver hair worn down, long (Tom, Sep 10: she'd
 been coded as an older woman, in a bun — that was a mistake; she may have
 silver hair, but it's down, not pinned up). She makes **lemon shortbread cookies**,
-which people can't get enough of, and **custom cakes**, and she is more
-likely to be found there **late at night** than early in the morning. **The
+which people can't get enough of, and **custom cakes**, and some nights she
+is there **late**, after the shop has closed — sometimes, not as a rule (Tom,
+Sep 10: she doesn't always work late, just sometimes). **The
 baker runs her own business out of this kitchen** (Tom, Sep 10): she is not
 Stamford Coffee's employee — the cake orders are hers, and the shop lets her
 bake in here after hours by arrangement, which suits them both. Her business

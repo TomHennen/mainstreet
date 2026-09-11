@@ -85,6 +85,21 @@ describe('buildRoom: the shell', () => {
     expect(r.meta.name).toBe('A Room');
   });
 
+  it("paints a door's own tiles into the doorway, and it is still the doorway", () => {
+    const r = room({ door: { side: 'left', column: 3, width: 2, tiles: [17, 18] } });
+    expect(groundAt(r, 0, 3)).toBe(17);
+    expect(groundAt(r, 0, 4)).toBe(18);
+    expect(groundAt(r, 0, 2)).toBe(PALETTE.wall);
+    expect(r.enter).toEqual([1, 3]);
+    expect(r.meta.exits[0].at).toEqual([0, 3, 1, 2]);
+    // One id is cycled over the whole gap, and the doorway still refuses furniture.
+    const one = room({ door: { side: 'left', column: 3, width: 2, tiles: [17] } });
+    expect([groundAt(one, 0, 3), groundAt(one, 0, 4)]).toEqual([17, 17]);
+    expect(() =>
+      room({ door: { side: 'left', column: 3, width: 2, tiles: [17] }, props: [{ kind: 'table', at: [[0, 3]] }] })
+    ).toThrow(/doorway|wall/);
+  });
+
   it('puts the door in whichever wall the spec names', () => {
     expect(room({ door: { side: 'top', column: 4, width: 2 } }).enter).toEqual([4, 1]);
     expect(room({ door: { side: 'left', column: 3, width: 1 } }).enter).toEqual([1, 3]);

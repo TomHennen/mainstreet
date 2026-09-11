@@ -61,7 +61,12 @@
  * the top or bottom edge, a row for one on the left or right. The convention is
  * `"bottom"`, which is what a doorway you walk down out of reads as; the other
  * three sides work but no world uses one yet. The exit trigger covers the gap,
- * and the spawn tile inside the room is the tile just in from it.
+ * and the spawn tile inside the room is the tile just in from it. The gap is
+ * painted with the doormat tile unless the door names its own `tiles` (ids,
+ * cycled along the gap like a prop's) — Stamford Coffee's kitchen has the
+ * steel door tile there, so the way out reads as a door against the brick
+ * rather than a mat the colour of the wall. Whatever is named must be
+ * walkable: the script refuses a solid tile in the doorway.
  *
  * Every prop covers either a `rect` (`[x, y, w, h]`) or a list of tiles (`at`),
  * and may name its own `tiles` (ids, cycled in order) instead of the default for
@@ -202,7 +207,13 @@ export interface RoomSpec {
    * it the whole box is the room, ringed in wall, as before.
    */
   plan?: Rect[];
-  door: { side?: Side; column: number; width?: number };
+  door: {
+    side?: Side;
+    column: number;
+    width?: number;
+    /** Painted into the gap instead of the doormat, cycled along it. */
+    tiles?: number[];
+  };
   exit: { id: string; to: string; spawn: Vec2; facing: Facing };
   wall?: number;
   floor?: number[];
@@ -362,12 +373,13 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
     );
   }
   const inward = STEP[OPPOSITE[side]];
-  for (const [x, y] of gap) {
+  const doorTiles = spec.door.tiles?.length ? spec.door.tiles : [need(palette.mat, 'mat')];
+  gap.forEach(([x, y], i) => {
     if (!isFloor(x + inward[0], y + inward[1])) {
       throw new RoomError(`the door at ${x},${y} has no floor inside it — the plan does not reach that side`);
     }
-    tiles[at(x, y)] = need(palette.mat, 'mat');
-  }
+    tiles[at(x, y)] = doorTiles[i % doorTiles.length];
+  });
   // Every cell of the outer wall the player may walk through: the doorway
   // here, and any `exit` a prop cuts below.
   const doorway = new Set<number>(gap.map(([x, y]) => at(x, y)));
@@ -1018,6 +1030,20 @@ function main(argv: string[]): void {
     process.exit(1);
   }
   const tileset = parseTileset(JSON.parse(readFileSync(join(tilesDir, sheet), 'utf8')), `${worldId}/${sheet}`);
+
+  // The doorway is the one place a tile's solidity is the tileset's call, not
+  // the spec's: whatever the door is painted with, the player walks through it.
+  for (const id of spec.door.tiles ?? []) {
+    const tile = tileset.tiles.get(id);
+    if (!tile) {
+      console.error(`✗ ${worldId}/${mapId}: door tile ${id} is not in ${sheet}`);
+      process.exit(1);
+    }
+    if (tile.solid) {
+      console.error(`✗ ${worldId}/${mapId}: door tile ${id} (${tile.kind}) is solid — the doorway has to stay walkable`);
+      process.exit(1);
+    }
+  }
 
   let room: Room;
   try {

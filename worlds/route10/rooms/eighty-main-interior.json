@@ -55,6 +55,7 @@
     {
       "kind": "table",
       "at": [[6, 6]],
+      "tiles": [54],
       "lines": [
         "A coffee table made of coal. Polished, black, heavier than it looks, and yes — really coal.",
         "They have sold one, and they may still. Somebody, somewhere, sets a cup down on it every morning."
