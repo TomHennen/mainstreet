@@ -415,12 +415,14 @@ A tile within one tile of any `exits` or `edges` rectangle counts as that
 road's shoulder rather than the woods, so landing a step off a doorway out of
 town — the way tap-to-walk often does — is still the road, never lost.
 
-The controls lock, the narrator says `lines` in the say box, and when the
-last one is dismissed the road card plays — held 1600ms rather than an
-ordinary road's 900ms, since this line is a story, not a road name — its
-copy is `copy.transitions["lost:<map id>"]`, the same shape every other card
-has — and the player is set down at `spawn` on `to`, facing `facing`,
-exactly as an exit would (`engine/edges.ts` `lostAt`, `MapScene.checkEdges`). Like an
+The controls lock, the map fades to black (a 500ms camera fade, so the
+still-lively town never shows through the words), the narrator says `lines`
+in the say box on top of that black, and when the last one is dismissed the
+road card plays — held 1600ms rather than an ordinary road's 900ms, since
+this line is a story, not a road name — its copy is
+`copy.transitions["lost:<map id>"]`, the same shape every other card has —
+and the player is set down at `spawn` on `to`, facing `facing`, exactly as
+an exit would (`engine/edges.ts` `lostAt`, `MapScene.checkEdges`). Like an
 edge, it is scenery talking: no flags, no effects, nothing saved, and the
 tile never fires while a scene is playing or a box is already open. It cannot
 loop: the reset is a fresh map, so the player has to walk all the way back
@@ -441,13 +443,14 @@ ride home happening entirely off screen:
   "lines": ["…"], "to": "stamford", "spawn": [16, 15], "facing": "left",
   "arrive": [
     { "camera": { "to": [16, 16], "speed": 10 } },
+    { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [34, 16], "speed": 18 } },
     { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [16, 16] } },
     { "wait": 1.4 },
     { "player": { "show": { "at": [17, 15] } } },
     { "move": { "who": "player", "to": [16, 15], "speed": 3.5 } },
     { "say": { "lines": ["…"] } },
     { "camera": { "to": "player" } },
-    { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [95, 18] } }
+    { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [0, 16] } }
   ]
 }
 ```

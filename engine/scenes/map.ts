@@ -95,6 +95,12 @@ const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 1
  * road name.
  */
 const HOLD = { road: 900, enter: 500, exit: 400, lost: 1600 };
+/**
+ * How long the map takes to fade to black under a `lost` reset's own lines
+ * (DESIGN.md §2), before the narrator says anything — a Phaser camera fade,
+ * so the still-live map behind the say box never shows through it.
+ */
+const LOST_FADE_MS = 500;
 const WALK_FRAME_MS = 133;
 /** How often a walk may be re-aimed at somebody who is moving, in ms. */
 const CHASE_MS = 250;
@@ -2092,8 +2098,9 @@ export class MapScene extends Phaser.Scene {
    *
    * Open ground at the boundary is the one place neither of those speaks,
    * and on a map with `lost` it is where the player wanders off into the
-   * woods instead: the controls lock, the narrator says so, and the box
-   * closing sends them home (see `update`). Never over a scene that is
+   * woods instead: the controls lock, the screen fades to black, the
+   * narrator says so on top of it, and the box closing sends them home (see
+   * `update`). Never over a scene that is
    * playing, and never twice — the reset lands them on a fresh map.
    */
   private checkEdges(): void {
@@ -2130,10 +2137,17 @@ export class MapScene extends Phaser.Scene {
       const key = `lost:${tx},${ty}`;
       if (this.edgeShown !== key) {
         this.edgeShown = key;
-        this.lost = lost;
+        // Locked and stood still the moment the woods take them — same as
+        // ever — but `this.lost` itself waits for the fade below, since
+        // `update` sends the player home the instant it sees `this.lost` and
+        // no box open, which the fade alone would otherwise satisfy early.
         state.locked = true;
         this.stopWalk();
-        bus.emit(EV.say, { speaker: state.copy.ui.narrator, lines: lost.lines });
+        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+          this.lost = lost;
+          bus.emit(EV.say, { speaker: state.copy.ui.narrator, lines: lost.lines });
+        });
+        this.cameras.main.fadeOut(LOST_FADE_MS, 0, 0, 0);
       }
       return;
     }
