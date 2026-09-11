@@ -23,7 +23,9 @@ for feel and behavior*, not code to reuse.
 - Maps authored in Tiled, exported JSON.
 - Saves in localStorage, namespaced per world.
 - Deploy: GitHub Pages via `.github/workflows/pages.yml`. `main` goes to
-  `/mainstreet/dev/` on every push; the highest `v*` tag goes to the root.
+  `/mainstreet/dev/` on every push; the highest `v*` tag goes to the root;
+  every open PR gets a playable preview at `/mainstreet/pr/<n>/`, linked
+  from a comment on the PR.
   `npm run build:site` builds each world at its own path
   (`/mainstreet/route10/`) with a landing page at the root. Cloudflare Pages
   is deferred until there is a reason for it.
