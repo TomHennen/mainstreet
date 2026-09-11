@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { drawFigure, figureKey } from './figure';
+import { DOOR_ARROW_H, DOOR_ARROW_W, paintDoorArrow } from './glyphs';
 import { drawVehicle, VEHICLE_CELL } from './motor';
 import { FACINGS, plaqueTile } from './schema';
 import { TILE } from './tiled';
@@ -914,9 +915,6 @@ export function plaqueArt(scene: Phaser.Scene, placement: BuildingPlacement): Pl
 
 // --- the arrow at an open door -------------------------------------------------
 
-/** The arrow, in pixels: a stubby arrowhead over a short stem. */
-const DOOR_ARROW_W = 10;
-const DOOR_ARROW_H = 9;
 /** How far its bottom edge sits above the bottom of the doorstep tile. */
 const DOOR_ARROW_LIFT = 1;
 
@@ -933,10 +931,9 @@ export interface DoorArrowArt {
  * door, painted on the doorstep of a door that actually opens (CLAUDE.md #4,
  * DESIGN.md §2) — the very tile a player stands on to walk in — so an
  * enterable building reads as one at a glance and a building that only
- * carries a sign never grows one. Two-tone like a stencilled road marking —
- * a light fill outlined in the engine's own dark ink — using the same pair
- * the doormat this replaced was painted in (`#caa06a` on `#6b4a35`), never a
- * colour a world hands in (hard rule 1). It lives on the *tile*, not baked
+ * carries a sign never grows one. The pixels themselves live in
+ * `engine/glyphs.ts` `paintDoorArrow`, Phaser-free so the Studio's reference
+ * preview can share the exact same recipe. It lives on the *tile*, not baked
  * into the facade's own picture the way the plaque hangs on the wall above
  * it: a player standing on the doorstep is meant to cover it, the way a road
  * marking disappears under a car, rather than the arrow drawing over them.
@@ -951,31 +948,7 @@ export function doorArrowArt(scene: Phaser.Scene, placement: BuildingPlacement):
   const key = 'prop:door-arrow';
   if (!scene.textures.exists(key)) {
     const { texture, ctx } = canvas(scene, key, DOOR_ARROW_W, DOOR_ARROW_H);
-    // The arrowhead over its stem, one row at a time (y, x, w) — widest at
-    // the base of the head, pointing up toward the door above.
-    const rows: Array<[number, number, number]> = [
-      [1, 4, 2], // tip
-      [2, 3, 4],
-      [3, 2, 6],
-      [4, 1, 8], // base of the head
-      [5, 3, 4], // stem
-      [6, 3, 4],
-      [7, 3, 4]
-    ];
-    // The outline: each row's own span widened by a pixel either side, plus
-    // its unwidened span copied a pixel above and below, which — drawn for
-    // every row before any fill goes down — leaves a clean one-pixel border
-    // all the way round, corners and steps included.
-    ctx.fillStyle = '#6b4a35';
-    for (const [y, x, w] of rows) {
-      ctx.fillRect(x - 1, y, w + 2, 1);
-      ctx.fillRect(x, y - 1, w, 1);
-      ctx.fillRect(x, y + 1, w, 1);
-    }
-    ctx.fillStyle = '#caa06a';
-    for (const [y, x, w] of rows) {
-      ctx.fillRect(x, y, w, 1);
-    }
+    paintDoorArrow(ctx);
     texture.refresh();
   }
 

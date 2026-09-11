@@ -36,6 +36,7 @@ import {
   settleCode,
   snapToPalette
 } from './artwork';
+import { DOOR_ARROW_H, DOOR_ARROW_W, paintDoorArrow } from '../engine/glyphs';
 
 // --- constants ---------------------------------------------------------------
 
@@ -47,11 +48,10 @@ const OVERHEAD = 20;
 const PLAQUE_W = 6;
 const PLAQUE_H = 5;
 const PLAQUE_LIFT = 4;
-/** The arrow the engine paints on the doorstep of a door with an interior
- *  (engine/art.ts doorArrowArt) — reference only, since it lives on the tile
+/** How far the arrow's bottom edge sits above the bottom of the doorstep tile
+ *  — reference only, since the arrow itself (`engine/glyphs.ts`
+ *  `paintDoorArrow`, also engine/art.ts `doorArrowArt`) lives on the tile
  *  rather than baked into the facade the way this preview is. */
-const DOOR_ARROW_W = 10;
-const DOOR_ARROW_H = 9;
 const DOOR_ARROW_LIFT = 1;
 /** Most spare rows of 16px an artist may add above the footprint. */
 const MAX_EXTRA_ROWS = 3;
@@ -464,26 +464,8 @@ function referenceCanvas(
   if (hasInterior) {
     const arrowX = doorX + (TILE - DOOR_ARROW_W) / 2;
     const arrowY = height - DOOR_ARROW_LIFT - DOOR_ARROW_H;
-    // Same rows as engine/art.ts doorArrowArt, so the two never drift apart.
-    const rows: Array<[number, number, number]> = [
-      [1, 4, 2],
-      [2, 3, 4],
-      [3, 2, 6],
-      [4, 1, 8],
-      [5, 3, 4],
-      [6, 3, 4],
-      [7, 3, 4]
-    ];
-    ctx.fillStyle = '#6b4a35';
-    for (const [y, x, w] of rows) {
-      ctx.fillRect(arrowX + x - 1, arrowY + y, w + 2, 1);
-      ctx.fillRect(arrowX + x, arrowY + y - 1, w, 1);
-      ctx.fillRect(arrowX + x, arrowY + y + 1, w, 1);
-    }
-    ctx.fillStyle = '#caa06a';
-    for (const [y, x, w] of rows) {
-      ctx.fillRect(arrowX + x, arrowY + y, w, 1);
-    }
+    // engine/glyphs.ts paintDoorArrow, so the two can never drift apart.
+    paintDoorArrow(ctx, arrowX, arrowY);
   }
 
   ctx.font = '8px ui-monospace, Menlo, Consolas, monospace';
