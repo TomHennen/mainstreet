@@ -8,9 +8,13 @@
 #
 # Pages publishes one artifact as the whole site, so all of them are built
 # fresh from git on every run — a push to main, a pushed v* tag, a pull
-# request opened, updated or closed, or a manual run — and stitched together.
-# Until the first tag exists, main is at the root too. A closed PR simply
-# isn't in the next build, so its path goes away on its own.
+# request opened or updated, or a manual run — and stitched together. Until
+# the first tag exists, main is at the root too. A closed PR simply isn't in
+# the next build, so its path goes away on its own: on the merge push for a
+# merged one, on the next deploy of any kind for one closed without merging.
+# (A closed event doesn't trigger a run of its own: on a merge it would race
+# the push run, and the concurrency group would cancel one of the two, which
+# shows up as a red mark on the main commit for no reason.)
 #
 # To release: tag main (`git tag v1.0.0 && git push origin v1.0.0`, or a
 # GitHub Release that creates the tag). The highest version tag wins, so a
@@ -28,7 +32,7 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -165,7 +169,7 @@ jobs:
   # place on every push so the thread doesn't fill up.
   comment:
     needs: deploy
-    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - env:
