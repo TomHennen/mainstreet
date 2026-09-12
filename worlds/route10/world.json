@@ -380,6 +380,30 @@
           "lines": ["Main Street carries on west out of the village. Another week, maybe."]
         }
       ],
+      "lost": {
+        "lines": [
+          "You keep going past the last of the houses, and the trees close in behind you, and after a while every direction starts to look like the same direction.",
+          "You call the Delaware County Sheriff's Office. The dispatcher couldn't be kinder: happens to the best of us, those woods go on for miles, stay right where you are.",
+          "It isn't long before you see a set of headlights, swinging round slow and easy."
+        ],
+        "to": "jefferson",
+        "spawn": [41, 11],
+        "facing": "up",
+        "arrive": [
+          { "camera": { "to": [42, 11], "speed": 10 } },
+          { "move": { "who": "vehicle:jefferson-sheriff-truck", "to": [49, 9], "speed": 18 } },
+          { "move": { "who": "vehicle:jefferson-sheriff-truck", "to": [42, 11] } },
+          { "wait": 1.4 },
+          { "player": { "show": { "at": [41, 12] } } },
+          { "move": { "who": "player", "to": [41, 11], "speed": 3.5 } },
+          { "say": { "lines": [
+            "The deputy waits until you're steady on your feet, then nods toward the station.",
+            "\"J&H's right there,\" they say. \"Deli counter's got coffee going. Get warm before you head anywhere else.\""
+          ] } },
+          { "camera": { "to": "player" } },
+          { "move": { "who": "vehicle:jefferson-sheriff-truck", "to": [63, 14] } }
+        ]
+      },
       "fixtures": [
         {
           "kind": "suggestion-box",
@@ -445,6 +469,17 @@
         }
       ],
       "vehicles": [
+        {
+          "id": "jefferson-sheriff-truck",
+          "kind": "pickup",
+          "colour": "#f2efe6",
+          "accent": "#2b3a55",
+          "lights": true,
+          "pos": [49, 0],
+          "facing": "down",
+          "hidden": true,
+          "speed": 6
+        },
         {
           "id": "jefferson-main-van",
           "kind": "van",
@@ -1139,13 +1174,42 @@
           "id": "hobart-maple-south",
           "at": [20, 29, 2, 1],
           "lines": ["Maple Avenue keeps going south past the bridge. Another day's walk."]
+        },
+        {
+          "id": "hobart-route10-shoulder",
+          "at": [20, 0, 12, 1],
+          "quiet": true
         }
       ],
+      "lost": {
+        "lines": [
+          "You keep going past the last of the houses, and the trees close in behind you, and after a while every direction starts to look like the same direction.",
+          "You call the Delaware County Sheriff's Office. The dispatcher couldn't be kinder: happens to the best of us, those woods go on for miles, stay right where you are.",
+          "It isn't long before you see a set of headlights, swinging round slow and easy."
+        ],
+        "to": "hobart",
+        "spawn": [16, 17],
+        "facing": "left",
+        "arrive": [
+          { "camera": { "to": [16, 18], "speed": 10 } },
+          { "move": { "who": "vehicle:hobart-sheriff-truck", "to": [33, 18], "speed": 18 } },
+          { "move": { "who": "vehicle:hobart-sheriff-truck", "to": [16, 18] } },
+          { "wait": 1.4 },
+          { "player": { "show": { "at": [17, 17] } } },
+          { "move": { "who": "player", "to": [16, 17], "speed": 3.5 } },
+          { "say": { "lines": [
+            "The deputy waits until you're steady on your feet, then nods toward the shop.",
+            "\"Renata's right inside,\" they say. \"Kettle's probably on — go say hello before you head anywhere else.\""
+          ] } },
+          { "camera": { "to": "player" } },
+          { "move": { "who": "vehicle:hobart-sheriff-truck", "to": [0, 18] } }
+        ]
+      },
       "people": [
         {
           "id": "hobart-main-walker",
           "pos": [
-            7,
+            25,
             17
           ],
           "facing": "right",
@@ -1161,7 +1225,7 @@
                 17
               ],
               [
-                7,
+                20,
                 17
               ]
             ],
@@ -1207,6 +1271,17 @@
         }
       ],
       "vehicles": [
+        {
+          "id": "hobart-sheriff-truck",
+          "kind": "pickup",
+          "colour": "#f2efe6",
+          "accent": "#2b3a55",
+          "lights": true,
+          "pos": [33, 0],
+          "facing": "down",
+          "hidden": true,
+          "speed": 6
+        },
         {
           "id": "hobart-main-car",
           "kind": "car",

@@ -30,10 +30,19 @@ already models, and since Sep 2026 the maps let you walk it: Stamford's
 bottom edge and Hobart's top edge carry a trail exit of their own beside
 the Route 10 one.
 
+**Getting lost.** Walking off any of the three village maps into the woods
+(Tom, Sep 2026 for Stamford; Sep 2026 for Jefferson and Hobart) gets you
+lost: a Delaware County Sheriff's deputy is out your way before long and
+drives you back into town — it's the same sheriff's office everywhere along
+Route 10. In Stamford the deputy drops you back outside Stewart's, where a
+coffee is waiting. In Jefferson there's no drivable way into Middle Brook
+Cafe's own little lot (it opens only onto the sandy path behind Main
+Street, not the paved network), so the deputy drops you at J&H's forecourt
+instead, on the NY 10 spur north of Main Street, where the deli counter's
+got coffee going. In Hobart the deputy drops you right on the sidewalk
+outside Cellar Door Wines, where Renata's got the kettle on.
+
 **Stamford.** Stewart's is on the north-west corner of the 10/23 junction.
-Walking off the Stamford map into the woods (Tom, Sep 2026) gets you lost:
-a Delaware County Sheriff's deputy is out your way before long, and drops
-you back outside Stewart's, where a coffee is waiting.
 Mac-A-Doodles is on the east side of Route 10, south of Route 23 (the
 south-east corner). Route 23 is Harper Street west of the corner and Main
 Street east of it; Route 10 is Lake Street north of the corner and Hobart Road
