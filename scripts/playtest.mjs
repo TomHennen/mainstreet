@@ -302,7 +302,36 @@ function exitTiles(map) {
   return set;
 }
 
-/** BFS over walkable tiles. Exits are avoided unless one is the goal. */
+/**
+ * Mirrors engine/edges.ts's own `lostAt`: a boundary tile of bare ground
+ * (grass, tree or flowers, never a road), not within one tile of any `exits`
+ * or `edges` rectangle, on a map that actually has a `lost` entry at all.
+ * Shared by the getting-lost check below (which is looking for exactly this)
+ * and by `findPath` (which, like the engine's own `walkableTo` since this
+ * fix, is not).
+ */
+const LOST_QUIET_KINDS = new Set(['grass', 'tree', 'flowers']);
+const LOST_SHOULDER = 1;
+const nearRect = (at, x, y, margin) =>
+  x >= at[0] - margin && x < at[0] + at[2] + margin && y >= at[1] - margin && y < at[1] + at[3] + margin;
+function lostEligible(mapId, x, y) {
+  const map = WORLD.maps[mapId];
+  if (!map.lost) return false;
+  if (x !== 0 && y !== 0 && x !== map.width - 1 && y !== map.height - 1) return false;
+  if (!LOST_QUIET_KINDS.has(map.kind[y * map.width + x])) return false;
+  if (isSolid(map, x, y)) return false;
+  if (map.exits.some((exit) => nearRect(exit.at, x, y, LOST_SHOULDER))) return false;
+  if ((map.edges ?? []).some((edge) => nearRect(edge.at, x, y, LOST_SHOULDER))) return false;
+  return true;
+}
+
+/**
+ * BFS over walkable tiles. Exits are avoided unless one is the goal — and,
+ * mirroring the engine's own `walkableTo` (DESIGN.md §2), so is a tile
+ * `lostAt` would trigger on: an ordinary walk (to a building, an exit,
+ * anywhere) should never wander a route through the woods by accident, only
+ * the getting-lost check's own deliberate walk onto one ever means to.
+ */
 function findPath(mapId, from, to, episode = EPISODE) {
   const map = WORLD.maps[mapId];
   const avoid = exitTiles(map);
@@ -322,6 +351,7 @@ function findPath(mapId, from, to, episode = EPISODE) {
       if (prev.has(k)) continue;
       if (isSolid(map, nx, ny) || npcAt(mapId, nx, ny, episode) || fixtureAt(mapId, nx, ny)) continue;
       if (avoid.has(k) && k !== goal) continue;
+      if (k !== goal && lostEligible(mapId, nx, ny)) continue;
       prev.set(k, cur);
       if (k === goal) {
         const path = [];
@@ -1607,195 +1637,188 @@ async function main() {
     // --- getting lost (DESIGN.md §2) -----------------------------------------
     // A map may carry a `lost` entry: wander onto a boundary tile of open
     // ground (grass or flowers, never a road) and the narrator brings you up
-    // short, then a road card carries you home. Run right here, the moment
-    // the player is first free and before any step below leans on exactly
-    // where they are standing, because the reset can put them down anywhere
-    // the world pack says to (`engine/edges.ts` `lostAt`, `MapScene.checkEdges`
-    // and the `lost` hand-off in `update`). Everything after this walks to
-    // wherever it needs via `walkTo`'s own pathfinding, so the reset costs
-    // nothing further down the run.
-    {
-      const start = await snap(page);
-      const lost = WORLD.maps[start.map]?.lost;
+    // short, then a road card carries you home. `checkGettingLost` runs this
+    // on whichever map the player is standing on right now — once here, the
+    // moment the player is first free and before any step below leans on
+    // exactly where they are standing, because the reset can put them down
+    // anywhere the world pack says to (`engine/edges.ts` `lostAt`,
+    // `MapScene.checkEdges` and the `lost` hand-off in `update`); and again
+    // later on, once the flow has walked to Jefferson and Hobart, each of
+    // which carries its own `lost` and its own sheriff drop-off. Everything
+    // after each call walks to wherever it needs via `walkTo`'s own
+    // pathfinding, so the reset costs nothing further down the run.
+    async function checkGettingLost(mapId) {
+      const lost = WORLD.maps[mapId]?.lost;
       if (!lost) {
-        log(`  (no "lost" entry on "${start.map}" — skipping the getting-lost check)`);
-      } else {
-        log('  wander off into the woods');
-        const map = WORLD.maps[start.map];
-        // Mirrors engine/edges.ts's own QUIET_KINDS, SHOULDER and nearRect():
-        // a boundary tile of bare ground, not within SHOULDER tiles of any
-        // `exits` or `edges` rectangle — a landing spot one tile off a doorway
-        // out of town is still the road, not the woods (see lostAt() there).
-        const QUIET_KINDS = new Set(['grass', 'tree', 'flowers']);
-        const SHOULDER = 1;
-        const nearRect = (at, x, y, margin) =>
-          x >= at[0] - margin && x < at[0] + at[2] + margin && y >= at[1] - margin && y < at[1] + at[3] + margin;
-        const candidates = [];
-        for (let y = 0; y < map.height; y++) {
-          for (let x = 0; x < map.width; x++) {
-            if (x !== 0 && y !== 0 && x !== map.width - 1 && y !== map.height - 1) continue;
-            if (!QUIET_KINDS.has(map.kind[y * map.width + x])) continue;
-            if (isSolid(map, x, y)) continue;
-            if (map.exits.some((exit) => nearRect(exit.at, x, y, SHOULDER))) continue;
-            if ((map.edges ?? []).some((edge) => nearRect(edge.at, x, y, SHOULDER))) continue;
-            candidates.push([x, y]);
-          }
-        }
-        if (!candidates.length) {
-          fail('lost', `"${start.map}" has a "lost" entry but no boundary tile of open ground to walk off over`);
-        }
-
-        // The nearest one actually reachable from here — ties broken toward
-        // fewer turns, so a straight corridor wins over an equally short walk
-        // that has to bend. No coordinate is hard-coded, so a map redraw just
-        // moves where this heads.
-        const from = here(start);
-        const turnsIn = (path) => {
-          let turns = 0;
-          for (let i = 2; i < path.length; i++) {
-            const d1 = [path[i - 1][0] - path[i - 2][0], path[i - 1][1] - path[i - 2][1]];
-            const d2 = [path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]];
-            if (d1[0] !== d2[0] || d1[1] !== d2[1]) turns++;
-          }
-          return turns;
-        };
-        let best = null;
-        for (const goal of candidates) {
-          const path = findPath(start.map, from, goal);
-          if (!path) continue;
-          const turns = turnsIn(path);
-          if (!best || path.length < best.path.length || (path.length === best.path.length && turns < best.turns)) {
-            best = { goal, path, turns };
-          }
-        }
-        if (!best) {
-          fail('lost', `none of "${start.map}"'s ${candidates.length} boundary tile(s) of open ground is reachable from ${from}`);
-        }
-        log(
-          `    heading for the tree line at ${best.goal}, ${best.path.length - 1} tile(s) off` +
-            (best.turns ? ` (${best.turns} turn(s))` : ' (a straight walk)')
-        );
-
-        await walkTo(page, 'lost', best.goal, { allowInterrupt: true });
-
-        const said = await waitUntil(page, (s) => s.dialogueOpen, 'the narrator to say we are lost');
-        if (!said.locked) fail('lost', 'the narrator is talking but the controls are not locked — walking away should not work');
-        if (said.dialogue?.speaker !== COPY.ui.narrator) {
-          fail('lost', `"${said.dialogue?.speaker}" says it, expected the narrator "${COPY.ui.narrator}"`);
-        }
-        if (said.dialogue?.text !== lost.lines[0]) {
-          fail('lost', `first line reads "${said.dialogue?.text}", expected "${lost.lines[0]}"`);
-        }
-        log(`    ${COPY.ui.narrator}: "${said.dialogue.text}"`);
-        await shot(page, 'lost-in-the-woods');
-
-        // Every line, checked as it is read, and locked throughout — the one
-        // cheap way to tell this apart from an ordinary line of dialogue,
-        // which never sets `locked` at all.
-        const pages = await readDialogue(page, 'lost', lost.lines.length, async (i) => {
-          const on = await snap(page);
-          if (on.dialogue?.text !== lost.lines[i]) {
-            fail('lost', `page ${i + 1} reads "${on.dialogue?.text}", expected "${lost.lines[i]}"`);
-          }
-          if (!on.locked) fail('lost', `page ${i + 1}: controls came unlocked before the ride home`);
-        });
-        if (pages !== lost.lines.length) {
-          fail('lost', `read ${pages} page(s) for ${lost.lines.length} line(s) of "lost.lines"`);
-        }
-
-        // The say box closes into the road card, not back to a free walk —
-        // still locked, only the box is gone now.
-        await waitUntil(page, (s) => !s.dialogueOpen && s.locked, 'the road card home');
-        await sleep(420); // let the card's fade-in land before the shot, as the other travel cards do
-        const cardCopy = COPY.transitions?.[`lost:${start.map}`];
-        if (!cardCopy?.big) fail('lost', `copy.json has no transitions["lost:${start.map}"] for the road card`);
-        await shot(page, 'lost-travel-card');
-        log(`    the road card: "${cardCopy.big}" — "${(cardCopy.small ?? '').slice(0, 60)}…"`);
-
-        // The card clears into the destination map — already staging
-        // `lost.arrive`, if there is one, with the player set down but
-        // hidden (DESIGN.md §2/§3). `!s.locked` fires the moment the map
-        // exists, well before an `arrive` scene has actually played out, so
-        // the real "home for good" wait below also asks for the player back
-        // on screen at `lost.spawn`, not just an unlocked session.
-        const arrived = await waitUntil(page, (s) => !s.locked, 'the destination map to load', 20000);
-        if (arrived.map !== lost.to) fail('lost', `came home on "${arrived.map}", expected lost.to "${lost.to}"`);
-
-        if (lost.arrive?.length) {
-          log('    watching the deputy pull in and drop you off');
-          // The tile it stops beside the lot on is wherever the last of the
-          // scene's own leading run of `move`s on that vehicle sends it —
-          // read off the data itself, rather than hard-coded, so a redrawn
-          // arrival just moves this too. The approach may be more than one
-          // leg (a fast one from off in the distance, then an ordinary one
-          // into the stop), so it's the last leg before the first step that
-          // isn't also driving this same vehicle that actually reads as
-          // "arrived", not the first `move` in the scene.
-          const firstDrive = lost.arrive.find((step) => step.move?.who?.startsWith('vehicle:'));
-          const vehicleId = firstDrive?.move.who.slice('vehicle:'.length);
-          let dropoff;
-          for (const step of lost.arrive) {
-            if (step.move?.who === firstDrive?.move.who) {
-              dropoff = step.move.path ? step.move.path[step.move.path.length - 1] : step.move.to;
-            } else if (dropoff) break;
-          }
-          if (vehicleId && dropoff) {
-            await waitUntil(
-              page,
-              (s) => {
-                const truck = s.vehicles.find((v) => v.id === vehicleId);
-                return Boolean(truck) && Math.abs(truck.x - dropoff[0]) < 1 && Math.abs(truck.y - dropoff[1]) < 1;
-              },
-              "the truck to pull up beside Stewart's",
-              15000
-            );
-            await shot(page, 'sheriff-dropoff');
-          }
-
-          // The deputy's own line: a scene's `say` waits for the box same as
-          // any other, so this reads it and presses through it exactly as
-          // `playStagedScene` does for an episode's own staged scenes.
-          const say = lost.arrive.find((step) => step.say)?.say;
-          if (say) {
-            const line = await waitUntil(page, (s) => s.dialogueOpen, 'the deputy to say something', 10000);
-            if (line.dialogue?.speaker !== COPY.ui.narrator) {
-              fail('lost', `"${line.dialogue?.speaker}" says the deputy's line, expected the narrator "${COPY.ui.narrator}"`);
-            }
-            if (line.dialogue?.text !== say.lines[0]) {
-              fail('lost', `deputy's line reads "${line.dialogue?.text}", expected "${say.lines[0]}"`);
-            }
-            log(`    ${COPY.ui.narrator}: "${line.dialogue.text}"`);
-            await advanceDialogue(page, 'lost', say.lines.length);
-          }
-        }
-
-        // Not just "unlocked, visible and standing at spawn" — an `arrive`
-        // scene shows the player beside the truck and walks them onto the
-        // lot well before its own `say` and the truck's drive back out, and
-        // every one of those is a real (if one-frame) match for that on its
-        // own. `s.scene` (null once the whole thing has actually finished,
-        // engine/scene.ts `finished`) is the one condition nothing but the
-        // last step ever satisfies.
-        const home = await waitUntil(
-          page,
-          (s) => {
-            const [x, y] = here(s);
-            return !s.scene && !s.locked && !s.dialogueOpen && s.playerVisible && x === lost.spawn[0] && y === lost.spawn[1];
-          },
-          'the arrival scene to actually finish, home at lost.spawn',
-          25000
-        );
-        const landed = here(home);
-        if (landed[0] !== lost.spawn[0] || landed[1] !== lost.spawn[1]) {
-          fail('lost', `came home at ${landed}, expected lost.spawn ${lost.spawn}`);
-        }
-        if (home.facing !== lost.facing) {
-          fail('lost', `came home facing "${home.facing}", expected lost.facing "${lost.facing}"`);
-        }
-        log(`    home at ${landed} on "${home.map}", facing ${home.facing}`);
-        await shot(page, 'lost-home');
+        log(`  (no "lost" entry on "${mapId}" — skipping the getting-lost check)`);
+        return;
       }
+      log(`  wander off into the woods (${mapId})`);
+      const map = WORLD.maps[mapId];
+      // `lostEligible` (shared with `findPath` above) is exactly this same
+      // test, straight off engine/edges.ts's own `lostAt`.
+      const candidates = [];
+      for (let y = 0; y < map.height; y++) {
+        for (let x = 0; x < map.width; x++) {
+          if (lostEligible(mapId, x, y)) candidates.push([x, y]);
+        }
+      }
+      if (!candidates.length) {
+        fail('lost', `"${mapId}" has a "lost" entry but no boundary tile of open ground to walk off over`);
+      }
+
+      // The nearest one actually reachable from here — ties broken toward
+      // fewer turns, so a straight corridor wins over an equally short walk
+      // that has to bend. No coordinate is hard-coded, so a map redraw just
+      // moves where this heads.
+      const from = here(await snap(page));
+      const turnsIn = (path) => {
+        let turns = 0;
+        for (let i = 2; i < path.length; i++) {
+          const d1 = [path[i - 1][0] - path[i - 2][0], path[i - 1][1] - path[i - 2][1]];
+          const d2 = [path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]];
+          if (d1[0] !== d2[0] || d1[1] !== d2[1]) turns++;
+        }
+        return turns;
+      };
+      let best = null;
+      for (const goal of candidates) {
+        const path = findPath(mapId, from, goal);
+        if (!path) continue;
+        const turns = turnsIn(path);
+        if (!best || path.length < best.path.length || (path.length === best.path.length && turns < best.turns)) {
+          best = { goal, path, turns };
+        }
+      }
+      if (!best) {
+        fail('lost', `none of "${mapId}"'s ${candidates.length} boundary tile(s) of open ground is reachable from ${from}`);
+      }
+      log(
+        `    heading for the tree line at ${best.goal}, ${best.path.length - 1} tile(s) off` +
+          (best.turns ? ` (${best.turns} turn(s))` : ' (a straight walk)')
+      );
+
+      await walkTo(page, 'lost', best.goal, { allowInterrupt: true });
+
+      const said = await waitUntil(page, (s) => s.dialogueOpen, 'the narrator to say we are lost');
+      if (!said.locked) fail('lost', 'the narrator is talking but the controls are not locked — walking away should not work');
+      if (said.dialogue?.speaker !== COPY.ui.narrator) {
+        fail('lost', `"${said.dialogue?.speaker}" says it, expected the narrator "${COPY.ui.narrator}"`);
+      }
+      if (said.dialogue?.text !== lost.lines[0]) {
+        fail('lost', `first line reads "${said.dialogue?.text}", expected "${lost.lines[0]}"`);
+      }
+      log(`    ${COPY.ui.narrator}: "${said.dialogue.text}"`);
+      await shot(page, `lost-${mapId}-in-the-woods`);
+
+      // Every line, checked as it is read, and locked throughout — the one
+      // cheap way to tell this apart from an ordinary line of dialogue,
+      // which never sets `locked` at all.
+      const pages = await readDialogue(page, 'lost', lost.lines.length, async (i) => {
+        const on = await snap(page);
+        if (on.dialogue?.text !== lost.lines[i]) {
+          fail('lost', `page ${i + 1} reads "${on.dialogue?.text}", expected "${lost.lines[i]}"`);
+        }
+        if (!on.locked) fail('lost', `page ${i + 1}: controls came unlocked before the ride home`);
+      });
+      if (pages !== lost.lines.length) {
+        fail('lost', `read ${pages} page(s) for ${lost.lines.length} line(s) of "lost.lines"`);
+      }
+
+      // The say box closes into the road card, not back to a free walk —
+      // still locked, only the box is gone now.
+      await waitUntil(page, (s) => !s.dialogueOpen && s.locked, 'the road card home');
+      await sleep(420); // let the card's fade-in land before the shot, as the other travel cards do
+      const cardCopy = COPY.transitions?.[`lost:${mapId}`];
+      if (!cardCopy?.big) fail('lost', `copy.json has no transitions["lost:${mapId}"] for the road card`);
+      await shot(page, `lost-${mapId}-travel-card`);
+      log(`    the road card: "${cardCopy.big}" — "${(cardCopy.small ?? '').slice(0, 60)}…"`);
+
+      // The card clears into the destination map — already staging
+      // `lost.arrive`, if there is one, with the player set down but
+      // hidden (DESIGN.md §2/§3). `!s.locked` fires the moment the map
+      // exists, well before an `arrive` scene has actually played out, so
+      // the real "home for good" wait below also asks for the player back
+      // on screen at `lost.spawn`, not just an unlocked session.
+      const arrived = await waitUntil(page, (s) => !s.locked, 'the destination map to load', 20000);
+      if (arrived.map !== lost.to) fail('lost', `came home on "${arrived.map}", expected lost.to "${lost.to}"`);
+
+      if (lost.arrive?.length) {
+        log('    watching the deputy pull in and drop you off');
+        // The tile it stops beside the lot on is wherever the last of the
+        // scene's own leading run of `move`s on that vehicle sends it —
+        // read off the data itself, rather than hard-coded, so a redrawn
+        // arrival just moves this too. The approach may be more than one
+        // leg (a fast one from off in the distance, then an ordinary one
+        // into the stop), so it's the last leg before the first step that
+        // isn't also driving this same vehicle that actually reads as
+        // "arrived", not the first `move` in the scene.
+        const firstDrive = lost.arrive.find((step) => step.move?.who?.startsWith('vehicle:'));
+        const vehicleId = firstDrive?.move.who.slice('vehicle:'.length);
+        let dropoff;
+        for (const step of lost.arrive) {
+          if (step.move?.who === firstDrive?.move.who) {
+            dropoff = step.move.path ? step.move.path[step.move.path.length - 1] : step.move.to;
+          } else if (dropoff) break;
+        }
+        if (vehicleId && dropoff) {
+          await waitUntil(
+            page,
+            (s) => {
+              const truck = s.vehicles.find((v) => v.id === vehicleId);
+              return Boolean(truck) && Math.abs(truck.x - dropoff[0]) < 1 && Math.abs(truck.y - dropoff[1]) < 1;
+            },
+            `the truck to pull up in "${mapId}"`,
+            15000
+          );
+          await shot(page, `lost-${mapId}-dropoff`);
+        }
+
+        // The deputy's own line: a scene's `say` waits for the box same as
+        // any other, so this reads it and presses through it exactly as
+        // `playStagedScene` does for an episode's own staged scenes.
+        const say = lost.arrive.find((step) => step.say)?.say;
+        if (say) {
+          const line = await waitUntil(page, (s) => s.dialogueOpen, 'the deputy to say something', 10000);
+          if (line.dialogue?.speaker !== COPY.ui.narrator) {
+            fail('lost', `"${line.dialogue?.speaker}" says the deputy's line, expected the narrator "${COPY.ui.narrator}"`);
+          }
+          if (line.dialogue?.text !== say.lines[0]) {
+            fail('lost', `deputy's line reads "${line.dialogue?.text}", expected "${say.lines[0]}"`);
+          }
+          log(`    ${COPY.ui.narrator}: "${line.dialogue.text}"`);
+          await advanceDialogue(page, 'lost', say.lines.length);
+        }
+      }
+
+      // Not just "unlocked, visible and standing at spawn" — an `arrive`
+      // scene shows the player beside the truck and walks them onto the
+      // lot well before its own `say` and the truck's drive back out, and
+      // every one of those is a real (if one-frame) match for that on its
+      // own. `s.scene` (null once the whole thing has actually finished,
+      // engine/scene.ts `finished`) is the one condition nothing but the
+      // last step ever satisfies.
+      const home = await waitUntil(
+        page,
+        (s) => {
+          const [x, y] = here(s);
+          return !s.scene && !s.locked && !s.dialogueOpen && s.playerVisible && x === lost.spawn[0] && y === lost.spawn[1];
+        },
+        'the arrival scene to actually finish, home at lost.spawn',
+        25000
+      );
+      const landed = here(home);
+      if (landed[0] !== lost.spawn[0] || landed[1] !== lost.spawn[1]) {
+        fail('lost', `came home at ${landed}, expected lost.spawn ${lost.spawn}`);
+      }
+      if (home.facing !== lost.facing) {
+        fail('lost', `came home facing "${home.facing}", expected lost.facing "${lost.facing}"`);
+      }
+      log(`    home at ${landed} on "${home.map}", facing ${home.facing}`);
+      await shot(page, `lost-${mapId}-home`);
     }
+
+    await checkGettingLost(WORLD.start.map);
 
     // --- Earl ---------------------------------------------------------------
     log('  talk to Earl');
@@ -2232,6 +2255,11 @@ async function main() {
     await waitUntil(page, (s) => s.map === 'jefferson' && !s.locked, 'Jefferson');
     await shot(page, 'jefferson');
 
+    // Jefferson carries its own "lost": walk to its tree line and back before
+    // anything below leans on exactly where the player is standing, same as
+    // the start-map check above.
+    await checkGettingLost('jefferson');
+
     log('  find the pen');
     const pen = EPISODE.items[0];
     await walkTo(page, 'pen', [pen.pos[0] - 1, pen.pos[1]]);
@@ -2435,6 +2463,10 @@ async function main() {
     await walkTo(page, 'to-hobart', [toHobart.at[0], toHobart.at[1]], { allowInterrupt: true });
     await waitUntil(page, (s) => s.map === 'hobart' && !s.locked, 'Hobart');
     await shot(page, 'hobart');
+
+    // Hobart carries its own "lost" too — same check, same reason as Jefferson's.
+    await checkGettingLost('hobart');
+
     const fromHobart = WORLD.maps.hobart.exits.find((e) => e.to === 'stamford');
     await walkTo(page, 'from-hobart', [fromHobart.at[0], fromHobart.at[1]], { allowInterrupt: true });
     await waitUntil(page, (s) => s.map === 'stamford' && !s.locked, 'Stamford again');

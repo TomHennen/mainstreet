@@ -176,6 +176,14 @@
     "lost:stamford": {
       "big": "STAMFORD",
       "small": "riding back with the deputy, the heater going."
+    },
+    "lost:jefferson": {
+      "big": "JEFFERSON",
+      "small": "riding back with the deputy, the radio murmuring low."
+    },
+    "lost:hobart": {
+      "big": "HOBART",
+      "small": "riding back with the deputy, the river running along past the window."
     }
   },
   "_todo": {
