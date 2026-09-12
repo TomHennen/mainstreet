@@ -18,6 +18,7 @@
     "test": "vitest run",
     "validate-episodes": "node scripts/validate-episodes.ts",
     "validate-assets": "node scripts/validate-assets.ts",
+    "episode-script": "node scripts/episode-script.ts",
     "decode-art": "node scripts/decode-art.ts",
     "make-room": "node scripts/make-room.ts"
   },
