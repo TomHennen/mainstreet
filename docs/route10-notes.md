@@ -59,10 +59,16 @@ closed — see Flavor & story hooks for its story alongside Stamford Coffee.
 **80 Main** is attached directly to Stamford Coffee, its own storefront
 right next door on its **west** side, sharing that same front patio. It is
 downstairs, under the coffee shop — its street door is on the shared patio
-deck (Tom, Sep 2026: it used to read as opening off the parking lot; moved
-onto the deck, right beside Stamford Coffee's own door, drawn as a short
-flight of steps going down rather than the engine's usual door arrow, since
-stairs already say "go in").
+deck, at 80 Main's own west corner, away from Stamford Coffee's door and the
+umbrella and tables between them (Tom, Sep 2026: it used to read as opening
+off the parking lot; moved onto the deck. First tried at 80 Main's *east*
+corner, right beside Stamford Coffee's own door, but that read as blocking
+Stamford Coffee's own entrance and put the marker at the same doorstep as its
+furniture — moved to the west corner instead). No door-shaped opening is
+painted in the wall there any more — the wall stays plain, since the real
+entrance is the stairwell down, not a walk-in at street level — and the
+doorstep itself is drawn as a dark stairwell opening with a handrail, not the
+engine's usual door arrow, since going down already says "come on in".
 
 **Stamford's Main Street block (settled Sep 2026).** Everything named here is
 on the **south** side of Main Street east of the NY 10 junction, and this is
@@ -262,8 +268,8 @@ of Catskills-logo wear. They once (maybe still do) sold a high-end coffee
 table made out of coal. They sometimes host oyster-and-wine nights.
 
 *As built* (`worlds/route10/rooms/eighty-main-interior.json`, 14×12, its
-own street door at [86, 23] — on the shared patio deck, down the stairs
-beside Stamford Coffee's door, Sep 2026): the logo wear is the shelf along the top
+own street door at [85, 23] — on the shared patio deck, down the stairs at
+80 Main's own west corner, Sep 2026): the logo wear is the shelf along the top
 wall, the sweater and camo the rack on the left wall (same items as its
 street sign), candles and mugs the shelf on the right wall, the coal coffee
 table a readable table in the middle of the floor, and oyster-and-wine

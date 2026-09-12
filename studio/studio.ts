@@ -445,8 +445,13 @@ function referenceCanvas(
   }
 
   const doorX = doorCol * TILE;
-  ctx.fillStyle = '#3a2c1e';
-  ctx.fillRect(doorX + 3, top + OVERHEAD + bodyH - 14, 10, 14);
+  // A "stairs" door is a hole cut into the deck outside, not an opening in
+  // the wall — the wall stays plain (or keeps whatever window the row above
+  // already drew there) at that column; see engine/art.ts's own facade.
+  if (placement.doorStyle !== 'stairs') {
+    ctx.fillStyle = '#3a2c1e';
+    ctx.fillRect(doorX + 3, top + OVERHEAD + bodyH - 14, 10, 14);
+  }
 
   // The engine hangs its own little plaque here, over whatever is painted
   // beneath it, so nobody has to draw one.

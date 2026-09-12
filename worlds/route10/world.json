@@ -597,7 +597,7 @@
             3
           ],
           "door": [
-            86,
+            85,
             23
           ],
           "doorStyle": "stairs",
@@ -1542,7 +1542,7 @@
           ],
           "to": "stamford",
           "spawn": [
-            86,
+            85,
             23
           ],
           "facing": "down",

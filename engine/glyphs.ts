@@ -61,39 +61,53 @@ export function paintDoorArrow(ctx: Paint, ox = 0, oy = 0): void {
  * reached by going down rather than walking straight in at street level —
  * `BuildingPlacement.doorStyle`, DESIGN.md §2) draws this instead of
  * `paintDoorArrow`, never both, since stairs already say "go in" on their
- * own. Same box (`DOOR_ARROW_W x DOOR_ARROW_H`) and the same two-tone ink as
- * the arrow it replaces, so the two read as the same family of doorstep
- * marking.
+ * own — and unlike the arrow, the wall behind it stays plain: there is no
+ * door-shaped opening for this one to point into (`engine/art.ts`'s
+ * placeholder facade skips its door cutout for this `doorStyle`, and so does
+ * the Studio's reference preview). Same box (`DOOR_ARROW_W x
+ * DOOR_ARROW_H`) as the arrow it replaces.
+ *
+ * Drawn as a dark opening cut into the doorstep tile itself — not a shape
+ * standing on top of the ground the way the arrow is — with treads inside
+ * it going from the doorstep (nearest the player, at the bottom of the box,
+ * still in daylight, so the lightest) down to under the building (nearest
+ * the wall, at the top of the box, the deepest and so the darkest), and a
+ * thin light handrail down one side. Reads as a stairwell going down and
+ * away, never as a door to walk up to.
  */
 
-/** Four treads, one row each (y, x, w), each one row apart and each wider
- *  than the one above it — the nearest and widest at the doorstep, the
- *  farthest and narrowest up at the door — reading as steps going down away
- *  from the door and toward the player. The blank row left between each
- *  keeps the outline pass below from fusing them into a ramp: every tread
- *  comes out bordered on all four sides, the way a real step's edge catches
- *  a shadow. */
-const STAIR_ROWS: ReadonlyArray<readonly [number, number, number]> = [
-  [1, 4, 2], // farthest tread, at the door
-  [3, 3, 4],
-  [5, 2, 6],
-  [7, 1, 8] // nearest tread, at the doorstep
+/** The dark cut edge all the way round the opening. */
+const PIT_EDGE = '#2b2018';
+/** The treads, nearest-and-lightest to farthest-and-darkest. */
+const TREADS = ['#caa06a', '#a9855a', '#8a6a45', '#6b4a35'] as const;
+/** The thin light rail down the opening's left side. */
+const RAIL = '#e8ddc6';
+
+/** Each tread's row span inside the opening (`y`, `h`), nearest the doorstep
+ *  (lightest, paired with `TREADS[0]`) to nearest the wall the door used to
+ *  open in (darkest, `TREADS[3]`). */
+const TREAD_ROWS: ReadonlyArray<readonly [number, number]> = [
+  [6, 2], // nearest the doorstep — lightest
+  [4, 2],
+  [2, 2],
+  [1, 1] // nearest the wall — darkest
 ];
 
 /**
- * Paints the stairs at `ox, oy` in `ctx`, by the same outline-then-fill
- * recipe as `paintDoorArrow` (see there for why the two passes work). Fits a
- * `DOOR_ARROW_W x DOOR_ARROW_H` box exactly, same as the arrow.
+ * Paints the stairwell at `ox, oy` in `ctx`. Fits a `DOOR_ARROW_W x
+ * DOOR_ARROW_H` box exactly, same as the arrow.
  */
 export function paintStairsDown(ctx: Paint, ox = 0, oy = 0): void {
-  ctx.fillStyle = OUTLINE;
-  for (const [y, x, w] of STAIR_ROWS) {
-    ctx.fillRect(ox + x - 1, oy + y, w + 2, 1);
-    ctx.fillRect(ox + x, oy + y - 1, w, 1);
-    ctx.fillRect(ox + x, oy + y + 1, w, 1);
-  }
-  ctx.fillStyle = FILL;
-  for (const [y, x, w] of STAIR_ROWS) {
-    ctx.fillRect(ox + x, oy + y, w, 1);
-  }
+  // The cut edge, filled first so a 1px border of it survives all the way
+  // round once the treads and rail are painted inside it.
+  ctx.fillStyle = PIT_EDGE;
+  ctx.fillRect(ox, oy, DOOR_ARROW_W, DOOR_ARROW_H);
+
+  TREAD_ROWS.forEach(([y, h], i) => {
+    ctx.fillStyle = TREADS[i];
+    ctx.fillRect(ox + 1, oy + y, DOOR_ARROW_W - 2, h);
+  });
+
+  ctx.fillStyle = RAIL;
+  ctx.fillRect(ox + 1, oy + 1, 1, DOOR_ARROW_H - 2);
 }

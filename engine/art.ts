@@ -806,9 +806,16 @@ export function buildingArt(
       ctx.fillRect(left + 8 + i * TILE, head + 12, 8, 8);
     }
 
-    const doorX = left + (placement.door[0] - placement.pos[0]) * TILE;
-    ctx.fillStyle = '#3a2c1e';
-    ctx.fillRect(doorX + 3, head + bodyH - 14, 10, 14);
+    // A "stairs" door is a hole cut into the deck outside, not an opening in
+    // the wall itself — the building's own wall stays plain (or keeps
+    // whatever window the row above already drew over it) at that column,
+    // and `doorArrowArt` draws the stairwell down on the doorstep tile
+    // instead (DESIGN.md §2).
+    if (placement.doorStyle !== 'stairs') {
+      const doorX = left + (placement.door[0] - placement.pos[0]) * TILE;
+      ctx.fillStyle = '#3a2c1e';
+      ctx.fillRect(doorX + 3, head + bodyH - 14, 10, 14);
+    }
 
     if (label) drawSign(ctx, def.name, texW / 2, signW);
 

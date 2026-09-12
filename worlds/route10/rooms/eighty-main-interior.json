@@ -4,7 +4,7 @@
   "wall": 14,
   "floor": [11, 24],
   "door": { "side": "bottom", "column": 6, "width": 2 },
-  "exit": { "id": "eighty-main-exit", "to": "stamford", "spawn": [86, 23], "facing": "down" },
+  "exit": { "id": "eighty-main-exit", "to": "stamford", "spawn": [85, 23], "facing": "down" },
   "props": [
     { "kind": "counter", "rect": [8, 2, 4, 1], "behind": "top" },
     {

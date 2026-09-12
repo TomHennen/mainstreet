@@ -351,7 +351,7 @@ east, each with its door on the wrap-around sidewalk at y23:
 | `solinskys`                | 66, 20   | 5 × 3 | 68, 23   |
 | *(Veterans Memorial Park)* | 72, 20   | 3 × 3 | —        |
 | `johns-tavern`             | 79, 20   | 5 × 3 | 81, 23   |
-| `eighty-main`              | 85, 20   | 2 × 3 | 86, 23   |
+| `eighty-main`              | 85, 20   | 2 × 3 | 85, 23   |
 | `stamford-coffee`          | 87, 20   | 5 × 3 | 89, 23   |
 | `tps-cafe`                 | 53, 26   | 5 × 3 | 55, 29   |
 | `ace-hardware`             | 59, 26   | 5 × 3 | 61, 29   |

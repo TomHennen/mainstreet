@@ -333,15 +333,21 @@ ever the one prompt at a door, not two competing for the same small space.
 A building whose door is genuinely a stairwell down — a shop reached from
 below another one, say, rather than a walk-in at street level — sets
 `"doorStyle": "stairs"` on its placement (`engine/schema.ts`
-`BuildingPlacement.doorStyle`) and gets a short flight of steps drawn at the
-door tile instead of the arrow,
-never both: stairs already say "come on in" on their own. Same box, same
-two-tone ink, same tile and depth as the arrow it replaces — four treads, one
-row apart, narrowest at the door and widest at the doorstep, reading as steps
-going down and toward the player (`engine/glyphs.ts` `paintStairsDown`, drawn
-into `engine/art.ts` `doorArrowArt` alongside the plain arrow it swaps out
-for, and previewed the same way in the Studio). A placement that omits
-`doorStyle` is unchanged — the arrow, exactly as it always drew — and a
+`BuildingPlacement.doorStyle`). Its facade grows no door-shaped opening at
+that column at all: the wall stays plain (or keeps whatever window the
+placeholder's usual row of them already drew there), since there is no
+walk-in doorway to point into (`engine/art.ts`'s placeholder facade and the
+Studio's reference preview both skip the door cutout for this `doorStyle`).
+In its place, the doorstep tile gets a dark opening cut into the ground —
+never a shape standing on top of it the way the arrow is — with a handrail
+down one side and treads inside shaded from lightest, nearest the player and
+still in daylight, to darkest, nearest the wall and deepest underground, so
+it reads as a stairwell going down and away, never as a door to walk up to
+(`engine/glyphs.ts` `paintStairsDown`, drawn into `engine/art.ts`
+`doorArrowArt` in place of the plain arrow it swaps out for, never both:
+stairs already say "come on in" on their own — and previewed the same way in
+the Studio). A placement that omits `doorStyle` is unchanged — the arrow,
+exactly as it always drew, over a facade with its usual door cutout — and a
 building with painted facade art keeps that art either way; the marker only
 ever replaces the arrow the engine itself would otherwise draw.
 
