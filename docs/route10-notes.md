@@ -954,24 +954,33 @@ opt-in, everything warm and affectionate) before it reaches the player.
   carried lives in that visit to that yard and nowhere else, so it is not an
   inventory and no episode can ever be gated on it. Both the pile and the fire
   say something whichever way round you find them.
-- **The party at the Bel — treatment written, Sep 2026, in
-  `docs/route10-bel-party.md`.** Tom's ask: a storyline that pays off in a
-  party at the Belvedere, using the lights and scenes we have, with music if
-  it can be had freely, a trip to Core Values for an outfit, and more edge
-  than the episodes so far. The pitch, "What's the Word": the Bel is doing a
-  speakeasy night (its own description of itself), no flyers, the board says
-  SATURDAY. YOU KNOW.; two things get you into the back — the word, and not
-  turning up in what you wore to work; Gus is on the hallway; Earl gives
-  out last year's word with total confidence; Marnie gives this year's to
-  anybody who asks her, which nobody does because they all think it's a
-  secret; Core Values has a rack put by; a newcomer at the foot of Academy
-  Street won't go up until the player, by then a local, walks her in. The
-  payoff is the yard, the fire and a DJ, with the dry pool as a stretch
-  ending once the Bel has been asked. Music is proposed as a scene step
-  (DESIGN.md §3d), CC0 / CC BY 4.0 only, credited like art. Decisions
-  waiting on Tom are listed at the end of the treatment: the word itself
-  ("honey wagon" or the roadside sign's "equanimity"), yard or pool, one
-  outfit or three, names, which edgy beats.
+- **The party at the Bel — treatment written, Sep 2026, revised after
+  Tom's first read; in `docs/route10-bel-party.md`.** Tom's ask: a storyline
+  that pays off in a party at the Belvedere, using the lights and scenes we
+  have, with real music if it can be had freely (credited), a trip to Core
+  Values for an outfit, and more edge than the episodes so far. The pitch,
+  "What's the Word": the Bel is doing a speakeasy night (its own description
+  of itself), no flyers, the board says SATURDAY. YOU KNOW.; two things get
+  you in the door after dark — the word, and not turning up in what you
+  wore to work. By day the Bel is open and nearly empty (Marnie, Gus at the
+  foosball, Wren running cables on the stage); the moment the player has
+  both things, night falls on Stamford and the Bel fills, the DJ on the
+  stage under the lights, Gus just inside the door asking for the word, and
+  the yard out back is the chill hang by the fire (Tom's line: "Do you smell
+  a skunk?" — "Every night about this time. It's the Catskills."). Earl
+  gives out last year's word ("lantern") with total confidence; Marnie gives
+  this year's ("honey wagon", Tom's pick) to anybody who asks, which nobody
+  does because they all think it's a secret; the twist at the door is that
+  the right word is the suspicious one, and the lantern crowd gets in
+  anyway. A newcomer, Linnea, won't go up the hill until the player, by then
+  a local, walks her in. Six ending options are in the treatment (the
+  sharpie wall, out by the fire, next year's word, the morning after, a
+  corner of the paper on the pool wall, somebody sings). Music is proposed
+  as a scene step (DESIGN.md §3d), real recordings under CC0 / CC BY 4.0 or
+  a local musician's own grant, credited like art. Needs one schema reversal
+  (NPC `requires`, the mirror of `until`, so a room can be empty by day and
+  full by night) and two small extensions for a pick-of-three outfit that
+  shows on the sprite. Open decisions are at the end of the treatment.
 - **A new shop opening below Stamford Coffee — the not-knowing is the
   story.** Tom's heard someone is opening a shop of some sort under/below
   Stamford Coffee, but nobody actually knows what it'll be yet — and that

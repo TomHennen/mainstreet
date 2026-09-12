@@ -1427,14 +1427,19 @@ does: one scene step, no code in content, silence when the file is missing
 
 ```jsonc
 { "music": { "play": "bel-dj", "fade": 2, "keep": true } }
+{ "music": { "play": "bel-dj", "volume": 0.4 } }   // same track, through a wall
 { "music": { "stop": true, "fade": 3 } }
 ```
 
 - `play` names a track by id. The file is `worlds/<id>/assets/music/<id>.mp3`
   by convention — MP3 because it plays everywhere, including iOS Safari,
-  without a second encoding; 96–128 kbps, mono is fine, loops of 30–90
-  seconds that start and end clean, under about 1.5 MB each. A track loops
-  until stopped. `fade` is seconds, in or out; default 1.
+  without a second encoding; 128 kbps is plenty. Real recordings are the
+  aim (Tom's call: a real track beats a chiptune), so a file may be a whole
+  song of a few MB; the engine loads a track only when a map that can play
+  it is entered, never at boot. A track loops until stopped. `fade` is
+  seconds, in or out; default 1. `volume` is 0–1, default 1; a `play` of
+  the track already running only moves the volume, which is how stepping
+  out to a yard sounds like stepping out.
 - `keep`, exactly as on `light`: a map change stops the music unless the
   step said to carry it through the door. Never saved: an episode restarts
   what it wants playing, so no save can strand somebody with a loop going.
@@ -1465,13 +1470,17 @@ MacLeod's catalogue, for instance, asks for "Title by Kevin MacLeod
 }
 ```
 
-Only **CC0 and CC BY 4.0** tracks go in: the world's content is CC BY 4.0
-and allows commercial use, so ShareAlike and NonCommercial licences do not
-fit. First places to look: OpenGameArt's CC0 music collections (chiptune
-and electronic loops, which suit a pixel game and keep a real bar from
-"sounding like" any real band), incompetech.com, and the Free Music Archive
-filtered to those two licences. Same rule as art, pending Tom's call in
-CONTRIBUTING's "Where AI fits": no model-generated music under `worlds/`.
+Only **CC0, CC BY 4.0, or a written grant from the artist** (recorded in
+`credits.json`) go in: the world's content is CC BY 4.0 and allows
+commercial use, so ShareAlike and NonCommercial licences do not fit. The
+best source is the same as for paintings — somebody local who plays there,
+opting in and credited in-game ("Music at the Bel this week by ___"). Until
+then, real recordings under those licences: the Free Music Archive filtered
+to CC BY / CC0, the Internet Archive's netlabel collections, incompetech.com
+(CC BY 4.0, a findable credit is all it asks). OpenGameArt's CC0 chiptune
+collections are the fallback if nothing real fits. Same rule as art,
+pending Tom's call in CONTRIBUTING's "Where AI fits": no model-generated
+music under `worlds/`.
 
 ### 3e. Small extensions the Belvedere party wants (proposed — not yet built)
 
@@ -1490,12 +1499,16 @@ zero-feature fallback for each.
   while their flags hold, merged over `world.player.look` in order.
   Flag-derived like an overlay, so it is never saved and Start over undoes
   it; the one thing the player can wear home from a thrift shop.
-- **A gated door**: an episode `doors` list, `{ "building": "…" | "map" +
-  "pos", "requires": [...], "lines": [...] }` — a door that reads its lines
-  instead of opening until its flags hold. A shop closed for the week, a
-  back room with somebody on it. Only needed if a story NPC standing in a
-  one-tile hallway turns out not to block the player, which the party's
-  first build should simply check.
+- **`requires` on an NPC**: a declared flag before which the person is not
+  on the map at all — the exact mirror of `until` (not drawn, not walked,
+  not reachable; spawned the moment the flag lands on a map already on
+  screen, and by `npcsOn` on any map loaded after). §3 above says there is
+  deliberately no opposite of `until`, because what *arrives* is usually a
+  line of dialogue; the Belvedere party is the first story where that is
+  not enough — a room has to be nearly empty by day and full by night, and
+  a crowd is not a line. The same person by day and by night is two entries
+  with the same name and look, one `until: "partyOn"`, one
+  `requires: ["partyOn"]`. Reversing that decision is Tom's call.
 - **Overlays that add an exit**: an `exits` entry on an overlay, gated like
   its tiles, so a wall can be a door for one week — the papered wall and
   the pool room behind it. The validator's every-combination reachability
