@@ -771,6 +771,12 @@ opt-in, everything warm and affectionate) before it reaches the player.
   photo mechanism (a generic "story image" asset type, distinct from
   portraits) would be a real feature worth scoping on its own if it ever
   comes up again, not something to fold into this episode.
+  September 2026, Tom's note: the episode's `intro` used to spell out the
+  whole errand (Priya, the costume, Walt, the truck) before the player had
+  taken a step; it now just points at Priya outside Middle Brook Cafe on a
+  Sunday morning, the same hook-not-answer shape as ep001's Earl line, so
+  the player finds the errand by talking to her rather than reading it off
+  the boot screen.
 - **The M&M fire and the fire-department open house epic.** Real
   inspiration, being scoped as a full epic (DESIGN.md §3a/§3b) rather than
   a single episode. The story, as told so far: the empty lot across from
