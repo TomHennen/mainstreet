@@ -948,3 +948,34 @@ opt-in, everything warm and affectionate) before it reaches the player.
   it in first, which none of the three villages has yet — worth revisiting
   once a map grows toward tree cover at its edges, or alongside a Catskill
   Scenic Trail episode.
+- **A gallery show in Hobart — story idea (Tom, Sep 2026).** Hobart has no
+  gallery on the map yet (it's the least-built of the three villages
+  already — see "Hobart's bookshop lots" above), so this would claim one of
+  the reserved Main Street lots as a gallery rather than another bookshop.
+  The seed is small and warm, in keeping with how ep002's beats run: the
+  gallery is putting on a show, there's opening-night energy, a few pieces
+  on the walls, an artist or two around happy to talk about their work, and
+  maybe a light errand (help hang the last piece, track down a missing
+  frame, let people around town know it's starting). No puzzle needed
+  beyond that.
+  **Whether to show real art piece to piece — open question, needs Tom's
+  call before any building starts.** Real paintings on the gallery walls as
+  the player walks past them is an appealing idea but runs into two hard
+  rules at once: rule 5 (a real person's own artwork is closer to their
+  identity than a real business's storefront is, so using it without the
+  artist opting in is the same as depicting a real private person who
+  hasn't opted in) and the art policy above (nothing model-generated ships
+  under `worlds/`, and real art would need the same contributor-credit
+  treatment as painted buildings get via `docs/receiving-art.md`). In
+  practice that means: no real artist's work goes in without them opting in
+  by name, the same friendly-heads-up step DESIGN.md §5 asks for with real
+  businesses; real photos or scans of the actual pieces, not an
+  AI-generated stand-in; and each artist credited in their own words in
+  `credits.json`, same as painted facades. Until Tom lines up a real
+  gallery and artist(s) willing to be in the game, the show can ship with
+  painted or placeholder pieces on the walls — the "unpainted building"
+  fallback extends naturally to "unpainted paintings" — and swap in real
+  art later as a follow-up rather than blocking the story on it. (Separate
+  from Fern's "gallery" guess about the still-unrevealed shop under
+  Stamford Coffee — that's a different village and a different idea; don't
+  conflate the two unless Tom says otherwise.)
