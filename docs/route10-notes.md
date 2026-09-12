@@ -701,7 +701,8 @@ opt-in, everything warm and affectionate) before it reaches the player.
   an episode NPC has no way to stop existing (`EpisodeNpc` has no `requires`
   and no `until`, the same limitation the design pass below found from the
   other end), so he is still stood on the forecourt afterwards and his `done`
-  line does the work instead — he is away as soon as he has drunk his coffee.
+  line carries it instead, talking about where the bag is going rather than
+  about a departure the player has just watched.
   An `until` on an episode NPC, shaped like an item's, is the schema answer if
   a later episode ever needs somebody to actually go. J&H is the place that
   makes this easy, never the place that let him down: somewhere to leave a
