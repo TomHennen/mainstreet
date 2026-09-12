@@ -8,3 +8,6 @@ playtest-out/
 
 # dev-server pid files from playtest runs
 *.pid
+
+# a node_modules symlink (agent worktrees) must never be committed either
+node_modules
