@@ -807,6 +807,19 @@ export interface DialogueEntry {
   requires: string[];
   lines: string[];
   effects?: Effect[];
+  /**
+   * The id of an episode item this entry is the handing-over of — Priya
+   * pressing the costume bag into the player's hands, rather than something
+   * found lying on the ground (DESIGN.md §2/§3). Read the same way a map
+   * pickup's `SayRequest.item` already is (`engine/scenes/ui.ts`): recorded
+   * into `session().taken` the moment the entry is read to the end, which is
+   * what puts it on the "with you" panel and autosaves. This is the whole
+   * mechanism — there is no separate "give" effect, because a dialogue entry
+   * handing over an item is exactly the same act a map item's own entry
+   * already is, just spoken by an NPC instead of read off the ground. The
+   * validator checks it names a declared item.
+   */
+  item?: string;
 }
 
 export interface EpisodeNpc {
@@ -833,11 +846,33 @@ export interface EpisodeNpc {
 
 export interface EpisodeItem {
   id: string;
-  map: string;
-  pos: Vec2;
+  /**
+   * Where this sits on the ground, waiting to be picked up. Both `map` and
+   * `pos` are omitted together for a **carried-only** item — one that never
+   * sits on any map and reaches the player only by being handed over in a
+   * dialogue entry (`DialogueEntry.item`, above), the way Priya presses the
+   * costume bag into the player's hands rather than leaving it somewhere to
+   * find. The validator checks that an item with neither is named by at
+   * least one dialogue entry's `item`, since that is then the only way it can
+   * ever be obtained.
+   */
+  map?: string;
+  pos?: Vec2;
   requires: string[];
-  effects: Effect[];
-  lines: string[];
+  /**
+   * Applied when this item is picked up off the ground; required (with at
+   * least one `set`, checked by the validator) for an item that has a
+   * `map`/`pos`. A carried-only item has no ground-pickup moment for this to
+   * apply to, so it is left out entirely — its effects live on the dialogue
+   * entry that hands it over (`DialogueEntry.effects`) instead.
+   */
+  effects?: Effect[];
+  /**
+   * Read when this item is picked up off the ground; required, non-empty,
+   * for an item that has a `map`/`pos`. Left out entirely on a carried-only
+   * item, whose words are the dialogue entry's own `lines`.
+   */
+  lines?: string[];
   /**
    * What the "with you" panel calls this item (DESIGN.md §2,
    * `engine/inventory.ts`). The engine never invents player-facing English —
@@ -864,6 +899,15 @@ export interface EpisodeItem {
    */
   until?: string;
 }
+
+/**
+ * An `EpisodeItem` that actually sits on a map — `map` and `pos` narrowed from
+ * optional to required, which is what `engine/session.ts`'s `itemsOn` returns
+ * (filtered to one map, and only an on-map item is ever placed on one) so a
+ * map scene can read `.pos` without a carried-only item's absence of one
+ * getting in the way.
+ */
+export type PlacedItem = EpisodeItem & { map: string; pos: Vec2 };
 
 /**
  * Flavor text, on a building or on a prop. Exactly one of `building` (read at
