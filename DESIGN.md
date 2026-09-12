@@ -1116,11 +1116,13 @@ Hobart — "Jewel of the West Branch."
   `eighty-main`, below, reached through an open doorway inside. A hallway
   in the room's upper left passes the two bathrooms and ends at a steel
   door into the kitchen (`stamford-coffee-kitchen`, its own room, entered
-  through that door — Tom prefers it not drawn with the cafe), open plan,
-  where the baker **Laura** (fictional) makes the lemon shortbread cookies people
-  can't get enough of and builds custom cakes, sometimes late at night — her
-  own business, unnamed, run out of the shop's kitchen after hours by
-  arrangement, not a Stamford Coffee employee; bottles
+  through that door — Tom prefers it not drawn with the cafe), open plan
+  and the shop's own: used mostly to make things for the case out front,
+  the lemon shortbread cookies they can't keep in stock among them (Ronnie
+  mentions those); a baker sometimes borrows it after hours for her own
+  custom cakes, but she is not placed as a character (Tom, Sep 12: "we've
+  leaned too hard into the baking story"; the kitchen is kept, empty, for
+  future episodes); bottles
   of beer and wine to take home sit behind the right end of the counter
   (readable, nothing bought yet).
 - `eighty-main` (Stamford): the shop through the open doorway on

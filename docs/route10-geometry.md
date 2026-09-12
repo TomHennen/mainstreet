@@ -426,12 +426,16 @@ Stewart's, and the reason a room's door reads as a door.
 - **Stamford Coffee Kitchen** (`stamford-coffee-kitchen`, 12 × 9, same brick
   and floor; Sep 10 2026): its own map, entered through the steel door from
   the hallway — Tom prefers the kitchen as a room you have to go into rather
-  than drawn with the rest of the cafe. Its door is the two-tile gap in its
-  **left** wall (in facing right, out facing left onto the hallway tile
-  beside the steel door); no street door. Open plan: the oven, a steel work
-  table and two fridges and a chest freezer along its top wall, the cake
+  than drawn with the rest of the cafe. Its door is a one-tile gap in its
+  **left** wall at row 4 (in facing right, out facing left onto the hallway
+  tile beside the steel door) — one steel door tile inside to match the one
+  on the cafe side (Tom, Sep 12; it was two); no street door. Open plan:
+  the oven, a steel work table and two fridges and a chest freezer along its
+  top wall, the cake
   table down its right wall, the cooling rack by its bottom wall, and the
-  middle left clear for Laura the baker, who wanders it. The floor is a
+  middle left clear. Nobody is placed in it: the kitchen is the shop's own,
+  kept empty for future episodes (Tom, Sep 12), and a room reached only
+  through another room may be empty without `"unstaffed"`. The floor is a
   floor, not grass: the playtest tells a room from a yard by whether its
   whole floor grows.
 - **80 Main** (14 × 12, same brick and floor): its own street door onto the

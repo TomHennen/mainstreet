@@ -211,21 +211,20 @@ keeps its non-rectangular shape for the hallway bay. On the right side of
 the counter, **bottles on display behind it**: beers and wine to buy and
 take home (readable only for now, like the fridge).
 
-The kitchen is **open plan — no counter the baker stands behind, that is not
+The kitchen is **open plan — no counter anybody stands behind, that is not
 how kitchens work**: work tables round the perimeter, an oven, fridges and
-freezers, the middle left open, and the baker moving freely about it with
-the player. She may not always be there; an empty kitchen is fine. She is
-**Laura** (Tom's own choice for the name; the first one tried was too
-close to the real baker's), silver hair worn down, long (Tom, Sep 10: she'd
-been coded as an older woman, in a bun — that was a mistake; she may have
-silver hair, but it's down, not pinned up). She makes **lemon shortbread cookies**,
-which people can't get enough of, and **custom cakes**, and some nights she
-is there **late**, after the shop has closed — sometimes, not as a rule (Tom,
-Sep 10: she doesn't always work late, just sometimes). **The
-baker runs her own business out of this kitchen** (Tom, Sep 10): she is not
-Stamford Coffee's employee — the cake orders are hers, and the shop lets her
-bake in here after hours by arrangement, which suits them both. Her business
-stays unnamed (hard rule 5).
+freezers, the middle left open. It is **the coffee shop's own kitchen**,
+used mostly to make things for the shop — the scones and muffins for the
+case, and the **lemon shortbread cookies** people can't get enough of, which
+Ronnie mentions out front ("we can't keep them in stock"). A baker sometimes
+borrows it after hours for her own **custom cakes** (her business, unnamed —
+hard rule 5), but she is **not placed as a character**: the kitchen had a
+baker in it for a couple of days, and Tom pulled her (Sep 12: "we've leaned
+too hard into the baking story"; "the kitchen is mostly used to make things
+for the coffee shop and only sometimes used by the baker"). The room stays,
+empty, for future episodes — a room reached only through another room may be
+empty without `"unstaffed"` (DESIGN.md §2). The line about the recipe cards
+being older than some of the customers went with her, at Tom's ask.
 
 As built (`worlds/route10/rooms/stamford-coffee-interior.json`, a 20×15
 box with a `plan` — see DESIGN.md §2): the hallway bay is x1–3, rows 1–3
@@ -240,8 +239,8 @@ down the left wall, the tables, the fridge by the door. The kitchen
 `worlds/route10/rooms/stamford-coffee-kitchen.json`, door in its left wall
 onto the hallway): the oven, a steel work table and the two fridges and
 chest freezer along its top wall, the cake table down its right wall, the
-cooling rack (lemon shortbread) by its bottom wall, the middle open for
-Laura, who wanders it. Nothing is bought yet.
+cooling rack (lemon shortbread) by its bottom wall, the middle open, and
+nobody in it. Nothing is bought yet.
 
 **80 Main interior (Tom, Sep 2026; built Sep 2026).** High-end goods, lots
 of Catskills-logo wear. They once (maybe still do) sold a high-end coffee
@@ -347,10 +346,10 @@ one). Both were renamed to something clearly invented and unlikely to land
 on anybody: Wren and Thea. When in doubt, pick further from ordinary.
 Third thing, Sep 2026: a character who works at a real business gets
 checked against the real people who work there too — the first name given
-to Stamford Coffee's baker landed right next to the real baker's, by pure
-coincidence (nobody looked anything up; it was picked as "unused in the
-pack"), and Tom caught it. Ask Tom before naming anyone who stands behind a
-real counter.
+to a baker character in Stamford Coffee's kitchen (since removed) landed
+right next to the real baker's, by pure coincidence (nobody looked anything
+up; it was picked as "unused in the pack"), and Tom caught it. Ask Tom
+before naming anyone who stands behind a real counter.
 
 ## Art policy
 
