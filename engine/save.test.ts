@@ -164,6 +164,30 @@ describe('what the title screen asks a save', () => {
     expect(isCompleted(save, 'ep000')).toBe(true);
     expect(isCompleted(save, 'ep001')).toBe(false);
   });
+
+  // Regression for the title screen's "Ep. 2 doesn't show Start over /
+  // Continue": a second episode's progress has to survive on its own,
+  // keyed by its own id in `episodes`, rather than the save only ever
+  // being able to speak for whichever episode happens to be playing.
+  it('tracks a second episode\'s progress independently of the first (regression: title-screen row for ep002)', () => {
+    const storage = fakeStorage();
+    const save = filled(); // ep001 in progress, ep000 completed
+    save.episodes.ep002 = { flags: ['heardAsk'], taken: [], map: 'stamford', pos: [19, 15], facing: 'up' };
+    expect(writeSave('route10', save, storage)).toBe(true);
+
+    const reloaded = loadSave('route10', storage);
+    expect(hasProgress(reloaded, 'ep001')).toBe(true);
+    expect(hasProgress(reloaded, 'ep002')).toBe(true);
+    expect(isCompleted(reloaded, 'ep002')).toBe(false);
+    expect(reloaded.episodes.ep001).toEqual(save.episodes.ep001);
+    expect(reloaded.episodes.ep002).toEqual(save.episodes.ep002);
+
+    // Finishing ep002 doesn't touch ep001's own progress or done mark.
+    reloaded.completed.push('ep002');
+    expect(isCompleted(reloaded, 'ep002')).toBe(true);
+    expect(isCompleted(reloaded, 'ep001')).toBe(false);
+    expect(hasProgress(reloaded, 'ep001')).toBe(true);
+  });
 });
 
 describe('resetEpisode ("Start over", DESIGN.md §2)', () => {
@@ -188,6 +212,18 @@ describe('resetEpisode ("Start over", DESIGN.md §2)', () => {
     const save = filled();
     resetEpisode('route10', save, 'ep000', storage);
     expect(hasProgress(save, 'ep001')).toBe(true);
+  });
+
+  it('"Start over" on a second episode clears only that one, leaving the first as it was', () => {
+    const storage = fakeStorage();
+    const save = filled();
+    save.episodes.ep002 = { flags: ['heardAsk'], taken: [], map: 'stamford', pos: [19, 15], facing: 'up' };
+    resetEpisode('route10', save, 'ep002', storage);
+    expect(hasProgress(save, 'ep002')).toBe(false);
+    expect(hasProgress(save, 'ep001')).toBe(true);
+    expect(save.episodes.ep001).toEqual(filled().episodes.ep001);
+    expect(loadSave('route10', storage).episodes.ep002).toBeUndefined();
+    expect(loadSave('route10', storage).episodes.ep001).toEqual(filled().episodes.ep001);
   });
 
   it('writes the reset at once, not on some later autosave', () => {

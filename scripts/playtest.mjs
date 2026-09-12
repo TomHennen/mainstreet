@@ -1747,6 +1747,49 @@ async function main() {
           log('    a tap goes back to the episode list');
         }
 
+        // A second shipped episode keeps its own progress (issue #37, "Ep 2
+        // doesn't show Start over / Continue"): the save and the title row
+        // both key off the episode's own id, not off whichever one happens to
+        // be playing, so starting episode two must not touch episode one's
+        // own finished/again state, and coming back to it must offer to carry
+        // on rather than starting fresh again. Real play, the short way:
+        // arriving anywhere is autosaved on its own (engine/scenes/map.ts),
+        // so tapping the row and reloading is enough to prove it stuck.
+        if (WORLD.episodes.length > 1) {
+          const secondId = WORLD.episodes[1];
+          let secondRow = rowFor(list, secondId);
+          if (!secondRow) fail('title-second-episode', `the second shipped episode "${secondId}" is not on the list`);
+          if (words.play && secondRow.action !== words.play) {
+            fail('title-second-episode', `a fresh "${secondId}" offers "${secondRow.action}", expected "${words.play}"`);
+          }
+
+          await tapRow(secondRow);
+          await waitUntil(tip, (s) => s.map === WORLD.start.map, `"${secondId}" to start from the title`, 20000);
+
+          await tip.reload({ waitUntil: 'load' });
+          list = await listNow(`after starting "${secondId}" and reloading`);
+          secondRow = rowFor(list, secondId);
+          if (words.continue && secondRow.action !== words.continue) {
+            fail(
+              'title-second-episode',
+              `"${secondId}" with progress offers "${secondRow.action}", expected "${words.continue}"`
+            );
+          }
+          if (!secondRow.secondary) fail('title-second-episode', `"${secondId}" with progress offers no "Start over"`);
+
+          // And the first episode's own state — finished, played again,
+          // above — is exactly as it was: two episodes' progress living in
+          // one save must never bleed into each other.
+          const firstRow = rowFor(list, shippedId);
+          if (words.again && firstRow.action !== words.again) {
+            fail(
+              'title-second-episode',
+              `starting "${secondId}" disturbed "${shippedId}": it now offers "${firstRow.action}", expected "${words.again}"`
+            );
+          }
+          log(`    a second episode ("${secondId}") tracks its own progress: "${secondRow.action}" / "${secondRow.secondary}"`);
+        }
+
         // "Forget everything" (Tom's addendum to issue #65), tested once: the
         // same one-step confirmation as "Start over", but for the whole save.
         if (words.forget) {
@@ -1781,6 +1824,107 @@ async function main() {
         }
       } finally {
         await titleCtx.close();
+      }
+
+      // The exact regression Tom found (issue #37): with Ep. 1 started and
+      // left unfinished, starting Ep. 2 from the menu and coming back to the
+      // title showed no Continue/Start over on Ep. 2's own row. The cursor
+      // opens on the first *unfinished* episode, which stays Ep. 1 here, so
+      // this is the one arrangement the walkthrough above never hits — every
+      // check up there leaves the shipped episode either untouched or fully
+      // done before a second one is ever touched. A fresh context and a
+      // fresh save, so this reads independently of that walkthrough.
+      if (WORLD.episodes.length > 1) {
+        const [firstId, secondId] = WORLD.episodes;
+        const twoCtx = await browser.newContext({
+          viewport: { width: 390, height: 844 },
+          hasTouch: true,
+          isMobile: false,
+          deviceScaleFactor: 1
+        });
+        const twoPage = await twoCtx.newPage();
+        attach(twoPage, 'title-two-unfinished');
+        const twoCdp = await twoCtx.newCDPSession(twoPage);
+        const tapRow2 = (row) => tapPoint(twoCdp, { x: row.rect.x + row.rect.w / 2, y: row.rect.y + row.rect.h / 2 });
+        const listNow2 = async (what) => {
+          try {
+            await twoPage.waitForFunction(() => window.__mainstreetTitle, null, { timeout: 20000 });
+          } catch {
+            await shot(twoPage, 'no-title-two-unfinished');
+            fail('title-two-unfinished', `the title screen never appeared ${what}`);
+          }
+          return titleSnap(twoPage);
+        };
+
+        try {
+          await twoPage.goto(BASE, { waitUntil: 'load' });
+          let list2 = await listNow2('on a fresh context');
+
+          // Start Ep. 1 and leave it unfinished — arriving anywhere is
+          // autosaved on its own (engine/scenes/map.ts), so tapping it and
+          // coming back is enough.
+          let firstRow = rowFor(list2, firstId);
+          if (!firstRow) fail('title-two-unfinished', `"${firstId}" is not on the list`);
+          await tapRow2(firstRow);
+          await waitUntil(twoPage, (s) => s.map === WORLD.start.map, `"${firstId}" to start from the title`, 20000);
+          await twoPage.reload({ waitUntil: 'load' });
+          list2 = await listNow2(`with "${firstId}" unfinished`);
+          firstRow = rowFor(list2, firstId);
+          if (words.continue && firstRow.action !== words.continue) {
+            fail('title-two-unfinished', `"${firstId}" with progress offers "${firstRow.action}", expected "${words.continue}"`);
+          }
+          if (firstRow.done) fail('title-two-unfinished', `"${firstId}" reads done after only arriving once`);
+          if (!firstRow.selected) fail('title-two-unfinished', `the cursor is not on "${firstId}", the first unfinished episode`);
+
+          // Now start Ep. 2 from the menu too, and leave it unfinished as well.
+          let secondRow = rowFor(list2, secondId);
+          if (!secondRow) fail('title-two-unfinished', `"${secondId}" is not on the list`);
+          if (words.play && secondRow.action !== words.play) {
+            fail('title-two-unfinished', `a fresh "${secondId}" offers "${secondRow.action}", expected "${words.play}"`);
+          }
+          await tapRow2(secondRow);
+          await waitUntil(twoPage, (s) => s.map === WORLD.start.map, `"${secondId}" to start from the title`, 20000);
+          await twoPage.reload({ waitUntil: 'load' });
+
+          // Back on the title: Ep. 1 is still unfinished, so the cursor sits
+          // there — not on Ep. 2, even though Ep. 2 has progress of its own now.
+          list2 = await listNow2(`with both "${firstId}" and "${secondId}" unfinished`);
+          firstRow = rowFor(list2, firstId);
+          secondRow = rowFor(list2, secondId);
+          if (!firstRow.selected) fail('title-two-unfinished', `the cursor moved off "${firstId}" even though it is still unfinished`);
+          if (secondRow.selected) {
+            fail('title-two-unfinished', `"${secondId}" is selected; expected the cursor to stay on "${firstId}"`);
+          }
+
+          // The regression itself: "${secondId}"'s own row has to say
+          // Continue/Start over even though the cursor is sitting on
+          // "${firstId}" — both the words (row.action/row.secondary) and a
+          // tap target for "Start over" (row.secondaryRect), since the row
+          // logic used to draw and hit-test an episode's action only on
+          // whichever row the cursor happened to be on.
+          if (words.continue && secondRow.action !== words.continue) {
+            fail(
+              'title-two-unfinished',
+              `"${secondId}" with progress offers "${secondRow.action}" while unselected, expected "${words.continue}" ` +
+                '(regression: issue #37, "Ep 2 doesn\'t show Start over / Continue")'
+            );
+          }
+          if (!secondRow.secondary) {
+            fail('title-two-unfinished', `"${secondId}" with progress offers no "Start over" while its row isn't selected`);
+          }
+          if (!secondRow.secondaryRect) {
+            fail(
+              'title-two-unfinished',
+              `"${secondId}"'s "Start over" has no tap target while unselected — visible (if at all) but not tappable`
+            );
+          }
+          log(
+            `    "${secondId}" reads "${secondRow.action}" / "${secondRow.secondary}" (tappable) while the cursor stays on unfinished "${firstId}"`
+          );
+          await shot(twoPage, 'title-two-unfinished');
+        } finally {
+          await twoCtx.close();
+        }
       }
 
       // The same screen at the run's desktop viewport, for the record.
