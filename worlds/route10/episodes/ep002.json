@@ -128,13 +128,13 @@
         },
         {
           "requires": ["askedJessK"],
-          "lines": ["Jess R.? The south end of the trail, where the old rail bed starts. She'll have a pack on."]
+          "lines": ["Jess R.? The south end of the trail, where the old rail bed starts."]
         },
         {
           "requires": ["truckDead"],
           "lines": [
-            "Cables? Oh — you've got the wrong Jess. I don't keep any.",
-            "Jess R. walks the rail trail on Sundays, and she'd have a set in her truck. There's a Jess down in Hobart too, by the bridge."
+            "Cables? You've got the wrong Jess. I don't keep any.",
+            "There's a Jess who walks the rail trail on Sundays, and one down in Hobart, by the bridge."
           ],
           "effects": [{ "set": "askedJessK" }]
         },
@@ -187,7 +187,7 @@
       "dialogue": [
         {
           "requires": ["done", "askedJessT"],
-          "lines": ["The truck's away? Good."]
+          "lines": ["Walt got his jump? Good."]
         },
         {
           "requires": ["done"],
@@ -199,13 +199,13 @@
         },
         {
           "requires": ["askedJessT"],
-          "lines": ["Jess R. for the cables. She'll be on the trail this morning."]
+          "lines": ["Cables? Not me. Try the Jess on the trail, or the one on Main Street in Stamford."]
         },
         {
           "requires": ["truckDead"],
           "lines": [
-            "Cables? Wrong Jess — I walked here.",
-            "Jess R. carries a set. She walks the rail trail on Sundays, from the Stamford end."
+            "Cables? Wrong Jess — I don't have a set.",
+            "There's a Jess who walks the rail trail from Stamford on Sundays, and one on Main Street up there."
           ],
           "effects": [{ "set": "askedJessT" }]
         },
