@@ -178,6 +178,24 @@ scrappy punk band. It is not a fiddle place — don't write one in. Karaoke,
 open mic and trivia are already on record, and a big-name comic passes
 through now and then.
 
+**The Bel in its own words (public listings, Sep 2026).** It describes
+itself as a speakeasy-style dive bar and hotel renovation project — food,
+live music, pop-ups and special events — and it is the last building still
+operating from the hotel era when Stamford was the Queen of the Catskills
+(the inn is at 10 Academy Street, circa 1850). Both facts are its own and
+public, and both are affectionate: fair game for copy. The party treatment
+in `docs/route10-bel-party.md` builds on the speakeasy one.
+
+**Core Values (Stamford; not on the map yet).** A real thrift workshop at
+112 Main Street: clothes, housewares, kitchen things, books — going thirty-odd
+years, run on the idea of people helping each other by sharing and
+salvaging. Even-numbered, so the **north side of Main Street**, where the
+map keeps its unnamed fillers and reserved lots; it goes into one of those
+without shifting the grid, but not at a guessed coordinate (see Open items).
+Real business, so name plus warm flavour only, and the friendly heads-up
+before launch like the others. Nobody behind its counter gets a name
+without Tom (see People).
+
 **Stamford Coffee interior (Tom, Sep 2026; built Sep 2026).** The left wall
 has a record player with a big spread of LPs out, and there's a whole
 collection of different coffee makers on display too — the furniture
@@ -293,6 +311,14 @@ than a notes-file guess:
   you can take a log off. It still wants a proper pass of its own once
   somebody has eyes on the real thing: how big the yard is, where the seating
   goes, what it looks over.
+
+- **Core Values.** Wants a building on the north side of Main Street in one
+  of the reserved lots east of the junction, with an interior eventually (a
+  rack by the door is the one prop the party needs). Place it on a real
+  redraw pass of Stamford's north side with reference imagery, not by
+  guess: 112 is an even number on a street whose named south side is odd
+  (Stamford Coffee is 79), and which way the numbers run along the block
+  decides where on the north side it lands.
 
 - **Hobart's bookshop lots.** Hobart is under-built relative to Stamford
   and Jefferson right now. Next time Hobart's map gets attention, reserve
@@ -928,6 +954,24 @@ opt-in, everything warm and affectionate) before it reaches the player.
   carried lives in that visit to that yard and nowhere else, so it is not an
   inventory and no episode can ever be gated on it. Both the pile and the fire
   say something whichever way round you find them.
+- **The party at the Bel — treatment written, Sep 2026, in
+  `docs/route10-bel-party.md`.** Tom's ask: a storyline that pays off in a
+  party at the Belvedere, using the lights and scenes we have, with music if
+  it can be had freely, a trip to Core Values for an outfit, and more edge
+  than the episodes so far. The pitch, "What's the Word": the Bel is doing a
+  speakeasy night (its own description of itself), no flyers, the board says
+  SATURDAY. YOU KNOW.; two things get you into the back — the word, and not
+  turning up in what you wore to work; Gus is on the hallway; Earl gives
+  out last year's word with total confidence; Marnie gives this year's to
+  anybody who asks her, which nobody does because they all think it's a
+  secret; Core Values has a rack put by; a newcomer at the foot of Academy
+  Street won't go up until the player, by then a local, walks her in. The
+  payoff is the yard, the fire and a DJ, with the dry pool as a stretch
+  ending once the Bel has been asked. Music is proposed as a scene step
+  (DESIGN.md §3d), CC0 / CC BY 4.0 only, credited like art. Decisions
+  waiting on Tom are listed at the end of the treatment: the word itself
+  ("honey wagon" or the roadside sign's "equanimity"), yard or pool, one
+  outfit or three, names, which edgy beats.
 - **A new shop opening below Stamford Coffee — the not-knowing is the
   story.** Tom's heard someone is opening a shop of some sort under/below
   Stamford Coffee, but nobody actually knows what it'll be yet — and that

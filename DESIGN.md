@@ -1416,6 +1416,91 @@ engine shows a small, dismissible list ticking off as those flags flip.
 Generalizable to any future "help out with an event" episode, not
 fire-specific.
 
+### 3d. Music (proposed — not yet built)
+
+The game is quiet by design and stays that way: no ambient town music in
+v1, and a player who never hears a note is missing nothing the story needs.
+Music is a garnish an episode asks for at a moment — the Belvedere party
+(`docs/route10-bel-party.md`) is the first — and it arrives the way lighting
+does: one scene step, no code in content, silence when the file is missing
+(hard rule 3).
+
+```jsonc
+{ "music": { "play": "bel-dj", "fade": 2, "keep": true } }
+{ "music": { "stop": true, "fade": 3 } }
+```
+
+- `play` names a track by id. The file is `worlds/<id>/assets/music/<id>.mp3`
+  by convention — MP3 because it plays everywhere, including iOS Safari,
+  without a second encoding; 96–128 kbps, mono is fine, loops of 30–90
+  seconds that start and end clean, under about 1.5 MB each. A track loops
+  until stopped. `fade` is seconds, in or out; default 1.
+- `keep`, exactly as on `light`: a map change stops the music unless the
+  step said to carry it through the door. Never saved: an episode restarts
+  what it wants playing, so no save can strand somebody with a loop going.
+- One track at a time. A `play` while another is running cross-fades.
+- **Browsers will not play sound until the player has tapped something.**
+  The title screen's Play button is that tap, and the engine unlocks audio
+  there (Phaser's sound manager does this on the first pointer event; a
+  `?episode=` review run gets its unlock from the first tap on the map). A
+  `play` that lands before the unlock simply starts when the unlock comes.
+- **A mute button on the HUD** (`copy.ui.sound.on` / `.off`), remembered
+  per device in localStorage as a convenience like the save, never sent
+  anywhere (hard rule 7). Reduced-motion has no audio equivalent; the mute
+  is the equivalent.
+- `validate-assets` checks that every track an episode names exists and
+  that `credits.json` carries a credit for it; `validate-episodes` checks
+  the step has exactly one of `play`/`stop` and a sane `fade`. The headless
+  playtest runs without an audio device and must not fail on that.
+
+**Credit and licence.** A track is credited like a painting: a `music`
+block in `credits.json` and a line on the credits screen ("Music: *title*
+by *who*, CC0" or the CC BY 4.0 wording the author asks for — Kevin
+MacLeod's catalogue, for instance, asks for "Title by Kevin MacLeod
+(incompetech.com), licensed under Creative Commons: By Attribution 4.0").
+
+```jsonc
+"music": {
+  "bel-dj": { "title": "…", "by": "…", "source": "https://…", "licence": "CC0" }
+}
+```
+
+Only **CC0 and CC BY 4.0** tracks go in: the world's content is CC BY 4.0
+and allows commercial use, so ShareAlike and NonCommercial licences do not
+fit. First places to look: OpenGameArt's CC0 music collections (chiptune
+and electronic loops, which suit a pixel game and keep a real bar from
+"sounding like" any real band), incompetech.com, and the Free Music Archive
+filtered to those two licences. Same rule as art, pending Tom's call in
+CONTRIBUTING's "Where AI fits": no model-generated music under `worlds/`.
+
+### 3e. Small extensions the Belvedere party wants (proposed — not yet built)
+
+Each is general, declarative, and mirrors something the schema already does.
+None is required for a first version of the party; the treatment lists the
+zero-feature fallback for each.
+
+- **`unless` on dialogue entries and items**, the same field overlays
+  already carry: an entry or a pickup that is there only while none of the
+  listed flags hold. This is how a pick-one choice is written without a
+  `choice` node — three outfits on a rack, each `requires: ["heardAsk"]`,
+  `unless: ["hasOutfit"]`, each setting `hasOutfit` and its own flag — and
+  it is the same first-match logic the validator already reasons about.
+- **`wardrobe`**: an episode list of `{ "requires": [...], "unless": [...],
+  "look": { "shirt": "#…" } }` entries that change how the player is drawn
+  while their flags hold, merged over `world.player.look` in order.
+  Flag-derived like an overlay, so it is never saved and Start over undoes
+  it; the one thing the player can wear home from a thrift shop.
+- **A gated door**: an episode `doors` list, `{ "building": "…" | "map" +
+  "pos", "requires": [...], "lines": [...] }` — a door that reads its lines
+  instead of opening until its flags hold. A shop closed for the week, a
+  back room with somebody on it. Only needed if a story NPC standing in a
+  one-tile hallway turns out not to block the player, which the party's
+  first build should simply check.
+- **Overlays that add an exit**: an `exits` entry on an overlay, gated like
+  its tiles, so a wall can be a door for one week — the papered wall and
+  the pool room behind it. The validator's every-combination reachability
+  check already covers what an overlay takes away; this adds what one gives.
+
 ## 4. Asset spec (give this to artists verbatim)
 
 - Pixel art. Grid: **16×16 px tiles**. PNG, transparency, **no anti-aliasing**.
