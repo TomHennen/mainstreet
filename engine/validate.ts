@@ -475,6 +475,10 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
         checkMovement(npc, map, `${where}: npc "${npc.id}"`, problems);
       }
     }
+    // The flag that takes this person off the map for the rest of the week
+    // (DESIGN.md §3, schema.ts `EpisodeNpc.until`), checked exactly as an
+    // item's own `until` is: it names a flag the episode declares.
+    if (npc.until !== undefined) checkFlags([npc.until], `npc "${npc.id}"`);
 
     let catchAllAt = -1;
     npc.dialogue.forEach((entry, index) => {

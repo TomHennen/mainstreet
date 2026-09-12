@@ -696,15 +696,30 @@ opt-in, everything warm and affectionate) before it reaches the player.
   walks over, her car pulls round into the stall alongside the truck on
   J&H's forecourt,
   the truck catches, and Walt drives out of the village — the week visibly
-  changes something, which the old version never did. One gap worth knowing
-  about before somebody re-finds it: the truck leaves but Walt cannot, because
-  an episode NPC has no way to stop existing (`EpisodeNpc` has no `requires`
-  and no `until`, the same limitation the design pass below found from the
-  other end), so he is still stood on the forecourt afterwards and his `done`
-  line carries it instead, talking about where the bag is going rather than
-  about a departure the player has just watched.
-  An `until` on an episode NPC, shaped like an item's, is the schema answer if
-  a later episode ever needs somebody to actually go. J&H is the place that
+  changes something, which the old version never did. Walt goes with the truck:
+  the first draft could not manage that — an episode NPC had no way to stop
+  existing — and he stood on the forecourt watching his own pickup drive off.
+  The engine grew `EpisodeNpc.until` for it (DESIGN.md §3, an item's `until`
+  one row up): a declared flag that takes somebody off the map for the rest of
+  the week, not drawn, not walked, not stood on, not reachable by the A button,
+  and never spawned at all on a later load. Walt's is `done`, set the step
+  after he walks to the truck, which is him getting in. This replaces the
+  earlier note here that said NPCs simply cannot leave. There is deliberately
+  no opposite of it: somebody the player has never met has nothing to be
+  missing from, so what arrives is a line of dialogue, which `requires`
+  already covers.
+
+  Jess L. waits on Middle Brook Cafe's patio, across Main Street from the
+  forecourt, and walks over — Tom's call, and a better walk than standing by
+  the creamery. Her wagon, though, is parked on J&H's lot rather than at the
+  cafe, and that is a map fact rather than a choice: **Middle Brook's own
+  parking lot (x42-44, y22-25) is drivable but connects to no road** — the
+  strip of Creamery Street it is meant to open onto stops at y25 and never
+  reaches Main Street, so a car parked there cannot drive anywhere and the
+  validator rejects any scene leg out of it. Worth fixing on the map some
+  week; until then a car by the cafe is a car that cannot move. So she parked
+  at the gas station and walked across for a coffee, which is what people do
+  in a village this size, and she says so. J&H is the place that
   makes this easy, never the place that let him down: somewhere to leave a
   truck all day, and the coffee brought out to him while he thinks.
 

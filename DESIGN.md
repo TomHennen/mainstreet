@@ -871,6 +871,30 @@ same shape as `requires`, that takes the item off the panel the moment it
 goes true (usually the flag that closes out the story, the beat the item is
 handed back). No `until` and a picked-up item stays on the panel for good.
 
+An **NPC** takes an `until` of its own, with the same meaning one row up: a
+declared flag that, once true, takes that person off the map for the rest of
+the week — the beat they drive away, go inside, or are simply somewhere else
+now. They are not drawn, not walked, not stood on, and not something the A
+button or a tap can reach. A map loaded afterwards never spawns them
+(`npcsOn` in `engine/session.ts`) and a map already on screen drops them the
+moment the flag lands (`onFlag` in `engine/scenes/map.ts`), so a scene can
+send somebody off in the middle of itself — ep002's Walt gets into his truck,
+the flag is set, and the truck pulls out with nobody left standing on the
+forecourt behind it.
+
+```jsonc
+{ "id": "walt", "name": "Walt", "map": "jefferson", "pos": [46, 11],
+  "until": "done",                                 // gone once the week closes
+  "dialogue": [ /* … */ ] }
+```
+
+Dialogue entries that could only match once that flag is set are then
+unreachable — there is nobody left to say them — so an NPC with `until`
+usually has no entry for the flag that removes them. There is deliberately no
+opposite of `until`: somebody the player has never met has nothing to be
+missing from, so what *arrives* is a line of dialogue, which `requires`
+already covers.
+
 An item is not always something lying on the ground to walk up to. `map` and
 `pos` are left out together for a **carried-only** item — one an NPC hands
 straight to the player mid-conversation, never placed anywhere for them to

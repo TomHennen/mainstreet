@@ -7,6 +7,7 @@ import {
   itemTaken,
   itemVisible,
   joinCredits,
+  npcGone,
   npcsOn,
   peopleOn,
   vehiclesOn,
@@ -218,6 +219,34 @@ describe('session helpers', () => {
     expect(npcsOn('town').map((n) => n.id)).toEqual(['earl']);
     expect(npcsOn('other').map((n) => n.id)).toEqual(['hannah']);
     expect(npcsOn('nowhere')).toEqual([]);
+  });
+
+  // Somebody with somewhere to be (DESIGN.md §3, schema.ts `EpisodeNpc.until`).
+  // This is the whole of the feature that can be tested away from a running
+  // Phaser scene: once the flag is true they are not on the map, so nothing
+  // downstream — drawing, walking, collision, the A button — ever sees them.
+  describe('npcsOn and an NPC with somewhere to be', () => {
+    const leaves: EpisodeNpc = { ...earl, until: 'done' };
+
+    it('keeps them while the flag is still false', () => {
+      boot(fakeFlags(['metEarl']), { episode: { ...episode, npcs: [leaves, hannah] } });
+      expect(npcsOn('town').map((n) => n.id)).toEqual(['earl']);
+      expect(npcGone(leaves)).toBe(false);
+    });
+
+    it('takes them off the map once it is set', () => {
+      boot(fakeFlags(['done']), { episode: { ...episode, npcs: [leaves, hannah] } });
+      expect(npcsOn('town')).toEqual([]);
+      expect(npcGone(leaves)).toBe(true);
+      // And nobody else goes with them.
+      expect(npcsOn('other').map((n) => n.id)).toEqual(['hannah']);
+    });
+
+    it('leaves anybody without an "until" exactly where they were', () => {
+      boot(fakeFlags(['done']), { episode: { ...episode, npcs: [earl, hannah] } });
+      expect(npcsOn('town').map((n) => n.id)).toEqual(['earl']);
+      expect(npcGone(earl)).toBe(false);
+    });
   });
 
   // A village's own people are there every week; an episode NPC with the

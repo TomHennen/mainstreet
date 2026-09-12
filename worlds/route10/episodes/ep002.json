@@ -2,12 +2,11 @@
   "id": "ep002",
   "title": "Anybody Headed Down Today?",
   "intro": [
-    "Priya's on the register at Middle Brook in Jefferson, and half her kid's costume needs to be in the city tonight. Walt's the one who drives down — he's up at J&H with the truck."
+    "Priya's on the register at Middle Brook in Jefferson, and half her kid's costume needs to be in the city tonight. Walt drives down every other Sunday. He's up at J&H with the truck."
   ],
   "smallTalk": [
     "Priya's kid has a showcase in the city tonight. Half the village knows and it isn't even nine.",
-    "Walt's truck is sitting on J&H's lot with the hood up. He'll be taking it personally.",
-    "Best place in the county to break down, if you have to, is a forecourt with the coffee on.",
+    "Walt's truck is sitting on J&H's lot with the hood up.",
     "Somebody told me to ask a Jess. I'd have liked to know which one.",
     "The trail's dry the whole way to Hobart this week. Somebody's already walked it this morning.",
     "Tops finally got the good peaches in.",
@@ -32,7 +31,7 @@
       "id": "jumper-cables",
       "requires": [],
       "name": "Jess R.'s jumper cables",
-      "blurb": "Red and black, coiled neat, out of the back of her truck at the trailhead.",
+      "blurb": "Red and black, coiled neat, out of the back of her truck.",
       "until": "truckRuns"
     }
   ],
@@ -48,33 +47,28 @@
         {
           "requires": ["done"],
           "lines": [
-            "He texted a photo from the stage door the second it got there — you'll just have to imagine it, but trust me, it's a whole look.",
-            "Thank you, truly. And thank whoever else you ended up standing in a lot with this morning."
+            "He sent a photo from the stage door. You'll have to imagine it, but it got there.",
+            "Thank you."
           ]
         },
         {
           "requires": ["hasCables"],
-          "lines": [
-            "Cables! Then you're most of the way there.",
-            "Tell Walt I said thank you before he starts telling you about the truck, or you'll not get another word in."
-          ]
+          "lines": ["Cables. Then he just needs somebody to pull up next to him."]
         },
         {
           "requires": ["truckDead"],
-          "lines": [
-            "His truck won't start? Poor Walt. He'll be more bothered about the truck than about my bag, I promise you."
-          ]
+          "lines": ["His battery's dead? Poor Walt. He'll be more bothered about the truck than about my bag."]
         },
         {
           "requires": ["heardAsk"],
-          "lines": ["Walt's up at J&H, the gas station on the corner, with the truck. Start there and I expect you'll finish there."]
+          "lines": ["Walt's up at J&H, on the corner. He'll be out front with the truck."]
         },
         {
           "requires": [],
           "lines": [
-            "My kid's in a dance showcase in the city tonight, and half his costume is still sitting on our kitchen table. It's in this bag.",
-            "I'm on the register at Middle Brook till four, and it's three hours down — he needs it in his hands by five, when they call them in. So it isn't me that's taking it. Here — would you carry it for me?",
-            "Ask Walt. He's up at J&H with the truck, and he goes down every other Sunday."
+            "My kid's in a dance showcase in the city tonight, and half his costume is still on our kitchen table. It's in this bag.",
+            "I'm on the register at Middle Brook till four, and it's three hours down. He needs it by five, when they call them in.",
+            "Walt goes down every other Sunday. He's up at J&H with the truck — would you take it to him?"
           ],
           "item": "costume-bag",
           "effects": [{ "set": "heardAsk" }, { "toast": "You've got the costume bag." }]
@@ -88,42 +82,36 @@
       "pos": [46, 11],
       "facing": "down",
       "accent": "#8a6b48",
+      "until": "done",
       "dialogue": [
-        {
-          "requires": ["done"],
-          "lines": [
-            "Caught first turn of the key once she'd had a proper drink. That bag'll be in the kid's hands well before they call them in.",
-            "And thank Jess L. for me. She'd have sat there all morning and called it a nice way to spend one."
-          ]
-        },
         {
           "requires": ["hasCables"],
           "lines": [
-            "Cables. Good. Now we want a car alongside with something left in it, running a good ten minutes — she'll not take a quick touch and say thank you.",
-            "Find me a Jess with a car and nowhere to be, and we're in business."
+            "Cables. Now I want a car parked alongside with a good battery in it, running ten minutes.",
+            "Ask a Jess. It's usually one of them who does this for me."
           ]
         },
         {
           "requires": ["truckDead"],
           "lines": [
-            "Still here. Still dead. Still glad it happened on this lot and not halfway up the hill.",
-            "Ask a Jess. Two in Stamford, one down in Hobart, and one somewhere round this village who's never where I've just looked."
+            "Still dead. I need cables, and a car with something in it parked alongside.",
+            "Two Jesses in Stamford, one down in Hobart, one somewhere round this village."
           ]
         },
         {
           "requires": ["heardAsk"],
           "lines": [
-            "Priya's kid's costume? Course I'll take it. Every other Sunday, and today's a Sunday. Hand it over when I'm moving.",
-            "Only I'm not moving. Battery's dead as a stone, and my cables are hanging on a nail in the barn eight miles up the hill, which is exactly where they're no use to anybody.",
-            "Ask a Jess. There's four of 'em between here and Hobart and I have never once got the right one first go."
+            "Priya's kid's costume? I'll take it. I go down every other Sunday and today's a Sunday.",
+            "Battery's dead, though. I need a jump and I've left my cables at home.",
+            "Find me somebody who can give me one. It's usually a Jess — there's four of them between here and Hobart, and I've never once picked the right one first."
           ],
           "effects": [{ "set": "truckDead" }]
         },
         {
           "requires": [],
           "lines": [
-            "Morning. Hood's up, which tells you most of it — she turned over twice and then thought better of the whole idea.",
-            "No better place to be stuck, mind. J&H will let a man leave a truck on the lot all day and bring the coffee out to him while he thinks about it."
+            "Morning. Battery's dead. I need a jump and I've left my cables at home.",
+            "So I'm not going anywhere this morning."
           ]
         }
       ]
@@ -138,27 +126,27 @@
       "dialogue": [
         {
           "requires": ["done"],
-          "lines": ["Walt's away, then. And you've met more of us in one morning than most people manage in a year."]
+          "lines": ["Walt got his jump, then. Jess R. will want those cables back."]
         },
         {
           "requires": ["hasCables"],
-          "lines": ["You've got Jess R.'s cables, I see — she'd lend them to anyone. Now find somebody with a car and no particular hurry. That's the harder half."]
+          "lines": ["You've got Jess R.'s cables, I see. She'd lend them to anyone."]
         },
         {
           "requires": ["askedJessK"],
-          "lines": ["The trail, I said — the south end, where the old rail bed starts. She'll be the one with the pack on."]
+          "lines": ["The south end of the trail, where the old rail bed starts. She'll have a pack on."]
         },
         {
           "requires": ["truckDead"],
           "lines": [
-            "Walt's truck? It's a good truck having a bad morning.",
-            "Jess R. went past me at eight with a pack on, headed for the trail — and that woman has never once been without a set of cables in the back of that truck."
+            "Walt's battery again.",
+            "Jess R. went by here at eight with a pack on, headed for the trail. She keeps cables in the back of that truck of hers."
           ],
           "effects": [{ "set": "askedJessK" }]
         },
         {
           "requires": [],
-          "lines": ["Morning! Lovely day for standing around on Main Street, which is what I'm doing, and I'd recommend it."]
+          "lines": ["Morning. Nice day for standing on Main Street, which is what I'm doing."]
         }
       ]
     },
@@ -172,17 +160,17 @@
       "dialogue": [
         {
           "requires": ["done"],
-          "lines": ["Truck's away? Good. I'll get the cables back off Walt eventually — I always do, and they always come back with a story attached."]
+          "lines": ["He got a jump, then. I'll get the cables back off him sometime."]
         },
         {
           "requires": ["hasCables"],
-          "lines": ["Go on, then. I've got eleven miles of old rail bed to be getting on with and it won't walk itself."]
+          "lines": ["Go on, then. I've got eleven miles to walk."]
         },
         {
           "requires": ["truckDead"],
           "lines": [
             "Cables? In the back of the truck, down at the trailhead. Walk with me a minute.",
-            "There you go. Leave them with Walt when you're done — he's good for them, and I'm headed the other way."
+            "There. Leave them with Walt when you're done — he's good for them."
           ],
           "item": "jumper-cables",
           "effects": [{ "set": "hasCables" }, { "toast": "You've got Jess R.'s jumper cables." }]
@@ -190,7 +178,7 @@
         {
           "requires": [],
           "lines": [
-            "Eleven miles of old rail bed to Hobart and not one hill worth the name. I'll be there by lunch.",
+            "Eleven miles of old rail bed to Hobart and not one hill on it. I'll be there by lunch.",
             "If you've never walked it, walk it. You can hear the creek most of the way."
           ]
         }
@@ -206,31 +194,31 @@
       "dialogue": [
         {
           "requires": ["done", "askedJessT"],
-          "lines": ["The truck's away, then. Ten minutes, like I said. There's nothing wrong with that truck a bit of patience doesn't fix."]
+          "lines": ["The truck's away, then. Ten minutes, like I said."]
         },
         {
           "requires": ["done"],
-          "lines": ["Walt's away, then. Ten minutes of a car alongside and that truck's fine. It always was."]
+          "lines": ["Walt got a jump, then. That's all that truck ever wants."]
         },
         {
           "requires": ["askedJessT", "hasCables"],
-          "lines": ["Cables in hand — that's half of it. Now the car, and somebody content to sit in it a while."]
+          "lines": ["That's the cables. Now the car."]
         },
         {
           "requires": ["askedJessT"],
-          "lines": ["Cables, a car, and ten patient minutes. That's the whole recipe."]
+          "lines": ["Cables, and a car with a good battery in it. Ten minutes, running."]
         },
         {
           "requires": ["truckDead"],
           "lines": [
-            "Walt's green pickup? I've had my head under that hood. She's not a quick-jump sort — you can touch cables to that battery all day and get nothing back.",
-            "What she wants is a car pulled up alongside her, running, for a good ten minutes. Somebody content to sit a while with the radio on."
+            "Walt's green pickup? I've had my head under that hood. Cables on their own won't start it.",
+            "He needs a car with a good battery parked next to his, running, for a good ten minutes."
           ],
           "effects": [{ "set": "askedJessT" }]
         },
         {
           "requires": [],
-          "lines": ["This is the best spot in Hobart. You can hear the creek underneath everything else."]
+          "lines": ["This is the best spot in Hobart. You can hear the creek under everything else."]
         }
       ]
     },
@@ -238,38 +226,38 @@
       "id": "jefferson-creamery-walker",
       "name": "Jess L.",
       "map": "jefferson",
-      "pos": [51, 12],
-      "facing": "left",
+      "pos": [48, 23],
+      "facing": "up",
       "look": { "hair": "bun", "hairColor": "#2b2320", "shirt": "#b08a4a", "build": "slim" },
       "dialogue": [
         {
           "requires": ["done"],
-          "lines": ["Ten minutes and she was fine. A good excuse to sit and do nothing, honestly. I'd have given it twenty."]
+          "lines": ["Ten minutes and it started. That's all it was."]
         },
         {
           "requires": ["truckRuns"],
-          "lines": ["Sit tight — she wants a good ten minutes and I've nowhere to be."]
+          "lines": ["Sit tight. It wants a good ten minutes."]
         },
         {
           "requires": ["truckDead", "hasCables"],
           "lines": [
-            "Cables in your hand, Walt's truck twenty feet that way, and me sitting here with a full tank and nowhere I have to be all morning.",
-            "Well, come on then. It'd be rude not to."
+            "You've got cables. My wagon's over at the gas station with a full tank in it.",
+            "Come on, then. I'm not doing anything today."
           ],
           "effects": [{ "set": "truckRuns" }]
         },
         {
           "requires": ["truckDead"],
           "lines": [
-            "Walt's stuck? I'd pull round this minute, only a car alongside does nothing at all on its own.",
-            "And my cables went off in the trunk of the car I sold in April, which was careless of me and I have heard about it since."
+            "Walt's battery? I'd bring the wagon over now, only I've no cables either.",
+            "Mine went off in a car I sold in April."
           ]
         },
         {
           "requires": [],
           "lines": [
-            "That's my wagon down at the end of the lot there. I'm not sitting in it because it's a nicer morning out here than in.",
-            "No, I'm not waiting on anything. That's the best part of it."
+            "Coffee on the patio and nothing I have to do. It's a good morning for it.",
+            "That's my wagon over at the gas station. I walked across."
           ]
         }
       ]
@@ -284,16 +272,16 @@
       "dialogue": [
         {
           "requires": ["done"],
-          "lines": ["Tell me that bag made it to the stage door in one piece."]
+          "lines": ["Tell me that bag made it to the stage door."]
         },
         {
           "requires": ["hasCables"],
-          "lines": ["Cables in hand. Now you want somebody with a car and a bit of patience, and this county is full of both."]
+          "lines": ["Cables in hand. Now somebody with a car and ten minutes."]
         },
         {
           "requires": ["truckDead"],
           "lines": [
-            "Walt's truck won't go? Then it's a Jess he wants.",
+            "Walt needs a jump? Then it's a Jess he wants.",
             "Somebody was in here this morning saying a Jess was going up to sort him out. Nobody asked me which."
           ]
         },
@@ -320,23 +308,23 @@
       "dialogue": [
         {
           "requires": ["done"],
-          "lines": ["Glad it worked out. Come by Cellar Door for a tasting sometime, once things settle down."]
+          "lines": ["Glad it worked out. Come by Cellar Door for a tasting sometime."]
         },
         {
           "requires": ["hasCables"],
-          "lines": ["Cables from Jess R.? Then you're nearly there. A car and ten minutes, and that's the lot."]
+          "lines": ["Cables from Jess R.? Then it's only the car now."]
         },
         {
           "requires": ["truckDead"],
           "lines": [
-            "Walt's off the road too? My truck's been in the shop two weeks. The two of us could start a club, and it would have to meet on foot.",
-            "Jess T. had her own hood up half of last winter and never once called anyone. She's over by the bridge most mornings, watching the water go past."
+            "Walt needs a jump? My truck's been in the shop two weeks, or I'd go up myself.",
+            "Jess T. had her own hood up half of last winter and never once called anyone. She's over by the bridge most mornings."
           ]
         },
         {
           "requires": ["heardAsk"],
           "lines": [
-            "Priya's costume run? Word travels. Not me today — my truck's still in the shop.",
+            "Priya's costume run? Word travels. Not me today — my truck's in the shop.",
             "Walt goes down every other Sunday. He's the one to ask."
           ]
         },
@@ -344,7 +332,7 @@
           "requires": [],
           "lines": [
             "Welcome — pull up a seat on the bench anytime.",
-            "If you're headed up toward Jefferson, say hello to Priya at Middle Brook. I hear she's asking around about something."
+            "If you're headed up toward Jefferson, say hello to Priya at Middle Brook."
           ]
         }
       ]
@@ -359,21 +347,19 @@
       "dialogue": [
         {
           "requires": ["done"],
-          "lines": [
-            "So Walt got away after all. Every other Sunday, like clockwork, give or take a battery. Tell Priya's kid break a leg from all of us in here."
-          ]
+          "lines": ["So Walt got away after all. Tell Priya's kid break a leg from all of us in here."]
         },
         {
           "requires": ["heardShop", "truckDead"],
           "lines": [
-            "Somebody came in saying Walt's stuck on the lot at J&H with the hood up. He'll be fine — nobody's stuck long around here, they just end up with a great deal of advice.",
-            "Still a gallery downstairs, by the way. I've not been talked out of it."
+            "Somebody came in saying Walt's battery is dead. He'll be fine — nobody's stuck long around here.",
+            "Downstairs? I've heard four different things this week and I believe none of them."
           ]
         },
         {
           "requires": ["heardShop"],
           "lines": [
-            "Still a gallery downstairs, whatever you've been told. I've not been talked out of it.",
+            "Downstairs? I've heard four different things this week and I believe none of them.",
             "They put paper over the window before I could get a look. I respect that. I'm still going to try."
           ]
         },
@@ -382,7 +368,7 @@
           "lines": [
             "Sit anywhere — you can hear the record player from every table in here, so you get whichever side they've put on.",
             "Have you heard? Somebody's doing something with the space underneath us. Hammering all last week. Nobody knows what it is, including the counter, and the counter knows everything.",
-            "My money's on a gallery. Half the people at these tables paint. I've seen the sketchbooks."
+            "If I had to guess, a gallery. Half the people at these tables paint. I've seen the sketchbooks."
           ],
           "effects": [{ "set": "heardShop" }]
         }
@@ -399,8 +385,8 @@
         {
           "requires": ["heardShop"],
           "lines": [
-            "Nothing new downstairs? Everyone's still guessing. Oysters — that's my guess and I'm not moving. The wine nights in here fill right up; imagine that every night of the week.",
-            "Whoever it is, they've picked a lovely spot. Coffee upstairs, sweaters next door. I'd open there."
+            "Nothing new downstairs? Everyone's still guessing. Oysters is my guess, and it's only a guess. The wine nights in here fill right up.",
+            "Whoever it is, they've picked a lovely spot. Coffee upstairs, sweaters next door."
           ]
         },
         {
@@ -408,7 +394,7 @@
           "lines": [
             "Don't mind me, I'm deciding between two sweaters and losing.",
             "You've noticed the work going on under the coffee shop? Whole town's noticed. Nobody's got the answer, which hasn't slowed anybody down.",
-            "My guess is an oyster bar. The oyster-and-wine nights in here fill right up — somebody's clearly been paying attention."
+            "My guess is an oyster bar. The oyster-and-wine nights in here fill right up."
           ],
           "effects": [{ "set": "heardShop" }]
         }
@@ -425,8 +411,8 @@
         {
           "requires": ["heardShop"],
           "lines": [
-            "Still no answer on the space under the coffee shop. Dog treats, I'm telling you. Look at this deck — every dog in Stamford naps here. That's a customer base.",
-            "Biscuit here has been sniffing at that papered-over window every walk this week. He knows something. He's not telling either."
+            "Still no answer on the space under the coffee shop. I'm still guessing dog treats. Look at this deck — every dog in Stamford naps here.",
+            "Biscuit has been sniffing at that papered-over window every walk this week. He's not telling me either."
           ]
         },
         {
@@ -434,7 +420,7 @@
           "lines": [
             "Morning. Biscuit likes to check the patio before we go anywhere else, so we check the patio.",
             "Have you heard about the space underneath the coffee shop? Somebody's doing it up. There's paper on the window and hammering behind it, and that's all anybody knows.",
-            "My guess is dog treats. Every dog in Stamford naps on this deck. Somebody's finally noticed."
+            "My guess is dog treats. Every dog in Stamford naps on this deck."
           ],
           "effects": [{ "set": "heardShop" }]
         }
@@ -464,16 +450,15 @@
       "id": "a-jess-pulls-round",
       "on": { "flag": "truckRuns" },
       "steps": [
-        { "move": { "who": "walt", "to": [43, 12] } },
         { "camera": { "to": [44, 11], "speed": 14 } },
-        { "move": { "who": "jefferson-creamery-walker", "to": [44, 11], "speed": 3.4 } },
+        { "move": { "who": "jefferson-creamery-walker", "to": [43, 11], "speed": 3.4 } },
         { "move": { "who": "vehicle:jess-l-wagon", "to": [45, 12], "speed": 3 } },
         {
           "say": {
             "who": "jefferson-creamery-walker",
             "lines": [
-              "Right alongside you, Walt. Red to red, black on the bracket, and then we let her have a drink a while.",
-              "I'm in no rush. I'd have sat on that wall another hour quite happily."
+              "Red to red, black on the bracket. Now leave it running.",
+              "Ten minutes. I'll stand here and drink my coffee."
             ]
           }
         },
@@ -483,13 +468,12 @@
           "say": {
             "who": "walt",
             "lines": [
-              "...There she is. Listen to that.",
-              "Jess L. Course it was. There's five of us if you count me, you know — Jess is my own middle name, my grandmother's doing.",
-              "Bag on the passenger seat where I can see it — stage door by four, and he can breathe.",
-              "And I still never get the right one first go."
+              "There it is. Listen to that.",
+              "Jess L. I'd have asked you first if I could ever keep the four of you straight."
             ]
           }
         },
+        { "move": { "who": "walt", "to": [43, 12] } },
         { "set": "done" },
         { "move": { "who": "vehicle:walts-pickup", "path": [[43, 15], [63, 15]], "speed": 6 } },
         { "camera": { "to": "player" } },
@@ -502,12 +486,12 @@
     {
       "building": "jh-gas-station",
       "requires": ["truckDead"],
-      "lines": ["Taped inside the door, in careful marker: \"The truck on the lot is Walt's. He knows. He's on it.\" Somebody has drawn a small encouraging sun beside it."]
+      "lines": ["Taped inside the door: \"The truck on the lot is Walt's. He's waiting on a jump.\""]
     },
     {
       "building": "tops",
       "requires": ["heardAsk"],
-      "lines": ["Pinned to the board by the door: somebody's asking if anybody's headed down to the city tonight. Two people have already written \"ask Walt\" underneath, in two different pens."]
+      "lines": ["Pinned to the board by the door: somebody's asking if anybody's headed down to the city tonight. Two people have written \"ask Walt\" underneath, in two different pens."]
     }
   ],
   "overlays": [
