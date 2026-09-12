@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { drawFigure, figureKey } from './figure';
-import { DOOR_ARROW_H, DOOR_ARROW_W, paintDoorArrow } from './glyphs';
+import { DOOR_ARROW_H, DOOR_ARROW_W, paintDoorArrow, paintStairsDown } from './glyphs';
 import { drawVehicle, VEHICLE_CELL } from './motor';
 import { FACINGS, plaqueTile } from './schema';
 import { TILE } from './tiled';
@@ -941,14 +941,21 @@ export interface DoorArrowArt {
  * caller), the top edge of the doorstep's own row, which always sits below
  * a player on that row or any row further down the street. Returns null for
  * a building with no interior.
+ *
+ * A placement whose `doorStyle` is `"stairs"` gets `paintStairsDown` here
+ * instead — a short flight of steps rather than the arrow, for a door that
+ * is genuinely a stairwell down (DESIGN.md §2). The two never draw together:
+ * stairs already say "come on in" on their own.
  */
 export function doorArrowArt(scene: Phaser.Scene, placement: BuildingPlacement): DoorArrowArt | null {
   if (!placement.interior) return null;
 
-  const key = 'prop:door-arrow';
+  const stairs = placement.doorStyle === 'stairs';
+  const key = stairs ? 'prop:door-stairs' : 'prop:door-arrow';
   if (!scene.textures.exists(key)) {
     const { texture, ctx } = canvas(scene, key, DOOR_ARROW_W, DOOR_ARROW_H);
-    paintDoorArrow(ctx);
+    if (stairs) paintStairsDown(ctx);
+    else paintDoorArrow(ctx);
     texture.refresh();
   }
 

@@ -32,7 +32,22 @@ export interface BuildingPlacement {
    * plaque at all.
    */
   plaque?: Vec2 | false;
+  /**
+   * How the door itself is drawn, for a door that wants a different read than
+   * the engine's default arrow (DESIGN.md §2). `"stairs"` draws a short
+   * flight of steps going down into the facade at the door tile instead of
+   * the arrow — for a door that is genuinely a stairwell down (a shop under
+   * another one, say) rather than a walk-in at street level; stairs already
+   * say "go in", so the arrow never draws alongside them. Only ever drawn
+   * where the arrow would be drawn today, i.e. a door with an `interior`;
+   * omitted (the default) leaves a placement exactly as it was.
+   */
+  doorStyle?: 'stairs';
 }
+
+/** The `doorStyle` values a placement may use — kept as a list so validation
+ *  and any future addition have one place to agree. */
+export const DOOR_STYLES = ['stairs'] as const;
 
 /**
  * Where a building's plaque is read from (DESIGN.md §2/§4). Every building has

@@ -330,6 +330,20 @@ whole "you can walk in here" meaning on its own: the reach prompt at a door
 never says anything about entering, only about reading, so there is only
 ever the one prompt at a door, not two competing for the same small space.
 
+A placement whose `door` is genuinely a stairwell down — a shop reached from
+below another one, say, rather than a walk-in at street level — sets
+`"doorStyle": "stairs"` (`engine/schema.ts` `BuildingPlacement.doorStyle`) and
+gets a short flight of steps drawn at the door tile instead of the arrow,
+never both: stairs already say "come on in" on their own. Same box, same
+two-tone ink, same tile and depth as the arrow it replaces — four treads, one
+row apart, narrowest at the door and widest at the doorstep, reading as steps
+going down and toward the player (`engine/glyphs.ts` `paintStairsDown`, drawn
+into `engine/art.ts` `doorArrowArt` alongside the plain arrow it swaps out
+for, and previewed the same way in the Studio). A placement that omits
+`doorStyle` is unchanged — the arrow, exactly as it always drew — and a
+building with painted facade art keeps that art either way; the marker only
+ever replaces the arrow the engine itself would otherwise draw.
+
 The bubble that floats over whatever is in reach is the plain letter "A" —
 the same glyph on every kind of thing it shows for, door included, since A
 only ever reads the standing sign there, never opens it, so there is nothing

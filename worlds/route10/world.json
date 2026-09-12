@@ -597,9 +597,10 @@
             3
           ],
           "door": [
-            85,
+            86,
             23
           ],
+          "doorStyle": "stairs",
           "interior": "eighty-main-interior",
           "enter": [
             6,
@@ -1541,7 +1542,7 @@
           ],
           "to": "stamford",
           "spawn": [
-            85,
+            86,
             23
           ],
           "facing": "down",

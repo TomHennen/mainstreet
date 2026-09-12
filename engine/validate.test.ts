@@ -366,6 +366,39 @@ describe('validateWorld', () => {
     expect(problems.join('\n')).toContain('building "shop" has a "label" that isn\'t a boolean');
   });
 
+  it('accepts a building placement with a "doorStyle" of "stairs"', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          buildings: [{ id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1], doorStyle: 'stairs' }]
+        })
+      }
+    });
+    expect(runWorld(world)).toEqual([]);
+  });
+
+  it('flags a building placement whose "doorStyle" isn\'t a known value', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          // world.json is untyped JSON at load time, so a bad value here is a
+          // realistic author mistake, not just a TypeScript escape hatch.
+          buildings: [
+            {
+              id: 'shop',
+              pos: [0, 0],
+              size: [1, 1],
+              door: [1, 1],
+              doorStyle: 'ramp'
+            } as unknown as BuildingPlacement
+          ]
+        })
+      }
+    });
+    const problems = runWorld(world);
+    expect(problems.join('\n')).toContain('building "shop" has a "doorStyle" that isn\'t one of stairs');
+  });
+
   it('accepts the plaque tile the engine puts beside a door by default', () => {
     // Right of the door, which on this footprint is still a walkable tile.
     const world = makeWorld({

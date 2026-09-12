@@ -57,7 +57,12 @@ not the gripe about what it's missing; see Flavor & story hooks for how
 that has to land in-game. West of Tops was **Mountain Dog Cafe**, now
 closed — see Flavor & story hooks for its story alongside Stamford Coffee.
 **80 Main** is attached directly to Stamford Coffee, its own storefront
-right next door on its **west** side, sharing that same front patio.
+right next door on its **west** side, sharing that same front patio. It is
+downstairs, under the coffee shop — its street door is on the shared patio
+deck (Tom, Sep 2026: it used to read as opening off the parking lot; moved
+onto the deck, right beside Stamford Coffee's own door, drawn as a short
+flight of steps going down rather than the engine's usual door arrow, since
+stairs already say "go in").
 
 **Stamford's Main Street block (settled Sep 2026).** Everything named here is
 on the **south** side of Main Street east of the NY 10 junction, and this is
@@ -257,7 +262,8 @@ of Catskills-logo wear. They once (maybe still do) sold a high-end coffee
 table made out of coal. They sometimes host oyster-and-wine nights.
 
 *As built* (`worlds/route10/rooms/eighty-main-interior.json`, 14×12, its
-own street door at [85, 23]): the logo wear is the shelf along the top
+own street door at [86, 23] — on the shared patio deck, down the stairs
+beside Stamford Coffee's door, Sep 2026): the logo wear is the shelf along the top
 wall, the sweater and camo the rack on the left wall (same items as its
 street sign), candles and mugs the shelf on the right wall, the coal coffee
 table a readable table in the middle of the floor, and oyster-and-wine

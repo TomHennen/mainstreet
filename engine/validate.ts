@@ -7,6 +7,7 @@ import { canCoOccur, combinations, overlapsIn, patchFor, withOverlays } from './
 import { runsOffMap } from './vehicle.ts';
 import {
   BUILDS,
+  DOOR_STYLES,
   FACINGS,
   FIXTURE_KINDS,
   HAIR_STYLES,
@@ -124,6 +125,14 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
       }
       if (placement.label !== undefined && typeof placement.label !== 'boolean') {
         problems.push(`building "${placement.id}" has a "label" that isn't a boolean`);
+      }
+      if (
+        placement.doorStyle !== undefined &&
+        !(DOOR_STYLES as readonly string[]).includes(placement.doorStyle)
+      ) {
+        problems.push(
+          `building "${placement.id}" has a "doorStyle" that isn't one of ${DOOR_STYLES.join(', ')}`
+        );
       }
       // The plaque is read from its own tile, so the player has to be able to
       // stand on it — and it cannot double up with the door.

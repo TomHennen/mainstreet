@@ -36,7 +36,7 @@ import {
   settleCode,
   snapToPalette
 } from './artwork';
-import { DOOR_ARROW_H, DOOR_ARROW_W, paintDoorArrow } from '../engine/glyphs';
+import { DOOR_ARROW_H, DOOR_ARROW_W, paintDoorArrow, paintStairsDown } from '../engine/glyphs';
 
 // --- constants ---------------------------------------------------------------
 
@@ -174,6 +174,8 @@ interface Placement {
   plaque?: [number, number] | false;
   /** Map id of this building's interior, if it has one yet — engine/schema.ts. */
   interior?: string;
+  /** How the door is drawn, if not the engine's default arrow — engine/schema.ts. */
+  doorStyle?: 'stairs';
 }
 
 /**
@@ -460,12 +462,15 @@ function referenceCanvas(
   // A door with an interior gets the engine's own arrow on its doorstep,
   // pointing up into the door — over whatever is painted beneath, so nobody
   // has to draw one (DESIGN.md §2). The door still reads the standing sign
-  // to an A press or a tap; it grows no second marker.
+  // to an A press or a tap; it grows no second marker. A placement whose
+  // `doorStyle` is "stairs" gets the stairs-down marker instead, never both.
   if (hasInterior) {
     const arrowX = doorX + (TILE - DOOR_ARROW_W) / 2;
     const arrowY = height - DOOR_ARROW_LIFT - DOOR_ARROW_H;
-    // engine/glyphs.ts paintDoorArrow, so the two can never drift apart.
-    paintDoorArrow(ctx, arrowX, arrowY);
+    // engine/glyphs.ts paintDoorArrow / paintStairsDown, so the two can
+    // never drift apart from what the game itself draws.
+    if (placement.doorStyle === 'stairs') paintStairsDown(ctx, arrowX, arrowY);
+    else paintDoorArrow(ctx, arrowX, arrowY);
   }
 
   ctx.font = '8px ui-monospace, Menlo, Consolas, monospace';
