@@ -507,32 +507,54 @@ does, with their own copy under `transitions` in `copy.json`
 and `hobart-stamford` road exits, and everything else on either map, are
 unchanged.
 
-## 12. J&H's forecourt (Sep 2026)
+## 12. J&H's forecourt (Sep 2026, enlarged Sep 2026)
 
 ep002 ends with Walt driving down the valley, which meant the map needed
 somewhere on it a truck could legally stand: a parked vehicle has to sit on a
 drivable tile (`engine/validate.ts`), and J&H's apron was sandy. Jefferson's
-row 12 between the sidewalk (x38–41) and NY 10 (x48–50) is now the gas
-station's paved forecourt.
+row 12 between the sidewalk (x38–41) and NY 10 (x48–50) was made into the gas
+station's paved forecourt (below is how that read before the building moved;
+see the update immediately after).
 
-| what                | tiles                                            |
-|---------------------|--------------------------------------------------|
-| forecourt           | row 12, x42–47 — asphalt, one speck tile at x47   |
-| stall stripes       | (42, 12) and (44, 12), the white `stripe-v` tile  |
-| the marked stall    | (43, 12) — where ep002 parks Walt's pickup        |
-| J&H's doorstep      | (45, 12), unchanged                               |
-| J&H's plaque tile   | (46, 12), unchanged                               |
+J&H was originally right on top of the road — building at (43, 9), door at
+(45, 12), one row of asphalt for the whole forecourt. Tom asked for it pushed
+back to make the lot bigger, so the building moved two tiles north (pos
+(43, 7), door (45, 10)) and the forecourt grew to three rows deep (10–12),
+re-tiled as a proper lot — sandy `road` tiles, `drive: false`, the same kind
+Stewart's lot in Stamford uses — rather than the drivable asphalt apron it
+opened onto before, so ambient traffic never routes through it.
 
-- **Two stripes and one stall**, the same pattern the Middle Brook lot uses at
-  x42–44, y24–25. The stall is at the west end, away from the door and the
-  plaque, so a truck's 32 px sprite never sits over either of them.
-- **It opens straight onto Main Street.** Row 13 is asphalt the whole way
-  across, so the forecourt needs no drive of its own: a truck in the stall
-  pulls south into the westbound lane and away. Nothing else on the map
-  moved, and no coordinate changed.
+| what                 | tiles                                                        |
+|----------------------|---------------------------------------------------------------|
+| J&H's footprint      | (43, 7), 5×3 — was (43, 9)                                    |
+| J&H's doorstep       | (45, 10) — was (45, 12)                                       |
+| J&H's plaque tile    | (46, 10) default (right of the door) — was (46, 12)            |
+| the lot               | rows 10–11, x42–47 — sandy `road`, `drive: false`             |
+| planters               | (42, 10) and (47, 10), flanking the lot's front corners — the same fixture kind already used on Middle Brook Cafe's patio |
+| stall stripes         | (42, 12) and (44, 12), the white `stripe-v` tile — unchanged  |
+| the marked stall      | (43, 12) — where ep002 parks Walt's pickup — unchanged        |
+| lot, row 12 east half | (45, 12)–(47, 12) — was the old doorstep/plaque/transition tile, now sandy `road` like the rest of the lot |
+
+- **The marked stall didn't move.** ep002's `walts-pickup` has to sit on a
+  drivable tile, so (42–44, 12) stays exactly as it was: stripe, stall,
+  stripe, asphalt. It now sits at the back of a bigger lot instead of being
+  the whole forecourt — the pickup ends up two rows further from the door
+  than before, deeper into the lot, which reads fine.
+- **Reserved for Walt-the-person.** A separate fix (different branch) moves
+  the NPC `walt` off the NY 10 travel lane at (48, 11) and onto this row,
+  around (44–46, 12). That whole row stays open, walkable lot — nothing
+  solid was put there.
+- **It still opens straight onto Main Street.** Row 13 is asphalt the whole
+  way across, unchanged; the stall at (43, 12) is adjacent to it, so a truck
+  can still pull south into the westbound lane and away. No drivable tile
+  moved or changed.
 - **The way out of the village is east.** NY 10 comes down x48–50 and turns
   east along Main Street, so a truck "heading south" in the fiction — down the
   valley toward Stamford and the city — drives east along row 15, the
   eastbound lane the ambient van uses, and off the map at x63, where the
-  `jefferson-stamford` exit is. ep002's scene drives it (43,12) → (43,15) →
-  (63,15).
+  `jefferson-stamford` exit is. ep002's scene still drives it (43,12) →
+  (43,15) → (63,15) — unchanged, since the stall didn't move.
+- **The old footprint (43–47, 9–11) was already bare grass** underneath (the
+  engine draws the facade over whatever tile is there), so nothing needed
+  restoring when the building moved off it; the new footprint (43–47, 7–9)
+  was checked clear of trees and flowers before the building landed there.
