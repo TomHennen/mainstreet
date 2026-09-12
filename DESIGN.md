@@ -232,6 +232,19 @@ highlighted one, and the write link is a real DOM anchor, so touch, Tab and
 Enter stay the browser's job. `?episode=<id>` skips the title and plays that
 episode for review (§3).
 
+**Debug hooks** (dev builds only, stripped from every real build behind
+`import.meta.env.DEV`, `engine/debug.ts`): a read-only snapshot of engine
+state published to `window.__mainstreet`/`window.__mainstreetTitle`, and a
+flag setter, are what let `scripts/playtest.mjs` drive and check the game
+without any world-specific knowledge baked into the harness. `?timescale=N`
+(`engine/timescale.ts`) is the newest of these — a generic multiplier over
+elapsed time, read once at boot, that speeds up walking, NPCs, cars, a
+scene's own `wait`, lighting, a held door press, a car's holler, a travel
+card's hold and fade, and the toast banner, all by the same factor, so the
+same logic plays out identically, just sooner. It exists purely so the
+headless playtest can exercise a whole episode in a couple of minutes rather
+than several; ordinary play never sees anything but the default of 1.
+
 An episode with progress or a done mark also offers **"Start over"** beside its
 usual action — left/right (or a second tap target, ≥44px, beside the primary
 one) arms it, A/tap takes it — which asks once, in place on the row
