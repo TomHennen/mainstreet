@@ -330,10 +330,11 @@ whole "you can walk in here" meaning on its own: the reach prompt at a door
 never says anything about entering, only about reading, so there is only
 ever the one prompt at a door, not two competing for the same small space.
 
-A placement whose `door` is genuinely a stairwell down — a shop reached from
+A building whose door is genuinely a stairwell down — a shop reached from
 below another one, say, rather than a walk-in at street level — sets
-`"doorStyle": "stairs"` (`engine/schema.ts` `BuildingPlacement.doorStyle`) and
-gets a short flight of steps drawn at the door tile instead of the arrow,
+`"doorStyle": "stairs"` on its placement (`engine/schema.ts`
+`BuildingPlacement.doorStyle`) and gets a short flight of steps drawn at the
+door tile instead of the arrow,
 never both: stairs already say "come on in" on their own. Same box, same
 two-tone ink, same tile and depth as the arrow it replaces — four treads, one
 row apart, narrowest at the door and widest at the doorstep, reading as steps
