@@ -87,7 +87,8 @@ toward Hobart.
 Mill Pond Inn and Middle Brook Cafe are on the south side of Main Street.
 There is a gas station, **J&H** (`jh-gas-station` on the map, north of the
 village green, roughly across Main Street from Middle Brook Cafe — placed Sep
-2026), on the north side of Main Street. Middle Brook Cafe has a big outdoor patio in front, next
+2026, set back from the road behind its own parking lot Sep 2026), on the
+north side of Main Street. Middle Brook Cafe has a big outdoor patio in front, next
 to its parking lot, and an herb garden round the back. The village green with its gazebo is on the south side.
 Route 10 leaves the junction north and east; the east arm is the road to
 Stamford.
