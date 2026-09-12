@@ -11,10 +11,17 @@ bindControls(document);
 
 // `?timescale=` (engine/timescale.ts), for the headless playtest harness
 // only — dev builds only, and only when the URL actually asks for one, so
-// ordinary play never runs at anything but the real speed.
+// ordinary play never runs at anything but the real speed. The harness can
+// also change it mid-run, through the same debug surface as its other
+// writes (`window.__mainstreetSetFlag`/`__mainstreetSnapTo`, engine/
+// debug.ts) — used to run one walk that ends on a doorstep at real speed,
+// where a bigger TIMESCALE's own per-frame travel could otherwise overshoot
+// through the door rather than up to it, without slowing the rest of the
+// run down to get it.
 if (import.meta.env.DEV) {
   const requested = Number(new URLSearchParams(location.search).get('timescale'));
   if (requested) setTimeScale(requested);
+  window.__mainstreetSetTimeScale = setTimeScale;
 }
 
 const parent = document.getElementById('stage');

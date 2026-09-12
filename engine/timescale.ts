@@ -14,11 +14,14 @@
  *   *relative* moment, only sooner in real time.
  *
  * Default 1 everywhere, always — this is settable only through `?timescale=`
- * on the URL, read once at boot (`engine/main.ts`), behind the same
- * `import.meta.env.DEV` guard as the rest of the debug surface
- * (`engine/debug.ts`), so no build a player runs can ever see anything else
- * (DESIGN.md §2). `setTimeScale` itself repeats that guard, so nothing that
- * ends up calling it directly from outside a dev build gets anywhere either.
+ * on the URL, read once at boot (`engine/main.ts`), and through the
+ * harness's own `window.__mainstreetSetTimeScale` (also `engine/main.ts`,
+ * for dropping to real speed for one walk mid-run — `scripts/playtest.mjs`)
+ * — both behind the same `import.meta.env.DEV` guard as the rest of the
+ * debug surface (`engine/debug.ts`), so no build a player runs can ever see
+ * anything else (DESIGN.md §2). `setTimeScale` itself repeats that guard, so
+ * nothing that ends up calling it directly from outside a dev build gets
+ * anywhere either.
  *
  * Not everything in the engine reads this, on purpose. The Studio
  * (`studio/studio.ts`) is a separate tool with its own real-time debounces

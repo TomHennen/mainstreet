@@ -582,7 +582,7 @@ function overlapDepth(a, b) {
  * never overshoots into the neighbouring tile (which would change what the
  * engine's 8px-inset hitbox collides with).
  */
-async function hold(page, dir, axis, target, sign, eps = TILE_EPS) {
+async function hold(page, dir, axis, target, sign) {
   await page.keyboard.down(KEY[dir]);
   const result = await page.evaluate(
     ({ key, axis, target, sign, eps }) =>
@@ -611,7 +611,7 @@ async function hold(page, dir, axis, target, sign, eps = TILE_EPS) {
         };
         requestAnimationFrame(tick);
       }),
-    { key: KEY[dir], axis, target, sign, eps }
+    { key: KEY[dir], axis, target, sign, eps: TILE_EPS }
   );
   await page.keyboard.up(KEY[dir]);
   return result;
@@ -674,10 +674,25 @@ async function holdAndTrace(page, dir, axis, target, sign, stopAtCar) {
 }
 
 /**
- * The last correction after `walkTo`'s own (TIMESCALE-widened) `TILE_EPS` has
- * already landed close, so every walk finishes on the tile's exact centre —
- * independent of how fast it got there — rather than wherever the wider
- * tolerance happened to stop it.
+ * How far off `goal` a walk is still allowed to have landed for
+ * `settleOnTile` (below) to trust that it genuinely walked there, rather
+ * than call it a failure — half a tile, the most either axis can be off
+ * before `here()`'s own floor-plus-a-quarter would read it as a different
+ * tile altogether. Deliberately not `TILE_EPS`: that widens with TIMESCALE
+ * for the main walk's own speed, and a slower real machine can still land a
+ * `hold()` further off than even that (the whole reason `hold()` itself now
+ * predicts an overshoot one frame ahead, above, rather than only catching it
+ * after the fact — but "still not perfect" is fine here, since this only
+ * has to confirm a walk happened at all; `window.__mainstreetSnapTo` below
+ * is what actually has to be exact).
+ */
+const WALK_ARRIVED_EPS = 0.5;
+
+/**
+ * The last correction after `walkTo`'s own walk has already landed on
+ * `goal`'s tile, so every walk finishes on the tile's exact centre —
+ * independent of how fast it got there — rather than wherever it happened
+ * to stop.
  *
  * Two other ways of doing this were tried and rejected. A second, tighter-eps
  * `hold()` at the run's own TIMESCALE has the same per-frame travel as the
@@ -692,24 +707,24 @@ async function holdAndTrace(page, dir, axis, target, sign, stopAtCar) {
  * still leave one axis a hair short.
  *
  * So instead: an exact position, not a walked one. Once the walk has landed
- * within the ordinary `TILE_EPS` on its own — checked here, so a real walk is
- * still what gets a caller within reach at all, this is only the last bit of
- * polish — `window.__mainstreetSnapTo` (engine/debug.ts, wired to
- * `MapScene.snapTo`) sets the player's own position to the tile's centre
- * directly, no polling, no frame timing, nothing left to be slow about.
+ * on the right tile at all (`WALK_ARRIVED_EPS`, above — a real walk is still
+ * what gets a caller there, this is only the last bit of polish) —
+ * `window.__mainstreetSnapTo` (engine/debug.ts, wired to `MapScene.snapTo`)
+ * sets the player's own position to the tile's centre directly, no polling,
+ * no frame timing, nothing left to be slow about.
  */
 async function settleOnTile(page, milestone, goal) {
   const before = await snap(page);
   if (!before) fail(milestone, 'window.__mainstreet is missing');
   if (before.locked || before.dialogueOpen) return;
-  // A building's own door tile is left at whatever TILE_EPS already got it
-  // to: `walkUpInto` doesn't need the extra precision, since it holds "up"
-  // past the door regardless of exactly where the walk that got there
-  // landed, and a tap-read of the door's own standing sign is covered
-  // separately without ever calling this on the door tile itself.
+  // A building's own door tile is left wherever the walk that got there
+  // landed: `walkUpInto` doesn't need the extra precision, since it holds
+  // "up" past the door regardless, and a tap-read of the door's own standing
+  // sign is covered separately without ever calling this on the door tile
+  // itself.
   const map = WORLD.maps[before.map];
   if (map.buildings.some((b) => b.door[0] === goal[0] && b.door[1] === goal[1])) return;
-  if (Math.abs(goal[0] - before.x) > TILE_EPS || Math.abs(goal[1] - before.y) > TILE_EPS) {
+  if (Math.abs(goal[0] - before.x) > WALK_ARRIVED_EPS || Math.abs(goal[1] - before.y) > WALK_ARRIVED_EPS) {
     fail(
       milestone,
       `walk to ${goal} landed too far off-centre to settle: (x=${before.x.toFixed(3)}, y=${before.y.toFixed(3)})`
@@ -726,13 +741,50 @@ async function settleOnTile(page, milestone, goal) {
 }
 
 /**
+ * Whether `goal` is close enough to one of the current map's own doors that
+ * a real machine's own per-frame travel overshooting it (`hold()`'s eventual
+ * `eps`, widened by TIMESCALE for speed) risks landing somewhere a door
+ * itself reads differently — through it, or back onto it — rather than just
+ * short of or past a perfectly ordinary tile. Two tiles either way of any
+ * door on the map, which covers both walking up to one and stepping away
+ * from it again.
+ */
+function nearADoor(mapId, goal) {
+  return WORLD.maps[mapId].buildings.some(
+    (b) => Math.abs(b.door[0] - goal[0]) <= 2 && Math.abs(b.door[1] - goal[1]) <= 2
+  );
+}
+
+/**
  * Walks to a tile. `allowInterrupt` is for tiles that are exit triggers: the
  * engine locks input the instant the player steps on one. Every successful
  * arrival is settled onto the tile's exact centre (`settleOnTile`) before
  * returning, regardless of TIMESCALE, so whatever a caller does next — most
  * often pressing A — reads the same real distance a 1x run always has.
+ *
+ * A walk that ends near a door runs at real speed regardless of the run's
+ * own TIMESCALE (`window.__mainstreetSetTimeScale`, engine/debug.ts,
+ * restored before returning either way): `hold()`'s own `eps` still widens
+ * with TIMESCALE for everywhere else, on purpose, for speed, but the one
+ * place that slack can change what actually happens — a bigger overshoot
+ * carrying the walk through a doorway or back onto one instead of stopping
+ * short of or past an ordinary tile — is worth the one walk it costs.
  */
 async function walkTo(page, milestone, goal, { allowInterrupt = false, episode = EPISODE } = {}) {
+  const s0 = await snap(page);
+  if (!s0) fail(milestone, 'window.__mainstreet is missing');
+  const atRealSpeed = nearADoor(s0.map, goal);
+  if (atRealSpeed) await evalIn(page, 'drop to real speed for a doorstep walk', () => window.__mainstreetSetTimeScale?.(1));
+  try {
+    return await walkToAtCurrentSpeed(page, milestone, goal, { allowInterrupt, episode });
+  } finally {
+    if (atRealSpeed) {
+      await evalIn(page, 'restore TIMESCALE', (t) => window.__mainstreetSetTimeScale?.(t), TIMESCALE);
+    }
+  }
+}
+
+async function walkToAtCurrentSpeed(page, milestone, goal, { allowInterrupt = false, episode = EPISODE } = {}) {
   for (let attempt = 0; attempt < 4; attempt++) {
     const s = await snap(page);
     if (!s) fail(milestone, 'window.__mainstreet is missing');

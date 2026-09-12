@@ -212,6 +212,8 @@ declare global {
     __mainstreetSetFlag?: (name: string) => boolean;
     /** `publishSnapSetter`, below — drops the player onto tile `(tx, ty)`'s exact centre. */
     __mainstreetSnapTo?: (tx: number, ty: number) => void;
+    /** `engine/timescale.ts`'s `setTimeScale`, published the same dev-only way (`engine/main.ts`). */
+    __mainstreetSetTimeScale?: (scale: number) => void;
   }
 }
 
