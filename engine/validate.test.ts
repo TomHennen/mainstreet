@@ -1110,6 +1110,66 @@ describe('validateEpisode', () => {
     expect(runEpisode(episode, world)).toEqual([]);
   });
 
+  it('flags an item with a "map" but no "pos", or a "pos" but no "map"', () => {
+    const withMap = makeEpisode({
+      items: [{ id: 'pen', map: 'town', requires: [], effects: [{ set: 'done' }], lines: ['a'] }]
+    });
+    expect(runEpisode(withMap, world).join('\n')).toContain('item "pen" has a "map" or a "pos" but not both');
+
+    const withPos = makeEpisode({
+      items: [{ id: 'pen', pos: [0, 0], requires: [], effects: [{ set: 'done' }], lines: ['a'] }]
+    });
+    expect(runEpisode(withPos, world).join('\n')).toContain('item "pen" has a "map" or a "pos" but not both');
+  });
+
+  it('flags a carried-only item (no "map"/"pos") that no dialogue entry hands over', () => {
+    const episode = makeEpisode({ items: [{ id: 'costume-bag', requires: [] }] });
+    const problems = runEpisode(episode, world);
+    expect(problems.join('\n')).toContain(
+      'item "costume-bag" has no "map"/"pos" and no dialogue entry hands it over with "item" — it could never be obtained'
+    );
+  });
+
+  it('accepts a carried-only item handed over by a dialogue entry\'s "item"', () => {
+    const episode = makeEpisode({
+      items: [{ id: 'costume-bag', requires: [], name: "Priya's costume bag", blurb: 'Half a dance costume.', until: 'done' }],
+      npcs: [
+        {
+          id: 'priya',
+          name: 'Priya',
+          map: 'town',
+          pos: [1, 1],
+          dialogue: [{ requires: [], lines: ['Here, take it.'], item: 'costume-bag', effects: [{ set: 'metNpc' }] }]
+        }
+      ]
+    });
+    expect(runEpisode(episode, world)).toEqual([]);
+  });
+
+  it('flags a dialogue entry that hands over an unknown item', () => {
+    const episode = makeEpisode({
+      npcs: [
+        {
+          id: 'npc1',
+          name: 'NPC',
+          map: 'town',
+          pos: [1, 1],
+          dialogue: [{ requires: [], lines: ['Here.'], item: 'ghost-item' }]
+        }
+      ]
+    });
+    const problems = runEpisode(episode, world);
+    expect(problems.join('\n')).toContain('npc "npc1" dialogue 0 hands over unknown item "ghost-item"');
+  });
+
+  it('flags an on-map item with empty or missing pickup lines', () => {
+    const episode = makeEpisode({
+      items: [{ id: 'pen', map: 'town', pos: [0, 0], requires: [], effects: [{ set: 'done' }], lines: [] }]
+    });
+    const problems = runEpisode(episode, world);
+    expect(problems.join('\n')).toContain('item "pen" has nothing to read when picked up');
+  });
+
   // The "with you" panel's own fields (DESIGN.md §2/§3).
   it('accepts an item with name, blurb and a declared `until` flag', () => {
     const episode = makeEpisode({

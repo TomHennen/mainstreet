@@ -1923,6 +1923,11 @@ export class MapScene extends Phaser.Scene {
         speaker: npc.name,
         lines: entry.lines,
         effects: entry.effects,
+        // A dialogue entry may itself be the handing-over of an episode item
+        // (DESIGN.md §3, `DialogueEntry.item`) — Priya's costume bag, say —
+        // recorded into `taken` and autosaved exactly like a map pickup's own
+        // `item` below, once the entry is read to the end (engine/scenes/ui.ts).
+        item: entry.item,
         portrait: state.assets.portraits.has(npc.id) ? `art:portrait:${npc.id}` : undefined
       });
       return;
@@ -1931,7 +1936,7 @@ export class MapScene extends Phaser.Scene {
     if (target.kind === 'item' && target.item) {
       bus.emit(EV.say, {
         speaker: state.copy.ui.narrator,
-        lines: target.item.lines,
+        lines: target.item.lines ?? [],
         effects: target.item.effects,
         item: target.item.id
       });

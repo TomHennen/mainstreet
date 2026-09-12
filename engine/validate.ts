@@ -480,6 +480,12 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
     npc.dialogue.forEach((entry, index) => {
       checkFlags(entry.requires, `npc "${npc.id}" dialogue ${index}`);
       checkEffects(entry.effects, `npc "${npc.id}" dialogue ${index}`);
+      // A dialogue entry may itself be the handing-over of an episode item
+      // (DESIGN.md §3, `DialogueEntry.item`), so it has to name one that is
+      // actually declared — the same rule `checkEffects` applies to a `set`.
+      if (entry.item !== undefined && !(episode.items ?? []).some((one) => one.id === entry.item)) {
+        problems.push(`${where}: npc "${npc.id}" dialogue ${index} hands over unknown item "${entry.item}"`);
+      }
       // First match wins, so anything after an unconditional entry is dead.
       if (catchAllAt >= 0) {
         problems.push(
@@ -494,13 +500,45 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
     }
   }
 
+  // Every item id a dialogue entry hands over (DESIGN.md §3) — what makes a
+  // carried-only item (below, no "map"/"pos") actually obtainable.
+  const givenByDialogue = new Set<string>();
+  for (const npc of episode.npcs) {
+    for (const entry of npc.dialogue) {
+      if (entry.item !== undefined) givenByDialogue.add(entry.item);
+    }
+  }
+
   for (const item of episode.items ?? []) {
-    checkPos(item.map, item.pos, `item "${item.id}"`);
+    // `map` and `pos` are either both there (an item sitting on the ground)
+    // or both left out (DESIGN.md §3, a carried-only item, handed over by a
+    // dialogue entry's own `item` instead — checked below).
+    const onMap = item.map !== undefined || item.pos !== undefined;
+    if (onMap) {
+      if (item.map === undefined || item.pos === undefined) {
+        problems.push(`${where}: item "${item.id}" has a "map" or a "pos" but not both`);
+      } else {
+        checkPos(item.map, item.pos, `item "${item.id}"`);
+      }
+    } else if (!givenByDialogue.has(item.id)) {
+      problems.push(
+        `${where}: item "${item.id}" has no "map"/"pos" and no dialogue entry hands it over with "item" — it could never be obtained`
+      );
+    }
     checkFlags(item.requires, `item "${item.id}"`);
     checkEffects(item.effects, `item "${item.id}"`);
-    if (!item.effects.some((effect) => effect.set)) {
-      // Without a flag to set, the item can never be marked as taken.
-      problems.push(`${where}: item "${item.id}" has no effect that sets a flag`);
+    // A carried-only item's moment of arrival is the dialogue entry that
+    // hands it over, not a ground pickup of its own — so `effects` and
+    // `lines`, which only ever apply to that pickup, are only required of an
+    // item that actually sits on a map.
+    if (onMap) {
+      if (!(item.effects ?? []).some((effect) => effect.set)) {
+        // Without a flag to set, the item can never be marked as taken.
+        problems.push(`${where}: item "${item.id}" has no effect that sets a flag`);
+      }
+      if (!item.lines?.length || item.lines.some((line) => typeof line !== 'string' || !line.trim())) {
+        problems.push(`${where}: item "${item.id}" has nothing to read when picked up`);
+      }
     }
     // `until` is checked the same way `requires` is — it names a flag, not a
     // one-off value, so it has to be one the episode actually declares

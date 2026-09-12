@@ -854,6 +854,50 @@ same shape as `requires`, that takes the item off the panel the moment it
 goes true (usually the flag that closes out the story, the beat the item is
 handed back). No `until` and a picked-up item stays on the panel for good.
 
+An item is not always something lying on the ground to walk up to. `map` and
+`pos` are left out together for a **carried-only** item — one an NPC hands
+straight to the player mid-conversation, never placed anywhere for them to
+find. A dialogue entry does the handing-over: its own `item` names the
+episode item, and reading the entry to the end is what records it into
+`session().taken` (`engine/scenes/ui.ts`) — the very same set, and the very
+same "with you" panel, that a ground pickup's own `SayRequest.item` already
+uses (`engine/scenes/map.ts`). This is the one hook, used two ways, rather
+than a second effect that would only duplicate it: an item's `effects` are
+for the ground-pickup moment, so a carried-only item — which has no such
+moment — leaves `effects` and `lines` out entirely and lets the dialogue
+entry's own `effects` and `lines` carry the scene instead. ep002's Priya is
+the worked example — she presses her kid's costume bag on the player the
+first time they talk to her:
+
+```jsonc
+"items": [
+  { "id": "costume-bag", "requires": [],                 // no "map"/"pos": carried-only
+    "name": "Priya's costume bag", "blurb": "Half a dance costume, sequins and all.",
+    "until": "done" }                                    // off the panel once handed back
+],
+"npcs": [
+  { "id": "priya", "name": "Priya", "map": "jefferson", "pos": [30, 20],
+    "dialogue": [                                        // first match wins — guard entry first
+      { "requires": ["heardAsk"],
+        "lines": ["Hannah's over at Stewart's, in Stamford — start there if you haven't yet."] },
+      { "requires": [],
+        "lines": ["My kid's in a dance showcase in the city tonight, and half his costume is in this bag.",
+                   "Here — take it, would you?"],
+        "item": "costume-bag",                           // hands it over as this entry closes
+        "effects": [{ "set": "heardAsk" }, { "toast": "You've got the costume bag." }] }
+    ] }
+]
+```
+
+The `requires: ["heardAsk"]` entry has to come *before* the giving entry: first
+match wins, so once `heardAsk` is set the guard is what the player hears on
+every later visit, and the giving entry — reachable only when nothing else
+matches — never runs a second time to hand the bag over again.
+
+The validator checks both directions: a dialogue entry's `item` has to name a
+declared item, and an item with neither `map` nor `pos` has to actually be
+named by one of them somewhere — otherwise it could never be obtained at all.
+
 A sign carries exactly one of `building` (read at that building's door, with
 the A prompt — see §2) or `map` + `pos` (a prop such as a shelf or a counter,
 examined by standing next to it).

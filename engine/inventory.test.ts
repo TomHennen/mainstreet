@@ -52,6 +52,21 @@ const pen: EpisodeItem = {
   until: 'done'
 };
 
+/**
+ * A carried-only item (schema.ts `EpisodeItem`, no `map`/`pos`): never sits on
+ * a map, and reaches `taken` by a dialogue entry's own `item` instead of a
+ * ground pickup (`DialogueEntry.item`) — Priya's costume bag, ep002. `withYou`
+ * reads nothing but `taken`/`until` either way, so it is exercised here the
+ * same way `pen` is below, just with no `map`/`pos` to have.
+ */
+const costumeBag: EpisodeItem = {
+  id: 'costume-bag',
+  requires: [],
+  name: "Priya's costume bag",
+  blurb: 'Half a dance costume, sequins and all.',
+  until: 'done'
+};
+
 const scout: EpisodeItem = {
   id: 'scout',
   map: 'jefferson',
@@ -67,7 +82,7 @@ function fakeSession(overrides: Partial<Session> = {}): Session {
     world,
     maps: { town: fakeMap() },
     copy,
-    episode: { id: 'ep', title: 'Ep', flags: ['hasPen', 'gotDog', 'done'], npcs: [], items: [pen, scout] },
+    episode: { id: 'ep', title: 'Ep', flags: ['hasPen', 'gotDog', 'done'], npcs: [], items: [pen, scout, costumeBag] },
     flags: new Flags(['hasPen', 'gotDog', 'done']),
     assets: { buildings: new Set(), chars: new Set(), portraits: new Set(), tilesets: new Set(), vehicles: new Set() },
     credits: {},
@@ -106,6 +121,23 @@ describe('withYou', () => {
     expect(withYou(fakeSession({ taken: new Set(['pen']) }))).toEqual([
       { id: 'pen', name: "Earl's pen", blurb: 'A fine ballpoint. Earl will want it back.' }
     ]);
+  });
+
+  it('lists a carried-only item exactly like one picked up off the ground, once handed over', () => {
+    // `taken` is exactly what a dialogue entry's own `item` (schema.ts
+    // `DialogueEntry.item`) is recorded into (`engine/scenes/ui.ts`), the same
+    // set a map pickup's `SayRequest.item` adds to — `withYou` cannot tell the
+    // two apart, and this is the point: no `map`/`pos` on `costumeBag` changes
+    // nothing about how it shows up here.
+    expect(withYou(fakeSession({ taken: new Set(['costume-bag']) }))).toEqual([
+      { id: 'costume-bag', name: "Priya's costume bag", blurb: 'Half a dance costume, sequins and all.' }
+    ]);
+  });
+
+  it('drops a carried-only item off the list once its `until` flag is set', () => {
+    const flags = new Flags(['hasPen', 'gotDog', 'done']);
+    flags.set('done');
+    expect(withYou(fakeSession({ taken: new Set(['costume-bag']), flags }))).toEqual([]);
   });
 
   it('falls back to the id verbatim, no title-casing, when an item has no `name`', () => {
