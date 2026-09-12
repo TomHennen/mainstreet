@@ -107,7 +107,10 @@ and is the natural place to grow bookshop lots over time — reserve several
 full-size open lots along Main Street per map rule 4, and let named shops
 fill in gradually rather than all at once. **Cellar Door Wines** has a small
 patio out front — really just a bench — so a scene set outside the shop
-should be a bench, not a deck full of tables.
+should be a bench, not a deck full of tables. Hobart also has a real art
+gallery on Main Street, **MURAL on Main** (631 Main St), run by MURAL — the
+Mount Utsayantha Regional Art League — showing original fine art and
+crafts by local Catskills artists.
 
 **Stewart's interior.** The clerk is enclosed behind the counter; the player
 talks across it and cannot walk round.
@@ -948,34 +951,41 @@ opt-in, everything warm and affectionate) before it reaches the player.
   it in first, which none of the three villages has yet — worth revisiting
   once a map grows toward tree cover at its edges, or alongside a Catskill
   Scenic Trail episode.
-- **A gallery show in Hobart — story idea (Tom, Sep 2026).** Hobart has no
-  gallery on the map yet (it's the least-built of the three villages
-  already — see "Hobart's bookshop lots" above), so this would claim one of
-  the reserved Main Street lots as a gallery rather than another bookshop.
-  The seed is small and warm, in keeping with how ep002's beats run: the
-  gallery is putting on a show, there's opening-night energy, a few pieces
-  on the walls, an artist or two around happy to talk about their work, and
-  maybe a light errand (help hang the last piece, track down a missing
-  frame, let people around town know it's starting). No puzzle needed
-  beyond that.
+- **A show at MURAL on Main, Hobart's real gallery — story idea (Tom, Sep
+  2026).** Hobart's real Main Street gallery is **MURAL on Main** (631 Main
+  St), run by MURAL — the Mount Utsayantha Regional Art League — showing
+  original fine art and crafts by local Catskills artists (see Ground truth
+  above and the `mural-on-main` building entry in DESIGN.md §5). Use it by
+  name rather than a fictional stand-in; it fills one of the reserved
+  Main Street lots (Hobart is the least-built of the three villages — see
+  "Hobart's bookshop lots" above). The seed is small and warm, in keeping
+  with how ep002's beats run: MURAL is putting on a show, there's
+  opening-night energy, a few pieces on the walls, an artist or two around
+  happy to talk about their work, and maybe a light errand (help hang the
+  last piece, track down a missing frame, let people around town know it's
+  starting). No puzzle needed beyond that. Per §6, this still needs the
+  friendly heads-up to MURAL before it goes in front of players, same as
+  any other real business.
   **Whether to show real art piece to piece — open question, needs Tom's
   call before any building starts.** Real paintings on the gallery walls as
   the player walks past them is an appealing idea but runs into two hard
   rules at once: rule 5 (a real person's own artwork is closer to their
   identity than a real business's storefront is, so using it without the
   artist opting in is the same as depicting a real private person who
-  hasn't opted in) and the art policy above (nothing model-generated ships
-  under `worlds/`, and real art would need the same contributor-credit
-  treatment as painted buildings get via `docs/receiving-art.md`). In
-  practice that means: no real artist's work goes in without them opting in
-  by name, the same friendly-heads-up step DESIGN.md §5 asks for with real
-  businesses; real photos or scans of the actual pieces, not an
-  AI-generated stand-in; and each artist credited in their own words in
-  `credits.json`, same as painted facades. Until Tom lines up a real
-  gallery and artist(s) willing to be in the game, the show can ship with
-  painted or placeholder pieces on the walls — the "unpainted building"
-  fallback extends naturally to "unpainted paintings" — and swap in real
-  art later as a follow-up rather than blocking the story on it. (Separate
-  from Fern's "gallery" guess about the still-unrevealed shop under
-  Stamford Coffee — that's a different village and a different idea; don't
-  conflate the two unless Tom says otherwise.)
+  hasn't opted in — and doubly relevant here, since MURAL's whole premise is
+  named local artists showing named work) and the art policy above (nothing
+  model-generated ships under `worlds/`, and real art would need the same
+  contributor-credit treatment as painted buildings get via
+  `docs/receiving-art.md`). In practice that means: no real artist's work
+  goes in without them opting in by name, the same friendly-heads-up step
+  DESIGN.md §5 asks for with real businesses, extended per-artist here;
+  real photos or scans of the actual pieces, not an AI-generated stand-in;
+  and each artist credited in their own words in `credits.json`, same as
+  painted facades. Until Tom lines up MURAL and specific artist(s) willing
+  to be in the game, the show can ship with painted or placeholder pieces on
+  the walls — the "unpainted building" fallback extends naturally to
+  "unpainted paintings" — and swap in real art later as a follow-up rather
+  than blocking the story on it. (Separate from Fern's "gallery" guess about
+  the still-unrevealed shop under Stamford Coffee — that's a different
+  village and a different idea; don't conflate the two unless Tom says
+  otherwise.)

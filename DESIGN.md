@@ -1529,6 +1529,9 @@ Hobart — "Jewel of the West Branch."
   point to the patio; taco nights, movie nights, live music.
 - `cellar-door-wines` (Hobart): curated wine shop; the owner's
   recommendations are an institution.
+- `mural-on-main` (Hobart, 631 Main St): art gallery run by MURAL (the
+  Mount Utsayantha Regional Art League); shows original fine art and
+  crafts by local Catskills artists.
 
 **Cast so far (fictional):** Earl — retired regular who holds court outside
 Stewart's, Saturday crossword devotee. Hannah — Stewart's counter.
