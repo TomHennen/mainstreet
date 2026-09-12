@@ -854,7 +854,9 @@ first time they talk to her:
 ],
 "npcs": [
   { "id": "priya", "name": "Priya", "map": "jefferson", "pos": [30, 20],
-    "dialogue": [
+    "dialogue": [                                        // first match wins — guard entry first
+      { "requires": ["heardAsk"],
+        "lines": ["Hannah's over at Stewart's, in Stamford — start there if you haven't yet."] },
       { "requires": [],
         "lines": ["My kid's in a dance showcase in the city tonight, and half his costume is in this bag.",
                    "Here — take it, would you?"],
@@ -863,6 +865,11 @@ first time they talk to her:
     ] }
 ]
 ```
+
+The `requires: ["heardAsk"]` entry has to come *before* the giving entry: first
+match wins, so once `heardAsk` is set the guard is what the player hears on
+every later visit, and the giving entry — reachable only when nothing else
+matches — never runs a second time to hand the bag over again.
 
 The validator checks both directions: a dialogue entry's `item` has to name a
 declared item, and an item with neither `map` nor `pos` has to actually be
