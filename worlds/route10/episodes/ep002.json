@@ -9,7 +9,6 @@
     "Walt's truck is sitting on J&H's lot with the hood up. He'll be taking it personally.",
     "Best place in the county to break down, if you have to, is a forecourt with the coffee on.",
     "Somebody told me to ask a Jess. I'd have liked to know which one.",
-    "Four Jesses between here and Hobart. Nobody can explain it and nobody minds.",
     "The trail's dry the whole way to Hobart this week. Somebody's already walked it this morning.",
     "Tops finally got the good peaches in.",
     "This has been the soggiest summer anybody up here can remember, and everybody's got an opinion about it.",
@@ -63,8 +62,7 @@
         {
           "requires": ["truckDead"],
           "lines": [
-            "His truck won't start? Poor Walt. He'll be more bothered about the truck than about my bag, I promise you.",
-            "Somebody up here will have cables. Somebody always has cables."
+            "His truck won't start? Poor Walt. He'll be more bothered about the truck than about my bag, I promise you."
           ]
         },
         {
@@ -75,7 +73,7 @@
           "requires": [],
           "lines": [
             "My kid's in a dance showcase in the city tonight, and half his costume is still sitting on our kitchen table. It's in this bag.",
-            "I'm on the register here at Middle Brook till four and the showcase is at seven, so it isn't me that's taking it. Here — would you carry it for me?",
+            "I'm on the register here at Middle Brook till four, and it's three hours down — he needs it in his hands by five, when they call them in. So it isn't me that's taking it. Here — would you carry it for me?",
             "Ask Walt. He's up at J&H with the truck, and he goes down every other Sunday."
           ],
           "item": "costume-bag",
@@ -94,7 +92,7 @@
         {
           "requires": ["done"],
           "lines": [
-            "Caught on the first turn of the key once she'd had a proper drink. Bag's on the passenger seat where I can see it.",
+            "Caught first turn of the key once she'd had a proper drink. Bag's riding up front where I can see it, and I'm away as soon as I've drunk this coffee.",
             "Tell the kid break a leg from me."
           ]
         },
@@ -109,7 +107,7 @@
           "requires": ["truckDead"],
           "lines": [
             "Still here. Still dead. Still glad it happened on this lot and not halfway up the hill.",
-            "Ask a Jess. Two in Stamford, one down in Hobart, and one somewhere round this village I can never lay hands on when I actually want her."
+            "Ask a Jess. Two in Stamford, one down in Hobart, and one somewhere round this village who's never where I've just looked."
           ]
         },
         {
@@ -144,7 +142,7 @@
         },
         {
           "requires": ["hasCables"],
-          "lines": ["You got them off her, then. Now find somebody with a car and no particular hurry. That's the harder half."]
+          "lines": ["You've got Jess R.'s cables, I see — she'd lend them to anyone. Now find somebody with a car and no particular hurry. That's the harder half."]
         },
         {
           "requires": ["askedJessK"],
@@ -154,7 +152,7 @@
           "requires": ["truckDead"],
           "lines": [
             "Walt's truck? It's a good truck having a bad morning.",
-            "You want Jess R. She keeps a set of cables behind the seat of hers and she has never once not had them. She went past me at eight with a pack on, headed for the trail."
+            "Jess R. went past me at eight with a pack on, headed for the trail — and that woman has never once been without a set of cables behind her seat."
           ],
           "effects": [{ "set": "askedJessK" }]
         },
@@ -207,8 +205,12 @@
       "look": { "hair": "curly", "hairColor": "#3a3330", "shirt": "#6b8f6b", "build": "broad" },
       "dialogue": [
         {
-          "requires": ["done"],
+          "requires": ["done", "askedJessT"],
           "lines": ["She's away, then. Ten minutes, like I said. There's nothing wrong with that truck a bit of patience doesn't fix."]
+        },
+        {
+          "requires": ["done"],
+          "lines": ["Walt's away, then. Ten minutes of a car alongside and that truck's fine. It always was."]
         },
         {
           "requires": ["askedJessT", "hasCables"],
@@ -222,7 +224,7 @@
           "requires": ["truckDead"],
           "lines": [
             "Walt's green pickup? I've had my head under that hood. She's not a quick-jump sort — you can touch cables to that battery all day and get nothing back.",
-            "What she wants is a car pulled up alongside her, running, for a good ten minutes. Somebody who'll sit and watch the river go by."
+            "What she wants is a car pulled up alongside her, running, for a good ten minutes. Somebody content to sit a while with the radio on."
           ],
           "effects": [{ "set": "askedJessT" }]
         },
@@ -288,7 +290,7 @@
           "requires": ["truckDead"],
           "lines": [
             "Walt's truck won't go? Then it's a Jess he wants.",
-            "Somebody was in here this morning saying a Jess was going up to sort him out. I'd have said that could mean any one of four, but nobody asked me."
+            "Somebody was in here this morning saying a Jess was going up to sort him out. Nobody asked me which."
           ]
         },
         {
@@ -324,7 +326,7 @@
           "requires": ["truckDead"],
           "lines": [
             "Walt's off the road too? My truck's been in the shop two weeks. The two of us could start a club, and it would have to meet on foot.",
-            "Jess T. is who you want for anything with a hood open. She's over by the bridge most mornings, watching the water go past."
+            "Jess T. had her own hood up half of last winter and never once called anyone. She's over by the bridge most mornings, watching the water go past."
           ]
         },
         {
@@ -470,6 +472,7 @@
             ]
           }
         },
+        { "toast": "Walt's truck turns over." },
         { "wait": 2 },
         {
           "say": {
@@ -477,15 +480,15 @@
             "lines": [
               "...There she is. Listen to that.",
               "Jess L. Course it was. There's five of us if you count me, you know — Jess is my own middle name, my grandmother's doing.",
+              "Bag on the passenger seat where I can see it — stage door by six.",
               "And I still never get the right one first go."
             ]
           }
         },
-        { "toast": "Walt's truck turns over." },
-        { "camera": { "to": "player" } },
         { "move": { "who": "walt", "to": [43, 12] } },
-        { "move": { "who": "vehicle:walts-pickup", "path": [[43, 15], [63, 15]], "speed": 6 } },
         { "set": "done" },
+        { "move": { "who": "vehicle:walts-pickup", "path": [[43, 15], [63, 15]], "speed": 6 } },
+        { "camera": { "to": "player" } },
         { "wait": 1 },
         { "toast": "Episode complete — new story next week" }
       ]

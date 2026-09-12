@@ -696,7 +696,14 @@ opt-in, everything warm and affectionate) before it reaches the player.
   walks over, her car pulls round into the stall alongside the truck on
   J&H's forecourt,
   the truck catches, and Walt drives out of the village — the week visibly
-  changes something, which the old version never did. J&H is the place that
+  changes something, which the old version never did. One gap worth knowing
+  about before somebody re-finds it: the truck leaves but Walt cannot, because
+  an episode NPC has no way to stop existing (`EpisodeNpc` has no `requires`
+  and no `until`, the same limitation the design pass below found from the
+  other end), so he is still stood on the forecourt afterwards and his `done`
+  line does the work instead — he is away as soon as he has drunk his coffee.
+  An `until` on an episode NPC, shaped like an item's, is the schema answer if
+  a later episode ever needs somebody to actually go. J&H is the place that
   makes this easy, never the place that let him down: somewhere to leave a
   truck all day, and the coffee brought out to him while he thinks.
 

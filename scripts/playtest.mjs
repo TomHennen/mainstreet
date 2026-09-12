@@ -4722,7 +4722,16 @@ async function main() {
     // pulls out onto Main Street and heads out of the village. All data, so
     // the harness finds the episode with a parked car a scene drives rather
     // than being told which one.
+    // The car this section is written about, by id. A scene may drive more than
+    // one car — ep002's own scene rolls a neighbour's wagon into the next stall
+    // before the pickup ever leaves — and "the first one that matches" would
+    // quietly turn into an assertion about the order of an episode's `vehicles`
+    // array. Naming it leaves that order free to change; an id no pack on disk
+    // uses falls back to the first match, so this still finds a story car in a
+    // world that has never heard of Walt.
+    const STORY_CAR = 'walts-pickup';
     const truckEpisode = (() => {
+      let fallback = null;
       for (const file of readdirSync(resolve(PACK, 'episodes')).sort()) {
         if (!file.endsWith('.json') || file.startsWith('draft-')) continue;
         const candidate = readJson(resolve(PACK, 'episodes', file));
@@ -4739,11 +4748,13 @@ async function main() {
               )
             : null;
           if (scene && speaker) {
-            return { id: file.slice(0, -'.json'.length), episode: candidate, vehicle: parked, scene, speaker };
+            const found = { id: file.slice(0, -'.json'.length), episode: candidate, vehicle: parked, scene, speaker };
+            if (parked.id === STORY_CAR) return found;
+            fallback ??= found;
           }
         }
       }
-      return null;
+      return fallback;
     })();
 
     if (!truckEpisode) {
