@@ -51,7 +51,8 @@ export type TileStyle =
   | 'scrawl'
   | 'chalkwall'
   | 'stripe-h'
-  | 'stripe-v';
+  | 'stripe-v'
+  | 'stairs';
 
 const STYLES: readonly string[] = [
   'flat',
@@ -77,7 +78,8 @@ const STYLES: readonly string[] = [
   'scrawl',
   'chalkwall',
   'stripe-h',
-  'stripe-v'
+  'stripe-v',
+  'stairs'
 ];
 
 export interface TileDef {

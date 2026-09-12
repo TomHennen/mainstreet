@@ -1,12 +1,12 @@
 {
   "columns": 5,
   "image": "route10.png",
-  "imageheight": 176,
+  "imageheight": 192,
   "imagewidth": 80,
   "margin": 0,
   "name": "route10",
   "spacing": 0,
-  "tilecount": 55,
+  "tilecount": 56,
   "tiledversion": "1.10.2",
   "tileheight": 16,
   "tilewidth": 16,
@@ -1310,6 +1310,27 @@
           "name": "style",
           "type": "string",
           "value": "disc"
+        }
+      ]
+    },
+    {
+      "id": 55,
+      "type": "stairs",
+      "properties": [
+        {
+          "name": "colors",
+          "type": "string",
+          "value": "#8a6b48,#2b2b30,#e8ddc6"
+        },
+        {
+          "name": "solid",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "style",
+          "type": "string",
+          "value": "stairs"
         }
       ]
     }

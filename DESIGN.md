@@ -69,9 +69,12 @@ reached across — see engine/reach.ts `clearBetween`),
 `style`, `colors` (comma-separated hex), optional `base` (a flat fill painted
 under the recipe) and optional `edge` (the colour of a front face painted along
 the bottom of the cell, for a surface raised above the ground plane — the near
-row of a deck or a porch). `style` is one of seventeen drawing recipes (`flat`,
+row of a deck or a porch). `style` is one of eighteen drawing recipes (`flat`,
 `speck`, `ripple`, `tree`, `flower`, `prop`, `disc`, `rim`, `umbrella`, `stele`,
-`block`, `shelf`, `mat`, `planks`, `pavers`, `stripe-h`, `stripe-v`), so a tile is fully
+`block`, `shelf`, `mat`, `planks`, `pavers`, `stripe-h`, `stripe-v`, `stairs`
+— a stairwell cut into the ground, going down and away from the viewer, for
+a mystery space reached by going down rather than walking straight in at
+street level), so a tile is fully
 self-describing and variants of a
 kind — three grasses, road with and without a crack — are separate tiles the
 author paints with, rather than something the engine randomises per position.
