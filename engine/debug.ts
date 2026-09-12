@@ -210,6 +210,10 @@ declare global {
     __mainstreet?: DebugSnapshot;
     __mainstreetTitle?: DebugTitle | null;
     __mainstreetSetFlag?: (name: string) => boolean;
+    /** `publishSnapSetter`, below — drops the player onto tile `(tx, ty)`'s exact centre. */
+    __mainstreetSnapTo?: (tx: number, ty: number) => void;
+    /** `engine/timescale.ts`'s `setTimeScale`, published the same dev-only way (`engine/main.ts`). */
+    __mainstreetSetTimeScale?: (scale: number) => void;
   }
 }
 
@@ -234,4 +238,18 @@ export function publishTitle(title: DebugTitle | null): void {
  */
 export function publishFlagSetter(set: ((name: string) => boolean) | undefined): void {
   window.__mainstreetSetFlag = set;
+}
+
+/**
+ * Dev-only, and the other thing here that writes: drops the player onto a
+ * tile's exact centre and clears whatever walk was under way, for the
+ * headless harness's own `settleOnTile` (scripts/playtest.mjs) — a walk is
+ * still asked to land within the ordinary tolerance on its own first (this
+ * is a correction, not a replacement for actually walking there), it is just
+ * never precise timing this has to get right afterwards. Published behind
+ * the same `import.meta.env.DEV` guard as the rest of this file, so no build
+ * a player runs has it at all.
+ */
+export function publishSnapSetter(snap: ((tx: number, ty: number) => void) | undefined): void {
+  window.__mainstreetSnapTo = snap;
 }

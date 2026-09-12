@@ -38,7 +38,8 @@ jobs:
   playtest:
     needs: check
     runs-on: ubuntu-latest
-    # A whole run is about two minutes. The harness gives up on itself at eight
+    # A whole run is a few minutes (`?timescale=` speeds up the harness,
+    # engine/timescale.ts). The harness gives up on itself at eight
     # (PLAYTEST_WATCHDOG_MIN), and this is the belt to that pair of braces: a
     # job that has somehow gone quiet stops here rather than holding a runner.
     timeout-minutes: 15
