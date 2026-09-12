@@ -44,6 +44,7 @@ import {
   isToastShowing,
   itemVisible,
   itemsOn,
+  npcGone,
   npcsOn,
   overlaysOn,
   peopleOn,
@@ -579,8 +580,33 @@ export class MapScene extends Phaser.Scene {
    * starts (DESIGN.md §3).
    */
   private onFlag(): void {
+    this.dropGoneWalkers();
     this.refreshOverlays();
     this.queue({});
+  }
+
+  /**
+   * Takes off the map anybody whose `until` flag has just come round
+   * (schema.ts `EpisodeNpc.until`) — the beat they drive away or go inside.
+   * Dropping them from `walkers` is the whole of it: that one list is what
+   * this scene draws, walks, treats as solid and offers the A button, so
+   * somebody who is not on it is gone from all of them at once. A map loaded
+   * afterwards never spawns them in the first place (`npcsOn`).
+   */
+  private dropGoneWalkers(): void {
+    const kept: Walker[] = [];
+    for (const walker of this.walkers) {
+      if (!walker.npc || !npcGone(walker.npc)) {
+        kept.push(walker);
+        continue;
+      }
+      // A walk on its way to somebody who has just left has nowhere to arrive:
+      // stop it where it is rather than march the player across the village to
+      // stand in the space where they were.
+      if (this.walkFollow === walker) this.stopWalk();
+      walker.sprite.destroy();
+    }
+    if (kept.length !== this.walkers.length) this.walkers = kept;
   }
 
   /**
