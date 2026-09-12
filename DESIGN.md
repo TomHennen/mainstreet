@@ -224,7 +224,12 @@ a "Forget everything" item, and the world's "write to us" link as the last
 item, wherever `world.json` has a `feedback` block. The cursor waits on the
 first unfinished episode, and the highlighted entry says what taking it would
 do: play it, carry on with it where there is a save, or play it again where it
-is finished. All of it is `copy.json`'s (`ui.title.*`) — the engine draws the
+is finished. A fresh episode only says "Play" once the cursor reaches it, so
+the list reads as a list rather than a row of buttons — but an episode with
+progress or a done mark says so on every row all the time, cursor or not: it
+is news the player needs regardless of which episode the cursor happens to be
+on (an unfinished Ep. 1 must never hide that Ep. 2 also has somewhere to carry
+on from, or a "Start over"). All of it is `copy.json`'s (`ui.title.*`) — the engine draws the
 list and knows none of the wording (hard rule 1), and a world that leaves one
 out simply doesn't get that bit drawn (hard rule 3). Tapping an entry takes it,
 the d-pad and the arrow keys move the cursor, A (space, enter) takes the

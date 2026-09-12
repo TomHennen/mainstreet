@@ -84,7 +84,12 @@ interface Row {
  * left and right move between an episode's two actions (or, while confirming,
  * between Yes and Keep), and A — or space, or enter — takes whichever is
  * highlighted. On touch, "Start over" (and Yes/Keep) are their own tappable
- * targets beside the primary one, each at least 44px on a side. The Credits
+ * targets beside the primary one, each at least 44px on a side. A fresh,
+ * untouched episode's row only says "Play" once the cursor reaches it, so the
+ * list reads as a list rather than a row of buttons — but an episode with
+ * progress or a done mark says so on every render, cursor or no: Ep. 2's own
+ * "Continue"/"Start over" is news the player needs even while the cursor
+ * still sits on an unfinished Ep. 1 (issue #37). The Credits
  * list scrolls on the d-pad/arrow keys (held) or by dragging, and a tap or A
  * closes it from anywhere on the screen — the "Back" row is a second, more
  * discoverable way to do the same thing, not a different one, since A always
@@ -821,9 +826,14 @@ export class TitleScene extends Phaser.Scene {
       row.text.setAlpha(selected ? 1 : 0.8);
       row.text.setPosition(left + 14, confirming ? y + 11 : y + Math.round((row.h - row.text.height) / 2));
 
-      // Only the highlighted row says what it would do, so the list reads as
-      // a list rather than a row of buttons — except while confirming, which
-      // is a question the row asks regardless of the cursor sitting there.
+      // A fresh, untouched row only says "Play" once the cursor is on it, so
+      // the list reads as a list rather than a row of buttons — but an
+      // episode with progress or a done mark says so always (regression:
+      // issue #37, "Ep. 2 doesn't show Start over / Continue" — it has
+      // progress the moment it is started, same as any other episode, and
+      // that must not wait on the cursor happening to be elsewhere, e.g. on
+      // an ep001 still unfinished). Confirming is the same rule taken
+      // further: it is a question the row asks regardless of the cursor.
       row.doneText.setText(!confirming && row.done ? (words?.done ?? '') : '');
       row.doneText.setColor(selected ? '#2a231a' : '#f3ead8');
       row.doneText.setAlpha(selected ? 0.75 : 0.6);
@@ -831,7 +841,7 @@ export class TitleScene extends Phaser.Scene {
       row.primaryRect = null;
       row.secondaryRect = null;
 
-      const pairVisible = confirming || (selected && Boolean(row.secondary));
+      const pairVisible = confirming || Boolean(row.secondary);
       const singleVisible = !pairVisible && selected && Boolean(row.action);
 
       if (pairVisible) {
@@ -840,11 +850,21 @@ export class TitleScene extends Phaser.Scene {
         row.actionText.setText(primaryLabel);
         row.secondaryText.setText(secondaryLabel);
 
-        const primaryArmed = confirming ? this.confirmArmed === 'yes' : this.armed === 'primary';
-        row.actionText.setColor(primaryArmed ? ACCENT : '#2a231a');
-        row.actionText.setAlpha(primaryArmed ? 1 : 0.6);
-        row.secondaryText.setColor(!primaryArmed ? ACCENT : '#2a231a');
-        row.secondaryText.setAlpha(!primaryArmed ? 1 : 0.6);
+        // Which side reads as "the" one to take only means anything where
+        // there is a cursor to have armed it; a row the player isn't on yet
+        // just states both, in the same quiet voice as its "done" mark above.
+        if (confirming || selected) {
+          const primaryArmed = confirming ? this.confirmArmed === 'yes' : this.armed === 'primary';
+          row.actionText.setColor(primaryArmed ? ACCENT : '#2a231a');
+          row.actionText.setAlpha(primaryArmed ? 1 : 0.6);
+          row.secondaryText.setColor(!primaryArmed ? ACCENT : '#2a231a');
+          row.secondaryText.setAlpha(!primaryArmed ? 1 : 0.6);
+        } else {
+          row.actionText.setColor('#f3ead8');
+          row.actionText.setAlpha(0.6);
+          row.secondaryText.setColor('#f3ead8');
+          row.secondaryText.setAlpha(0.6);
+        }
 
         const lineY = confirming
           ? y + row.h - 16 - row.actionText.height
