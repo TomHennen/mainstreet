@@ -63,10 +63,13 @@ for feel and behavior*, not code to reuse.
    snark, no sarcasm, no edge, no jokes at anyone's expense, and nothing that
    could be read as a knock on a real place — even a gentle one like an empty
    pastry case or a slow line. Humour is fine when everyone in the scene
-   would smile at it. When in doubt, make it kinder. One exception, by
-   Tom's call only: a line of affectionate ribbing is fine when it is how
-   locals actually talk about a place (Tops's produce), and Tom has okayed
-   the exact wording.
+   would smile at it. When in doubt, make it kinder. Exceptions are by Tom's
+   call only, and are limited to: (a) a line of affectionate ribbing that is
+   how locals actually talk about a place, exact wording okayed by Tom
+   (Tops's produce); (b) the Belvedere's permanently out-of-order bathroom,
+   which is part of the place's charm and stays "closed until further
+   notice"; (c) the drivers' hollers (`ui.holler`), which are gruff on
+   purpose.
 7. No analytics, no trackers, no accounts in v1.
 
 ## Working style

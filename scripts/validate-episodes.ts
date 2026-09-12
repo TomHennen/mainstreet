@@ -31,7 +31,7 @@ import { dirname, join, resolve } from 'node:path';
 import { parseTiledMap, parseTileset, tilesetSources } from '../engine/tiled.ts';
 import type { TilesetDef } from '../engine/tiled.ts';
 import { validateIntroByDate } from '../engine/season.ts';
-import { overlayNotes, validateEpisode, validateWorld } from '../engine/validate.ts';
+import { overlayNotes, validateCopy, validateEpisode, validateWorld } from '../engine/validate.ts';
 import type { Episode, GameMap, World, WorldCopy } from '../engine/schema.ts';
 
 const args = process.argv.slice(2);
@@ -71,11 +71,17 @@ function validateWorldPack(dir: string, worldId: string): void {
 
   const world = readJson<World>(worldId, worldFile);
   // copy.json is loaded at boot alongside world.json (engine/loader.ts) but
-  // carries only UI strings — validate.ts has no rules for it beyond
-  // `intro.byDate` (engine/season.ts's `validateIntroByDate`, DESIGN.md §2/§3),
-  // so presence, JSON validity and that one shape are all that's checked here.
+  // carries mostly UI strings the engine trusts unread — a missing or empty
+  // one simply isn't drawn (hard rule 3) — so presence and JSON validity are
+  // most of what's checked here. Two exceptions have their own checkers:
+  // `intro.byDate` (engine/season.ts's `validateIntroByDate`) and the "with
+  // you" panel's three strings (engine/validate.ts's `validateCopy`,
+  // DESIGN.md §2/§3).
   const copy = readJson<WorldCopy>(worldId, copyFile);
   for (const problem of validateIntroByDate(copy.intro)) {
+    fail(worldId, copyFile, problem);
+  }
+  for (const problem of validateCopy(copy)) {
     fail(worldId, copyFile, problem);
   }
 

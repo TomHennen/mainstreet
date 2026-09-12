@@ -35,6 +35,10 @@ export interface SceneDriver {
   panning(): boolean;
   setFlag(name: string): void;
   light(spec: LightSpec): void;
+  /** Hide the player sprite: invisible, and out of everyone else's way. */
+  hidePlayer(): void;
+  /** Show the player again — where they already stand, or at `at` if given. */
+  showPlayer(at?: Vec2): void;
 }
 
 type Phase = 'run' | 'move' | 'say' | 'wait' | 'camera' | 'done';
@@ -162,6 +166,8 @@ export class SceneRunner {
     if (step.toast !== undefined) this.driver.toast(step.toast);
     if (step.set) this.driver.setFlag(step.set);
     if (step.light) this.driver.light(step.light);
+    if (step.player?.hide) this.driver.hidePlayer();
+    else if (step.player?.show) this.driver.showPlayer(step.player.show.at);
     return true;
   }
 

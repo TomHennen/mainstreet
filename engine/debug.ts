@@ -23,6 +23,8 @@ export interface DebugSnapshot {
   facing: Facing;
   dialogueOpen: boolean;
   locked: boolean;
+  /** False while the player sprite is hidden (a scene's `player` step, DESIGN.md §3 — e.g. mid `lost.arrive`). */
+  playerVisible: boolean;
   /** Destination tile of a tapped walk while one is running, else null. */
   walkTo: [number, number] | null;
   /**
@@ -77,6 +79,9 @@ export interface DebugSnapshot {
   overlays: string[];
   /** The toast banner on screen, or null. Drawn to the canvas, like the dialogue. */
   toast: string | null;
+  /** The "with you" panel's rows while it is open, or null while it's closed —
+   *  drawn to the canvas too, so this is the only way to read it back. */
+  withYou: DebugInventoryEntry[] | null;
 }
 
 /**
@@ -104,6 +109,25 @@ export function noteToast(message: string | null): void {
 
 export function currentToast(): string | null {
   return toast;
+}
+
+/** One row of the "with you" panel, for the same harness and for the same
+ *  reason as `DebugDialogue`. */
+export interface DebugInventoryEntry {
+  id: string;
+  name: string;
+}
+
+/** The "with you" panel, recorded the same way as the dialogue box, and null
+ *  while it is closed. */
+let inventory: DebugInventoryEntry[] | null = null;
+
+export function noteInventory(entries: DebugInventoryEntry[] | null): void {
+  inventory = entries;
+}
+
+export function currentInventory(): DebugInventoryEntry[] | null {
+  return inventory;
 }
 
 export interface DebugRect {
