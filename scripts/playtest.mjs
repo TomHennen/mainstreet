@@ -4722,14 +4722,23 @@ async function main() {
     // pulls out onto Main Street and heads out of the village. All data, so
     // the harness finds the episode with a parked car a scene drives rather
     // than being told which one.
-    // The car this section is written about, by id. A scene may drive more than
-    // one car — ep002's own scene rolls a neighbour's wagon into the next stall
-    // before the pickup ever leaves — and "the first one that matches" would
-    // quietly turn into an assertion about the order of an episode's `vehicles`
-    // array. Naming it leaves that order free to change; an id no pack on disk
-    // uses falls back to the first match, so this still finds a story car in a
-    // world that has never heard of Walt.
-    const STORY_CAR = 'walts-pickup';
+    // A scene may drive more than one car — ep002's own rolls a neighbour's
+    // wagon into the next bay before the pickup ever leaves — and this section
+    // is about the one that *goes*: it waits for it to get four tiles clear,
+    // then to reach the far end of its path, then checks the player was not
+    // carried off the map with it. So the car is picked by where its drive
+    // ends: a target inside one of that map's `exits` rects is a car leaving
+    // the village, and a target anywhere else is a car repositioning in a lot.
+    // Ordering the episode's `vehicles` list differently cannot change the
+    // answer, which "the first one that matches" quietly depended on.
+    const leavesTown = (mapId, target) =>
+      (WORLD.maps[mapId]?.exits ?? []).some(
+        (exit) =>
+          target[0] >= exit.at[0] &&
+          target[0] < exit.at[0] + exit.at[2] &&
+          target[1] >= exit.at[1] &&
+          target[1] < exit.at[1] + exit.at[3]
+      );
     const truckEpisode = (() => {
       let fallback = null;
       for (const file of readdirSync(resolve(PACK, 'episodes')).sort()) {
@@ -4749,7 +4758,11 @@ async function main() {
             : null;
           if (scene && speaker) {
             const found = { id: file.slice(0, -'.json'.length), episode: candidate, vehicle: parked, scene, speaker };
-            if (parked.id === STORY_CAR) return found;
+            const move = scene.steps.find((st) => st.move?.who === `vehicle:${parked.id}`).move;
+            const target = move.path ? move.path[move.path.length - 1] : move.to;
+            // A pack whose only story car never leaves town still gets played,
+            // rather than this section skipping itself over a missing exit.
+            if (leavesTown(parked.map, target)) return found;
             fallback ??= found;
           }
         }

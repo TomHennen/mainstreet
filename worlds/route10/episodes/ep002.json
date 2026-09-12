@@ -32,7 +32,7 @@
       "id": "jumper-cables",
       "requires": [],
       "name": "Jess R.'s jumper cables",
-      "blurb": "Red and black, coiled neat. They live behind the seat of her truck.",
+      "blurb": "Red and black, coiled neat, out of the back of her truck at the trailhead.",
       "until": "truckRuns"
     }
   ],
@@ -73,7 +73,7 @@
           "requires": [],
           "lines": [
             "My kid's in a dance showcase in the city tonight, and half his costume is still sitting on our kitchen table. It's in this bag.",
-            "I'm on the register here at Middle Brook till four, and it's three hours down — he needs it in his hands by five, when they call them in. So it isn't me that's taking it. Here — would you carry it for me?",
+            "I'm on the register at Middle Brook till four, and it's three hours down — he needs it in his hands by five, when they call them in. So it isn't me that's taking it. Here — would you carry it for me?",
             "Ask Walt. He's up at J&H with the truck, and he goes down every other Sunday."
           ],
           "item": "costume-bag",
@@ -92,8 +92,8 @@
         {
           "requires": ["done"],
           "lines": [
-            "Caught first turn of the key once she'd had a proper drink. Bag's riding up front where I can see it, and I'm away as soon as I've drunk this coffee.",
-            "Tell the kid break a leg from me."
+            "Caught first turn of the key once she'd had a proper drink. That bag'll be in the kid's hands well before they call them in.",
+            "And thank Jess L. for me. She'd have sat there all morning and called it a nice way to spend one."
           ]
         },
         {
@@ -152,7 +152,7 @@
           "requires": ["truckDead"],
           "lines": [
             "Walt's truck? It's a good truck having a bad morning.",
-            "Jess R. went past me at eight with a pack on, headed for the trail — and that woman has never once been without a set of cables behind her seat."
+            "Jess R. went past me at eight with a pack on, headed for the trail — and that woman has never once been without a set of cables in the back of that truck."
           ],
           "effects": [{ "set": "askedJessK" }]
         },
@@ -181,7 +181,7 @@
         {
           "requires": ["truckDead"],
           "lines": [
-            "Cables? Behind the seat of my truck, where they live. Hang on.",
+            "Cables? In the back of the truck, down at the trailhead. Walk with me a minute.",
             "There you go. Leave them with Walt when you're done — he's good for them, and I'm headed the other way."
           ],
           "item": "jumper-cables",
@@ -206,7 +206,7 @@
       "dialogue": [
         {
           "requires": ["done", "askedJessT"],
-          "lines": ["She's away, then. Ten minutes, like I said. There's nothing wrong with that truck a bit of patience doesn't fix."]
+          "lines": ["The truck's away, then. Ten minutes, like I said. There's nothing wrong with that truck a bit of patience doesn't fix."]
         },
         {
           "requires": ["done"],
@@ -245,6 +245,10 @@
         {
           "requires": ["done"],
           "lines": ["Ten minutes and she was fine. A good excuse to sit and do nothing, honestly. I'd have given it twenty."]
+        },
+        {
+          "requires": ["truckRuns"],
+          "lines": ["Sit tight — she wants a good ten minutes and I've nowhere to be."]
         },
         {
           "requires": ["truckDead", "hasCables"],
@@ -452,7 +456,7 @@
       "kind": "car",
       "colour": "#8f6f96",
       "pos": [47, 12],
-      "facing": "down"
+      "facing": "left"
     }
   ],
   "scenes": [
@@ -460,9 +464,10 @@
       "id": "a-jess-pulls-round",
       "on": { "flag": "truckRuns" },
       "steps": [
+        { "move": { "who": "walt", "to": [43, 12] } },
         { "camera": { "to": [44, 11], "speed": 14 } },
         { "move": { "who": "jefferson-creamery-walker", "to": [44, 11], "speed": 3.4 } },
-        { "move": { "who": "vehicle:jess-l-wagon", "to": [44, 12], "speed": 3 } },
+        { "move": { "who": "vehicle:jess-l-wagon", "to": [45, 12], "speed": 3 } },
         {
           "say": {
             "who": "jefferson-creamery-walker",
@@ -480,12 +485,11 @@
             "lines": [
               "...There she is. Listen to that.",
               "Jess L. Course it was. There's five of us if you count me, you know — Jess is my own middle name, my grandmother's doing.",
-              "Bag on the passenger seat where I can see it — stage door by six.",
+              "Bag on the passenger seat where I can see it — stage door by four, and he can breathe.",
               "And I still never get the right one first go."
             ]
           }
         },
-        { "move": { "who": "walt", "to": [43, 12] } },
         { "set": "done" },
         { "move": { "who": "vehicle:walts-pickup", "path": [[43, 15], [63, 15]], "speed": 6 } },
         { "camera": { "to": "player" } },
