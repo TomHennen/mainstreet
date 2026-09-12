@@ -20,7 +20,14 @@ import {
   vehicleFrame,
   vehicleTexture
 } from '../art';
-import { currentDialogue, currentInventory, currentToast, publishDebug, publishFlagSetter } from '../debug';
+import {
+  currentDialogue,
+  currentInventory,
+  currentToast,
+  publishDebug,
+  publishFlagSetter,
+  publishSnapSetter
+} from '../debug';
 import { DOOR_PRESS_MS, doorPressAdvance } from '../doors';
 import { scaled, timeScale } from '../timescale';
 import { edgeAt, lostAt, roadEndLine } from '../edges';
@@ -531,6 +538,9 @@ export class MapScene extends Phaser.Scene {
         flags.set(name);
         return true;
       });
+      // The harness's own correction after a walk has already landed within
+      // the ordinary tolerance on its own (engine/debug.ts).
+      publishSnapSetter((tx, ty) => this.snapTo(tx, ty));
     }
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unbindAction?.();
@@ -538,7 +548,10 @@ export class MapScene extends Phaser.Scene {
       this.unbindTap?.();
       this.unbindTap = null;
       bus.off(EV.flags, this.onFlag, this);
-      if (import.meta.env.DEV) publishFlagSetter(undefined);
+      if (import.meta.env.DEV) {
+        publishFlagSetter(undefined);
+        publishSnapSetter(undefined);
+      }
       this.lighting.clear();
       this.events.off(Phaser.Scenes.Events.RENDER, this.publishState, this);
       this.scale.off(Phaser.Scale.Events.RESIZE, this.applyCamera, this);
@@ -1825,6 +1838,30 @@ export class MapScene extends Phaser.Scene {
     this.walkTarget = null;
     this.follow(null);
     this.marker.setVisible(false);
+  }
+
+  /**
+   * Drops the player onto tile `(tx, ty)`'s exact centre and clears whatever
+   * walk was under way — the headless playtest harness's own correction
+   * (`settleOnTile`, scripts/playtest.mjs) after a walk has already landed
+   * within the ordinary tolerance on its own, published as `__mainstreetSnapTo`
+   * (engine/debug.ts) behind the same `import.meta.env.DEV` guard as the rest
+   * of that surface. Never reached from anywhere a real player's own input
+   * runs through.
+   *
+   * Republishes the debug snapshot immediately, rather than leaving it for
+   * the next `RENDER` event: this is called from outside the frame loop
+   * entirely (a harness's own `page.evaluate()`, not `update()`), so without
+   * this the very next read back could still show wherever the player was a
+   * frame ago, not where this just put them.
+   */
+  private snapTo(tx: number, ty: number): void {
+    this.stopWalk();
+    this.px = tx * TILE;
+    this.py = ty * TILE;
+    this.syncPlayerSprite();
+    this.notePlace();
+    if (import.meta.env.DEV) this.publishState();
   }
 
   /** Nowhere to go: the marker blinks once where the tap landed and fades. */

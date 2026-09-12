@@ -674,97 +674,54 @@ async function holdAndTrace(page, dir, axis, target, sign, stopAtCar) {
 }
 
 /**
- * How close to a tile's exact centre `walkTo` settles before returning, and
- * the same `hold()` `eps` the correction uses to get there (`settleOnTile`,
- * below) — deliberately the original, un-widened `TILE_EPS` a 1x run has
- * always used (unlike the module's own `TILE_EPS`, which widens with
- * TIMESCALE, for speed, and can leave a held-key walk anywhere up to that
- * much off-centre). Using anything tighter here doesn't help: `hold()`
- * itself only ever promises to land within its own `eps` of the target, so
- * asking it to verify against a stricter tolerance than the one it was
- * given (a first, failed cut of this used 0.05) just means it calls itself
- * "arrived" one frame before satisfying a check it was never aiming for.
- * REACH.prop/REACH.plaque (1.1/0.75, engine/scenes/map.ts) were sized around
- * exactly this real-play slack in the first place ("movement... lands as far
- * as ~1.05 off-centre") — this settles to no better than a 1x walk always
- * has, just independent of whatever TIMESCALE the rest of the run is at.
- */
-const SETTLE_EPS = 0.06;
-
-/**
- * The last, short correction after `walkTo`'s own (TIMESCALE-widened)
- * `TILE_EPS` has already landed close, so every walk finishes on the tile's
- * exact centre — independent of how fast it got there — rather than
- * wherever the wider tolerance happened to stop it.
+ * The last correction after `walkTo`'s own (TIMESCALE-widened) `TILE_EPS` has
+ * already landed close, so every walk finishes on the tile's exact centre —
+ * independent of how fast it got there — rather than wherever the wider
+ * tolerance happened to stop it.
  *
- * Not a tighter-eps `hold()` at the run's own TIMESCALE: that has the same
- * per-frame travel as the walk that just got here, sped up the same way, so
- * it just as easily overshoots a tolerance this tight — one frame past the
- * window on one side, then the next correction overshoots back past it the
- * other way, hunting forever rather than converging (found the hard way:
- * logging it showed the player bouncing between two points either side of
- * the goal, never inside `SETTLE_EPS`). Nor a tap-walk (`MapScene.
- * followPath` always finishes one with an *exact* snap onto the goal,
- * independent of TIMESCALE, which sounds right) — except a tap this close to
- * whatever the walk just arrived beside almost always lands inside *its* own
- * reach zone too (`MapScene.tapTargetAt`), so the "walk" is read as a tap on
- * that instead: it opens the very thing this function is trying to leave
- * alone to open once, from the real press right after it (found this the
- * hard way too, arriving at a sign's approach tile with a shelf already half
- * read).
+ * Two other ways of doing this were tried and rejected. A second, tighter-eps
+ * `hold()` at the run's own TIMESCALE has the same per-frame travel as the
+ * walk that just got here, sped up the same way, so it just as easily
+ * overshoots a tolerance that tight — one frame past the window on one side,
+ * then the next correction overshoots back past it the other way, hunting
+ * forever rather than converging (logging it showed the player bouncing
+ * between two points either side of the goal). Dropping `timeScale` to 1 for
+ * that same correction fixed the oscillation, but the slower a CI runner's
+ * own real frame time is (rather than TIMESCALE), the less it actually
+ * helps — it is still a real, polled `hold()`, and a slow enough machine can
+ * still leave one axis a hair short.
  *
- * So instead: the same `hold()` the main walk used, at the same tight eps
- * REACH's own margins were sized around, with `timeScale` (engine/
- * timescale.ts) dropped to 1 for exactly as long as the correction takes —
- * through the harness's own debug hook (`window.__mainstreetSetTimeScale`,
- * like the flag setter it sits beside), never touched by real play. At 1x, a
- * frame's own travel is small enough that this tight eps behaves exactly as
- * it always has, at any TIMESCALE the run is otherwise using.
+ * So instead: an exact position, not a walked one. Once the walk has landed
+ * within the ordinary `TILE_EPS` on its own — checked here, so a real walk is
+ * still what gets a caller within reach at all, this is only the last bit of
+ * polish — `window.__mainstreetSnapTo` (engine/debug.ts, wired to
+ * `MapScene.snapTo`) sets the player's own position to the tile's centre
+ * directly, no polling, no frame timing, nothing left to be slow about.
  */
 async function settleOnTile(page, milestone, goal) {
-  const first = await snap(page);
-  if (!first) fail(milestone, 'window.__mainstreet is missing');
-  if (first.locked || first.dialogueOpen) return;
-  if (Math.abs(goal[0] - first.x) <= SETTLE_EPS && Math.abs(goal[1] - first.y) <= SETTLE_EPS) return;
-
-  await evalIn(page, 'drop to real speed to settle', () => window.__mainstreetSetTimeScale?.(1));
-  try {
-    // A couple of rounds, not just one: `hold()` only ever promises to land
-    // within its own `eps`, and — being right on the tile already — a whole
-    // extra frame's travel the wrong way is rare but not impossible, so one
-    // more short nudge is worth it before calling this a failure.
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const s = await snap(page);
-      if (s.locked || s.dialogueOpen) return;
-      const dx = goal[0] - s.x;
-      const dy = goal[1] - s.y;
-      if (Math.abs(dx) <= SETTLE_EPS && Math.abs(dy) <= SETTLE_EPS) return;
-      if (Math.abs(dx) > SETTLE_EPS) {
-        const { reason, state } = await hold(page, dx > 0 ? 'right' : 'left', 'x', goal[0], Math.sign(dx), SETTLE_EPS);
-        if (reason === 'interrupted') return;
-        if (reason !== 'arrived') {
-          fail(milestone, `settling onto ${goal}'s centre (x) ended with "${reason}" at ${JSON.stringify(state)}`);
-        }
-      }
-      if (Math.abs(dy) > SETTLE_EPS) {
-        const { reason, state } = await hold(page, dy > 0 ? 'down' : 'up', 'y', goal[1], Math.sign(dy), SETTLE_EPS);
-        if (reason === 'interrupted') return;
-        if (reason !== 'arrived') {
-          fail(milestone, `settling onto ${goal}'s centre (y) ended with "${reason}" at ${JSON.stringify(state)}`);
-        }
-      }
-    }
-  } finally {
-    await evalIn(page, 'restore TIMESCALE', (t) => window.__mainstreetSetTimeScale?.(t), TIMESCALE);
+  const before = await snap(page);
+  if (!before) fail(milestone, 'window.__mainstreet is missing');
+  if (before.locked || before.dialogueOpen) return;
+  // A building's own door tile is left at whatever TILE_EPS already got it
+  // to: `walkUpInto` doesn't need the extra precision, since it holds "up"
+  // past the door regardless of exactly where the walk that got there
+  // landed, and a tap-read of the door's own standing sign is covered
+  // separately without ever calling this on the door tile itself.
+  const map = WORLD.maps[before.map];
+  if (map.buildings.some((b) => b.door[0] === goal[0] && b.door[1] === goal[1])) return;
+  if (Math.abs(goal[0] - before.x) > TILE_EPS || Math.abs(goal[1] - before.y) > TILE_EPS) {
+    fail(
+      milestone,
+      `walk to ${goal} landed too far off-centre to settle: (x=${before.x.toFixed(3)}, y=${before.y.toFixed(3)})`
+    );
   }
+
+  await evalIn(page, `snapping onto ${goal}'s centre`, ([tx, ty]) => window.__mainstreetSnapTo?.(tx, ty), goal);
 
   const done = await snap(page);
   if (done.locked || done.dialogueOpen) return;
-  if (Math.abs(goal[0] - done.x) > SETTLE_EPS || Math.abs(goal[1] - done.y) > SETTLE_EPS) {
-    fail(
-      milestone,
-      `settling onto ${goal}'s centre left the player at (x=${done.x.toFixed(3)}, y=${done.y.toFixed(3)})`
-    );
+  if (Math.abs(goal[0] - done.x) > 1e-6 || Math.abs(goal[1] - done.y) > 1e-6) {
+    fail(milestone, `snapping onto ${goal}'s centre left the player at (x=${done.x}, y=${done.y})`);
   }
 }
 
@@ -3070,6 +3027,19 @@ async function main() {
       await shot(wp, 'tap-fixture');
       await advanceDialogue(wp, 'tap-fixture', COPY.ui.suggest.lines.length);
     }
+
+    // `tp` was left at real speed for the debounce check above
+    // (GAME_URL_REAL_SPEED) — every use of it from here on (through the rest
+    // of this section and the Studio checks after it) is timed against the
+    // run's own TIMESCALE like everywhere else, so it reloads at that speed
+    // first. A fresh load rather than trying to nudge `timeScale` back up
+    // live: nothing after this cares that the save is starting over (none of
+    // it depends on a flag set earlier on this page), and a reload is one
+    // less moving part than a second debug hook would be.
+    await tp.goto(GAME_URL, { waitUntil: 'load' });
+    await waitUntil(tp, (s) => s.dialogueOpen, 'the intro once tp reloads at the run\'s own speed');
+    for (let i = 0; i < 6 && (await snap(tp)).dialogueOpen; i++) await pressA(tp);
+    if ((await snap(tp)).dialogueOpen) fail('paint-it', 'the intro never closed after tp reloaded at speed');
 
     // --- Paint it -----------------------------------------------------------
     // The invitation to draw an unpainted building lives on the plaque beside
