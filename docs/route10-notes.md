@@ -690,7 +690,8 @@ opt-in, everything warm and affectionate) before it reaches the player.
   so no invented last name has to be checked against a real one (see
   **People** above); it also keeps him Walt to everybody, which is the
   point of the gag. The ending is a scene now rather than a line: Jess L.
-  walks over, her car pulls round nose to nose with the truck on J&H's lot,
+  walks over, her car pulls round into the stall alongside the truck on
+  J&H's forecourt,
   the truck catches, and Walt drives out of the village — the week visibly
   changes something, which the old version never did. J&H is the place that
   makes this easy, never the place that let him down: somewhere to leave a
