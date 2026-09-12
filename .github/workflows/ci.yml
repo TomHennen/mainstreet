@@ -52,7 +52,12 @@ jobs:
       # Installs the Chromium build matching the playwright version pinned in
       # package-lock.json, plus its OS-level deps.
       - run: npx playwright install --with-deps chromium
+      # A full run is about seven minutes on a runner and this branch's rooms add
+      # to it; the harness's own eight-minute watchdog is the wrong belt here,
+      # the job's timeout-minutes above is the right one.
       - run: npm run playtest
+        env:
+          PLAYTEST_WATCHDOG_MIN: 12
       - name: Upload playtest artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
