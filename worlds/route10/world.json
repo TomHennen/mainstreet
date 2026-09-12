@@ -25,7 +25,8 @@
   "paletteName": "Resurrect 64",
   "paletteLink": "https://lospec.com/palette-list/resurrect-64",
   "episodes": [
-    "ep001"
+    "ep001",
+    "ep002"
   ],
   "player": {
     "id": "player",

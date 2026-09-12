@@ -633,7 +633,7 @@ opt-in, everything warm and affectionate) before it reaches the player.
   (a fully invented local, hard rule 5, built from the "looks exactly like
   you'd expect" archetype rather than any real person) is a nice one-off
   or recurring cameo either way.
-- **"Anybody Headed Down Today?" — built, unshipped, in
+- **"Anybody Headed Down Today?" — built and shipping, in
   `worlds/route10/episodes/ep002.json`.** Logline: a Jefferson kid is in a
   dance showcase in the city tonight and left half the costume on the
   kitchen table; find somebody driving down today who can take it. Real
@@ -642,10 +642,10 @@ opt-in, everything warm and affectionate) before it reaches the player.
   Spiced from the original "forgot their keys" version: a costume piece
   instead, lower-stakes and warmer, with a built-in reason it has to be
   today without needing an actual timer (the hard rules forbid those
-  anyway). Not in `world.json`'s `episodes` list, so it doesn't ship; it
-  validates with `npm run validate-episodes -- --all` (DESIGN.md §3's
-  review path — the same way ep000 is kept around unshipped) and can be
-  played directly with `?episode=ep002`. September 2026, Tom's call: the
+  anyway). On `world.json`'s `episodes` list since September 2026 (Tom's call), so
+  it is the second entry on the title screen under Ep. 1 and is validated by
+  a plain `npm run validate-episodes`; it can still be opened straight from
+  `?episode=ep002` for review (DESIGN.md §3). September 2026, Tom's call: the
   errand has to take the player inside Stamford Coffee, so the chain is
   now Priya → Hannah (who sends you to the coffee shop: nobody drives to
   the city without stopping there first) → Fern, a regular at a table in
