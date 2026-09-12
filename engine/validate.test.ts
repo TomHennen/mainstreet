@@ -366,6 +366,60 @@ describe('validateWorld', () => {
     expect(problems.join('\n')).toContain('building "shop" has a "label" that isn\'t a boolean');
   });
 
+  it('accepts a building placement with a "doorStyle" of "stairs" on a door with an interior', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          buildings: [
+            { id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1], doorStyle: 'stairs', interior: 'shop-interior', enter: [0, 0] }
+          ]
+        })
+      }
+    });
+    world.maps['shop-interior'] = makeMap({ kind: 'interior', people: [{ id: 'clerk', pos: [2, 2] }] });
+    expect(runWorld(world)).toEqual([]);
+  });
+
+  it('flags a building placement whose "doorStyle" isn\'t a known value', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          // world.json is untyped JSON at load time, so a bad value here is a
+          // realistic author mistake, not just a TypeScript escape hatch.
+          buildings: [
+            {
+              id: 'shop',
+              pos: [0, 0],
+              size: [1, 1],
+              door: [1, 1],
+              doorStyle: 'ramp',
+              interior: 'shop-interior',
+              enter: [0, 0]
+            } as unknown as BuildingPlacement
+          ]
+        })
+      }
+    });
+    world.maps['shop-interior'] = makeMap({ kind: 'interior', people: [{ id: 'clerk', pos: [2, 2] }] });
+    const problems = runWorld(world);
+    expect(problems.join('\n')).toContain('building "shop" has a "doorStyle" that isn\'t one of stairs');
+  });
+
+  it('flags a "doorStyle" on a door with no interior for it to mark', () => {
+    // A stairs (or any future doorStyle) marker only ever replaces the arrow
+    // the engine draws at a door with an interior behind it — on a building
+    // with none, it would draw nothing at all, silently (DESIGN.md §2).
+    const world = makeWorld({
+      maps: {
+        town: makeMap({
+          buildings: [{ id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1], doorStyle: 'stairs' }]
+        })
+      }
+    });
+    const problems = runWorld(world);
+    expect(problems.join('\n')).toContain('building "shop" has a "doorStyle" but no "interior" for it to mark');
+  });
+
   it('accepts the plaque tile the engine puts beside a door by default', () => {
     // Right of the door, which on this footprint is still a walkable tile.
     const world = makeWorld({

@@ -601,6 +601,7 @@
             85,
             23
           ],
+          "doorStyle": "stairs",
           "interior": "eighty-main-interior",
           "enter": [
             6,
