@@ -727,6 +727,23 @@ opt-in, everything warm and affectionate) before it reaches the player.
   missing from, so what arrives is a line of dialogue, which `requires`
   already covers.
 
+  Voice pass, September 2026 (Tom, on a readable script rather than a
+  playthrough; `npm run episode-script -- route10 ep002` prints one). Three
+  rules, which apply to every episode from here on: the jokes go (humour
+  is something that happens, never a line written to be clever); the player
+  is told less (Priya no longer names Walt — the player asks around and
+  Hannah, Renata or Fern say who drives down; Walt names one Jess, not
+  four, and the player finds the others by asking for "Jess"; nobody
+  explains how a jump works); and every entry opens by naming what it is
+  answering, because the player never sees their own side of the
+  conversation. Two placement changes came out of it: Priya now takes her
+  break on Stamford Coffee's deck rather than standing next door to the
+  one person who can help, so the errand crosses the map; and Jess K.
+  sends the player to Hobart (Jess T.), who sends them to the trail
+  (Jess R.), so all three villages earn a visit. The Jess joke is aired
+  once, by Walt, as a plain fact ("Jess usually helps me out"); the
+  scene's capper is just a thanks.
+
   Jess L. waits on Middle Brook Cafe's patio, across Main Street from the
   forecourt, and walks over — Tom's call, and a better walk than standing by
   the creamery. Her wagon, though, is parked on J&H's lot rather than at the

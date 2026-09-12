@@ -63,8 +63,10 @@ describe('episode-script: ep002 specifics', () => {
   });
 
   it('places an NPC at the building nearest their door, within 2 tiles', () => {
+    // Priya's on Stamford Coffee's deck — equidistant (2 tiles) from that door
+    // and 80 Main's, so the tie goes to whichever is listed first on the map.
     const priya = doc.npcs.find((npc) => npc.id === 'priya');
-    expect(priya?.place).toBe('Middle Brook Cafe');
+    expect(priya?.place).toBe('80 Main');
     // Nobody is standing at a door here, so it falls back to the map's own name.
     const jessK = doc.npcs.find((npc) => npc.id === 'stamford-main-walker');
     expect(jessK?.place).toBe('Stamford');
