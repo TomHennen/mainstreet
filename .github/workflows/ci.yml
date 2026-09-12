@@ -56,9 +56,14 @@ jobs:
       # The harness's own watchdog defaults to 8 minutes; a full run with two
       # episodes' worth of steps takes a little over that on the CI runner, so
       # give it room until the playtest itself gets faster.
+      # Real speed on the runner: at PLAYTEST_TIMESCALE=2 (the local default)
+      # a held-key walk clips corners on the slower CI machine and stalls,
+      # which failed two unrelated PRs on the same Middle Brook patio walk.
+      # Local runs keep the speed-up; the gate measures the game at 1x.
       - run: npm run playtest
         env:
           PLAYTEST_WATCHDOG_MIN: 12
+          PLAYTEST_TIMESCALE: 1
       - name: Upload playtest artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
