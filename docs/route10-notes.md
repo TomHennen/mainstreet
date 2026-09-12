@@ -39,7 +39,9 @@ south-east corner). Route 23 is Harper Street west of the corner and Main
 Street east of it; Route 10 is Lake Street north of the corner and Hobart Road
 south of it. Stamford Coffee is on the south side of Main Street. The
 Belvedere is up Academy Street, a long walk uphill from Main Street, and
-Academy Street is west of Stamford Coffee. Stamford Coffee has a big outdoor
+Academy Street is west of Stamford Coffee. Past the Belvedere, Academy Street
+tees into a road we don't map, so on the game map it just runs off the top
+quietly, with nothing said. Stamford Coffee has a big outdoor
 patio directly attached to the front of the building, and a huge parking
 lot. Mount Utsayantha and its lake are
 north-east up Lake Street. The south-west corner of the 10/23 junction was

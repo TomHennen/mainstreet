@@ -232,6 +232,16 @@ describe('lostAt', () => {
     expect(lostAt(map, 5, 0)).toBe(lost);
   });
 
+  it('is undefined beside a quiet edge too — its shoulder counts the same as a talking one', () => {
+    const map = woods(['......', '......'], {
+      edges: [{ id: 'quiet-road', at: [3, 0, 1, 1], quiet: true }]
+    });
+    expect(lostAt(map, 3, 0)).toBeUndefined();
+    expect(lostAt(map, 2, 0)).toBeUndefined();
+    expect(lostAt(map, 4, 0)).toBeUndefined();
+    expect(lostAt(map, 5, 0)).toBe(lost);
+  });
+
   it('is undefined on a map with no lost entry at all', () => {
     expect(lostAt(makeMap(['....', '....']), 0, 0)).toBeUndefined();
   });

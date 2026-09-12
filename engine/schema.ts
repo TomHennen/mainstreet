@@ -358,12 +358,23 @@ export interface MapExit {
  * matching `edges` entry falls back to the engine's own generic
  * `copy.ui.roadEnd` instead (never shown for grass or trees, only for a road
  * that simply hasn't been mapped further).
+ *
+ * Some roads don't have anything to say at all — a T into a road the world
+ * doesn't map, say — and would otherwise fall back to the generic
+ * `ui.roadEnd` line, which reads oddly next to a dead end drawn right up to
+ * the map's boundary. Setting `quiet: true` (and leaving `lines` out) makes
+ * the road end silently: the tile still counts as a matched `edges` entry
+ * (so `ui.roadEnd` never fires there, and it still keeps the tile off
+ * `lost`'s shoulder), it just says nothing when walked into.
  */
 export interface MapEdge {
   id: string;
   /** Trigger area in tiles: [x, y, w, h], the same shape as an exit's `at`. */
   at: Rect;
-  lines: string[];
+  /** Shown in the say box, narrator-voiced, once per visit. Required unless `quiet` is set. */
+  lines?: string[];
+  /** The road simply runs off the map here: no line, and no fallback to `ui.roadEnd`. */
+  quiet?: boolean;
 }
 
 /**
