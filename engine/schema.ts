@@ -854,6 +854,27 @@ export interface EpisodeNpc {
    */
   route?: Route;
   wander?: Wander;
+  /**
+   * A declared flag (like `requires`) that takes this person off the map once
+   * it is true — the beat they drive away, go inside, or are simply somewhere
+   * else for the rest of the week. `EpisodeItem.until` with the same meaning,
+   * one row down: they are not drawn, not walked, not stood on, and not
+   * something the A button or a tap can reach. A map loaded afterwards never
+   * spawns them (`npcsOn`, engine/session.ts) and a map already on screen
+   * drops them the moment the flag is set (`onFlag`, engine/scenes/map.ts),
+   * so a scene can send somebody off mid-step.
+   *
+   * There is deliberately no opposite of this. Somebody the player has never
+   * met has nothing to be missing from, so what *arrives* is a line of
+   * dialogue, which `requires` already covers; this is only for somebody the
+   * player has met and who now has somewhere to be.
+   *
+   * Dialogue entries that could only match once the flag is set are therefore
+   * unreachable — there is nobody left to say them. The validator checks the
+   * flag is one the episode declares, the same as `requires` and every
+   * effect's `set`.
+   */
+  until?: string;
   dialogue: DialogueEntry[];
 }
 

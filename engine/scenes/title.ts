@@ -776,6 +776,20 @@ export class TitleScene extends Phaser.Scene {
       row.h = Math.max(ROW_H, Math.round(row.text.height) + 22 + (confirming ? BUTTON_LINE_RESERVE : 0));
     });
 
+    // And then level them: every row on the list is one component, the same
+    // width and the same height, which is what a list of things to tap has to
+    // be to read as a list at all (Tom's phone complaint — Ep. 1, Credits,
+    // Write to us and Forget everything all looking different). One title long
+    // enough to wrap at phone width used to make its own row taller than every
+    // other, which is the same complaint by a different route; now the wrap
+    // grows the whole list and nothing is cut off either way. The row asking
+    // "are you sure?" keeps its own taller shape: it is a question with two
+    // buttons under it for a moment, not one of the list's rows.
+    const tallest = this.rows.reduce((h, row, i) => (this.confirming === i ? h : Math.max(h, row.h)), ROW_H);
+    this.rows.forEach((row, i) => {
+      if (this.confirming !== i) row.h = tallest;
+    });
+
     const headingH = 30;
     const subtitleH = this.subtitle.text ? 20 : 0;
     const listH = this.rows.reduce((sum, row) => sum + row.h, 0) + Math.max(0, this.rows.length - 1) * ROW_GAP;

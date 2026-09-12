@@ -635,7 +635,7 @@ opt-in, everything warm and affectionate) before it reaches the player.
   (a fully invented local, hard rule 5, built from the "looks exactly like
   you'd expect" archetype rather than any real person) is a nice one-off
   or recurring cameo either way.
-- **"Anybody Headed Down Today?" — built, unshipped, in
+- **"Anybody Headed Down Today?" — built and shipping, in
   `worlds/route10/episodes/ep002.json`.** Logline: a Jefferson kid is in a
   dance showcase in the city tonight and left half the costume on the
   kitchen table; find somebody driving down today who can take it. Real
@@ -644,10 +644,10 @@ opt-in, everything warm and affectionate) before it reaches the player.
   Spiced from the original "forgot their keys" version: a costume piece
   instead, lower-stakes and warmer, with a built-in reason it has to be
   today without needing an actual timer (the hard rules forbid those
-  anyway). Not in `world.json`'s `episodes` list, so it doesn't ship; it
-  validates with `npm run validate-episodes -- --all` (DESIGN.md §3's
-  review path — the same way ep000 is kept around unshipped) and can be
-  played directly with `?episode=ep002`. September 2026, Tom's call: the
+  anyway). On `world.json`'s `episodes` list since September 2026 (Tom's call), so
+  it is the second entry on the title screen under Ep. 1 and is validated by
+  a plain `npm run validate-episodes`; it can still be opened straight from
+  `?episode=ep002` for review (DESIGN.md §3). September 2026, Tom's call: the
   errand has to take the player inside Stamford Coffee, so the chain is
   now Priya → Hannah (who sends you to the coffee shop: nobody drives to
   the city without stopping there first) → Fern, a regular at a table in
@@ -656,6 +656,79 @@ opt-in, everything warm and affectionate) before it reaches the player.
   Walt. Five story flags; the rumor beat below rides along on a sixth, and
   stays out of the errand's own lines — Tom's note: don't let either the
   paninis or the mystery shop get obsessive.
+
+  **Rewritten, September 2026 — the chain above is superseded; everything
+  from here down about Hannah → Fern → Renata → Walt is history, kept
+  because the reasoning is still worth having.** Tom walked it and gave
+  three notes: it is signposted to death (every stop says "not me, try X",
+  so the player follows arrows instead of reasoning), Walt ought to be the
+  first stop rather than the last, and what actually holds the episode shut
+  is the game withholding — Walt standing there saying "might be going,
+  might not" — rather than anybody behaving like a person. Three treatments
+  were written up and Tom picked C: Walt is the correct first stop and
+  tells the whole truth at once — he'll take the bag, he's glad to, his
+  truck won't start, and "ask a Jess, there's four of 'em and I never get
+  the right one first go." The player hears that as one person, which is
+  the misdirection they get to catch, and the four Jesses below stop being
+  background and become the week's cast. Nobody points at the next stop any
+  more; each Jess knows one usable thing (Jess K. saw Jess R. head for the
+  trail with a pack; Jess T. has had her head under that hood and says
+  cables alone won't do it, you want a car alongside for ten minutes; Jess
+  R. keeps cables behind her seat; Jess L. is parked at J&H with a full
+  tank). Beats, in any order after Walt: `heardAsk` → `truckDead` →
+  `askedJessK`/`askedJessT` (optional colour) → `hasCables` → `truckRuns`
+  → `done`. Two Jesses are load-bearing, four make the joke. Hannah, Fern
+  and Renata keep their tiles and lose their arrows — they are texture now,
+  plus the mystery-shop rumour beat, which is untouched.
+
+  Tom's one correction to the treatment, worth keeping because it is a
+  local-truth note and not a story note: the first draft had Jess L. help
+  because hers was "the only car in Jefferson," which is nonsense — cars
+  drive through all day. She helps because she is parked right there with
+  nowhere she has to be, and because she is the kind who would. That is
+  also why the errand is still an errand with her waiting across the street
+  the whole morning: there are no cables in Jefferson, and the cables are
+  what the player actually goes and gets. The joke is aired exactly twice,
+  both times by Walt and both times about himself — the setup when he asks
+  for help ("It's usually a Jess — there's four of them between here and
+  Hobart, and I've never once picked the right one first") and the capper in
+  the scene, once she has turned up ("Jess L. I'd have asked you first if I
+  could ever keep the four of you straight"). Never at the Jesses, who are
+  four people who happen to share a name, and nobody else in the episode
+  counts them. An earlier draft had Walt be a fifth Jess by middle name; it
+  went in the copy pass for being one joke too many, and if it ever comes
+  back it stays a middle name rather than a surname, so no invented last
+  name has to be checked against a real one (see **People** above). The
+  ending is a scene now rather than a line: Jess L.
+  walks over, her car pulls round into the stall alongside the truck on
+  J&H's forecourt,
+  the truck catches, and Walt drives out of the village — the week visibly
+  changes something, which the old version never did. Walt goes with the truck:
+  the first draft could not manage that — an episode NPC had no way to stop
+  existing — and he stood on the forecourt watching his own pickup drive off.
+  The engine grew `EpisodeNpc.until` for it (DESIGN.md §3, an item's `until`
+  one row up): a declared flag that takes somebody off the map for the rest of
+  the week, not drawn, not walked, not stood on, not reachable by the A button,
+  and never spawned at all on a later load. Walt's is `done`, set the step
+  after he walks to the truck, which is him getting in. This replaces the
+  earlier note here that said NPCs simply cannot leave. There is deliberately
+  no opposite of it: somebody the player has never met has nothing to be
+  missing from, so what arrives is a line of dialogue, which `requires`
+  already covers.
+
+  Jess L. waits on Middle Brook Cafe's patio, across Main Street from the
+  forecourt, and walks over — Tom's call, and a better walk than standing by
+  the creamery. Her wagon, though, is parked on J&H's lot rather than at the
+  cafe, and that is a map fact rather than a choice: **Middle Brook's own
+  parking lot (x42-44, y22-25) is drivable but connects to no road** — the
+  strip of Creamery Street it is meant to open onto stops at y25 and never
+  reaches Main Street, so a car parked there cannot drive anywhere and the
+  validator rejects any scene leg out of it. Worth fixing on the map some
+  week; until then a car by the cafe is a car that cannot move. So she parked
+  at the gas station and walked across for a coffee, which is what people do
+  in a village this size, and she says so. J&H is the place that
+  makes this easy, never the place that let him down: somewhere to leave a
+  truck all day, and the coffee brought out to him while he thinks.
 
   Went through a design pass before being written (an automated review on
   the PR that added this note caught real issues before any JSON
@@ -796,6 +869,23 @@ opt-in, everything warm and affectionate) before it reaches the player.
   as any other trivia roll. If a real future storyline ever wants a named
   Jess of its own, give that character an unrelated last name so nobody
   reads them as one of these four.
+
+  Updated September 2026: the four still carry no `lines` in `world.json`
+  and are still nobody's cast by default — but ep002 now takes all four
+  over by id (DESIGN.md §3's id-takeover rule, so the player never meets
+  two of anybody) and gives them a voice for that week only, under exactly
+  the names and initials above. `stamford-main-walker` is Jess K.,
+  `stamford-trail-walker` Jess R., `hobart-bridge-walker` Jess T.,
+  `jefferson-creamery-walker` Jess L.; the episode carries their `look`
+  across verbatim so they are visibly the same people, and stands them on
+  sensible tiles rather than keeping the world's routes, since a story
+  wants somebody to be findable. They still count toward the ambient-people
+  total `smallTalk` is measured against (the validator counts world people
+  with no `lines`, taken over or not — eight today, so any episode needs at
+  least eight lines in the pool). The rule above still holds and matters
+  more now: a future named Jess gets an unrelated last name, and nothing
+  anywhere makes the joke at the Jesses' expense — in ep002 the
+  can't-keep-them-straight line is Walt's, about himself.
 - **A piece of wood on the fire.** Built, September 2026. The Belvedere's
   yard has a firepit and a stack of wood beside it, and the beat Tom wanted is
   in: take a split log off the pile, put it on the fire, and the fire catches

@@ -4722,7 +4722,25 @@ async function main() {
     // pulls out onto Main Street and heads out of the village. All data, so
     // the harness finds the episode with a parked car a scene drives rather
     // than being told which one.
+    // A scene may drive more than one car — ep002's own rolls a neighbour's
+    // wagon into the next bay before the pickup ever leaves — and this section
+    // is about the one that *goes*: it waits for it to get four tiles clear,
+    // then to reach the far end of its path, then checks the player was not
+    // carried off the map with it. So the car is picked by where its drive
+    // ends: a target inside one of that map's `exits` rects is a car leaving
+    // the village, and a target anywhere else is a car repositioning in a lot.
+    // Ordering the episode's `vehicles` list differently cannot change the
+    // answer, which "the first one that matches" quietly depended on.
+    const leavesTown = (mapId, target) =>
+      (WORLD.maps[mapId]?.exits ?? []).some(
+        (exit) =>
+          target[0] >= exit.at[0] &&
+          target[0] < exit.at[0] + exit.at[2] &&
+          target[1] >= exit.at[1] &&
+          target[1] < exit.at[1] + exit.at[3]
+      );
     const truckEpisode = (() => {
+      let fallback = null;
       for (const file of readdirSync(resolve(PACK, 'episodes')).sort()) {
         if (!file.endsWith('.json') || file.startsWith('draft-')) continue;
         const candidate = readJson(resolve(PACK, 'episodes', file));
@@ -4739,11 +4757,17 @@ async function main() {
               )
             : null;
           if (scene && speaker) {
-            return { id: file.slice(0, -'.json'.length), episode: candidate, vehicle: parked, scene, speaker };
+            const found = { id: file.slice(0, -'.json'.length), episode: candidate, vehicle: parked, scene, speaker };
+            const move = scene.steps.find((st) => st.move?.who === `vehicle:${parked.id}`).move;
+            const target = move.path ? move.path[move.path.length - 1] : move.to;
+            // A pack whose only story car never leaves town still gets played,
+            // rather than this section skipping itself over a missing exit.
+            if (leavesTown(parked.map, target)) return found;
+            fallback ??= found;
           }
         }
       }
-      return null;
+      return fallback;
     })();
 
     if (!truckEpisode) {
@@ -4826,6 +4850,22 @@ async function main() {
       expectFlag(await snap(tp), 'story-car', departure.on.flag);
       log(`    ${speaker.name} — "${entry.lines[entry.lines.length - 1]}"`);
 
+      // A scene may speak on its way through (DESIGN.md §3's `say` step), and
+      // a `say` waits for its box to be dismissed — so every wait below is
+      // nudged with an A press whenever a box is open, exactly as a player
+      // would read it, or the scene simply stops at its first line. Only when
+      // a box is open: A is swallowed while a scene holds the controls, and
+      // pressing it on an empty screen would strike up a conversation with
+      // whoever is standing there.
+      const readAlong = async () => {
+        if ((await snap(tp)).dialogueOpen) await pressA(tp);
+      };
+      // And a scene that speaks is *meant* to hold the controls for as long as
+      // its box is up — that is the one thing a `say` does. The no-holds check
+      // at the end therefore applies only to a scene where nobody speaks and
+      // nothing walks the player anywhere.
+      const sceneSpeaks = (departure.steps ?? []).some((st) => st.say !== undefined || st.move?.who === 'player');
+
       // He walks to the truck…
       const walk = (departure.steps ?? []).find((st) => st.move && st.move.who === speaker.id)?.move;
       if (walk) {
@@ -4837,7 +4877,8 @@ async function main() {
             return Boolean(him) && Math.hypot(him.x - goal[0], him.y - goal[1]) < 0.3;
           },
           `"${speaker.id}" to walk to the truck at ${goal}`,
-          30000
+          30000,
+          readAlong
         );
         log(`    ${speaker.name} walked from ${speaker.pos} to the truck at ${goal}`);
       }
@@ -4858,7 +4899,8 @@ async function main() {
           return Boolean(car) && Math.hypot(car.x - vehicle.pos[0], car.y - vehicle.pos[1]) > 4;
         },
         `"${vehicle.id}" to pull out of the lot and away`,
-        30000
+        30000,
+        readAlong
       );
       await shot(tp, 'story-car-leaving');
       const leaving = (pulledOut.vehicles ?? []).find((v) => v.id === vehicle.id);
@@ -4872,27 +4914,37 @@ async function main() {
           return Boolean(car) && Math.hypot(car.x - end[0], car.y - end[1]) < 0.3;
         },
         `"${vehicle.id}" to reach ${end}, at the edge of the map`,
-        40000
+        40000,
+        readAlong
       );
       log(`    and drove to ${end}, at the edge of the map`);
       if (gone.map !== vehicle.map) fail('story-car', 'the player was carried off the map by the scene');
 
-      // The toast the scene fires once he is gone, and the flag it records
-      // itself with — with the controls never once taken off the player.
-      const toastStep = (departure.steps ?? []).find((st) => st.toast !== undefined)?.toast;
+      // The toast the scene signs off with, and the flag it records itself
+      // with. The *last* toast step, not the first: a scene may well cheer
+      // something on the way past (a truck catching) before the one that says
+      // the week is over, and that earlier banner has come and gone by now.
+      const toastStep = (departure.steps ?? []).findLast((st) => st.toast !== undefined)?.toast;
       if (toastStep) {
-        const toasted = await waitUntil(tp, (st) => st.toast === toastStep, `the toast "${toastStep}"`, 20000);
+        const toasted = await waitUntil(tp, (st) => st.toast === toastStep, `the toast "${toastStep}"`, 20000, readAlong);
         log(`    toast: "${toasted.toast}"`);
       }
       const over = await waitUntil(
         tp,
         (st) => st.scene === null && st.flags[`scene:${departure.id}`] === true,
         `the scene to finish and record "scene:${departure.id}"`,
-        30000
+        30000,
+        readAlong
       );
-      if (held) fail('story-car', 'the scene took the controls off the player — nobody in it speaks or walks them anywhere');
+      if (held && !sceneSpeaks) {
+        fail('story-car', 'the scene took the controls off the player — nobody in it speaks or walks them anywhere');
+      }
       if (over.locked) fail('story-car', 'the player was left locked once the scene was over');
-      log('    scene over, and the player kept the controls the whole way through');
+      log(
+        sceneSpeaks
+          ? '    scene over, and the player got the controls back at the end of it'
+          : '    scene over, and the player kept the controls the whole way through'
+      );
       await tctx.close();
     }
 
