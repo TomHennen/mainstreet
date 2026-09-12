@@ -37,6 +37,12 @@ import { encode } from '../studio/codec.ts';
 // the real thing rather than re-implementing the calendar logic here.
 import { introLineFor } from '../engine/season.ts';
 import { clearBetween, offsetsWithin, REACH } from '../engine/reach.ts';
+// The car's own drawn size and the player's own hitbox footprint (issue #37,
+// "sometimes I get run over") — imported rather than re-guessed, so the
+// adversarial car-crossing check below reads exactly the rectangles the
+// engine itself draws and collides against.
+import { VEHICLE_L, VEHICLE_W } from '../engine/motor.ts';
+import { TILE } from '../engine/tiled.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -464,6 +470,38 @@ const tileOf = (v) => Math.floor(v + 0.25);
 const here = (s) => [tileOf(s.x), tileOf(s.y)];
 
 /**
+ * The rectangles the adversarial car-crossing check (issue #37, "sometimes I
+ * get run over") reads back off a trace — the player's own hitbox (the same
+ * quarter-tile inset `footprintTiles`, engine/footprint.ts, floors into
+ * tiles for `engine/scenes/map.ts` `playerTiles`, kept here as the
+ * continuous rectangle before that flooring) and a car's own drawn footprint
+ * (`VEHICLE_W` x `VEHICLE_L`, engine/motor.ts, centred on the car's own `x`/
+ * `y` the way `drawCars` positions the sprite) — not tile indices, which is
+ * coarser than what actually gets drawn.
+ */
+function playerRect(x, y) {
+  return { minX: x + 0.25, maxX: x + 0.75, minY: y + 0.25, maxY: y + 0.75 };
+}
+
+function carRect(x, y, facing) {
+  const cx = x + 0.5;
+  const cy = y + 0.5;
+  const along = facing === 'left' || facing === 'right';
+  const halfLen = VEHICLE_L / TILE / 2;
+  const halfWid = VEHICLE_W / TILE / 2;
+  const halfX = along ? halfLen : halfWid;
+  const halfY = along ? halfWid : halfLen;
+  return { minX: cx - halfX, maxX: cx + halfX, minY: cy - halfY, maxY: cy + halfY };
+}
+
+/** How far two rectangles are into each other — 0 or less is "not overlapping". */
+function overlapDepth(a, b) {
+  const dx = Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX);
+  const dy = Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY);
+  return Math.min(dx, dy);
+}
+
+/**
  * Holds a direction key until the axis crosses `target`. The keyup is fired
  * from inside the page on the very frame the target is reached, so the player
  * never overshoots into the neighbouring tile (which would change what the
@@ -499,6 +537,62 @@ async function hold(page, dir, axis, target, sign) {
         requestAnimationFrame(tick);
       }),
     { key: KEY[dir], axis, target, sign, eps: TILE_EPS }
+  );
+  await page.keyboard.up(KEY[dir]);
+  return result;
+}
+
+/**
+ * The same walk as `hold`, but every frame it also records the player's own
+ * position and every car's — the trace the adversarial car-crossing check
+ * below (issue #37, "sometimes I get run over") reads back afterwards,
+ * frame by frame, rather than polling from Node at whatever rate the
+ * machine running the test happens to manage. `stopAtCar`, when given, ends
+ * the walk the instant that car's own `stopped` flips true — so the walk can
+ * be aimed straight at a car that is still under way, arriving right as (or
+ * just before) it comes to a stop, rather than only ever finding it already
+ * stopped and waiting the way `walkTo` used elsewhere in this file does.
+ */
+async function holdAndTrace(page, dir, axis, target, sign, stopAtCar) {
+  await page.keyboard.down(KEY[dir]);
+  const result = await page.evaluate(
+    ({ key, axis, target, sign, eps, stopAtCar }) =>
+      new Promise((done) => {
+        const t0 = performance.now();
+        let last = null;
+        let moved = t0;
+        const trace = [];
+        const stop = (reason) => {
+          window.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
+          done({ reason, state: window.__mainstreet, trace });
+        };
+        const tick = () => {
+          const s = window.__mainstreet;
+          if (!s) return stop('no-state');
+          if (s.locked || s.dialogueOpen) return stop('interrupted');
+          trace.push({
+            x: s.x,
+            y: s.y,
+            vehicles: (s.vehicles ?? []).map((v) => ({ x: v.x, y: v.y, facing: v.facing }))
+          });
+          if (stopAtCar) {
+            const car = (s.vehicles ?? []).find((v) => v.id === stopAtCar);
+            if (car?.stopped) return stop('car-stopped');
+          }
+          const v = s[axis];
+          if (sign > 0 ? v >= target - eps : v <= target + eps) return stop('arrived');
+          if (last === null || Math.abs(v - last) > 0.02) {
+            last = v;
+            moved = performance.now();
+          } else if (performance.now() - moved > 500) {
+            return stop('stuck');
+          }
+          if (performance.now() - t0 > 8000) return stop('timeout');
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }),
+    { key: KEY[dir], axis, target, sign, eps: TILE_EPS, stopAtCar: stopAtCar ?? null }
   );
   await page.keyboard.up(KEY[dir]);
   return result;
@@ -594,11 +688,13 @@ async function pressA(page) {
 
 /**
  * Where to stand to read a sign: the nearest tile within a prop's reach
- * (engine/reach.ts) the player can actually walk to from where they are —
- * beside it where there is floor beside it, and otherwise two tiles straight
- * on, which is how a shelf on the back wall is read across the counter in
- * front of it. A tile of floor inside a sealed staff strip is not somewhere
- * to stand, however close it is. Null when nowhere will do.
+ * (engine/reach.ts — touching distance, so the tile beside it; `further` is
+ * whatever a longer reach would add, and is empty at today's) the player can
+ * actually walk to from where they are. A shelf on the wall behind a counter
+ * hangs its sign on the counter tile in front (scripts/make-room.ts
+ * `signAt`), so it is read from the customer side. A tile of floor inside a
+ * sealed staff strip is not somewhere to stand, however close it is. Null
+ * when nowhere will do.
  */
 function readSpotFor(mapId, sign, from) {
   const map = WORLD.maps[mapId];
@@ -4560,6 +4656,63 @@ async function main() {
       await walkTo(cp, 'cars', beside);
       const again = await drivenBy(carData.id, 2, 30000, 'it never pulled away again once the player stepped off');
       log(`    pulled away again once the player stepped off: ${again.tiles.toFixed(1)} tiles in ${(again.ms / 1000).toFixed(1)}s`);
+
+      // Adversarial: stepping into the lane at a bad moment (issue #37,
+      // "sometimes I get run over"). Every other car check above waits for
+      // the road to be either clear or already occupied before it looks;
+      // this one deliberately steps into the lane while the car is still
+      // under way and closing in, which is the timing a real tap-to-walk or
+      // held d-pad crossing actually has. It is never solid (DESIGN.md §1),
+      // so the standard is not "the player never touches it" — it is that
+      // the give-way check the two rely on, `Driver.update`
+      // (engine/vehicle.ts), never lets the car's own drawn footprint
+      // (`VEHICLE_W` x `VEHICLE_L`) sweep into the player's hitbox on any
+      // frame this trace samples.
+      await walkTo(cp, 'cars', beside);
+      await drivenBy(carData.id, 1, 30000, 'it never picked up again before the adversarial crossing');
+      const laneAlong = alongX ? inLane[0] : inLane[1];
+      const laneCross = alongX ? inLane[1] : inLane[0];
+      await waitUntil(
+        cp,
+        (state) => {
+          const v = (state.vehicles ?? []).find((q) => q.id === carData.id);
+          if (!v || v.stopped) return false;
+          if (Math.abs(v[cross] - laneCross) > 1.2) return false;
+          const carAlong = v[axis];
+          const approaching = span[1] > span[0] ? carAlong < laneAlong : carAlong > laneAlong;
+          return approaching && Math.abs(carAlong - laneAlong) <= 6;
+        },
+        `"${carData.id}" to be closing in on the watching spot for the adversarial crossing`,
+        150000
+      );
+      const overSign = alongX ? over[1] : over[0];
+      const crossDir = alongX ? (overSign > 0 ? 'up' : 'down') : overSign > 0 ? 'left' : 'right';
+      const { reason, trace } = await holdAndTrace(cp, crossDir, cross, laneCross, -overSign, carData.id);
+      if (reason !== 'arrived' && reason !== 'car-stopped') {
+        fail('cars', `stepping into "${carData.id}"'s lane for the adversarial crossing ended in "${reason}", not arriving`);
+      }
+      let worstOverlap = 0;
+      for (const frame of trace) {
+        const p = playerRect(frame.x, frame.y);
+        for (const v of frame.vehicles) {
+          if (v.facing == null) continue;
+          worstOverlap = Math.max(worstOverlap, overlapDepth(p, carRect(v.x, v.y, v.facing)));
+        }
+      }
+      if (worstOverlap > 0) {
+        fail(
+          'cars',
+          `the player's own hitbox overlapped a car's drawn footprint by ${worstOverlap.toFixed(2)} tiles ` +
+            `stepping into "${carData.id}"'s lane at a bad moment, across ${trace.length} sampled frames`
+        );
+      }
+      log(`    stepped into the lane right as "${carData.id}" was closing in — no overlap across ${trace.length} sampled frames`);
+      await walkTo(cp, 'cars', beside);
+      const resumedAfter = await drivenBy(carData.id, 2, 30000, 'it never pulled away again after the adversarial crossing');
+      log(
+        `    resumed after the adversarial crossing: ${resumedAfter.tiles.toFixed(1)} tiles in ` +
+          `${(resumedAfter.ms / 1000).toFixed(1)}s`
+      );
     }
 
     // --- a story's own car ----------------------------------------------------

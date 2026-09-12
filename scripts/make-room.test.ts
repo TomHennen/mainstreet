@@ -372,6 +372,23 @@ describe('buildRoom: halls, doors, panels and a second way out', () => {
     ]);
   });
 
+  it('hangs a sign on the counter in front of a shelf nobody can stand beside', () => {
+    // A prop is read from the tile beside it (engine/reach.ts), so a shelf on
+    // the wall behind a counter names `signAt`: the counter tile in front.
+    const r = long([
+      { kind: 'counter', rect: [4, 3, 5, 1], behind: 'top' },
+      { kind: 'shelf', rect: [4, 2, 5, 1], lines: ['Every coffee maker there is.'], signAt: [6, 3] }
+    ]);
+    expect(tileAt(r, 6, 2)).toBe(PALETTE.shelf[0]);
+    expect(tileAt(r, 6, 3)).toBe(PALETTE.counter);
+    expect(r.meta.signs).toEqual([{ pos: [6, 3], lines: ['Every coffee maker there is.'] }]);
+    // Off the prop altogether, or with nothing to read, is a mistake in the spec.
+    expect(() =>
+      long([{ kind: 'shelf', rect: [4, 2, 5, 1], lines: ['A shelf.'], signAt: [6, 4] }])
+    ).toThrow(/not the tile beside it/);
+    expect(() => long([{ kind: 'shelf', rect: [4, 2, 5, 1], signAt: [6, 3] }])).toThrow(/no lines to read/);
+  });
+
   it('will not hang a door on the floor, or cut a way out where a wall is not yet', () => {
     expect(() => long([{ kind: 'door', at: [[5, 5]] }])).toThrow(/not a wall/);
     // The hall's wall is only there once the hall is: an exit through it has

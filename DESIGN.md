@@ -64,8 +64,8 @@ water, wall, floor, counter, mat — which is there for the person editing the
 map; the engine never branches on it. What the engine reads is Tiled custom
 properties: `solid` (bool, default false — the only source of tile collision),
 `opaque` (bool, default false — nothing is seen, read or reached through the
-tile, so a wall is; a counter, solid as it is, is not, and is read and talked
-across — see engine/reach.ts `clearBetween`),
+tile, so a wall is; a counter, solid as it is, is not, and is talked and
+reached across — see engine/reach.ts `clearBetween`),
 `style`, `colors` (comma-separated hex), optional `base` (a flat fill painted
 under the recipe) and optional `edge` (the colour of a front face painted along
 the bottom of the cell, for a surface raised above the ground plane — the near
@@ -182,7 +182,11 @@ spawn tile with something standing on it, floor walled off from the door, or a
 counter whose staff strip is open to the room. That strip is the point of the
 `counter`/`bar` props: the run of counter tiles gets a one-tile pocket behind
 it, closed at the ends with short returns, so somebody serving from it stays
-behind it (Stewart's register counter, drawn for you). Interiors are still
+behind it (Stewart's register counter, drawn for you). A prop with `lines` is
+read from the tile beside it (§3: a prop's reach is touching distance), so
+one nobody can stand beside — a shelf on the wall behind a counter, a board
+at the end of one — names `signAt`, the counter tile in front of it, and is
+read from there. Interiors are still
 ordinary Tiled maps afterwards — an artist opens one in Tiled and refines it,
 and the script is not the owner of the file.
 
@@ -718,22 +722,39 @@ car legitimately parking, and keeps doing exactly that.
 Cars are **never a hazard, and never anything else either** (§1): not solid,
 nothing to say, not a tap target — a tap on one lands on the road under it —
 and nothing a save ever hears about. Rather than the player giving way, the
-car does: it looks three tiles up its own route — round however many corners
-it needs to, not only straight on from the way it happens to be facing, so
-nobody standing just past a turn is missed — and if anybody is standing there
-it closes the throttle and coasts to a stop, waits for as long as they stay,
-and pulls away again when the way clears. Its braking ramp comes off its own
-speed, so it always stops within two tiles — inside the three it looks
-ahead, which puts the stop a clear tile behind whoever it stopped for, never
-on top of them. It never routes around anybody: a car that swerved past
-somebody in the road would read as impatience. Somebody who steps into the
-road right in front of one is simply passed under, with nothing happening to
-either of them. A car gives way to any car listed *before* it on the map as
-well, which is one-way on purpose, so two of them can never sit waiting on
-each other at a crossroads — and it is that nearest thing in its way that
-decides whether it has cause to holler (below): a car queued up behind
-another car has that car to look at, not whatever player might be further up
-the road past it.
+car does: it looks up its own route — round however many corners it needs to,
+not only straight on from the way it happens to be facing, so nobody standing
+just past a turn is missed — for far enough to leave a clear tile beyond its
+own *nose* once it has actually stopped, and if anybody is standing there it
+closes the throttle and coasts to a stop, waits for as long as they stay, and
+pulls away again when the way clears. Its braking ramp comes off its own
+speed, so its own tracked centre always covers no more than two tiles before
+it stops; the look-ahead itself reaches a tile further than that, because a
+placeholder car (and any painted replacement, which keeps the same frame
+size) is drawn two tiles nose to tail, so the extra tile is what clears the
+front bumper rather than merely the point the engine happens to track the car
+by. That check is re-read in slices of a fraction of a tile of the car's own
+travel, however big a single frame's own share of real time turns out to be —
+a stumble on a phone, a tab regaining focus — so a slow frame is a rendering
+detail, never a gap the give-way check only gets to see the far side of. It
+never routes around anybody: a car that swerved past somebody in the road
+would read as impatience. Somebody who steps into the road too close in
+front of a moving car for that braking ramp to have any physical hope of
+stopping short is simply passed under, with nothing happening to either of
+them. A car gives way to any car listed *before* it on the map as well, which
+is one-way on purpose, so two of them can never sit waiting on each other at
+a crossroads — and it is that nearest thing in its way that decides whether
+it has cause to holler (below): a car queued up behind another car has that
+car to look at, not whatever player might be further up the road past it.
+
+A through-route car's own vanish-and-reappear trip (below) gives way the same
+way on the leg back in: the stretch it drives before it is an ordinary car
+again has no route of its own to bend a look-ahead around, so it looks
+straight up the heading it is entering on instead, the same distance and the
+same braking ramp as anywhere else on its route — and it is held off the map
+entirely, waiting out of sight, rather than ever committing to that drive
+while anyone is standing anywhere across the whole stretch it is about to
+cross, the same as the single tile it is due to reappear on.
 
 Held stopped by the player specifically for about a second, a car has
 something to say about it: one of `copy.json`'s `ui.holler` lines, out the

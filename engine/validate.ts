@@ -243,12 +243,13 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
     }
 
     // A sign that belongs to the map rather than to a story (DESIGN.md §2).
-    // It is read from within a prop's reach (engine/reach.ts), so it needs
-    // somewhere that close to be read from — the tile itself where that is
-    // walkable, and otherwise a tile beside it or two tiles straight on,
-    // which is how a shelf on the back wall is read across the counter. Two
-    // tiles on with a wall between is the other side of the wall, and does
-    // not count (`clearBetween`).
+    // It is read from within a prop's reach (engine/reach.ts) — touching
+    // distance — so it needs somewhere that close to be read from: the tile
+    // itself where that is walkable, and otherwise a tile beside it. A shelf
+    // on the wall behind a counter hangs its sign on the counter tile in
+    // front (scripts/make-room.ts `signAt`). Whatever the reach, a tile with
+    // something opaque between it and the sign is the other side of the
+    // wall, and does not count (`clearBetween`).
     for (const sign of map.signs ?? []) {
       const where = `map "${mapId}" sign at ${sign.pos.join(',')}`;
       const [sx, sy] = sign.pos;

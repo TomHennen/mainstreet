@@ -101,6 +101,10 @@
         3,
         1
       ],
+      "signAt": [
+        7,
+        5
+      ],
       "tiles": [
         17,
         18,
@@ -119,6 +123,10 @@
           4
         ]
       ],
+      "signAt": [
+        12,
+        5
+      ],
       "lines": [
         "The menu, in chalk: coffee every way you could want it, the Maple Smoke latte in a box of its own, and a row of paninis pressed to order \u2014 the kind you smell before you see.",
         "Nothing on this board you would regret."
@@ -131,6 +139,10 @@
         4,
         5,
         1
+      ],
+      "signAt": [
+        16,
+        5
       ],
       "tiles": [
         21,

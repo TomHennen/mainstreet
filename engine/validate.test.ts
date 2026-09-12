@@ -658,20 +658,29 @@ describe('validateWorld', () => {
     expect(runWorld(blank).join('\n')).toContain('has nothing to read on it');
   });
 
-  // Read at a prop's reach (engine/reach.ts): two tiles straight on is close
-  // enough, which is how a shelf on the back wall is read across the counter.
-  it('accepts a map sign behind a counter, read from two tiles away', () => {
-    const world = makeWorld({
+  // Read at a prop's reach (engine/reach.ts): touching distance, the tile
+  // beside it and nothing further. A shelf on the wall behind a counter has
+  // no such tile, so its words hang on the counter tile in front instead
+  // (scripts/make-room.ts `signAt`) and are read from the customer side.
+  it('flags a map sign boxed in behind a counter, and accepts its words hung on the counter', () => {
+    const behind = makeWorld({
       maps: {
         town: makeMap({ signs: [{ pos: [3, 3], lines: ['Bottles, behind the counter.'] }] }, ['.....', '.....', '#####', '#####', '#####'])
       }
     });
-    expect(runWorld(world)).toEqual([]);
+    expect(runWorld(behind).join('\n')).toContain('sign at 3,3 has nowhere beside it to read it from');
+    const onTheCounter = makeWorld({
+      maps: {
+        town: makeMap({ signs: [{ pos: [3, 2], lines: ['Bottles, behind the counter.'] }] }, ['.....', '.....', '#####', '#####', '#####'])
+      }
+    });
+    expect(runWorld(onTheCounter)).toEqual([]);
   });
 
   // Reach is a distance, and two rooms can sit back to back with one wall
-  // between them; the sign is still only readable from its own side
-  // (engine/reach.ts `clearBetween`, over the tileset's `opaque`).
+  // between them; whatever the reach, the sign is only readable from its own
+  // side (engine/reach.ts `clearBetween`, over the tileset's `opaque`) —
+  // and at touching distance, from beside it.
   it('flags a map sign whose only reading spot is two tiles away through an opaque wall', () => {
     const throughWall = makeWorld({
       maps: {
@@ -682,16 +691,16 @@ describe('validateWorld', () => {
       }
     });
     expect(runWorld(throughWall).join('\n')).toContain('sign at 2,3 has nowhere beside it to read it from');
-    // The same shelf with a counter between instead is read across it.
-    const acrossCounter = makeWorld({
+    // The same shelf with floor beside it on its own side is read from there.
+    const ownSide = makeWorld({
       maps: {
         town: makeMap(
-          { signs: [{ pos: [2, 3], lines: ['A shelf, across the counter.'] }] },
-          ['.....', '.....', '#####', '#####', '#####']
+          { signs: [{ pos: [2, 3], lines: ['A shelf, from the right room.'] }] },
+          ['.....', '.....', 'WWWWW', '#####', '.....']
         )
       }
     });
-    expect(runWorld(acrossCounter)).toEqual([]);
+    expect(runWorld(ownSide)).toEqual([]);
   });
 
   it('accepts a map sign hung on an opaque wall, read from beside it', () => {

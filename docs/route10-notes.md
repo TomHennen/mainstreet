@@ -184,6 +184,9 @@ wall, the coffee-maker collection is the shelf along the top wall right of
 the counter, the menu (paninis and the Maple Smoke latte) is a standing
 board at the end of Ronnie's counter, and the self-serve fridge is the two
 cooler tiles by the street door (readable; nothing bought yet). The
+coffee-maker shelf, the menu board and the bottles are behind the counter,
+so each is read from the counter tile in front of it (`signAt` in the
+spec): a prop is only ever read from the tile beside it. The
 mid-century furniture is the room's tables and stools, with the first table
 readable as the whole set. The doorway to 80 Main is a two-tile-tall open
 gap in the right wall at rows 6–7, matched by the same gap in 80 Main's left
