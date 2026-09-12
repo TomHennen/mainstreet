@@ -80,8 +80,7 @@ describe('episode-script: ep002 specifics', () => {
   it('reads scene moves as plain English, a vehicle showing where it starts', () => {
     const scene = doc.scenes.find((s) => s.id === 'a-jess-pulls-round');
     const steps = scene?.steps ?? [];
-    expect(steps[1]).toEqual({ kind: 'move', label: 'Jess L.', verb: 'walks', via: [[43, 11]] });
-    expect(steps[2]).toEqual({
+    expect(steps[0]).toEqual({
       kind: 'move',
       label: 'the wagon',
       verb: 'drives',
@@ -90,6 +89,13 @@ describe('episode-script: ep002 specifics', () => {
         [45, 12]
       ]
     });
+    expect(steps[2]).toEqual({ kind: 'move', label: 'Jess L.', verb: 'walks', via: [[43, 11]] });
+  });
+
+  it('reads a camera step following an NPC as "follow"', () => {
+    const scene = doc.scenes.find((s) => s.id === 'a-jess-pulls-round');
+    const steps = scene?.steps ?? [];
+    expect(steps[1]).toEqual({ kind: 'camera', to: { follow: 'Jess L.' } });
   });
 
   it('gives dialogue effects a readable footer', () => {

@@ -44,7 +44,7 @@ import type {
   Vec2,
   World
 } from '../engine/schema.ts';
-import { SCENE_PLAYER, SCENE_VEHICLE } from '../engine/schema.ts';
+import { SCENE_NPC, SCENE_PLAYER, SCENE_VEHICLE } from '../engine/schema.ts';
 
 // --- the doc: what a script is built out of, and what --json prints ---------
 
@@ -85,7 +85,7 @@ export type ScriptSceneStep =
   | { kind: 'say'; speaker: string; lines: string[] }
   | { kind: 'toast'; text: string }
   | { kind: 'wait'; seconds: number }
-  | { kind: 'camera'; to: Vec2 | 'player' }
+  | { kind: 'camera'; to: Vec2 | 'player' | { follow: string } }
   | { kind: 'set'; flag: string }
   | { kind: 'light'; mode: string }
   | { kind: 'player'; action: 'hide' | 'show'; at?: Vec2 }
@@ -230,7 +230,13 @@ function sceneStepDoc(step: SceneStep, episode: Episode, known: Map<string, Vec2
   if (step.say) return { kind: 'say', speaker: step.say.who ? npcName(step.say.who, episode) : 'the narrator', lines: step.say.lines };
   if (step.toast !== undefined) return { kind: 'toast', text: step.toast };
   if (step.wait !== undefined) return { kind: 'wait', seconds: step.wait };
-  if (step.camera) return { kind: 'camera', to: step.camera.to };
+  if (step.camera) {
+    const to = step.camera.to;
+    if (typeof to === 'string' && to !== SCENE_PLAYER) {
+      return { kind: 'camera', to: { follow: npcName(to.slice(SCENE_NPC.length), episode) } };
+    }
+    return { kind: 'camera', to };
+  }
   if (step.set !== undefined) return { kind: 'set', flag: step.set };
   if (step.light) return { kind: 'light', mode: step.light.mode };
   if (step.player) return step.player.hide ? { kind: 'player', action: 'hide' } : { kind: 'player', action: 'show', at: step.player.show?.at };
@@ -326,7 +332,7 @@ function renderStep(step: ScriptSceneStep): string {
     case 'wait':
       return `wait ${step.seconds} s`;
     case 'camera':
-      return `camera → ${step.to === 'player' ? 'player' : posStr(step.to)}`;
+      return `camera → ${step.to === 'player' ? 'player' : 'follow' in step.to ? `follows ${step.to.follow}` : posStr(step.to)}`;
     case 'set':
       return `set ${step.flag}`;
     case 'light':

@@ -1962,7 +1962,24 @@ describe('scenes', () => {
 
   it('flags a camera looking at nothing in particular', () => {
     expect(runEpisode(withScene([{ camera: { to: 'nobody' } }]), world()).join('\n')).toContain(
-      'looks at neither a tile like [12, 4] nor "player"'
+      'looks at neither a tile like [12, 4], "player", nor "npc:<id>"'
+    );
+  });
+
+  it('accepts a camera following an episode NPC on the scene\'s map', () => {
+    expect(runEpisode(withScene([{ camera: { to: 'npc:npc1' } }]), world())).toEqual([]);
+  });
+
+  it('accepts a camera following a map\'s own townsperson', () => {
+    const withPerson = makeWorld({
+      maps: { town: makeMap({ people: [{ id: 'gus', pos: [1, 1] }] }) }
+    });
+    expect(runEpisode(withScene([{ camera: { to: 'npc:gus' } }]), withPerson)).toEqual([]);
+  });
+
+  it('flags a camera following somebody who is not on that map', () => {
+    expect(runEpisode(withScene([{ camera: { to: 'npc:ghost' } }]), world()).join('\n')).toContain(
+      'looks at "ghost", who is not on map "town"'
     );
   });
 

@@ -1058,6 +1058,14 @@ export const SCENE_PLAYER = 'player';
  */
 export const SCENE_VEHICLE = 'vehicle:';
 
+/**
+ * `camera.to` prefix for a person to follow rather than a fixed tile: an
+ * episode NPC or a map's own townsperson, addressed as `"npc:<id>"` —
+ * whichever of the two `MapScene.walkers` (engine/scenes/map.ts) already
+ * knows by that id, the same population a `move` step's plain id names.
+ */
+export const SCENE_NPC = 'npc:';
+
 /** Somebody walks somewhere: to one tile, or along a list of them. */
 export interface MoveStep {
   /** An episode NPC's id, `"player"`, or `"vehicle:<id>"`. */
@@ -1080,9 +1088,13 @@ export interface SayStep {
 }
 
 export interface CameraStep {
-  /** A tile to look at, or `"player"` to hand the camera back. */
-  to: Vec2 | 'player';
-  /** Tiles per second. Default 8. */
+  /**
+   * A tile to look at, `"player"` to hand the camera back, or `"npc:<id>"`
+   * to follow somebody's sprite — an episode NPC or a map's own townsperson
+   * — until the next `camera` step names something else (DESIGN.md §3).
+   */
+  to: Vec2 | 'player' | `${typeof SCENE_NPC}${string}`;
+  /** Tiles per second. Ignored when following a person. Default 8. */
   speed?: number;
 }
 

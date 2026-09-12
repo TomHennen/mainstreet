@@ -63,7 +63,7 @@ import {
   vehiclesOn
 } from '../session';
 import { driveable, isOpaque, isSolid, moverWalkable } from '../validate';
-import { lookOf, plaqueTile, SCENE_PLAYER, SCENE_VEHICLE } from '../schema';
+import { lookOf, plaqueTile, SCENE_NPC, SCENE_PLAYER, SCENE_VEHICLE } from '../schema';
 import type { PlateBox } from '../art';
 import type {
   BuildingPlacement,
@@ -731,9 +731,21 @@ export class MapScene extends Phaser.Scene {
     return this.occupied(walker, x, y);
   }
 
-  /** A scene looking at something, or handing the camera back to the player. */
-  private panCamera(to: Vec2 | 'player', speed?: number): void {
+  /**
+   * A scene looking at something, handing the camera back to the player, or
+   * following somebody's sprite (`"npc:<id>"`) until the next `camera` step
+   * replaces it. A follow is not a timed pan — it starts at once, the same
+   * beat the step is reached, exactly as `startFollow` already keeps the
+   * camera on the player the rest of the time.
+   */
+  private panCamera(to: Vec2 | 'player' | `${typeof SCENE_NPC}${string}`, speed?: number): void {
     const camera = this.cameras.main;
+    if (!Array.isArray(to) && to !== 'player') {
+      const walker = this.walkers.find((one) => one.id === to.slice(SCENE_NPC.length));
+      camera.stopFollow();
+      if (walker) camera.startFollow(walker.sprite, true, 1, 1);
+      return;
+    }
     const target =
       to === 'player'
         ? { x: this.px + TILE / 2, y: this.py + TILE / 2 }
