@@ -790,6 +790,24 @@ describe('validateWorld', () => {
       });
       expect(runWorld(world).join('\n')).toContain('map "town" edge "north-road" line 2 is empty');
     });
+
+    it('accepts a quiet edge with no lines at all', () => {
+      const world = makeWorld({
+        maps: { town: makeMap({ edges: [{ id: 'north-road', at: [0, 0, 2, 1], quiet: true }] }) }
+      });
+      expect(runWorld(world)).toEqual([]);
+    });
+
+    it('flags a quiet edge that also carries lines it will never say', () => {
+      const world = makeWorld({
+        maps: {
+          town: makeMap({ edges: [{ id: 'north-road', at: [0, 0, 2, 1], quiet: true, lines: ['On it goes.'] }] })
+        }
+      });
+      expect(runWorld(world).join('\n')).toContain(
+        'map "town" edge "north-road" has "quiet: true" but also has "lines" it will never say'
+      );
+    });
   });
 
   describe('lost', () => {

@@ -840,8 +840,8 @@
         },
         {
           "id": "stamford-academy-top",
-          "at": [76, 2, 2, 1],
-          "lines": ["Academy Street keeps climbing past the Belvedere, but that's a walk for another day."]
+          "at": [76, 0, 2, 1],
+          "quiet": true
         },
         {
           "id": "stamford-trail-east",

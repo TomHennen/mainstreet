@@ -2155,9 +2155,11 @@ export class MapScene extends Phaser.Scene {
 
     const edge = edgeAt(this.map, tx, ty);
     if (edge) {
-      if (this.edgeShown !== edge.id) {
+      // A quiet edge still counts as matched — it suppresses `ui.roadEnd`
+      // and keeps the tile off `lost`'s shoulder — it just says nothing.
+      if (!edge.quiet && this.edgeShown !== edge.id) {
         this.edgeShown = edge.id;
-        bus.emit(EV.say, { speaker: session().copy.ui.narrator, lines: edge.lines });
+        bus.emit(EV.say, { speaker: session().copy.ui.narrator, lines: edge.lines ?? [] });
       }
       return;
     }

@@ -418,6 +418,20 @@ trees shows nothing at all, since that reads as open country rather than a
 road that ran out. A world with no `ui.roadEnd` simply shows nothing for the
 roads nobody wrote a line for (hard rule 3).
 
+Some road ends have nothing to say at all — a T into a road the world
+doesn't map, say, rather than a valley or a village worth a line about. An
+`edges` entry can be `quiet` instead of carrying `lines`:
+
+```jsonc
+{ "id": "stamford-academy-top", "at": [76, 0, 2, 1], "quiet": true }
+```
+
+A quiet edge still counts as a matched `edges` entry — it suppresses
+`ui.roadEnd` and gives the tile the same one-tile shoulder as a talking edge
+for `lost` below — it just says nothing when walked into. The validator
+requires `lines` on every edge that isn't `quiet`, and allows a `quiet` one
+to leave `lines` out entirely.
+
 **Getting lost.** That open country is the one place a village map can let
 the player actually leave: keep walking off the map's boundary over grass or
 flowers — never a road, which is a road end and says so — and, on a map with

@@ -343,9 +343,10 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
     }
 
     // Road ends (DESIGN.md §2): a rectangle shaped like an exit's, but it
-    // says something instead of leading somewhere. It has to sit inside the
-    // map, and it must never share a tile with an actual way out — a road
-    // cannot both leave town and dead-end in the same place.
+    // says something instead of leading somewhere — or, if `quiet`, says
+    // nothing at all and just lets the road run off the map. It has to sit
+    // inside the map, and it must never share a tile with an actual way out
+    // — a road cannot both leave town and dead-end in the same place.
     for (const edge of map.edges ?? []) {
       const where = `map "${mapId}" edge "${edge.id}"`;
       const [ex, ey, ew, eh] = edge.at;
@@ -357,7 +358,13 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
           problems.push(`${where} overlaps exit "${exit.id}"`);
         }
       }
-      checkSaid(edge.lines, where, problems);
+      if (edge.quiet) {
+        if (edge.lines && edge.lines.length > 0) {
+          problems.push(`${where} has "quiet: true" but also has "lines" it will never say`);
+        }
+      } else {
+        checkSaid(edge.lines, where, problems);
+      }
     }
 
     // Getting lost (DESIGN.md §2): the one way off a map that is not an exit.
