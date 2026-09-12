@@ -482,12 +482,12 @@
       "id": "papered-window",
       "map": "stamford",
       "requires": [],
-      "tiles": [{ "pos": [92, 22], "tile": 50 }],
+      "tiles": [{ "pos": [91, 25], "tile": 55 }],
       "props": [
         {
-          "pos": [92, 22],
+          "pos": [91, 25],
           "lines": [
-            "Down the side of the coffee shop, a low window right at the ground, with brown paper and a sheet of plywood over it from the inside. Somebody is at work behind it — you can hear a saw.",
+            "A stairwell goes down under the building here, plywood laid across the bottom of it and brown paper taped over the little window beside the top step. Somebody is at work down there — you can hear a saw.",
             "Not a word written on any of it."
           ]
         }
