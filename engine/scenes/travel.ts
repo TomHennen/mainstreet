@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { dashTexture } from '../art';
 import { session } from '../session';
+import { scaled, timeScale } from '../timescale';
 import type { Facing, Vec2 } from '../schema';
 
 const FONT = 'ui-monospace, Menlo, Consolas, monospace';
@@ -47,7 +48,12 @@ export class TravelScene extends Phaser.Scene {
   }
 
   create(): void {
-    const hold = this.travel.hold ?? (this.travel.style === 'road' ? 900 : 500);
+    // engine/timescale.ts — 1 in every real build a player runs; the headless
+    // playtest harness is the only caller that ever asks for anything else,
+    // so the card still fades and holds for the same *relative* stretch,
+    // just sooner in real time.
+    const hold = scaled(this.travel.hold ?? (this.travel.style === 'road' ? 900 : 500));
+    const fade = scaled(FADE);
 
     this.cover = this.add.rectangle(0, 0, 10, 10, 0x12160f).setOrigin(0, 0).setAlpha(0);
     this.big = this.add
@@ -83,7 +89,7 @@ export class TravelScene extends Phaser.Scene {
     this.tweens.add({
       targets: all,
       alpha: 1,
-      duration: FADE,
+      duration: fade,
       onComplete: () => {
         // launch, not start: start would stop Travel too and strand this tween
         // chain, leaving the session locked forever.
@@ -100,7 +106,7 @@ export class TravelScene extends Phaser.Scene {
           this.tweens.add({
             targets: all,
             alpha: 0,
-            duration: FADE,
+            duration: fade,
             onComplete: () => {
               this.dashes = null;
               session().locked = false;
@@ -122,6 +128,9 @@ export class TravelScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-    if (this.dashes) this.dashes.tilePositionX += delta * DASH_SPEED;
+    // Rolls at the same faster clip as the shortened hold/fade above, so the
+    // road still looks like it is passing at a normal clip in the time it's
+    // on screen.
+    if (this.dashes) this.dashes.tilePositionX += delta * timeScale() * DASH_SPEED;
   }
 }

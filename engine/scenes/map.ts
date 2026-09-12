@@ -21,7 +21,8 @@ import {
   vehicleTexture
 } from '../art';
 import { currentDialogue, currentInventory, currentToast, publishDebug, publishFlagSetter } from '../debug';
-import { doorPressAdvance } from '../doors';
+import { DOOR_PRESS_MS, doorPressAdvance } from '../doors';
+import { scaled, timeScale } from '../timescale';
 import { edgeAt, lostAt, roadEndLine } from '../edges';
 import { footprintTiles } from '../footprint';
 import { isHeld, onAction, onTap } from '../input';
@@ -75,6 +76,18 @@ import type {
 } from '../schema';
 
 const SPEED = 102; // px/s — the prototype's 1.7px/frame at 60fps
+/**
+ * The most one frame of held-key movement is allowed to cover before a
+ * collision check runs again — same idea, and the same size, as a car's own
+ * `MAX_STEP_TILES` (engine/vehicle.ts): ordinary play never gets near it (a
+ * dropped frame at 60fps is still well under a quarter tile), but a high
+ * `timeScale` (engine/timescale.ts, headless playtest only) or a real stall
+ * can hand `update` a `delta` big enough to jump clean over a doorway or a
+ * car, so a big one is walked as a sequence of small ones instead.
+ */
+const MAX_STEP_PX = TILE / 4;
+/** A stalled or enormous `delta` coarsens the slices rather than spinning this loop away — see `MAX_STEPS` in engine/vehicle.ts (kept smaller here: the player never approaches a car's own top speed, so this many slices already covers a real stall many times over). */
+const MAX_MOVE_STEPS = 8;
 const HITBOX = TILE;
 const MARGIN = 4;
 /** A map smaller than the view may be scaled up this far before it looks coarse. */
@@ -716,7 +729,12 @@ export class MapScene extends Phaser.Scene {
     const tiles = Math.hypot(target.x - from.x, target.y - from.y) / TILE;
     const ms = Math.max(120, (tiles / Math.max(1, speed ?? PAN_SPEED)) * 1000);
     camera.stopFollow();
-    camera.pan(target.x, target.y, ms, 'Sine.easeInOut', true, (_c, progress) => {
+    // Phaser's own camera pan runs on real wall-clock time, same as a tween
+    // (engine/scenes/travel.ts) — scaled the same way, so it still finishes
+    // in step with the scene `wait`s either side of it (SceneRunner.update,
+    // fed the same scaled dt), rather than one running at TIMESCALE and the
+    // other at 1x.
+    camera.pan(target.x, target.y, scaled(ms), 'Sine.easeInOut', true, (_c, progress) => {
       // Back on the player's shoulder the moment the pan home lands, so the
       // controls never feel as though they have been kept.
       if (to === 'player' && progress >= 1) camera.startFollow(this.player, true, 1, 1);
@@ -1122,8 +1140,14 @@ export class MapScene extends Phaser.Scene {
     });
   }
 
-  update(_time: number, delta: number): void {
+  update(_time: number, rawDelta: number): void {
     const state = session();
+    // engine/timescale.ts — 1 in every real build a player runs; only the
+    // headless playtest harness ever asks for anything else. Scaled once,
+    // here, so everything below that measures time off this frame's `delta`
+    // (walking, NPCs, cars, a scene's own `wait`, lighting, a held door
+    // press, a car's holler clock) moves at the same faster clip together.
+    const delta = rawDelta * timeScale();
     const dt = delta / 1000;
     this.clock += dt;
     this.armEnters();
@@ -1197,12 +1221,20 @@ export class MapScene extends Phaser.Scene {
 
     if (this.moving) {
       // Diagonals cover two axes at once, so slow them to the same real speed.
-      let step = (SPEED * delta) / 1000;
-      if (dx !== 0 && dy !== 0) step /= Math.SQRT2;
-      const nx = this.px + dx * step;
-      const ny = this.py + dy * step;
-      if (dx !== 0 && this.free(nx, this.py)) this.px = nx;
-      if (dy !== 0 && this.free(this.px, ny)) this.py = ny;
+      let perMs = SPEED / 1000;
+      if (dx !== 0 && dy !== 0) perMs /= Math.SQRT2;
+      // Sliced into hops no longer than `MAX_STEP_PX`, so a big `delta`
+      // (see its own comment) still collides one small step at a time.
+      let remaining = delta;
+      for (let taken = 0; remaining > 0 && taken < MAX_MOVE_STEPS; taken++) {
+        const took = Math.min(remaining, MAX_STEP_PX / perMs);
+        const step = perMs * took;
+        const nx = this.px + dx * step;
+        const ny = this.py + dy * step;
+        if (dx !== 0 && this.free(nx, this.py)) this.px = nx;
+        if (dy !== 0 && this.free(this.px, ny)) this.py = ny;
+        remaining -= took;
+      }
     } else if (this.walkPath) {
       // Somebody the walk is aimed at may have strolled on since it started.
       this.chase();
@@ -1900,7 +1932,13 @@ export class MapScene extends Phaser.Scene {
     const state = session();
     // The dialogue overlay owns the action button while it is open, and for a
     // beat after it closes, so dismissing a line can never re-trigger a talk.
-    if (state.locked || state.dialogueOpen || performance.now() - state.lastDialogueClose < 200) return;
+    // That beat is 200ms of game time — scaled down the same way the action
+    // debounce is (engine/input.ts, engine/timescale.ts), so it's 100ms of
+    // real wall-clock at TIMESCALE=2 — long enough, relative to how much
+    // faster everything else is moving, that a headless run's much shorter
+    // real gap between two presses still can't re-trigger a talk it only
+    // just closed.
+    if (state.locked || state.dialogueOpen || performance.now() - state.lastDialogueClose < scaled(200)) return;
 
     // A tap aimed at a door that is disarmed — the very one the player is
     // standing on having just left it (`armEnters`) — has nowhere to walk
@@ -2114,7 +2152,14 @@ export class MapScene extends Phaser.Scene {
       this.doorPressMs = 0;
     }
 
-    const result = doorPressAdvance(this.enterArmed, dy < 0, stuck, delta, this.doorPressMs);
+    // The threshold itself is left unscaled, deliberately, like every other
+    // `delta`-driven measure (a scene's own `wait`, a car's holler clock):
+    // `delta` is already scaled once, at the top of `update()`
+    // (engine/timescale.ts), so `this.doorPressMs` already accumulates game
+    // time, not real time, and 180 game-ms of genuinely stuck-against-a-door
+    // is 180 game-ms at any TIMESCALE — same as a scene's `wait: 0.18` would
+    // be. Scaling the threshold too would double-count it.
+    const result = doorPressAdvance(this.enterArmed, dy < 0, stuck, delta, this.doorPressMs, DOOR_PRESS_MS);
     this.doorPressMs = result.ms;
     if (!result.open) return;
 
@@ -2217,7 +2262,7 @@ export class MapScene extends Phaser.Scene {
           this.lost = lost;
           bus.emit(EV.say, { speaker: state.copy.ui.narrator, lines: lost.lines });
         });
-        this.cameras.main.fadeOut(LOST_FADE_MS, 0, 0, 0);
+        this.cameras.main.fadeOut(scaled(LOST_FADE_MS), 0, 0, 0);
       }
       return;
     }

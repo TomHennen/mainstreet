@@ -80,7 +80,41 @@ const BASE = process.env.PLAYTEST_URL ?? `http://localhost:${PORT}/`;
 const OUT = process.env.PLAYTEST_OUT ?? resolve(ROOT, 'playtest-out');
 const SHOTS = OUT;
 const LOG = resolve(OUT, 'playtest.log');
-const TILE_EPS = 0.06; // stop this far early: one frame is ~0.11 tiles at 102px/s
+
+/**
+ * `?timescale=` (engine/timescale.ts): every page load of the game itself
+ * plays out at this multiple of real speed — walking, NPCs, cars, a scene's
+ * own `wait`, lighting, a held door press, a car's holler, a travel card's
+ * hold and fade, the toast banner, and the action/tap/toggle debounce
+ * (engine/input.ts) — all of it identical logic, replayed faster, never
+ * touched by an ordinary player (the engine only reads the param behind its
+ * `import.meta.env.DEV` guard). `touch-debounce` below measures real CDP
+ * dispatch timing against the debounce window at whatever it scales down
+ * to, rather than the nominal 220ms, for exactly this reason.
+ *
+ * 2, not higher: `TILE_EPS` below is solved for the same tile-precision this
+ * harness always had, but `hold()` still only polls once a real frame, and a
+ * shared, loaded machine can hand it a much bigger one than usual — a bigger
+ * TIMESCALE leaves less room for that before a walk lands short of a tight
+ * `REACH.prop`/`REACH.plaque` (engine/scenes/map.ts).
+ */
+const TIMESCALE = Number(process.env.PLAYTEST_TIMESCALE ?? 2);
+
+/**
+ * Stop this far early. `hold()` polls once a real frame, so a walk that is
+ * still short of `target - TILE_EPS` on one poll and past `target` on the
+ * next has already overshot by (that frame's own travel) minus `TILE_EPS` —
+ * at TIMESCALE=1's one-frame-in-16.7ms, 102px/s (`SPEED`, engine/scenes/
+ * map.ts) is ~0.11 tile a frame, and the original 0.06 leaves ~0.05 tile of
+ * overshoot, which is exactly the slack `REACH.prop`/`REACH.plaque` (1.1/0.75,
+ * engine/scenes/map.ts) were sized around ("movement... lands as far as ~1.05
+ * off-centre"). A frame's travel scales up with TIMESCALE (the same faster
+ * `delta`, engine/timescale.ts), so `TILE_EPS` is solved for that same ~0.05
+ * tile of overshoot at any TIMESCALE, not a fixed multiple of the original —
+ * a flat multiple would either undershoot the tolerance at 1x or blow well
+ * past it at 4x.
+ */
+const TILE_EPS = 0.11 * TIMESCALE - 0.05;
 
 const KEY = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' };
 
@@ -104,8 +138,24 @@ const COPY = readJson(resolve(PACK, 'copy.json'));
 // — whether or not world.json ships it. See the file header.
 const PLAYTEST_EPISODE = process.env.PLAYTEST_EPISODE ?? 'ep000';
 const EPISODE = readJson(resolve(PACK, 'episodes', `${PLAYTEST_EPISODE}.json`));
+
+/** A wait whose length only matters because *scaled* engine time does — a travel
+ *  card's hold and fade, a stroller's own pace — shrunk by the same `TIMESCALE`
+ *  the game itself is running at, so the harness never waits longer than the
+ *  sped-up thing it is waiting on actually takes. */
+const scaledWait = (ms) => sleep(Math.max(16, Math.round(ms / TIMESCALE)));
 /** Every page load of the game itself (never the Studio) plays PLAYTEST_EPISODE. */
-const GAME_URL = `${BASE}?episode=${encodeURIComponent(PLAYTEST_EPISODE)}`;
+const GAME_URL = `${BASE}?episode=${encodeURIComponent(PLAYTEST_EPISODE)}&timescale=${TIMESCALE}`;
+/** The title screen (no `?episode=`), at the same `timescale`. */
+const TITLE_URL = `${BASE}?timescale=${TIMESCALE}`;
+/**
+ * The touch pass's own page (below) loads at real speed, `timescale` left at
+ * 1: `touch-debounce` there measures real CDP dispatch timing against the
+ * actual shipped ~220ms debounce window (`ACTION_DEBOUNCE_MS`, engine/
+ * input.ts) — the one a real player's thumb meets — not a synthetic, scaled-
+ * down one nothing outside this test ever sees.
+ */
+const GAME_URL_REAL_SPEED = `${BASE}?episode=${encodeURIComponent(PLAYTEST_EPISODE)}&timescale=1`;
 
 /**
  * The tile grids are Tiled files (DESIGN.md §2). This reads them the way the
@@ -353,15 +403,42 @@ class Failure extends Error {}
  */
 let lastSaid = 'starting up';
 
+/**
+ * A wall-clock timestamp for every top-level step, so a slow run says which
+ * step it was slow in rather than only how long the whole thing took. A
+ * "step" is the harness's own existing convention for one: `log()` called
+ * with exactly two leading spaces of indent (`"  boot …"`, `"  travel to
+ * Jefferson"`), as against a nested detail four spaces in (`"    shot …"`).
+ * Printed as a table at the end (`logTimings`, called whether the run passes
+ * or fails) and kept in playtest-out/playtest.log, so this is useful on every
+ * run, not just while chasing a specific slowdown.
+ */
+const STEP_RE = /^  \S/;
+const steps = [];
+const t0 = Date.now();
+
 /** Everything the run prints also lands in playtest-out/playtest.log. */
 function log(line = '') {
   if (line.trim()) lastSaid = line.trim();
+  if (STEP_RE.test(line)) steps.push({ label: line.trim(), t: Date.now() });
   console.log(line);
   try {
     appendFileSync(LOG, line + '\n');
   } catch {
     /* the log is a convenience, never a reason to fail a run */
   }
+}
+
+/** The slowest 15 steps, and the total — logged once, near the very end. */
+function logTimings() {
+  if (steps.length < 2) return;
+  const rows = [];
+  for (let i = 1; i < steps.length; i++) rows.push({ label: steps[i - 1].label, ms: steps[i].t - steps[i - 1].t });
+  const total = Date.now() - t0;
+  const slowest = [...rows].sort((a, b) => b.ms - a.ms).slice(0, 15);
+  log('');
+  log(`timing — ${(total / 1000).toFixed(1)}s total across ${rows.length} steps; slowest 15:`);
+  for (const r of slowest) log(`  ${(r.ms / 1000).toFixed(1).padStart(6)}s  ${r.label}`);
 }
 
 function logErr(line = '') {
@@ -448,6 +525,18 @@ const snap = async (page) => {
 /** The title screen's list, published the same dev-only way (engine/debug.ts). */
 const titleSnap = (page) => page.evaluate(() => window.__mainstreetTitle ?? null);
 
+/** `waitUntil`, but for the title screen's own list rather than the game's snapshot. */
+async function waitUntilTitle(page, predicate, label, timeout = 2000) {
+  const t0 = Date.now();
+  let last = null;
+  while (Date.now() - t0 < timeout) {
+    last = await titleSnap(page);
+    if (last && predicate(last)) return last;
+    await sleep(16);
+  }
+  fail('title', `timed out waiting for ${label}; list = ${JSON.stringify(last)}`);
+}
+
 /**
  * Polls until the snapshot satisfies `predicate`. `nudge` is for the few waits
  * that need the player to keep doing something to get there — walking back out
@@ -507,7 +596,7 @@ function overlapDepth(a, b) {
  * never overshoots into the neighbouring tile (which would change what the
  * engine's 8px-inset hitbox collides with).
  */
-async function hold(page, dir, axis, target, sign) {
+async function hold(page, dir, axis, target, sign, eps = TILE_EPS) {
   await page.keyboard.down(KEY[dir]);
   const result = await page.evaluate(
     ({ key, axis, target, sign, eps }) =>
@@ -536,7 +625,7 @@ async function hold(page, dir, axis, target, sign) {
         };
         requestAnimationFrame(tick);
       }),
-    { key: KEY[dir], axis, target, sign, eps: TILE_EPS }
+    { key: KEY[dir], axis, target, sign, eps }
   );
   await page.keyboard.up(KEY[dir]);
   return result;
@@ -599,15 +688,116 @@ async function holdAndTrace(page, dir, axis, target, sign, stopAtCar) {
 }
 
 /**
+ * How close to a tile's exact centre `walkTo` settles before returning, and
+ * the same `hold()` `eps` the correction uses to get there (`settleOnTile`,
+ * below) — deliberately the original, un-widened `TILE_EPS` a 1x run has
+ * always used (unlike the module's own `TILE_EPS`, which widens with
+ * TIMESCALE, for speed, and can leave a held-key walk anywhere up to that
+ * much off-centre). Using anything tighter here doesn't help: `hold()`
+ * itself only ever promises to land within its own `eps` of the target, so
+ * asking it to verify against a stricter tolerance than the one it was
+ * given (a first, failed cut of this used 0.05) just means it calls itself
+ * "arrived" one frame before satisfying a check it was never aiming for.
+ * REACH.prop/REACH.plaque (1.1/0.75, engine/scenes/map.ts) were sized around
+ * exactly this real-play slack in the first place ("movement... lands as far
+ * as ~1.05 off-centre") — this settles to no better than a 1x walk always
+ * has, just independent of whatever TIMESCALE the rest of the run is at.
+ */
+const SETTLE_EPS = 0.06;
+
+/**
+ * The last, short correction after `walkTo`'s own (TIMESCALE-widened)
+ * `TILE_EPS` has already landed close, so every walk finishes on the tile's
+ * exact centre — independent of how fast it got there — rather than
+ * wherever the wider tolerance happened to stop it.
+ *
+ * Not a tighter-eps `hold()` at the run's own TIMESCALE: that has the same
+ * per-frame travel as the walk that just got here, sped up the same way, so
+ * it just as easily overshoots a tolerance this tight — one frame past the
+ * window on one side, then the next correction overshoots back past it the
+ * other way, hunting forever rather than converging (found the hard way:
+ * logging it showed the player bouncing between two points either side of
+ * the goal, never inside `SETTLE_EPS`). Nor a tap-walk (`MapScene.
+ * followPath` always finishes one with an *exact* snap onto the goal,
+ * independent of TIMESCALE, which sounds right) — except a tap this close to
+ * whatever the walk just arrived beside almost always lands inside *its* own
+ * reach zone too (`MapScene.tapTargetAt`), so the "walk" is read as a tap on
+ * that instead: it opens the very thing this function is trying to leave
+ * alone to open once, from the real press right after it (found this the
+ * hard way too, arriving at a sign's approach tile with a shelf already half
+ * read).
+ *
+ * So instead: the same `hold()` the main walk used, at the same tight eps
+ * REACH's own margins were sized around, with `timeScale` (engine/
+ * timescale.ts) dropped to 1 for exactly as long as the correction takes —
+ * through the harness's own debug hook (`window.__mainstreetSetTimeScale`,
+ * like the flag setter it sits beside), never touched by real play. At 1x, a
+ * frame's own travel is small enough that this tight eps behaves exactly as
+ * it always has, at any TIMESCALE the run is otherwise using.
+ */
+async function settleOnTile(page, milestone, goal) {
+  const first = await snap(page);
+  if (!first) fail(milestone, 'window.__mainstreet is missing');
+  if (first.locked || first.dialogueOpen) return;
+  if (Math.abs(goal[0] - first.x) <= SETTLE_EPS && Math.abs(goal[1] - first.y) <= SETTLE_EPS) return;
+
+  await evalIn(page, 'drop to real speed to settle', () => window.__mainstreetSetTimeScale?.(1));
+  try {
+    // A couple of rounds, not just one: `hold()` only ever promises to land
+    // within its own `eps`, and — being right on the tile already — a whole
+    // extra frame's travel the wrong way is rare but not impossible, so one
+    // more short nudge is worth it before calling this a failure.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const s = await snap(page);
+      if (s.locked || s.dialogueOpen) return;
+      const dx = goal[0] - s.x;
+      const dy = goal[1] - s.y;
+      if (Math.abs(dx) <= SETTLE_EPS && Math.abs(dy) <= SETTLE_EPS) return;
+      if (Math.abs(dx) > SETTLE_EPS) {
+        const { reason, state } = await hold(page, dx > 0 ? 'right' : 'left', 'x', goal[0], Math.sign(dx), SETTLE_EPS);
+        if (reason === 'interrupted') return;
+        if (reason !== 'arrived') {
+          fail(milestone, `settling onto ${goal}'s centre (x) ended with "${reason}" at ${JSON.stringify(state)}`);
+        }
+      }
+      if (Math.abs(dy) > SETTLE_EPS) {
+        const { reason, state } = await hold(page, dy > 0 ? 'down' : 'up', 'y', goal[1], Math.sign(dy), SETTLE_EPS);
+        if (reason === 'interrupted') return;
+        if (reason !== 'arrived') {
+          fail(milestone, `settling onto ${goal}'s centre (y) ended with "${reason}" at ${JSON.stringify(state)}`);
+        }
+      }
+    }
+  } finally {
+    await evalIn(page, 'restore TIMESCALE', (t) => window.__mainstreetSetTimeScale?.(t), TIMESCALE);
+  }
+
+  const done = await snap(page);
+  if (done.locked || done.dialogueOpen) return;
+  if (Math.abs(goal[0] - done.x) > SETTLE_EPS || Math.abs(goal[1] - done.y) > SETTLE_EPS) {
+    fail(
+      milestone,
+      `settling onto ${goal}'s centre left the player at (x=${done.x.toFixed(3)}, y=${done.y.toFixed(3)})`
+    );
+  }
+}
+
+/**
  * Walks to a tile. `allowInterrupt` is for tiles that are exit triggers: the
- * engine locks input the instant the player steps on one.
+ * engine locks input the instant the player steps on one. Every successful
+ * arrival is settled onto the tile's exact centre (`settleOnTile`) before
+ * returning, regardless of TIMESCALE, so whatever a caller does next — most
+ * often pressing A — reads the same real distance a 1x run always has.
  */
 async function walkTo(page, milestone, goal, { allowInterrupt = false, episode = EPISODE } = {}) {
   for (let attempt = 0; attempt < 4; attempt++) {
     const s = await snap(page);
     if (!s) fail(milestone, 'window.__mainstreet is missing');
     const from = here(s);
-    if (from[0] === goal[0] && from[1] === goal[1]) return;
+    if (from[0] === goal[0] && from[1] === goal[1]) {
+      await settleOnTile(page, milestone, goal);
+      return;
+    }
     const path = findPath(s.map, from, goal, episode);
     if (!path) fail(milestone, `no walkable path on "${s.map}" from ${from} to ${goal}`);
 
@@ -649,7 +839,10 @@ async function walkTo(page, milestone, goal, { allowInterrupt = false, episode =
     }
     const after = await snap(page);
     const at = here(after);
-    if (at[0] === goal[0] && at[1] === goal[1]) return;
+    if (at[0] === goal[0] && at[1] === goal[1]) {
+      await settleOnTile(page, milestone, goal);
+      return;
+    }
     if (allowInterrupt && (after.locked || after.map !== s.map)) return;
   }
   const s = await snap(page);
@@ -680,10 +873,12 @@ async function walkUpInto(page, milestone, door, { episode = EPISODE } = {}) {
   }
 }
 
-/** Space, spaced out past the 220ms action debounce. */
+/** Space, spaced out past the 220ms action debounce (engine/input.ts) — scaled
+ *  down with it (engine/timescale.ts), so a run at `TIMESCALE` never waits out
+ *  a real 320ms for a debounce window that now clears in a quarter of that. */
 async function pressA(page) {
   await page.keyboard.press('Space');
-  await sleep(320);
+  await scaledWait(320);
 }
 
 /**
@@ -1022,11 +1217,12 @@ async function ensureServer() {
 // --- the watchdog ------------------------------------------------------------
 
 /**
- * A whole run is ~2 minutes and has never been near 8, so a run that is still
- * going at 8 minutes is stuck, not slow. Rather than sit there until CI gives
- * up an hour later with nothing to read, say where it got to and stop. The
- * limit is a minute-count in PLAYTEST_WATCHDOG_MIN for anyone on a very slow
- * machine.
+ * A whole run is a few minutes (`?timescale=` on every game page load,
+ * engine/timescale.ts, is most of why — see the timing table `logTimings`
+ * prints at the end), so one still going at 8 is stuck, not slow. Rather than
+ * sit there until CI gives up an hour later with nothing to read, say where
+ * it got to and stop. The limit is a minute-count in PLAYTEST_WATCHDOG_MIN
+ * for anyone on a very slow machine.
  */
 const WATCHDOG_MS = Number(process.env.PLAYTEST_WATCHDOG_MIN ?? 8) * 60_000;
 let watchdog = null;
@@ -1116,7 +1312,7 @@ async function main() {
       const tapRow = (row) => tapPoint(tcdp, { x: row.rect.x + row.rect.w / 2, y: row.rect.y + row.rect.h / 2 });
 
       try {
-        await tip.goto(BASE, { waitUntil: 'load' });
+        await tip.goto(TITLE_URL, { waitUntil: 'load' });
         let list = await listNow('on a first visit');
 
         if (!list.world.includes(WORLD.title.toUpperCase())) {
@@ -1195,13 +1391,9 @@ async function main() {
         // press on either (CLAUDE.md #4).
         if (list.items.length > 1) {
           await tapEl(tcdp, tip, '[data-dpad=down]');
-          await sleep(200);
-          let moved = await titleSnap(tip);
-          if (!moved.items[1].selected) fail('title', '▼ on the d-pad did not move the cursor down a row');
+          await waitUntilTitle(tip, (l) => l.items[1].selected, '▼ to move the cursor down a row');
           await tip.keyboard.press('ArrowUp');
-          await sleep(200);
-          moved = await titleSnap(tip);
-          if (!moved.items[0].selected) fail('title', 'the up arrow did not move the cursor back');
+          await waitUntilTitle(tip, (l) => l.items[0].selected, 'the up arrow to move the cursor back');
           log('    the cursor moves on the d-pad and on the arrow keys');
         }
         await shot(tip, 'title');
@@ -1228,8 +1420,14 @@ async function main() {
         const opener = talker.dialogue.find((d) => (d.requires ?? []).length === 0 && (d.effects ?? []).some((e) => e.set));
         const flag = opener.effects.find((e) => e.set).set;
 
-        await walkTo(tip, 'title-play', [talker.pos[0], talker.pos[1] + 1], { episode: shipped });
-        await pressA(tip);
+        // allowInterrupt: a stray keypress landing on the talker mid-walk is
+        // rare but real (their opener is within reach of the spawn tile on
+        // some maps) — this way it is an early, graceful stop rather than
+        // `walkTo` reading it as stuck and failing outright. Pressing A is
+        // then conditional on the box not already being open, so a race like
+        // that is never asked to open a second one on top of it.
+        await walkTo(tip, 'title-play', [talker.pos[0], talker.pos[1] + 1], { episode: shipped, allowInterrupt: true });
+        if (!(await snap(tip)).dialogueOpen) await pressA(tip);
         await expectDialogue(tip, 'title-play', talker.name);
         await advanceDialogue(tip, 'title-play', opener.lines.length);
         expectFlag(await snap(tip), 'title-play', flag);
@@ -1267,7 +1465,7 @@ async function main() {
         // The dialogue overlay swallows an A press for a beat after it closes
         // — and it counts itself as having just closed the moment it opens the
         // scene — so this waits that beat out, as a thumb would anyway.
-        await sleep(320);
+        await scaledWait(320);
         await pressA(tip);
         const said = await expectDialogue(tip, 'title-continue', `${talker.name}, remembering`);
         if (said.dialogue?.text !== followUp.lines[0]) {
@@ -1297,7 +1495,7 @@ async function main() {
         // right on the heels of another one would otherwise be swallowed.
         const tapZone = async (r) => {
           await tapPoint(tcdp, { x: r.x + r.w / 2, y: r.y + r.h / 2 });
-          await sleep(320);
+          await scaledWait(320);
         };
 
         await tapZone(row.secondaryRect);
@@ -1395,7 +1593,7 @@ async function main() {
         // every painted building's painter, off `credits.json`, plus the two
         // closing lines of copy. "Played again" above left the browser mid-
         // episode, so this starts by going back to the title screen.
-        await tip.goto(BASE, { waitUntil: 'load' });
+        await tip.goto(TITLE_URL, { waitUntil: 'load' });
         list = await listNow('back on the title screen, for Credits');
         if (words.credits) {
           const creditsRow = list.items.find((item) => item.kind === 'credits');
@@ -1404,7 +1602,7 @@ async function main() {
             fail('title-credits', 'Credits is the last item on the list; it belongs before "write to us"/"forget everything"');
           }
           await tapRow(creditsRow);
-          await sleep(320); // past the action debounce
+          await scaledWait(320); // past the action debounce
           list = await listNow('with Credits open');
           if (!list.credits) fail('title-credits', 'opening Credits published no credits data');
           if (words.credits && list.credits.heading !== words.credits) {
@@ -1491,7 +1689,7 @@ async function main() {
             // has something open to close.
             list = await titleSnap(tip);
             await tapRow(list.items.find((item) => item.kind === 'credits'));
-            await sleep(320);
+            await scaledWait(320);
             list = await listNow('with Credits open again, for the tap-anywhere check');
           }
 
@@ -1499,7 +1697,7 @@ async function main() {
             x: list.credits.backRect.x + list.credits.backRect.w / 2,
             y: list.credits.backRect.y + list.credits.backRect.h / 2
           });
-          await sleep(320); // past the action debounce
+          await scaledWait(320); // past the action debounce
           list = await listNow('back from Credits');
           if (list.credits) fail('title-credits', 'tapping Credits did not close it');
           log('    a tap goes back to the episode list');
@@ -1514,7 +1712,7 @@ async function main() {
             fail('title-forget', `"Forget everything" is not the last item on the list: ${JSON.stringify(list.items.map((i) => i.kind))}`);
           }
           await tapRow(forgetRow);
-          await sleep(320); // past the action debounce
+          await scaledWait(320); // past the action debounce
           list = await listNow('after tapping "Forget everything"');
           let fr = list.items.find((item) => item.kind === 'forget');
           if (!fr.confirming) fail('title-forget', 'tapping "Forget everything" did not open its confirmation');
@@ -1546,7 +1744,7 @@ async function main() {
       const deskTitle = await deskTitleCtx.newPage();
       attach(deskTitle, 'title-desktop');
       try {
-        await deskTitle.goto(BASE, { waitUntil: 'load' });
+        await deskTitle.goto(TITLE_URL, { waitUntil: 'load' });
         await deskTitle.waitForFunction(() => window.__mainstreetTitle, null, { timeout: 20000 });
         await shot(deskTitle, 'title-desktop');
       } finally {
@@ -1706,7 +1904,7 @@ async function main() {
         // The say box closes into the road card, not back to a free walk —
         // still locked, only the box is gone now.
         await waitUntil(page, (s) => !s.dialogueOpen && s.locked, 'the road card home');
-        await sleep(420); // let the card's fade-in land before the shot, as the other travel cards do
+        await scaledWait(420); // let the card's fade-in land before the shot, as the other travel cards do
         const cardCopy = COPY.transitions?.[`lost:${start.map}`];
         if (!cardCopy?.big) fail('lost', `copy.json has no transitions["lost:${start.map}"] for the road card`);
         await shot(page, 'lost-travel-card');
@@ -1999,9 +2197,9 @@ async function main() {
       if (!push) fail(`${place.id}-solid`, `nothing in ${name} can be walked into from below`);
       await walkTo(page, `${place.id}-solid`, [push[1], push[2] + 2]);
       await page.keyboard.down(KEY.up);
-      await sleep(700);
+      await scaledWait(700);
       await page.keyboard.up(KEY.up);
-      await sleep(200);
+      await scaledWait(200);
       const stopped = await snap(page);
       if (stopped.y < push[2] + 0.6) {
         fail(`${place.id}-solid`, `the player walked into the ${push[0]} at ${push[1]},${push[2]}: stopped at y ${stopped.y.toFixed(2)}`);
@@ -2227,7 +2425,7 @@ async function main() {
     const toJefferson = WORLD.maps.stamford.exits.find((e) => e.to === 'jefferson');
     await walkTo(page, 'to-jefferson', [toJefferson.at[0], toJefferson.at[1]], { allowInterrupt: true });
     await waitUntil(page, (s) => s.locked, 'the travel card');
-    await sleep(420);
+    await scaledWait(420);
     await shot(page, 'travel-card');
     await waitUntil(page, (s) => s.map === 'jefferson' && !s.locked, 'Jefferson');
     await shot(page, 'jefferson');
@@ -2250,7 +2448,7 @@ async function main() {
     if (COPY.ui?.withYou) {
       log('  open "with you" with the pen in hand');
       await page.keyboard.press('i');
-      await sleep(320);
+      await scaledWait(320);
       const open = await waitUntil(page, (s) => s.dialogueOpen && s.withYou !== null, 'the "with you" panel to open');
       const names = (open.withYou ?? []).map((e) => e.name);
       if (!names.includes(pen.name ?? pen.id)) {
@@ -2330,9 +2528,9 @@ async function main() {
       if (!isSolid(jefferson, below[0], below[1])) {
         await walkTo(page, 'suggestion-box-solid', below);
         await page.keyboard.down(KEY.up);
-        await sleep(700);
+        await scaledWait(700);
         await page.keyboard.up(KEY.up);
-        await sleep(200);
+        await scaledWait(200);
         const pushed = await snap(page);
         if (pushed.y < box.pos[1] - 0.4) {
           fail('suggestion-box', `the player walked through the box: stopped at y ${pushed.y.toFixed(2)}`);
@@ -2423,7 +2621,7 @@ async function main() {
     await shot(page, 'episode-complete-toast');
 
     log('  epilogue line');
-    await sleep(300);
+    await scaledWait(300);
     await pressA(page);
     await expectDialogue(page, 'epilogue', 'Earl (done)');
     await shot(page, 'earl-epilogue');
@@ -2451,9 +2649,13 @@ async function main() {
     const tp = await touchCtx.newPage();
     attach(tp, 'touch');
     const cdp = await touchCtx.newCDPSession(tp);
-    await tp.goto(GAME_URL, { waitUntil: 'load' });
+    await tp.goto(GAME_URL_REAL_SPEED, { waitUntil: 'load' });
     await waitUntil(tp, (s) => s.dialogueOpen, 'the intro on the touch page');
     await shot(tp, 'touch-boot');
+
+    // This whole page runs at real speed (GAME_URL_REAL_SPEED, above), so
+    // every wait in it is a plain, unscaled `sleep` — `scaledWait` would
+    // divide by the run's TIMESCALE while this page is still moving at 1x.
 
     // Tapping the game surface advances dialogue and nothing else.
     for (let i = 0; i < 4; i++) {
@@ -2553,7 +2755,7 @@ async function main() {
     await waitUntil(wp, (s) => s.dialogueOpen, 'the intro on the tap page');
     for (let i = 0; i < 5 && (await snap(wp)).dialogueOpen; i++) {
       await tapEl(wcdp, wp, '#stage');
-      await sleep(320);
+      await scaledWait(320);
     }
     if ((await snap(wp)).dialogueOpen) fail('tap-walk', 'the intro never closed on the tap page');
 
@@ -2719,7 +2921,7 @@ async function main() {
     if (walking.walkTo[0] !== far.tile[0] || walking.walkTo[1] !== far.tile[1]) {
       fail('tap-far', `tapped ${far.tile} and the marker went to ${walking.walkTo}`);
     }
-    await sleep(260);
+    await scaledWait(260);
     const midway = await snap(wp);
     if (!midway.walkTo) fail('tap-far', `the ${far.steps}-step walk was over before it could be photographed`);
     await shot(wp, 'tap-walking');
@@ -2742,7 +2944,7 @@ async function main() {
       fail('tap-redirect', `the first tap on ${firstGoal.tile} landed on ${firstTile} with the view standing still`);
     }
     await waitUntil(wp, (s) => s.walkTo !== null, 'the first walk to start', 4000);
-    await sleep(300);
+    await scaledWait(300);
     // This one is aimed at a moving view, so what the marker is checked against
     // is where the finger actually came down, not where it was sent.
     const secondGoal = await farTile(wp, 3, 9, firstTile);
@@ -2776,14 +2978,14 @@ async function main() {
       fail('tap-cancel', `the tap on ${cancelGoal.tile} landed on ${onCancel} with the view standing still`);
     }
     await waitUntil(wp, (s) => s.walkTo !== null, 'the walk to cancel to start', 4000);
-    await sleep(220);
+    await scaledWait(220);
     const dpadDown = await centerOf(wp, '[data-dpad=down]');
     await touchAt(wcdp, 'touchStart', dpadDown.x, dpadDown.y);
     await sleep(120);
     await touchAt(wcdp, 'touchEnd', dpadDown.x, dpadDown.y);
     const cancelled = await snap(wp);
     if (cancelled.walkTo) fail('tap-cancel', `the d-pad did not call the walk off: still heading for ${cancelled.walkTo}`);
-    await sleep(400);
+    await scaledWait(400);
     const stopped = await snap(wp);
     if (Math.abs(stopped.x - cancelGoal.tile[0]) < 0.1 && Math.abs(stopped.y - cancelGoal.tile[1]) < 0.1) {
       fail('tap-cancel', `the walk carried on to ${cancelGoal.tile} after the d-pad press`);
@@ -3893,7 +4095,7 @@ async function main() {
       const cctx = await browser.newContext({ viewport: { width: 620, height: 900 }, deviceScaleFactor: 1 });
       const cp = await cctx.newPage();
       attach(cp, 'scene');
-      await cp.goto(`${BASE}?episode=${encodeURIComponent(sceneId)}`, { waitUntil: 'load' });
+      await cp.goto(`${BASE}?episode=${encodeURIComponent(sceneId)}&timescale=${TIMESCALE}`, { waitUntil: 'load' });
       await waitUntil(cp, (st) => st.map === WORLD.start.map, 'the scene episode to start');
       for (let i = 0; i < 6 && (await snap(cp)).dialogueOpen; i++) await pressA(cp);
 
@@ -4088,7 +4290,7 @@ async function main() {
         const op = await octx.newPage();
         attach(op, 'other-intro');
         try {
-          await op.goto(`${BASE}?episode=${encodeURIComponent(otherId)}`, { waitUntil: 'load' });
+          await op.goto(`${BASE}?episode=${encodeURIComponent(otherId)}&timescale=${TIMESCALE}`, { waitUntil: 'load' });
           await waitUntil(op, (s) => s.dialogueOpen, `"${otherId}"'s intro to open`);
           const otherLines = COPY.intro
             ? [introLineFor(COPY.intro, new Date()), ...COPY.intro.lines.slice(1), ...(other.intro ?? [])]
@@ -4133,7 +4335,7 @@ async function main() {
       await waitUntil(sp, (s) => s.map === strollMap, 'the start map, with the townspeople on it');
       for (let i = 0; i < 6 && (await snap(sp)).dialogueOpen; i++) {
         await tapEl(scdp, sp, '#stage');
-        await sleep(320);
+        await scaledWait(320);
       }
       if ((await snap(sp)).dialogueOpen) fail('walkers', 'the intro never closed on the strollers page');
       await watchTaps(sp);
@@ -4148,7 +4350,7 @@ async function main() {
       // They move on their own, with the player right across the village.
       const before = await whereIs(stroller.id);
       await shot(sp, 'stroller-before');
-      await sleep(3000);
+      await scaledWait(3000);
       const after = await whereIs(stroller.id);
       const covered = Math.hypot(after.x - before.x, after.y - before.y);
       if (covered < 1) {
@@ -4249,12 +4451,12 @@ async function main() {
         ]);
         // Tapped, they wait: the engine hails whoever a walk is aimed at, so
         // walking over to somebody is never walking over to where they were.
-        await sleep(120);
+        await scaledWait(120);
         hailed = await whereIs(stroller.id);
         talking = await tryUntil(sp, (s) => s.dialogueOpen, 12000);
         if (!talking) {
           log(`    (tap ${attempt} came down beside them at ${point.at.map((n) => n.toFixed(1))} — aiming again)`);
-          await sleep(600);
+          await scaledWait(600);
         }
       }
       if (!talking) fail('walkers', `three taps in a row never got a word out of "${stroller.id}"`);
@@ -4288,7 +4490,7 @@ async function main() {
 
       // Standing beside somebody stops them: nobody walks off mid-sentence.
       const held = await whereIs(stroller.id);
-      await sleep(1500);
+      await scaledWait(1500);
       const stillHeld = await whereIs(stroller.id);
       const drift = Math.hypot(stillHeld.x - held.x, stillHeld.y - held.y);
       if (drift > 0.05) {
@@ -4309,7 +4511,7 @@ async function main() {
       // Step away and they pick their walk back up.
       await walkTo(sp, 'walkers', spot);
       const resumeFrom = await whereIs(stroller.id);
-      await sleep(3000);
+      await scaledWait(3000);
       const resumeTo = await whereIs(stroller.id);
       const resumed = Math.hypot(resumeTo.x - resumeFrom.x, resumeTo.y - resumeFrom.y);
       if (resumed < 1) {
@@ -4782,7 +4984,7 @@ async function main() {
       const tctx = await browser.newContext({ viewport: { width: 1000, height: 900 }, deviceScaleFactor: 1 });
       const tp = await tctx.newPage();
       attach(tp, 'story-car');
-      await tp.goto(`${BASE}?episode=${encodeURIComponent(truckId)}`, { waitUntil: 'load' });
+      await tp.goto(`${BASE}?episode=${encodeURIComponent(truckId)}&timescale=${TIMESCALE}`, { waitUntil: 'load' });
       await waitUntil(tp, (s) => s.map === WORLD.start.map, `${truckId} to start`);
       for (let i = 0; i < 6 && (await snap(tp)).dialogueOpen; i++) await pressA(tp);
       if ((await snap(tp)).dialogueOpen) fail('story-car', 'the opening card never closed');
@@ -4967,13 +5169,16 @@ async function main() {
     problems.push(`${pageErrors.length} uncaught page error(s)`);
   }
   if (problems.length) {
+    logTimings();
     logErr('\nFAILED: ' + problems.join('; '));
     process.exit(1);
   }
+  logTimings();
   log('\nPASS');
 }
 
 main().catch(async (err) => {
+  logTimings();
   logErr('\nFAILED ' + (err instanceof Failure ? err.message : (err?.stack ?? String(err))));
   if (pageErrors.length) {
     logErr('\npage errors:');
