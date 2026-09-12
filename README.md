@@ -51,6 +51,7 @@ npm test               # Vitest: engine logic only, plain Node, no jsdom
 npm run validate-episodes   # every worlds/*/ pack, engine/validate.ts's rules
 npm run validate-assets     # every worlds/*/ pack's PNGs and credits.json
 npm run make-room      # a first-cut interior from a room spec (DESIGN.md §2)
+npm run episode-script -- <world> <episode id>   # a readable script for copy review
 ```
 
 `npm run make-room -- <world> <map id> --spec <file.json>` writes
@@ -78,7 +79,11 @@ validates every other `episodes/*.json` on disk (review fixtures loaded via
 `?episode=`), except files starting with `draft-`. `npm run validate-assets` does
 the same for every PNG under a world's `assets/` (building/char/portrait
 sizes, tileset PNGs matching their JSON, every opaque pixel on-palette) and
-for `credits.json` (every credited id must exist and be painted). Point
+for `credits.json` (every credited id must exist and be painted). `npm run
+episode-script -- route10 ep002` prints that episode's dialogue as Markdown, in
+the order the engine reads it — every NPC's lines, items, scenes and small
+talk — so a story can be reviewed and iterated on without playing it; add
+`--out <file.md>` to save it, or `--json` for the same structure as JSON. Point
 either script at a different worlds directory with an argument or
 `MAINSTREET_WORLDS_DIR` (e.g. `node scripts/validate-assets.ts
 path/to/worlds`).
