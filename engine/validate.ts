@@ -12,6 +12,7 @@ import {
   HAIR_STYLES,
   MAX_WAIT,
   plaqueTile,
+  SCENE_NPC,
   SCENE_PLAYER,
   SCENE_VEHICLE,
   sceneFlags,
@@ -925,8 +926,19 @@ function checkStep(step: SceneStep, at: string, ctx: StepContext): void {
   if (step.camera) {
     const to = step.camera.to;
     if (to === SCENE_PLAYER) return;
+    if (typeof to === 'string' && to.startsWith(SCENE_NPC)) {
+      const id = to.slice(SCENE_NPC.length);
+      const walkers = mapId ? walkersOn(world, episode, mapId) : [];
+      if (!walkers.includes(id)) {
+        problems.push(`${at} looks at "${id}", who is not on map "${mapId ?? '?'}"`);
+      }
+      if (step.camera.speed !== undefined && (typeof step.camera.speed !== 'number' || !(step.camera.speed > 0))) {
+        problems.push(`${at} has a camera "speed" that isn't tiles per second`);
+      }
+      return;
+    }
     if (!Array.isArray(to) || to.length !== 2 || !to.every((n) => Number.isInteger(n))) {
-      problems.push(`${at} looks at neither a tile like [12, 4] nor "player"`);
+      problems.push(`${at} looks at neither a tile like [12, 4], "player", nor "npc:<id>"`);
       return;
     }
     if (step.camera.speed !== undefined && (typeof step.camera.speed !== 'number' || !(step.camera.speed > 0))) {
@@ -1022,6 +1034,19 @@ function vehiclesOn(world: World, episode: Episode, mapId: string): string[] {
   const meta = world.maps[mapId] as { vehicles?: { id?: string }[] } | undefined;
   const own = (episode.vehicles ?? []).filter((vehicle) => vehicle?.map === mapId);
   return [...(meta?.vehicles ?? []), ...own].map((vehicle) => vehicle?.id ?? '').filter(Boolean);
+}
+
+/**
+ * Every walker a scene on this map could point a `camera` step's
+ * `"npc:<id>"` at: the map's own townspeople, and the running episode's NPCs
+ * placed here — the same two sources `MapScene.addWalker`
+ * (engine/scenes/map.ts) stands up under one `id` namespace.
+ */
+function walkersOn(world: World, episode: Episode, mapId: string): string[] {
+  const meta = world.maps[mapId] as { people?: { id?: string }[] } | undefined;
+  const people = (meta?.people ?? []).map((person) => person?.id ?? '').filter(Boolean);
+  const npcs = episode.npcs.filter((npc) => npc.map === mapId).map((npc) => npc.id);
+  return [...people, ...npcs];
 }
 
 // --- map overlays (DESIGN.md §3) ---------------------------------------------

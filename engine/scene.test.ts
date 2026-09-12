@@ -65,7 +65,7 @@ function recorder(): Recorded {
     toast(text: string): void {
       rec.log.push(`toast ${text}`);
     },
-    beginCamera(to: Vec2 | 'player'): void {
+    beginCamera(to: Vec2 | 'player' | `npc:${string}`): void {
       rec.log.push(`camera ${Array.isArray(to) ? to.join(',') : to}`);
       rec.panning = true;
     },
@@ -216,6 +216,17 @@ describe('SceneRunner', () => {
     rec.panning = false;
     run(runner);
     expect(rec.log).toContain('camera player');
+  });
+
+  it('hands an "npc:<id>" camera target to the driver exactly as given', () => {
+    // The runner keeps a camera target as opaque as a move's `who`
+    // (engine/scene.ts) — resolving "npc:<id>" to a sprite to follow is the
+    // driver's job (engine/scenes/map.ts), not the runner's.
+    const rec = recorder();
+    const runner = new SceneRunner(scene([{ camera: { to: 'npc:jess-l' } }]), rec.driver);
+    rec.panning = false;
+    run(runner);
+    expect(rec.log).toContain('camera npc:jess-l');
   });
 
   it('hides and shows the player, at their current spot or a given one', () => {

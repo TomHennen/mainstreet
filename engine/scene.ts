@@ -10,7 +10,7 @@
  * legs of a walk, skipping a wait, the flag a `once` scene leaves behind —
  * testable under plain Node.
  */
-import { MAX_WAIT, SCENE_PLAYER, sceneFlag } from './schema';
+import { MAX_WAIT, SCENE_NPC, SCENE_PLAYER, sceneFlag } from './schema';
 import type { EpisodeScene, LightSpec, SceneStep, Vec2 } from './schema';
 
 /**
@@ -31,7 +31,7 @@ export interface SceneDriver {
   /** True while a box is open. */
   talking(): boolean;
   toast(text: string): void;
-  beginCamera(to: Vec2 | 'player', speed?: number): void;
+  beginCamera(to: Vec2 | 'player' | `${typeof SCENE_NPC}${string}`, speed?: number): void;
   panning(): boolean;
   setFlag(name: string): void;
   light(spec: LightSpec): void;

@@ -1131,7 +1131,7 @@ The steps, one per entry, exactly one field each:
 | `say` | one dialogue box. `who` is an episode NPC; leave it out and the world's narrator speaks. | the box being dismissed |
 | `toast` | the little banner | nothing |
 | `wait` | a beat, at most 3 seconds | the beat, or A |
-| `camera` | look at a tile, or `"player"` to hand the camera back. `speed` is tiles/second. | the pan |
+| `camera` | look at a tile, `"player"` to hand the camera back, or `"npc:<id>"` (an episode NPC or a map's own townsperson) to follow their sprite until the next `camera` step. `speed` is tiles/second, ignored for a follow. | the pan; a follow starts at once and does not wait |
 | `set` | sets a declared flag — also how a scene turns an overlay on | nothing |
 | `light` | see below | nothing |
 | `player` | `{ "hide": true }` or `{ "show": {} }` (or `{ "show": { "at": [x, y] } }`) — see below | nothing |
