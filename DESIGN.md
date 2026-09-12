@@ -814,7 +814,7 @@ and `effects` (applied when the node is shown/consumed). No code in content.
   "signs": [                                         // flavor, may vary by flags
     { "building": "mill-pond-inn", "requires": [],   // read at the door, with a prompt
       "replace": false,                              // default: the standing sign reads after it
-      "lines": ["Chalkboard: pizza night Monday and Wednesday. Underlined twice: RIBS SOLD OUT."] },
+      "lines": ["Chalkboard: pizza night Wednesdays. Underlined twice: SAVE ROOM FOR PIE."] },
     { "map": "stewarts-interior", "pos": [11, 4], "requires": [],   // a prop, with the same prompt
       "lines": ["The ice cream case hums along beside the shelves."] }
   ]
@@ -1360,8 +1360,8 @@ strong future-episode material.
 Hobart — "Jewel of the West Branch."
 
 **Buildings** (id → notes for flavor/interiors):
-- `mill-pond-inn` (Jefferson): inn + tavern; wood-fired pizza nights Mon &
-  Wed; ribs sell out.
+- `mill-pond-inn` (Jefferson): inn + tavern; wood-fired pizza nights Wed
+  only; ribs sell out.
 - `jefferson-town-hall` (Jefferson): limited posted hours; board-agenda humor.
 - `heartbreak-hotel` (Jefferson): bar/restaurant (not lodging); famous
   Saturday prime rib; reservations urged.
