@@ -1,9 +1,10 @@
 // Runtime import, so it carries the extension scripts/validate-episodes.ts
 // needs under Node's type stripping (see that file's header).
-import { rectsOverlap } from './edges.ts';
+import { lostAt, rectsOverlap } from './edges.ts';
 import { findPath } from './path.ts';
 import { clearBetween, offsetsWithin, REACH } from './reach.ts';
 import { canCoOccur, combinations, overlapsIn, patchFor, withOverlays } from './overlay.ts';
+import { runsOffMap } from './vehicle.ts';
 import {
   BUILDS,
   FACINGS,
@@ -29,8 +30,36 @@ import type {
   Vec2,
   Vehicle,
   Wander,
-  World
+  World,
+  WorldCopy
 } from './schema';
+
+/**
+ * `copy.json`'s own rules (DESIGN.md §2), run alongside `validateWorld` at
+ * boot and by `scripts/validate-episodes` — see those two call sites for why
+ * this is separate from it rather than folded in. Almost none of `ui.*` is
+ * checked at all: a missing or empty string simply isn't drawn (hard rule 3),
+ * so there is nothing to validate. `ui.intro.byDate` has its own checker
+ * (`engine/season.ts`'s `validateIntroByDate`, called alongside this one for
+ * the same reason). `ui.withYou` is the other exception, worth the cheap
+ * check because an empty string there would put up a HUD button with no
+ * label, or open a panel with a blank heading or a blank empty-state line.
+ */
+export function validateCopy(copy: WorldCopy): string[] {
+  const problems: string[] = [];
+  const withYou = copy.ui.withYou;
+  if (withYou) {
+    const word = (name: 'button' | 'title' | 'empty', value: string | undefined) => {
+      if (value !== undefined && (typeof value !== 'string' || !value.trim())) {
+        problems.push(`ui.withYou.${name} is empty`);
+      }
+    };
+    word('button', withYou.button);
+    word('title', withYou.title);
+    word('empty', withYou.empty);
+  }
+  return problems;
+}
 
 /**
  * Load-time validation of a world pack (DESIGN.md §3), run both in the browser
@@ -187,6 +216,13 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
       if (fixture.glow !== undefined && !takes) {
         problems.push(`${where}: "glow" is what a fixture does when it takes something, and this one takes nothing`);
       }
+      // The "with you" panel's own words for the token (DESIGN.md §2,
+      // engine/inventory.ts): cheap non-empty checks, same as everywhere else
+      // a world pack writes a line of copy — an empty string would put a
+      // blank name or a blank second line on the panel.
+      const emptyWord = (value: unknown) => value !== undefined && (typeof value !== 'string' || !value.trim());
+      if (emptyWord(fixture.heldName)) problems.push(`${where}: "heldName" is empty`);
+      if (emptyWord(fixture.heldBlurb)) problems.push(`${where}: "heldBlurb" is empty`);
       for (const placement of map.buildings) {
         if (fx === placement.door[0] && fy === placement.door[1]) {
           problems.push(`${where} is on building "${placement.id}"'s door tile`);
@@ -320,14 +356,66 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
           problems.push(`${where} overlaps exit "${exit.id}"`);
         }
       }
-      if (!Array.isArray(edge.lines) || edge.lines.length === 0) {
-        problems.push(`${where} has no "lines"`);
+      checkSaid(edge.lines, where, problems);
+    }
+
+    // Getting lost (DESIGN.md §2): the one way off a map that is not an exit.
+    // It has to land somewhere real — a map the world has, a tile inside it
+    // that nobody would be stuck in — and say something on the way.
+    const lost = map.lost;
+    if (lost) {
+      const where = `map "${mapId}" "lost"`;
+      // Getting lost is a village thing — an interior has no open ground to
+      // wander off over, and the ride home only makes sense landing back in
+      // a village too.
+      if (map.kind !== 'village') {
+        problems.push(`${where} is on a "${map.kind}" map — only a village can have "lost"`);
+      }
+      if (!world.maps[lost.to]) {
+        problems.push(`${where} leads to unknown map "${lost.to}"`);
       } else {
-        edge.lines.forEach((line, index) => {
-          if (typeof line !== 'string' || line.trim() === '') {
-            problems.push(`${where} line ${index} is empty`);
+        if (world.maps[lost.to].kind !== 'village') {
+          problems.push(`${where} leads to "${lost.to}", which isn't a village`);
+        }
+        const dest = maps[lost.to];
+        // A destination with no grid is already reported against that map.
+        if (dest && checkTile(dest, lost.spawn, `${where} spawn`, problems)) {
+          if (isSolid(dest, lost.spawn[0], lost.spawn[1])) {
+            problems.push(`${where} spawns on a solid tile in "${lost.to}"`);
           }
-        });
+          if (lostAt(dest, lost.spawn[0], lost.spawn[1])) {
+            problems.push(`${where} spawns onto "${lost.to}"'s own "lost" boundary — the player would get lost again on arrival`);
+          }
+        }
+      }
+      if (!(FACINGS as readonly string[]).includes(lost.facing)) {
+        problems.push(`${where} has an unknown "facing" — expected one of ${FACINGS.join(', ')}`);
+      }
+      checkSaid(lost.lines, where, problems);
+
+      // `arrive` (DESIGN.md §2/§3) is a scene, staged on `to` — where the
+      // player is actually set down — validated exactly like an episode
+      // scene's own `steps`, against a stand-in episode with none of its own:
+      // everything an `arrive` step may move belongs to the map itself (the
+      // player, or one of `to`'s own vehicles), never to any one week's story.
+      if (lost.arrive !== undefined) {
+        if (!Array.isArray(lost.arrive) || lost.arrive.length === 0) {
+          problems.push(`${where} "arrive" has no steps`);
+        } else if (world.maps[lost.to]) {
+          const noEpisode: Episode = { id: '', title: '', flags: [], npcs: [] };
+          const vehiclePositions = new Map<string, Vec2>();
+          lost.arrive.forEach((step, index) => {
+            checkStep(step, `${where} "arrive" step ${index}`, {
+              episode: noEpisode,
+              world,
+              map: maps[lost.to],
+              mapId: lost.to,
+              declared: new Set(),
+              problems,
+              vehiclePositions
+            });
+          });
+        }
       }
     }
   }
@@ -391,6 +479,12 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
     npc.dialogue.forEach((entry, index) => {
       checkFlags(entry.requires, `npc "${npc.id}" dialogue ${index}`);
       checkEffects(entry.effects, `npc "${npc.id}" dialogue ${index}`);
+      // A dialogue entry may itself be the handing-over of an episode item
+      // (DESIGN.md §3, `DialogueEntry.item`), so it has to name one that is
+      // actually declared — the same rule `checkEffects` applies to a `set`.
+      if (entry.item !== undefined && !(episode.items ?? []).some((one) => one.id === entry.item)) {
+        problems.push(`${where}: npc "${npc.id}" dialogue ${index} hands over unknown item "${entry.item}"`);
+      }
       // First match wins, so anything after an unconditional entry is dead.
       if (catchAllAt >= 0) {
         problems.push(
@@ -405,14 +499,55 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
     }
   }
 
+  // Every item id a dialogue entry hands over (DESIGN.md §3) — what makes a
+  // carried-only item (below, no "map"/"pos") actually obtainable.
+  const givenByDialogue = new Set<string>();
+  for (const npc of episode.npcs) {
+    for (const entry of npc.dialogue) {
+      if (entry.item !== undefined) givenByDialogue.add(entry.item);
+    }
+  }
+
   for (const item of episode.items ?? []) {
-    checkPos(item.map, item.pos, `item "${item.id}"`);
+    // `map` and `pos` are either both there (an item sitting on the ground)
+    // or both left out (DESIGN.md §3, a carried-only item, handed over by a
+    // dialogue entry's own `item` instead — checked below).
+    const onMap = item.map !== undefined || item.pos !== undefined;
+    if (onMap) {
+      if (item.map === undefined || item.pos === undefined) {
+        problems.push(`${where}: item "${item.id}" has a "map" or a "pos" but not both`);
+      } else {
+        checkPos(item.map, item.pos, `item "${item.id}"`);
+      }
+    } else if (!givenByDialogue.has(item.id)) {
+      problems.push(
+        `${where}: item "${item.id}" has no "map"/"pos" and no dialogue entry hands it over with "item" — it could never be obtained`
+      );
+    }
     checkFlags(item.requires, `item "${item.id}"`);
     checkEffects(item.effects, `item "${item.id}"`);
-    if (!item.effects.some((effect) => effect.set)) {
-      // Without a flag to set, the item can never be marked as taken.
-      problems.push(`${where}: item "${item.id}" has no effect that sets a flag`);
+    // A carried-only item's moment of arrival is the dialogue entry that
+    // hands it over, not a ground pickup of its own — so `effects` and
+    // `lines`, which only ever apply to that pickup, are only required of an
+    // item that actually sits on a map.
+    if (onMap) {
+      if (!(item.effects ?? []).some((effect) => effect.set)) {
+        // Without a flag to set, the item can never be marked as taken.
+        problems.push(`${where}: item "${item.id}" has no effect that sets a flag`);
+      }
+      if (!item.lines?.length || item.lines.some((line) => typeof line !== 'string' || !line.trim())) {
+        problems.push(`${where}: item "${item.id}" has nothing to read when picked up`);
+      }
     }
+    // `until` is checked the same way `requires` is — it names a flag, not a
+    // one-off value, so it has to be one the episode actually declares
+    // (DESIGN.md §3, engine/inventory.ts).
+    if (item.until !== undefined) checkFlags([item.until], `item "${item.id}"`);
+    // The "with you" panel's own words (DESIGN.md §2): cheap non-empty
+    // checks, same reasoning as the carry verbs' `heldName`/`heldBlurb`.
+    const emptyWord = (value: unknown) => value !== undefined && (typeof value !== 'string' || !value.trim());
+    if (emptyWord(item.name)) problems.push(`${where}: item "${item.id}" "name" is empty`);
+    if (emptyWord(item.blurb)) problems.push(`${where}: item "${item.id}" "blurb" is empty`);
   }
 
   episode.signs?.forEach((sign, index) => {
@@ -512,7 +647,7 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
 // --- scenes (DESIGN.md §3) ---------------------------------------------------
 
 /** The action fields a step may carry. Exactly one of them, always. */
-const STEP_ACTIONS = ['move', 'say', 'toast', 'wait', 'camera', 'set', 'light', 'end'] as const;
+const STEP_ACTIONS = ['move', 'say', 'toast', 'wait', 'camera', 'set', 'light', 'player', 'end'] as const;
 const LIGHT_MODES = ['off', 'dim', 'party'] as const;
 
 /**
@@ -574,8 +709,9 @@ function checkScenes(
       problems.push(`${at} has no steps`);
       continue;
     }
+    const vehiclePositions = new Map<string, Vec2>();
     scene.steps.forEach((step, index) => {
-      checkStep(step, `${at} step ${index}`, { episode, world, map, mapId, declared, problems });
+      checkStep(step, `${at} step ${index}`, { episode, world, map, mapId, declared, problems, vehiclePositions });
     });
   }
 }
@@ -610,10 +746,18 @@ interface StepContext {
   mapId: string | undefined;
   declared: Set<string>;
   problems: string[];
+  /**
+   * Where this scene's own earlier `move` steps have already driven each
+   * vehicle to, by id — so a second `move` on the same car is checked leg by
+   * leg from there, not from wherever it started the whole scene parked
+   * (DESIGN.md §3). Fresh per scene; a car's position between one scene and
+   * the next is not this validator's to track.
+   */
+  vehiclePositions: Map<string, Vec2>;
 }
 
 function checkStep(step: SceneStep, at: string, ctx: StepContext): void {
-  const { episode, world, map, mapId, declared, problems } = ctx;
+  const { episode, world, map, mapId, declared, problems, vehiclePositions } = ctx;
   if (!step || typeof step !== 'object' || Array.isArray(step)) {
     problems.push(`${at} is not a step object`);
     return;
@@ -704,22 +848,35 @@ function checkStep(step: SceneStep, at: string, ctx: StepContext): void {
       }
     });
     // And that there is paved road between the legs, starting from wherever
-    // the episode parked the car: a scene that cannot drive its truck out of
-    // the lot is a week of story where nothing happens (as `checkVehicle`).
-    if (ok && drives && paved) {
-      const parked = (episode.vehicles ?? []).find(
-        (vehicle) => vehicle.id === who.slice(SCENE_VEHICLE.length) && vehicle.map === mapId
-      );
-      const drive = driveable(map);
-      const legs = [...(parked?.pos ? [parked.pos] : []), ...(tiles as Vec2[])];
-      for (let i = 1; i < legs.length; i++) {
-        const from = legs[i - 1];
-        const to = legs[i];
-        if (from[0] === to[0] && from[1] === to[1]) continue;
-        if (!findPath(from, (x, y) => x === to[0] && y === to[1], drive)) {
-          problems.push(`${at} cannot drive from ${from.join(',')} to ${to.join(',')} — no paved way through`);
+    // this scene last left the car — an earlier `move` step's own target, if
+    // it had one — or else wherever it was parked: a scene that cannot drive
+    // its truck out of the lot is a week of story where nothing happens (as
+    // `checkVehicle`).
+    if (drives) {
+      const vehicleId = who.slice(SCENE_VEHICLE.length);
+      if (ok && paved) {
+        // A vehicle this scene drives may be the episode's own, or the map's
+        // — a village's own car is exactly as much this scene's to move as
+        // one an episode brought with it (DESIGN.md §2/§3).
+        const parked =
+          (episode.vehicles ?? []).find((vehicle) => vehicle.id === vehicleId && vehicle.map === mapId) ??
+          (mapId ? (world.maps[mapId]?.vehicles ?? []).find((vehicle) => vehicle.id === vehicleId) : undefined);
+        const startPos = vehiclePositions.get(vehicleId) ?? parked?.pos;
+        const drive = driveable(map);
+        const legs = [...(startPos ? [startPos] : []), ...(tiles as Vec2[])];
+        for (let i = 1; i < legs.length; i++) {
+          const from = legs[i - 1];
+          const to = legs[i];
+          if (from[0] === to[0] && from[1] === to[1]) continue;
+          if (!findPath(from, (x, y) => x === to[0] && y === to[1], drive)) {
+            problems.push(`${at} cannot drive from ${from.join(',')} to ${to.join(',')} — no paved way through`);
+          }
         }
       }
+      // Recorded regardless of whether this leg validated clean, so one bad
+      // step never cascades into every step after it also reading as
+      // unreachable from the wrong place.
+      if (ok) vehiclePositions.set(vehicleId, tiles[tiles.length - 1] as Vec2);
     }
     return;
   }
@@ -777,6 +934,37 @@ function checkStep(step: SceneStep, at: string, ctx: StepContext): void {
   }
 
   if (step.light) checkLight(step.light, at, map, problems);
+
+  if (step.player) {
+    const player = step.player;
+    if (typeof player !== 'object' || Array.isArray(player)) {
+      problems.push(`${at} has a "player" that isn't an object`);
+      return;
+    }
+    if (Boolean(player.hide) === Boolean(player.show)) {
+      problems.push(`${at} "player" needs exactly one of "hide" or "show"`);
+      return;
+    }
+    if (player.hide !== undefined && player.hide !== true) {
+      problems.push(`${at} "player" "hide" has to be true`);
+    }
+    if (player.show !== undefined) {
+      if (typeof player.show !== 'object' || Array.isArray(player.show)) {
+        problems.push(`${at} "player" "show" isn't an object`);
+      } else if (player.show.at !== undefined) {
+        const showAt = player.show.at;
+        if (!Array.isArray(showAt) || showAt.length !== 2 || !showAt.every((n) => Number.isInteger(n))) {
+          problems.push(`${at} "player" "show.at" is not a tile like [12, 4]`);
+        } else if (map) {
+          if (showAt[0] < 0 || showAt[1] < 0 || showAt[0] >= map.width || showAt[1] >= map.height) {
+            problems.push(`${at} "player" "show.at" ${showAt.join(',')} is outside the map`);
+          } else if (isSolid(map, showAt[0], showAt[1])) {
+            problems.push(`${at} "player" "show.at" ${showAt.join(',')} is on a solid tile`);
+          }
+        }
+      }
+    }
+  }
 }
 
 function checkLight(light: LightSpec, at: string, map: GameMap | undefined, problems: string[]): void {
@@ -947,6 +1135,7 @@ function unreachableWith(
     for (const placement of meta.buildings) {
       if (placement.interior === mapId && placement.enter) arrivals.push([placement.enter[0], placement.enter[1]]);
     }
+    if (meta.lost && meta.lost.to === mapId) arrivals.push([meta.lost.spawn[0], meta.lost.spawn[1]]);
   }
   if (!arrivals.length) return out;
 
@@ -1037,7 +1226,8 @@ const MAX_VEHICLES = 3;
  * Every tile somebody walking may stand on. Deliberately stricter than the
  * player's own walkability: a doorstep and a plaque tile are read by standing
  * exactly there, so a townsperson parked on one would take a building's door
- * away, and a road out of the village is the player's to take, not theirs.
+ * — or its sign — away, and a road out of the village is the player's to
+ * take, not theirs.
  */
 export function moverWalkable(map: GameMap): (x: number, y: number) => boolean {
   const taken = new Set<string>();
@@ -1080,7 +1270,10 @@ export function driveable(map: GameMap): (x: number, y: number) => boolean {
  * tiles the engine fills in between them — is drivable, or no path at all,
  * which is a car parked where somebody left it.
  *
- * A loop closes by road too, so a car that sets off can always get back round.
+ * A loop closes by road too, so a car that sets off can always get back
+ * round — except a through route (DESIGN.md §2), which never drives that
+ * closing leg at all: it vanishes off the map and reappears at the start
+ * instead, so nothing demands a paved way back for one of those.
  * A parked car has only to be somewhere a car could plausibly have been left:
  * a drivable tile, which covers both the road and a lot's marked stalls. On a
  * map with no drivable tiles anywhere — an interior, say — that rule would
@@ -1094,6 +1287,12 @@ function checkVehicle(vehicle: Vehicle, map: GameMap, context: string, problems:
   if (typeof vehicle.colour !== 'string' || !HEX.test(vehicle.colour)) {
     problems.push(`${context} has a "colour" that isn't a hex colour like "#9babb2"`);
   }
+  if (vehicle.accent !== undefined && (typeof vehicle.accent !== 'string' || !HEX.test(vehicle.accent))) {
+    problems.push(`${context} has an "accent" that isn't a hex colour like "#9babb2"`);
+  }
+  if (vehicle.lights !== undefined && typeof vehicle.lights !== 'boolean') {
+    problems.push(`${context} has a "lights" that isn't a boolean`);
+  }
   if (vehicle.facing !== undefined && !(FACINGS as readonly string[]).includes(vehicle.facing)) {
     problems.push(`${context} has an unknown "facing" — expected one of ${FACINGS.join(', ')}`);
   }
@@ -1106,10 +1305,17 @@ function checkVehicle(vehicle: Vehicle, map: GameMap, context: string, problems:
   if (vehicle.pause !== undefined && (typeof vehicle.pause !== 'number' || !(vehicle.pause >= 0))) {
     problems.push(`${context} has a "pause" that isn't a number of seconds`);
   }
+  if (vehicle.hidden !== undefined && typeof vehicle.hidden !== 'boolean') {
+    problems.push(`${context} has a "hidden" that isn't a boolean`);
+  }
 
   const drive = driveable(map);
   const path = vehicle.path;
   const parked = path === undefined;
+
+  if (vehicle.hidden && !parked) {
+    problems.push(`${context} is "hidden" but also has a "path" — a car nobody has met yet has nowhere of its own to drive until a scene sends it, which is what a parked car already is`);
+  }
 
   if (parked) {
     if (vehicle.pos === undefined) {
@@ -1135,9 +1341,14 @@ function checkVehicle(vehicle: Vehicle, map: GameMap, context: string, problems:
   if (!ok) return;
 
   // Each leg in turn, from the tile the car starts on and ending back at the
-  // first waypoint when the path loops.
+  // first waypoint when the path loops — except a through route (DESIGN.md
+  // §2), which the engine never actually drives back through the
+  // pathfinder at all: it vanishes off the map and reappears at the start
+  // instead, so there is no closing leg here to demand a paved way through.
   const legs: Vec2[] = [vehicle.pos ?? path[0], ...path];
-  if (vehicle.loop !== false) legs.push(path[0]);
+  const loops = vehicle.loop !== false;
+  const throughRoute = loops && runsOffMap(path, { width: map.width, height: map.height }, map.exits.map((exit) => exit.at));
+  if (loops && !throughRoute) legs.push(path[0]);
   for (let i = 1; i < legs.length; i++) {
     const from = legs[i - 1];
     const to = legs[i];
@@ -1184,6 +1395,19 @@ function checkPark(
     return false;
   }
   return true;
+}
+
+/** Something to say: a non-empty list of non-empty strings, with the reason if not. */
+function checkSaid(lines: unknown, where: string, problems: string[]): void {
+  if (!Array.isArray(lines) || lines.length === 0) {
+    problems.push(`${where} has no "lines"`);
+    return;
+  }
+  lines.forEach((line, index) => {
+    if (typeof line !== 'string' || line.trim() === '') {
+      problems.push(`${where} line ${index + 1} is empty`);
+    }
+  });
 }
 
 /** A tile that is at least on the map and shaped like one, with the reason if not. */

@@ -7,7 +7,7 @@
  * `engine/edges.test.ts` exercises without a scene.
  */
 import { tileAt } from './tiled.ts';
-import type { GameMap, MapEdge, Rect } from './schema';
+import type { GameMap, MapEdge, MapLost, Rect } from './schema';
 
 const within = (at: Rect, x: number, y: number): boolean =>
   x >= at[0] && x < at[0] + at[2] && y >= at[1] && y < at[1] + at[3];
@@ -20,6 +20,16 @@ export function rectsOverlap(a: Rect, b: Rect): boolean {
 /** The map's own `edges` entry standing on this tile, if any. */
 export function edgeAt(map: GameMap, x: number, y: number): MapEdge | undefined {
   return map.edges?.find((edge) => within(edge.at, x, y));
+}
+
+/**
+ * Whether `(x, y)` sits inside an `at`-shaped rectangle grown out by `margin`
+ * tiles on every side — the general test behind `within` (`margin` 0) and
+ * behind keeping a tile beside a way out from reading as the woods
+ * (`margin` 1).
+ */
+export function nearRect(at: Rect, x: number, y: number, margin: number): boolean {
+  return x >= at[0] - margin && x < at[0] + at[2] + margin && y >= at[1] - margin && y < at[1] + at[3] + margin;
 }
 
 /** Bare ground: a road never "ends" here, it just isn't paved any more. */
@@ -54,4 +64,25 @@ export function roadEndLine(
   const tile = tileAt(map, x, y);
   if (!tile || QUIET_KINDS.has(tile.kind)) return undefined;
   return pickByPosition(x, y, lines);
+}
+
+/** How close, in tiles, counts as the shoulder of a way out rather than the woods. */
+const SHOULDER = 1;
+
+/**
+ * The map's `lost` entry, if walking onto this tile is walking off into the
+ * woods (DESIGN.md §2): the tile is on the map's own boundary, the ground
+ * there is the bare kind a road end stays quiet about, and it is not within
+ * `SHOULDER` tiles of any `exits` or `edges` rectangle — a landing spot one
+ * tile off a doorway out of town is still the road, not the woods. A road at
+ * the boundary is never "lost": it is a road end, and says so.
+ */
+export function lostAt(map: GameMap, x: number, y: number): MapLost | undefined {
+  if (!map.lost) return undefined;
+  if (x !== 0 && y !== 0 && x !== map.width - 1 && y !== map.height - 1) return undefined;
+  const tile = tileAt(map, x, y);
+  if (!tile || !QUIET_KINDS.has(tile.kind)) return undefined;
+  if (map.exits.some((exit) => nearRect(exit.at, x, y, SHOULDER))) return undefined;
+  if ((map.edges ?? []).some((edge) => nearRect(edge.at, x, y, SHOULDER))) return undefined;
+  return map.lost;
 }

@@ -28,6 +28,16 @@
       <a id="say-link" class="overlay-link" data-overlay="link" hidden target="_blank" rel="noopener"></a>
 
       <!--
+        The "with you" HUD button (DESIGN.md §2, engine/inventory.ts): opens
+        the panel that shows what the player is carrying. A real button, so
+        it sits outside engine/input.ts's own tap-to-walk path exactly like
+        #say-link does above (data-overlay); engine/scenes/ui.ts fills in its
+        label from copy.json ui.withYou.button and hides it entirely when the
+        world pack leaves that out (hard rule 3).
+      -->
+      <button id="withyou-btn" class="overlay-link hud-btn" data-overlay="withyou" type="button" hidden></button>
+
+      <!--
         A small pool of DOM anchors for the Credits screen's own link rows —
         About this game, Paint a building, Open source on GitHub (issue #65).
         Real links, so touch, Tab and Enter are the browser's job rather than

@@ -3,7 +3,8 @@ import type { Facing } from './schema';
 /**
  * One input path only (CLAUDE.md hard rule 4): pointer events for touch and
  * mouse, keyboard separately, and never two handlers on the same control. The
- * action button is debounced and key repeat is ignored.
+ * action button is debounced and key repeat is ignored — the same is true of
+ * the "with you" panel's own toggle (`onToggle`, below).
  *
  * Three ways in, all of them pointer or key: tapping the world (the primary
  * one — the scene walks there), the d-pad and A button beside it, and the
@@ -15,10 +16,12 @@ const TAP_SLOP_PX = 12;
 
 const held: Record<Facing, boolean> = { up: false, down: false, left: false, right: false };
 const listeners = new Set<() => void>();
+const toggleListeners = new Set<() => void>();
 const tapListeners = new Set<(x: number, y: number) => void>();
 const dirListeners = new Set<(dir: Facing) => void>();
 const dragListeners = new Set<(dy: number) => void>();
 let lastAction = 0;
+let lastToggle = 0;
 let lastTap = 0;
 /**
  * `x0`/`y0` are where the press started, kept still for the tap/drag
@@ -40,6 +43,13 @@ const KEY_DIRS: Record<string, Facing> = {
 };
 
 const ACTION_KEYS = new Set([' ', 'enter']);
+/**
+ * Toggles the "with you" panel (DESIGN.md §2, `engine/inventory.ts`) — "i",
+ * free everywhere else in `KEY_DIRS`/`ACTION_KEYS` above. Debounced and
+ * repeat-ignored exactly like the action key, on its own counter so opening
+ * the panel never eats into the action button's own debounce window.
+ */
+const TOGGLE_KEYS = new Set(['i']);
 
 /**
  * DOM controls the engine draws over the canvas (marked `data-overlay`) are
@@ -58,6 +68,16 @@ export function isHeld(dir: Facing): boolean {
 export function onAction(fn: () => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
+}
+
+/**
+ * The "with you" panel's own toggle (DESIGN.md §2) — the "i" key, debounced
+ * like the action button but on its own clock (see `TOGGLE_KEYS` above).
+ * Returns an unsubscribe function.
+ */
+export function onToggle(fn: () => void): () => void {
+  toggleListeners.add(fn);
+  return () => toggleListeners.delete(fn);
 }
 
 /**
@@ -112,6 +132,13 @@ function fireAction(): void {
   for (const fn of [...listeners]) fn();
 }
 
+function fireToggle(): void {
+  const now = performance.now();
+  if (now - lastToggle < ACTION_DEBOUNCE_MS) return;
+  lastToggle = now;
+  for (const fn of [...toggleListeners]) fn();
+}
+
 export function bindControls(root: Document = document): void {
   window.addEventListener(
     'keydown',
@@ -119,13 +146,14 @@ export function bindControls(root: Document = document): void {
       if (isOverlay(document.activeElement)) return;
       const key = event.key.toLowerCase();
       const dir = KEY_DIRS[key];
-      if (dir || ACTION_KEYS.has(key)) event.preventDefault();
+      if (dir || ACTION_KEYS.has(key) || TOGGLE_KEYS.has(key)) event.preventDefault();
       if (event.repeat) return;
       if (dir) {
         held[dir] = true;
         fireDirection(dir);
       }
       if (ACTION_KEYS.has(key)) fireAction();
+      if (TOGGLE_KEYS.has(key)) fireToggle();
     },
     { capture: true }
   );

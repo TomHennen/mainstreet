@@ -107,14 +107,19 @@ walks to the nearest tile beside it, or, if there is no way through at all,
 blinks the ring once and stays put. Tapping a person, a door, a shopfront, a
 plaque, a street fixture or something lying about walks over and does the
 thing on arrival, with no A press: a door with an interior behind it opens,
-a door without one reads the sign, the plaque — the tile it is read from, or
-the little brass one drawn on the wall above it — thanks whoever painted the
-place, and anywhere else on a building's picture, roof and floating name
-plate included, is its front, which walks to the doorstep and reads the sign
-rather than walking in. What was tapped is what happens when the walk ends,
-not whatever is in reach of where it ended; if the player is already standing
-in the right place it happens straight away. Somebody behind a counter, with
-no free tile beside them, is walked up to as close as that same reach
+and is only ever the way in — tap-to-go is the primary way to play (hard
+rule 4), so a phone has to be able to walk in the front door the same way
+the keyboard's held "up" can (see "The door arrow, and reading a door," below)
+— while a door with none reads the sign, exactly as it always did. The
+plaque — the tile it is read from, or the little brass one drawn on the
+wall above it — thanks whoever painted the place, and anywhere else on a
+building's picture, roof and floating name plate included, is its front,
+which walks up and reads the sign — rather than walking in, even where
+there is an interior to walk into, since only the door tile itself is the
+way in. What was tapped is what happens when the walk ends, not whatever
+is in reach of where it ended; if the player is already standing in the
+right place it happens straight away. Somebody behind a counter, with no
+free tile beside them, is walked up to as close as that same reach
 allows. Any d-pad or movement key
 calls the walk off on the spot, and a new tap replaces the destination; A
 waits until the walk is over rather than stranding the player half way.
@@ -267,6 +272,70 @@ the words gets in the way of reading. If the episode gives an unpainted
 building no sign copy at all, the box would open empty, so `copy.json`
 `ui.unpainted` supplies one short line instead.
 
+**The door arrow, and reading a door.** A door with an interior behind it opens
+two ways and reads its standing sign a third, never confused for each other.
+A tap on the door tile itself — or the arrow painted on it, the same tile
+— walks the player there and opens it on arrival, no A press involved, the
+same as tapping always has (CLAUDE.md hard rule 4: tap-to-go is the primary
+way to play, so a phone has to be able to walk in a front door the same way
+the keyboard can). Holding "up" onto that tile at the keyboard or the touch
+d-pad opens it too — the direction that would otherwise walk the player into
+the solid wall behind it, since every building sits one row north of its own
+door — but only once the player has genuinely stopped there, pressed against
+it, for `DOOR_PRESS_MS` (180ms, `MapScene.checkDoors`/`doorPressAdvance` in
+`engine/doors.ts`). Two things that look alike for a moment turn out not to
+be, which is why "stopped" means stopped, not merely holding "up": a door
+sits on the street a player is forever crossing on their way past a
+shopfront to somewhere else, and a straight walk elsewhere can clip the
+doorstep for a single frame while lining up a turn — indistinguishable, in
+that one frame, from actually walking in; and a diagonal step past the same
+tile, "up" held alongside a side, keeps inching forward the whole time on
+whichever axis is not blocked, however long it takes to cross — never
+actually stuck, so it is never counted either, no matter how long it takes.
+Only a player truly walked into the wall, going nowhere further, adds up to
+the 180ms. An A press, or a tap anywhere else on the building's picture —
+its facade, roof or floating name plate — reads the door's standing sign
+instead, exactly like a door with no interior at all, walking the player up
+to the door to do it, the same as tapping anything else (Controls, above).
+
+A door a player just walked out of is a special case, and player-visible on
+purpose: it drops them right back on its own doorstep, and holding "up"
+there — whether that carried over from before the door closed, or a tap on
+it lands them there directly — must not walk straight back in. Such a door
+stays disarmed until either it is let go of, which is most of the time
+since a thumb is rarely still on the very key that would walk back in, or
+the player moves half a tile away regardless (`MapScene.armEnters`). A tap
+at a disarmed door still answers, reading the sign instead of doing
+nothing, since a tap always answers something.
+
+Nothing marked an opening door as one before a player tried it, so the engine
+paints a small arrow right on the doorstep of any door with an interior
+behind it, pointing up into the door (`engine/art.ts` `doorArrowArt`) —
+nothing a world ever paints, and nothing a door with no interior grows — the
+same "at a glance" the plaque and the "needs an artist" shimmer already give
+a building's facade. A small chunky arrowhead over a short stem, about ten
+pixels wide at its base, two-tone like a stencilled road marking — a light
+fill outlined in the engine's own dark ink, never a colour a world hands in
+(hard rule 1) — sized to read at the game's base zoom the same way the
+plaque and the reach prompt do. It lives on the tile itself rather than baked
+into the facade's picture the way the plaque hangs on the wall above it, and
+draws at that tile's own depth rather than the facade's, so a player standing
+on the doorstep draws over it — covering it the way a road marking disappears
+under a car — instead of the arrow drawing over the player. It carries the
+whole "you can walk in here" meaning on its own: the reach prompt at a door
+never says anything about entering, only about reading, so there is only
+ever the one prompt at a door, not two competing for the same small space.
+
+The bubble that floats over whatever is in reach is the plain letter "A" —
+the same glyph on every kind of thing it shows for, door included, since A
+only ever reads the standing sign there, never opens it, so there is nothing
+here that needs a second glyph (`engine/art.ts` `promptTexture`). A branch
+once swapped it for a wordless speech bubble with a "Read" tag stacked above
+it (`copy.json` `ui.read`), reasoning that the bare "A" looked too much like
+the real A button a thumb's width below it on screen; Tom's playtest verdict
+was the opposite — he wanted the letter back — so the bubble is the "A" it
+always was, and the tag is gone along with the schema field that named it.
+
 **Street fixtures, and the suggestion box.** A map may list engine-drawn
 furniture that belongs to no building and no episode:
 
@@ -345,6 +414,84 @@ trees shows nothing at all, since that reads as open country rather than a
 road that ran out. A world with no `ui.roadEnd` simply shows nothing for the
 roads nobody wrote a line for (hard rule 3).
 
+**Getting lost.** That open country is the one place a village map can let
+the player actually leave: keep walking off the map's boundary over grass or
+flowers — never a road, which is a road end and says so — and, on a map with
+a `lost` entry, they have wandered into the woods:
+
+```jsonc
+"maps": {
+  "stamford": {
+    "lost": {
+      "lines": ["You keep going past the last of the houses, and the trees close in…",
+                "You call the Delaware County Sheriff's Office…"],
+      "to": "stamford", "spawn": [16, 15], "facing": "up"
+    }
+  }
+}
+```
+
+A tile within one tile of any `exits` or `edges` rectangle counts as that
+road's shoulder rather than the woods, so landing a step off a doorway out of
+town — the way tap-to-walk often does — is still the road, never lost.
+
+The controls lock, the map fades to black (a 500ms camera fade, so the
+still-lively town never shows through the words), the narrator says `lines`
+in the say box on top of that black, and when the last one is dismissed the
+road card plays — held 1600ms rather than an ordinary road's 900ms, since
+this line is a story, not a road name — its copy is
+`copy.transitions["lost:<map id>"]`, the same shape every other card has —
+and the player is set down at `spawn` on `to`, facing `facing`, exactly as
+an exit would (`engine/edges.ts` `lostAt`, `MapScene.checkEdges`). Like an
+edge, it is scenery talking: no flags, no effects, nothing saved, and the
+tile never fires while a scene is playing or a box is already open. It cannot
+loop: the reset is a fresh map, so the player has to walk all the way back
+out to the trees to hear it again. The validator checks the map carrying
+`lost` and `to` are both villages, `to` names a map in the world, `spawn` is
+a tile inside that map that is not solid and is not itself lost-eligible on
+`to` (an actual infinite loop, distinct from the fresh-map story above),
+`facing` is one of the four, and `lines` is a non-empty list of non-empty
+strings. A map without `lost` keeps its quiet boundary, as before.
+
+`lost` may also carry `arrive`: a scene (§3) that plays out the arrival
+itself, staged on `to`, in place of the player simply appearing at `spawn` —
+the deputy's truck actually rolling in and pulling up, say, rather than the
+ride home happening entirely off screen:
+
+```jsonc
+"lost": {
+  "lines": ["…"], "to": "stamford", "spawn": [16, 15], "facing": "left",
+  "arrive": [
+    { "camera": { "to": [16, 16], "speed": 10 } },
+    { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [34, 16], "speed": 18 } },
+    { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [16, 16] } },
+    { "wait": 1.4 },
+    { "player": { "show": { "at": [17, 15] } } },
+    { "move": { "who": "player", "to": [16, 15], "speed": 3.5 } },
+    { "say": { "lines": ["…"] } },
+    { "camera": { "to": "player" } },
+    { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [0, 16] } }
+  ]
+}
+```
+
+`arrive` is the same `steps` a scene's own are (§3), run by the very same
+runner, but it is the map's, not any one week's episode's: it is not `once`
+and has no `on` of its own, so it plays every single time this `lost` fires
+rather than being remembered. The player is placed at `spawn` already
+hidden — invisible, and, like any hidden player, beyond walking, tapping or
+pressing A with (§3) — so a truck driving in around them cannot be wandered
+away from before they can even be seen. Once the scene shows them again (or,
+failing that, once it ends — the player is always shown again by the time a
+scene is over) their controls are back, exactly as any other scene's ordinary
+rules already say: everything past that point, the truck driving on out of
+town included, happens around a player free to walk off toward Stewart's
+door. A `lost` with no `arrive` behaves exactly as it always has. The
+validator checks `arrive`'s steps exactly like an episode scene's own,
+against `to`'s map, with no episode of its own to draw an NPC or a vehicle
+from — only the player, and `to`'s own `vehicles` (never one an episode
+brought, since `lost` is not any one episode's to touch).
+
 **The carry verbs: taking something and putting it somewhere.** A fixture may
 also hand the player a thing, and another may take it off them again. That is
 the whole mechanic — the log on the Belvedere's fire — and it is two fields:
@@ -384,6 +531,38 @@ brighter afterwards: one warm light disc over its tile (`engine/lighting.ts`,
 which breathes and fades and never strobes) and, where the kind has one, the
 lit variant of its art. It is the only thing in the game that a player's doing
 changes about a map, and it puts itself back.
+
+**With you.** A small HUD button opens a panel that is a glance at what the
+player has on them right now — not an inventory: no counts, no slots, nothing
+to manage (`engine/inventory.ts`'s `withYou`, a pure derivation over the
+session and the world data, unit-tested on its own). Two things can be on it:
+the carry-verb token above, while it's held, and every episode item picked up
+(`session().taken`) and not yet handed back — the pen, Scout. There is no
+companion mechanic here: a dog that's been found is an ordinary episode item,
+walked to whoever is waiting for it like anything else picked up off the
+ground, not something that follows the player around a map. An item leaves
+the list the moment its own `until` (§3) — a declared flag, same shape as
+`requires` — goes true; with no `until` a picked-up item simply stays for
+good. The panel draws each entry's name (`EpisodeItem.name`, or a `give`
+fixture's `heldName` for the token it hands over) and, where the world pack
+wrote one, a one-line blurb underneath (`.blurb`/`.heldBlurb`) — no swatch or
+icon, since there is no per-item sprite convention yet and one placeholder
+repeated on every row would be decoration, not information. The engine never
+invents player-facing English here: no name written and the entry shows its
+own id verbatim, not a title-cased guess at one. The button and its own
+keyboard shortcut ("i", `engine/input.ts`'s `onToggle`) both open and close
+it; tapping anywhere or pressing A closes it without opening it, the same way
+the say box is dismissed — the panel sets `document.body.dataset.dialogue`
+itself while it's open, exactly as the say box does, which is what sends a
+stage press to that close rather than to a walk underneath it. It pauses
+walking exactly like the say box (`session().dialogueOpen`), and it can never
+open over the say box, during the travel interstitial (`.locked`), or during
+a staged scene (`.sceneRunning`, set for the scene's whole run rather than
+only the beats it has a box open for, so the panel can't slip in between
+them). `copy.json`'s `ui.withYou.button` labels the HUD button, `.title`
+heads the open panel, and `.empty` is the one line it shows with nothing on
+the list; no `button` and none of it draws at all — the button, the panel,
+the keyboard shortcut (hard rule 3).
 
 **Townspeople who walk.** Nothing on a map moves but the player unless the
 data says otherwise, and two shapes of data say otherwise. Both belong to a
@@ -494,7 +673,7 @@ paved routes, so a state route reads as a road rather than a grey stripe:
 "vehicles": [
   { "id": "stamford-main-car", "kind": "car",     // car | pickup | van
     "colour": "#9babb2",                          // muted; the drawn car's paint
-    "path": [[2, 18], [88, 18], [88, 16], [2, 16]],
+    "path": [[2, 18], [88, 18], [88, 16], [0, 16]],
     "loop": true,                                 // default: back to the first
     "pause": 1.2,                                 // seconds at each waypoint, default 0.8
     "speed": 19.1 },                              // tiles/s, default walking x 3
@@ -510,21 +689,65 @@ is the engine's own vocabulary rather than the tile's `kind`, which the engine
 never branches on: Route 10 marks its asphalt and deliberately leaves its
 sandy side streets unmarked, so NY 10 and NY 23 carry traffic and the back
 streets stay quiet. `validate-episodes` walks every leg of a path over that
-rule, the closing leg of a loop included.
+rule, the closing leg of a loop included — except a through route (below),
+which never actually drives that leg, so nothing demands a paved way through
+it.
+
+`loop` (default true) is what sends a car back to its first waypoint once it
+reaches its last, over whatever paved way there is — fine when that closing
+leg is a loop in its own right, the way `stamford-main-car` above uses two
+lanes two tiles apart to run the length of NY 23 and back without ever facing
+the way it came. It stops being fine the moment the *last* waypoint is
+somewhere the road runs out from under it — the map's own edge, or one of its
+`exits` that itself touches that edge (an `exits` rectangle at a building's
+own door, mid-map, never counts) — because the only way back then is the way
+it came, and a car retracing its own tracks reads as a U-turn right at the
+edge of town. The engine reads this off the path itself (`runsOffMap` in
+engine/vehicle.ts) rather than a flag a world pack has to set: a car whose
+last waypoint qualifies drives straight past it instead, two tiles off the
+map, sits out of sight there for about a second, and then drives back in
+those same two tiles the way it left — on its first waypoint's own heading,
+never simply placed there — before picking its route back up. Held off the
+map a little longer, rather than driven in on top of them, if the player is
+standing right where it is due to reappear. It is why `stamford-main-car`'s
+own last waypoint above is `[0, 16]`, the tile at Stamford's own western
+edge, rather than a couple of tiles short of it. A route that ends somewhere
+ordinary mid-map, or is explicitly `loop: false`, is unaffected: that is a
+car legitimately parking, and keeps doing exactly that.
 
 Cars are **never a hazard, and never anything else either** (§1): not solid,
 nothing to say, not a tap target — a tap on one lands on the road under it —
 and nothing a save ever hears about. Rather than the player giving way, the
-car does: it looks three tiles up its own route, and if anybody is standing
-there it closes the throttle and coasts to a stop, waits for as long as they
-stay, and pulls away again when the way clears. Its braking ramp comes off its
-own speed, so it always stops within two tiles — inside the three it looks
-ahead, which puts the stop behind whoever it stopped for. It never routes
-around anybody: a car that swerved past somebody in the road would read as
-impatience. Somebody who steps into the road right in front of one is simply
-passed under, with nothing happening to either of them. A car gives way to any
-car listed *before* it on the map as well, which is one-way on purpose, so two
-of them can never sit waiting on each other at a crossroads.
+car does: it looks three tiles up its own route — round however many corners
+it needs to, not only straight on from the way it happens to be facing, so
+nobody standing just past a turn is missed — and if anybody is standing there
+it closes the throttle and coasts to a stop, waits for as long as they stay,
+and pulls away again when the way clears. Its braking ramp comes off its own
+speed, so it always stops within two tiles — inside the three it looks
+ahead, which puts the stop a clear tile behind whoever it stopped for, never
+on top of them. It never routes around anybody: a car that swerved past
+somebody in the road would read as impatience. Somebody who steps into the
+road right in front of one is simply passed under, with nothing happening to
+either of them. A car gives way to any car listed *before* it on the map as
+well, which is one-way on purpose, so two of them can never sit waiting on
+each other at a crossroads — and it is that nearest thing in its way that
+decides whether it has cause to holler (below): a car queued up behind
+another car has that car to look at, not whatever player might be further up
+the road past it.
+
+Held stopped by the player specifically for about a second, a car has
+something to say about it: one of `copy.json`'s `ui.holler` lines, out the
+window, in the same toast an effect's own `toast` already raises rather than
+a box to dismiss, so a brief crossing never earns a word and nobody's walk is
+interrupted to read one. It never fires with the controls away from the
+player, and never over a toast already on screen — a holler waits its turn
+behind a scene's or a flag's own, never cuts one off. Picked so the same car
+does not repeat itself right after saying it, at most one on screen at a
+time, and nothing at all from a world pack with no `ui.holler` (hard rule 3)
+— Route 10's lines are gruff on purpose, by Tom's call (CLAUDE.md hard rule
+6): a driver hollering out the window ("Hey! This isn't New York City — get
+out of the road!") is meant to sound genuinely put out, not to deliver a
+gentle joke.
 
 Drawn, a car sits at its own centre line — half a tile above the ground line
 of the row it is in — capped just under the player's depth, so it draws over
@@ -542,6 +765,28 @@ than three. Route 10 runs a saloon up and down NY 23 in Stamford and a pickup
 along NY 10 there, a van along Jefferson's Main Street, and a car along
 Hobart's. Keep waypoints — where a car pauses — off junction tiles, so nobody
 is ever left idling in the middle of a crossroads.
+
+A vehicle may also carry `"accent"`, a second hex colour for the engine-drawn
+placeholder: a stripe along the body's sides, under the windows, in the same
+place on every facing. And it may carry `"lights": true` for a small roof
+light bar, red and blue, alternating about every quarter second while the car
+is actually in service — driving, or standing still mid-scene between one
+`move` and the next — and lit but steady on a car simply parked from the
+start with nothing ever sending it anywhere. Both are ignored once a vehicle
+is painted, same as `colour`.
+
+A parked vehicle may also carry `"hidden": true`: a car that exists only for
+a scene, drawn nowhere and given way to by nobody — as if it were not on the
+map at all — until the first time a scene's `move` sends it somewhere
+(`Driver.sendTo`, engine/vehicle.ts), which reveals it for as long as this
+visit to the map lasts. A fresh map rebuilds it hidden again, so a story that
+sends the same car out more than once (a `lost` reset played again, say)
+always finds it waiting out of sight the same way. This is how Stamford's
+deputy truck (§2 "Getting lost") sits waiting at the edge of town rather than
+being an ordinary, unexplained parked truck every week the story never calls
+on it. Refused on anything but a parked vehicle (no `path`): a car this
+covers has nowhere of its own to drive until a scene sends it, which is what
+a parked one already is.
 
 Missing NPC sheet = generic townsperson sprite, drawn from that person's
 `look` (§4) in their own accent color. Missing portrait = no portrait pane.
@@ -588,16 +833,78 @@ and `effects` (applied when the node is shown/consumed). No code in content.
   "signs": [                                         // flavor, may vary by flags
     { "building": "mill-pond-inn", "requires": [],   // read at the door, with a prompt
       "replace": false,                              // default: the standing sign reads after it
-      "lines": ["Chalkboard: pizza night Monday and Wednesday. Underlined twice: RIBS SOLD OUT."] },
-    { "map": "stewarts-interior", "pos": [11, 4], "requires": [],   // a prop: no prompt
+      "lines": ["Chalkboard: pizza night Wednesdays. Underlined twice: SAVE ROOM FOR PIE."] },
+    { "map": "stewarts-interior", "pos": [11, 4], "requires": [],   // a prop, with the same prompt
       "lines": ["The ice cream case hums along beside the shelves."] }
   ]
 }
 ```
 
+An item's `requires`/`effects` decide when it's there to pick up and what
+picking it up does — same rules as a dialogue entry (§2's carry-verb section
+has the "persists and sets a flag" half of the story). Three more fields are
+for the "with you" panel alone (§2) and touch nothing else about how the item
+plays: `name` and `blurb` are its entry's words — the id verbatim, with no
+second line, when either is left out — and `until` is a declared flag, the
+same shape as `requires`, that takes the item off the panel the moment it
+goes true (usually the flag that closes out the story, the beat the item is
+handed back). No `until` and a picked-up item stays on the panel for good.
+
+An item is not always something lying on the ground to walk up to. `map` and
+`pos` are left out together for a **carried-only** item — one an NPC hands
+straight to the player mid-conversation, never placed anywhere for them to
+find. A dialogue entry does the handing-over: its own `item` names the
+episode item, and reading the entry to the end is what records it into
+`session().taken` (`engine/scenes/ui.ts`) — the very same set, and the very
+same "with you" panel, that a ground pickup's own `SayRequest.item` already
+uses (`engine/scenes/map.ts`). This is the one hook, used two ways, rather
+than a second effect that would only duplicate it: an item's `effects` are
+for the ground-pickup moment, so a carried-only item — which has no such
+moment — leaves `effects` and `lines` out entirely and lets the dialogue
+entry's own `effects` and `lines` carry the scene instead. ep002's Priya is
+the worked example — she presses her kid's costume bag on the player the
+first time they talk to her:
+
+```jsonc
+"items": [
+  { "id": "costume-bag", "requires": [],                 // no "map"/"pos": carried-only
+    "name": "Priya's costume bag", "blurb": "Half a dance costume, sequins and all.",
+    "until": "done" }                                    // off the panel once handed back
+],
+"npcs": [
+  { "id": "priya", "name": "Priya", "map": "jefferson", "pos": [30, 20],
+    "dialogue": [                                        // first match wins — guard entry first
+      { "requires": ["heardAsk"],
+        "lines": ["Hannah's over at Stewart's, in Stamford — start there if you haven't yet."] },
+      { "requires": [],
+        "lines": ["My kid's in a dance showcase in the city tonight, and half his costume is in this bag.",
+                   "Here — take it, would you?"],
+        "item": "costume-bag",                           // hands it over as this entry closes
+        "effects": [{ "set": "heardAsk" }, { "toast": "You've got the costume bag." }] }
+    ] }
+]
+```
+
+The `requires: ["heardAsk"]` entry has to come *before* the giving entry: first
+match wins, so once `heardAsk` is set the guard is what the player hears on
+every later visit, and the giving entry — reachable only when nothing else
+matches — never runs a second time to hand the bag over again.
+
+The validator checks both directions: a dialogue entry's `item` has to name a
+declared item, and an item with neither `map` nor `pos` has to actually be
+named by one of them somewhere — otherwise it could never be obtained at all.
+
 A sign carries exactly one of `building` (read at that building's door, with
-the A prompt) or `map` + `pos` (a prop such as a shelf or a counter, examined by
-standing next to it, deliberately with no prompt).
+the A prompt — see §2) or `map` + `pos` (a prop such as a shelf or a counter,
+examined by standing next to it).
+A prop's reach is deliberately tight: only an orthogonally adjacent tile
+counts as touching it, not a diagonal one and not one tile further off.
+Every prop the validator lets onto a map carries `lines` to read, so —
+reversing this schema's earlier call to leave props out of it — it gets the
+same little prompt as anything else in reach: a wall somebody has drawn on is
+as much a thing to press A on as a door or a fixture, and singling props out
+for silence just made a room's walls read as decoration rather than as
+readable.
 
 A building may also carry a **standing sign** in `world.json`, on its entry in
 the `buildings` registry — what is chalked up at its door on an ordinary day,
@@ -734,13 +1041,14 @@ The steps, one per entry, exactly one field each:
 
 | step | what it does | the scene waits for |
 | --- | --- | --- |
-| `move` | `who` walks to `to`, or along `path` waypoint by waypoint. `who` is an episode NPC's id, `"player"`, or `"vehicle:<id>"`. `speed` is tiles/second. | arrival |
+| `move` | `who` walks to `to`, or along `path` waypoint by waypoint. `who` is an episode NPC's id, `"player"`, or `"vehicle:<id>"`. `speed` is tiles/second — the player's own walk may take one too, for an arrival unhurried enough to actually watch. | arrival |
 | `say` | one dialogue box. `who` is an episode NPC; leave it out and the world's narrator speaks. | the box being dismissed |
 | `toast` | the little banner | nothing |
 | `wait` | a beat, at most 3 seconds | the beat, or A |
 | `camera` | look at a tile, or `"player"` to hand the camera back. `speed` is tiles/second. | the pan |
 | `set` | sets a declared flag — also how a scene turns an overlay on | nothing |
 | `light` | see below | nothing |
+| `player` | `{ "hide": true }` or `{ "show": {} }` (or `{ "show": { "at": [x, y] } }`) — see below | nothing |
 | `end` | stops the scene, whatever follows | — |
 
 A `move` on a `"vehicle:<id>"` names a car on that map — the village's own or
@@ -748,11 +1056,39 @@ this episode's — and it *drives*: over drivable tiles only, out through an
 exit if that is where the road goes, and it slows for anybody standing in the
 road rather than steering round them, exactly as ambient traffic does (§2).
 The validator checks every leg of it for paved road, starting from the tile
-the episode parked the car on.
+the episode (or the map, for one of its own cars — a `lost.arrive`, say)
+parked the car on, and from wherever a scene's own earlier `move` on that
+same car already sent it, leg by leg through the whole scene rather than only
+ever from where it started.
+
+A `move` whose own target tile is itself where the road runs out — the map's
+outer ring, or an `exits` rectangle that itself touches that ring, the same
+test a through-route ambient car's own last waypoint is read by (§2) — drives
+the car there and straight on past it, off the map, gone: the same
+`VANISH_TILES` drive off screen a through-route car takes between one lap and
+the next, except a scene-sent car has no route of its own to reappear at, so
+it simply stays gone (`onMap` false) rather than coming back, for as long as
+this visit to the map lasts. This is how the deputy's truck actually leaves
+Stamford rather than parking somewhere in town once the scene is done with
+it, and it costs a `lost.arrive` (or any other scene) nothing beyond naming
+the tile it already wanted to drive to.
+
+`player` hides or shows the player sprite: hidden, they draw nothing and are
+in nobody's way — not solid to a townsperson routing round them, not
+something a car gives way to — exactly as if they had stepped off the map for
+a moment, which is what lets a scene stand somebody else up in their place (a
+truck pulling in with nobody in it yet, `lost.arrive`, §2). `show` puts them
+back, at their current position, or at `show.at` when the scene means to
+place them fresh. Generic to any scene, not only `lost.arrive` — nothing else
+in the schema hides the player, so most scenes never touch it. A scene that
+ends without showing a player it hid shows them anyway, wherever they last
+stood, rather than stranding them invisible for good.
 
 The player keeps the controls between steps: townspeople crossing the room, the
 lights coming up and a toast all happen around somebody still free to walk
-about. The two exceptions are a `say` and a `move` of the player themselves.
+about. The exceptions are a `say`, a `move` of the player themselves, and a
+hidden player (above) — not something to walk, tap, or press A with, exactly
+the way a dialogue box holds them, until `show` puts them back.
 **A** cuts a `wait` short, and is swallowed while the scene has the controls, so
 a press meant to hurry a line along never strikes up a conversation with
 whoever happens to be standing there.
@@ -1098,8 +1434,8 @@ strong future-episode material.
 Hobart — "Jewel of the West Branch."
 
 **Buildings** (id → notes for flavor/interiors):
-- `mill-pond-inn` (Jefferson): inn + tavern; wood-fired pizza nights Mon &
-  Wed; ribs sell out.
+- `mill-pond-inn` (Jefferson): inn + tavern; wood-fired pizza nights Wed
+  only; ribs sell out.
 - `jefferson-town-hall` (Jefferson): limited posted hours; board-agenda humor.
 - `heartbreak-hotel` (Jefferson): bar/restaurant (not lodging); famous
   Saturday prime rib; reservations urged.

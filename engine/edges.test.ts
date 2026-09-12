@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { edgeAt, pickByPosition, rectsOverlap, roadEndLine } from './edges';
+import { edgeAt, lostAt, nearRect, pickByPosition, rectsOverlap, roadEndLine } from './edges';
 import { parseTiledMap } from './tiled';
-import type { GameMap, MapEdge } from './schema';
+import type { GameMap, MapEdge, MapLost } from './schema';
 
 // A tiny two-tile tileset — grass (walkable) and road (walkable) — enough to
 // tell `roadEndLine` a road tile from bare ground without pulling in the real
@@ -80,6 +80,34 @@ describe('rectsOverlap', () => {
   });
 });
 
+describe('nearRect', () => {
+  const rect: [number, number, number, number] = [5, 5, 2, 2];
+
+  it('is true inside the rectangle itself', () => {
+    expect(nearRect(rect, 5, 5, 1)).toBe(true);
+    expect(nearRect(rect, 6, 6, 1)).toBe(true);
+  });
+
+  it('is true one tile out with margin 1, including the corners', () => {
+    expect(nearRect(rect, 4, 5, 1)).toBe(true);
+    expect(nearRect(rect, 7, 5, 1)).toBe(true);
+    expect(nearRect(rect, 5, 4, 1)).toBe(true);
+    expect(nearRect(rect, 5, 7, 1)).toBe(true);
+    expect(nearRect(rect, 4, 4, 1)).toBe(true);
+  });
+
+  it('is false two tiles out with margin 1', () => {
+    expect(nearRect(rect, 3, 5, 1)).toBe(false);
+    expect(nearRect(rect, 8, 5, 1)).toBe(false);
+    expect(nearRect(rect, 5, 3, 1)).toBe(false);
+  });
+
+  it('with margin 0 matches only the rectangle itself, same as `within`', () => {
+    expect(nearRect(rect, 4, 5, 0)).toBe(false);
+    expect(nearRect(rect, 5, 5, 0)).toBe(true);
+  });
+});
+
 describe('edgeAt', () => {
   const edge: MapEdge = { id: 'north-road', at: [1, 0, 2, 1], lines: ['On it goes.'] };
   const map = { ...makeMap(['rrrr', 'rrrr']), edges: [edge] };
@@ -148,5 +176,68 @@ describe('roadEndLine', () => {
     expect(lines).toContain(roadEndLine(map, 0, 0, lines));
     expect(lines).toContain(roadEndLine(map, map.width - 1, 0, lines));
     expect(lines).toContain(roadEndLine(map, 0, map.height - 1, lines));
+  });
+});
+
+describe('lostAt', () => {
+  const lost: MapLost = { lines: ['You got turned around.'], to: 'town', spawn: [1, 1], facing: 'up' };
+  const woods = (rows: string[], extra: Partial<GameMap> = {}): GameMap => ({ ...makeMap(rows), lost, ...extra });
+
+  it('is the map\'s lost entry on grass at the boundary', () => {
+    const map = woods(['....', '....', '....']);
+    expect(lostAt(map, 0, 0)).toBe(lost);
+    expect(lostAt(map, 2, 0)).toBe(lost);
+    expect(lostAt(map, 0, 1)).toBe(lost);
+    expect(lostAt(map, map.width - 1, 1)).toBe(lost);
+    expect(lostAt(map, 1, map.height - 1)).toBe(lost);
+  });
+
+  it('is undefined on grass inside the map', () => {
+    const map = woods(['....', '....', '....']);
+    expect(lostAt(map, 1, 1)).toBeUndefined();
+    expect(lostAt(map, 2, 1)).toBeUndefined();
+  });
+
+  it('is undefined on a road at the boundary — that is a road end, not the woods', () => {
+    const map = woods(['r...', '....']);
+    expect(lostAt(map, 0, 0)).toBeUndefined();
+    expect(lostAt(map, 1, 0)).toBe(lost);
+  });
+
+  it('is undefined where an exit or an edge already stands', () => {
+    const map = woods(['......', '......'], {
+      exits: [{ id: 'away', at: [0, 0, 2, 1], to: 'town', spawn: [1, 1], facing: 'up', style: 'road' }],
+      edges: [{ id: 'north-road', at: [3, 0, 1, 1], lines: ['On it goes.'] }]
+    });
+    expect(lostAt(map, 0, 0)).toBeUndefined();
+    expect(lostAt(map, 1, 0)).toBeUndefined();
+    expect(lostAt(map, 3, 0)).toBeUndefined();
+  });
+
+  it('is undefined a tile adjacent to an exit or an edge — that is the road\'s shoulder, not the woods', () => {
+    const map = woods(['......', '......'], {
+      exits: [{ id: 'away', at: [0, 0, 2, 1], to: 'town', spawn: [1, 1], facing: 'up', style: 'road' }],
+      edges: [{ id: 'north-road', at: [3, 0, 1, 1], lines: ['On it goes.'] }]
+    });
+    // One tile out from the exit (which ends at x=1) and from the edge (at x=3).
+    expect(lostAt(map, 2, 0)).toBeUndefined();
+    expect(lostAt(map, 4, 0)).toBeUndefined();
+  });
+
+  it('is the map\'s lost entry two tiles from an exit or an edge', () => {
+    const map = woods(['......', '......'], {
+      exits: [{ id: 'away', at: [0, 0, 2, 1], to: 'town', spawn: [1, 1], facing: 'up', style: 'road' }],
+      edges: [{ id: 'north-road', at: [3, 0, 1, 1], lines: ['On it goes.'] }]
+    });
+    expect(lostAt(map, 5, 0)).toBe(lost);
+  });
+
+  it('is undefined on a map with no lost entry at all', () => {
+    expect(lostAt(makeMap(['....', '....']), 0, 0)).toBeUndefined();
+  });
+
+  it('is undefined off the map', () => {
+    expect(lostAt(woods(['....']), -1, 0)).toBeUndefined();
+    expect(lostAt(woods(['....']), 4, 0)).toBeUndefined();
   });
 });

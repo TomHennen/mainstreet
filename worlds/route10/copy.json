@@ -31,6 +31,12 @@
         "That's as far as this week's story goes — might as well turn back.",
         "Nothing more to find this way just yet. The village is waiting behind you."
     ],
+    "holler": [
+      "Hey! This isn't New York City — get out of the road!",
+      "You planning on standing there all day? Move it!",
+      "Road's for trucks, pal. Sidewalk's for people.",
+      "C'mon! Some of us have got places to be!"
+    ],
     "plaque": {
       "painted": "A little plaque by the door: {building}, painted by {credit}. Thank you, {credit}!",
       "anonymous": "A little plaque by the door: somebody painted {building} for everyone to enjoy. Thank you, whoever you are.",
@@ -56,6 +62,11 @@
       "about": "About this game",
       "paint": "Paint a building",
       "back": "Back"
+    },
+    "withYou": {
+      "button": "With you",
+      "title": "What you've got with you",
+      "empty": "Nothing on you right now — just yourself, out for a walk."
     },
     "suggest": {
       "lines": [
@@ -161,6 +172,10 @@
     "stewarts-exit": {
       "big": "HARPER STREET",
       "small": ""
+    },
+    "lost:stamford": {
+      "big": "STAMFORD",
+      "small": "riding back with the deputy, the heater going."
     }
   },
   "_todo": {
