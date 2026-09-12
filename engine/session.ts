@@ -21,6 +21,7 @@ import type {
   LightSpec,
   MapOverlay,
   Person,
+  PlacedItem,
   Vec2,
   Vehicle,
   World,
@@ -207,8 +208,8 @@ export const vehiclesOn = (mapId: string): Vehicle[] => [
   ...(session().episode.vehicles ?? []).filter((vehicle) => vehicle.map === mapId)
 ];
 
-export const itemsOn = (mapId: string): EpisodeItem[] =>
-  (session().episode.items ?? []).filter((item) => item.map === mapId);
+export const itemsOn = (mapId: string): PlacedItem[] =>
+  (session().episode.items ?? []).filter((item): item is PlacedItem => item.map === mapId);
 
 /**
  * An item is gone once it has been picked up, or once every flag it sets is
@@ -218,7 +219,11 @@ export const itemsOn = (mapId: string): EpisodeItem[] =>
  */
 export function itemTaken(item: EpisodeItem, state: Session = session()): boolean {
   if (state.taken.has(item.id)) return true;
-  return item.effects.every((effect) => !effect.set || state.flags.get(effect.set));
+  // Only ever called (via `itemsOn`/`itemVisible`) on an item that has a
+  // `map`, which is exactly the item that has `effects` too (a carried-only
+  // item, with neither, never reaches here) — the fallback default is
+  // defensive, not load-bearing.
+  return (item.effects ?? []).every((effect) => !effect.set || state.flags.get(effect.set));
 }
 
 export function itemVisible(item: EpisodeItem): boolean {
