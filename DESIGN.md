@@ -453,6 +453,12 @@ A tile within one tile of any `exits` or `edges` rectangle counts as that
 road's shoulder rather than the woods, so landing a step off a doorway out of
 town — the way tap-to-walk often does — is still the road, never lost.
 
+Getting lost is only ever deliberate: a tap-to-walk route never crosses a
+tile `lostAt` would fire on on its way to some other goal — same as it never
+cuts through an exit — so it only ever happens by holding a key or the d-pad
+straight into the woods, or by tapping the woods tile itself
+(`engine/scenes/map.ts` `walkableTo`).
+
 The controls lock, the map fades to black (a 500ms camera fade, so the
 still-lively town never shows through the words), the narrator says `lines`
 in the say box on top of that black, and when the last one is dismissed the
