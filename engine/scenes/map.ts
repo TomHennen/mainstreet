@@ -84,8 +84,8 @@ const SPEED = 102; // px/s — the prototype's 1.7px/frame at 60fps
  * car, so a big one is walked as a sequence of small ones instead.
  */
 const MAX_STEP_PX = TILE / 4;
-/** A stalled or enormous `delta` coarsens the slices rather than spinning this loop away — see `MAX_STEPS` in engine/vehicle.ts. */
-const MAX_MOVE_STEPS = 64;
+/** A stalled or enormous `delta` coarsens the slices rather than spinning this loop away — see `MAX_STEPS` in engine/vehicle.ts (kept smaller here: the player never approaches a car's own top speed, so this many slices already covers a real stall many times over). */
+const MAX_MOVE_STEPS = 8;
 const HITBOX = TILE;
 const MARGIN = 4;
 /** A map smaller than the view may be scaled up this far before it looks coarse. */
@@ -714,7 +714,12 @@ export class MapScene extends Phaser.Scene {
     const tiles = Math.hypot(target.x - from.x, target.y - from.y) / TILE;
     const ms = Math.max(120, (tiles / Math.max(1, speed ?? PAN_SPEED)) * 1000);
     camera.stopFollow();
-    camera.pan(target.x, target.y, ms, 'Sine.easeInOut', true, (_c, progress) => {
+    // Phaser's own camera pan runs on real wall-clock time, same as a tween
+    // (engine/scenes/travel.ts) — scaled the same way, so it still finishes
+    // in step with the scene `wait`s either side of it (SceneRunner.update,
+    // fed the same scaled dt), rather than one running at TIMESCALE and the
+    // other at 1x.
+    camera.pan(target.x, target.y, scaled(ms), 'Sine.easeInOut', true, (_c, progress) => {
       // Back on the player's shoulder the moment the pan home lands, so the
       // controls never feel as though they have been kept.
       if (to === 'player' && progress >= 1) camera.startFollow(this.player, true, 1, 1);
@@ -1890,10 +1895,12 @@ export class MapScene extends Phaser.Scene {
     const state = session();
     // The dialogue overlay owns the action button while it is open, and for a
     // beat after it closes, so dismissing a line can never re-trigger a talk.
-    // That beat is a real 200ms regardless of `timeScale` (engine/timescale.ts)
-    // — scaled the same way the action debounce is (engine/input.ts) — so a
-    // headless run's much shorter gap between one press and the next never
-    // lands inside a window sized for real play.
+    // That beat is 200ms of game time — scaled down the same way the action
+    // debounce is (engine/input.ts, engine/timescale.ts), so it's 100ms of
+    // real wall-clock at TIMESCALE=2 — long enough, relative to how much
+    // faster everything else is moving, that a headless run's much shorter
+    // real gap between two presses still can't re-trigger a talk it only
+    // just closed.
     if (state.locked || state.dialogueOpen || performance.now() - state.lastDialogueClose < scaled(200)) return;
 
     // A tap aimed at a door that is disarmed — the very one the player is
@@ -2108,13 +2115,14 @@ export class MapScene extends Phaser.Scene {
       this.doorPressMs = 0;
     }
 
-    // The threshold scales up by the same factor `delta` was scaled by
-    // (engine/timescale.ts), so it still takes the same *real* stretch of
-    // held "up" to open a door — otherwise a headless run's much bigger
-    // `delta` would count a single frame's worth of incidentally overshooting
-    // into a doorframe (crossing from one held leg of a walk to the next,
-    // say) as a genuine sustained press, and open doors nobody leaned on.
-    const result = doorPressAdvance(this.enterArmed, dy < 0, stuck, delta, this.doorPressMs, DOOR_PRESS_MS * timeScale());
+    // The threshold itself is left unscaled, deliberately, like every other
+    // `delta`-driven measure (a scene's own `wait`, a car's holler clock):
+    // `delta` is already scaled once, at the top of `update()`
+    // (engine/timescale.ts), so `this.doorPressMs` already accumulates game
+    // time, not real time, and 180 game-ms of genuinely stuck-against-a-door
+    // is 180 game-ms at any TIMESCALE — same as a scene's `wait: 0.18` would
+    // be. Scaling the threshold too would double-count it.
+    const result = doorPressAdvance(this.enterArmed, dy < 0, stuck, delta, this.doorPressMs, DOOR_PRESS_MS);
     this.doorPressMs = result.ms;
     if (!result.open) return;
 

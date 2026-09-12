@@ -147,6 +147,14 @@ const scaledWait = (ms) => sleep(Math.max(16, Math.round(ms / TIMESCALE)));
 const GAME_URL = `${BASE}?episode=${encodeURIComponent(PLAYTEST_EPISODE)}&timescale=${TIMESCALE}`;
 /** The title screen (no `?episode=`), at the same `timescale`. */
 const TITLE_URL = `${BASE}?timescale=${TIMESCALE}`;
+/**
+ * The touch pass's own page (below) loads at real speed, `timescale` left at
+ * 1: `touch-debounce` there measures real CDP dispatch timing against the
+ * actual shipped ~220ms debounce window (`ACTION_DEBOUNCE_MS`, engine/
+ * input.ts) — the one a real player's thumb meets — not a synthetic, scaled-
+ * down one nothing outside this test ever sees.
+ */
+const GAME_URL_REAL_SPEED = `${BASE}?episode=${encodeURIComponent(PLAYTEST_EPISODE)}&timescale=1`;
 
 /**
  * The tile grids are Tiled files (DESIGN.md §2). This reads them the way the
@@ -574,7 +582,7 @@ function overlapDepth(a, b) {
  * never overshoots into the neighbouring tile (which would change what the
  * engine's 8px-inset hitbox collides with).
  */
-async function hold(page, dir, axis, target, sign) {
+async function hold(page, dir, axis, target, sign, eps = TILE_EPS) {
   await page.keyboard.down(KEY[dir]);
   const result = await page.evaluate(
     ({ key, axis, target, sign, eps }) =>
@@ -603,7 +611,7 @@ async function hold(page, dir, axis, target, sign) {
         };
         requestAnimationFrame(tick);
       }),
-    { key: KEY[dir], axis, target, sign, eps: TILE_EPS }
+    { key: KEY[dir], axis, target, sign, eps }
   );
   await page.keyboard.up(KEY[dir]);
   return result;
@@ -666,15 +674,116 @@ async function holdAndTrace(page, dir, axis, target, sign, stopAtCar) {
 }
 
 /**
+ * How close to a tile's exact centre `walkTo` settles before returning, and
+ * the same `hold()` `eps` the correction uses to get there (`settleOnTile`,
+ * below) — deliberately the original, un-widened `TILE_EPS` a 1x run has
+ * always used (unlike the module's own `TILE_EPS`, which widens with
+ * TIMESCALE, for speed, and can leave a held-key walk anywhere up to that
+ * much off-centre). Using anything tighter here doesn't help: `hold()`
+ * itself only ever promises to land within its own `eps` of the target, so
+ * asking it to verify against a stricter tolerance than the one it was
+ * given (a first, failed cut of this used 0.05) just means it calls itself
+ * "arrived" one frame before satisfying a check it was never aiming for.
+ * REACH.prop/REACH.plaque (1.1/0.75, engine/scenes/map.ts) were sized around
+ * exactly this real-play slack in the first place ("movement... lands as far
+ * as ~1.05 off-centre") — this settles to no better than a 1x walk always
+ * has, just independent of whatever TIMESCALE the rest of the run is at.
+ */
+const SETTLE_EPS = 0.06;
+
+/**
+ * The last, short correction after `walkTo`'s own (TIMESCALE-widened)
+ * `TILE_EPS` has already landed close, so every walk finishes on the tile's
+ * exact centre — independent of how fast it got there — rather than
+ * wherever the wider tolerance happened to stop it.
+ *
+ * Not a tighter-eps `hold()` at the run's own TIMESCALE: that has the same
+ * per-frame travel as the walk that just got here, sped up the same way, so
+ * it just as easily overshoots a tolerance this tight — one frame past the
+ * window on one side, then the next correction overshoots back past it the
+ * other way, hunting forever rather than converging (found the hard way:
+ * logging it showed the player bouncing between two points either side of
+ * the goal, never inside `SETTLE_EPS`). Nor a tap-walk (`MapScene.
+ * followPath` always finishes one with an *exact* snap onto the goal,
+ * independent of TIMESCALE, which sounds right) — except a tap this close to
+ * whatever the walk just arrived beside almost always lands inside *its* own
+ * reach zone too (`MapScene.tapTargetAt`), so the "walk" is read as a tap on
+ * that instead: it opens the very thing this function is trying to leave
+ * alone to open once, from the real press right after it (found this the
+ * hard way too, arriving at a sign's approach tile with a shelf already half
+ * read).
+ *
+ * So instead: the same `hold()` the main walk used, at the same tight eps
+ * REACH's own margins were sized around, with `timeScale` (engine/
+ * timescale.ts) dropped to 1 for exactly as long as the correction takes —
+ * through the harness's own debug hook (`window.__mainstreetSetTimeScale`,
+ * like the flag setter it sits beside), never touched by real play. At 1x, a
+ * frame's own travel is small enough that this tight eps behaves exactly as
+ * it always has, at any TIMESCALE the run is otherwise using.
+ */
+async function settleOnTile(page, milestone, goal) {
+  const first = await snap(page);
+  if (!first) fail(milestone, 'window.__mainstreet is missing');
+  if (first.locked || first.dialogueOpen) return;
+  if (Math.abs(goal[0] - first.x) <= SETTLE_EPS && Math.abs(goal[1] - first.y) <= SETTLE_EPS) return;
+
+  await evalIn(page, 'drop to real speed to settle', () => window.__mainstreetSetTimeScale?.(1));
+  try {
+    // A couple of rounds, not just one: `hold()` only ever promises to land
+    // within its own `eps`, and — being right on the tile already — a whole
+    // extra frame's travel the wrong way is rare but not impossible, so one
+    // more short nudge is worth it before calling this a failure.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const s = await snap(page);
+      if (s.locked || s.dialogueOpen) return;
+      const dx = goal[0] - s.x;
+      const dy = goal[1] - s.y;
+      if (Math.abs(dx) <= SETTLE_EPS && Math.abs(dy) <= SETTLE_EPS) return;
+      if (Math.abs(dx) > SETTLE_EPS) {
+        const { reason, state } = await hold(page, dx > 0 ? 'right' : 'left', 'x', goal[0], Math.sign(dx), SETTLE_EPS);
+        if (reason === 'interrupted') return;
+        if (reason !== 'arrived') {
+          fail(milestone, `settling onto ${goal}'s centre (x) ended with "${reason}" at ${JSON.stringify(state)}`);
+        }
+      }
+      if (Math.abs(dy) > SETTLE_EPS) {
+        const { reason, state } = await hold(page, dy > 0 ? 'down' : 'up', 'y', goal[1], Math.sign(dy), SETTLE_EPS);
+        if (reason === 'interrupted') return;
+        if (reason !== 'arrived') {
+          fail(milestone, `settling onto ${goal}'s centre (y) ended with "${reason}" at ${JSON.stringify(state)}`);
+        }
+      }
+    }
+  } finally {
+    await evalIn(page, 'restore TIMESCALE', (t) => window.__mainstreetSetTimeScale?.(t), TIMESCALE);
+  }
+
+  const done = await snap(page);
+  if (done.locked || done.dialogueOpen) return;
+  if (Math.abs(goal[0] - done.x) > SETTLE_EPS || Math.abs(goal[1] - done.y) > SETTLE_EPS) {
+    fail(
+      milestone,
+      `settling onto ${goal}'s centre left the player at (x=${done.x.toFixed(3)}, y=${done.y.toFixed(3)})`
+    );
+  }
+}
+
+/**
  * Walks to a tile. `allowInterrupt` is for tiles that are exit triggers: the
- * engine locks input the instant the player steps on one.
+ * engine locks input the instant the player steps on one. Every successful
+ * arrival is settled onto the tile's exact centre (`settleOnTile`) before
+ * returning, regardless of TIMESCALE, so whatever a caller does next — most
+ * often pressing A — reads the same real distance a 1x run always has.
  */
 async function walkTo(page, milestone, goal, { allowInterrupt = false, episode = EPISODE } = {}) {
   for (let attempt = 0; attempt < 4; attempt++) {
     const s = await snap(page);
     if (!s) fail(milestone, 'window.__mainstreet is missing');
     const from = here(s);
-    if (from[0] === goal[0] && from[1] === goal[1]) return;
+    if (from[0] === goal[0] && from[1] === goal[1]) {
+      await settleOnTile(page, milestone, goal);
+      return;
+    }
     const path = findPath(s.map, from, goal, episode);
     if (!path) fail(milestone, `no walkable path on "${s.map}" from ${from} to ${goal}`);
 
@@ -716,7 +825,10 @@ async function walkTo(page, milestone, goal, { allowInterrupt = false, episode =
     }
     const after = await snap(page);
     const at = here(after);
-    if (at[0] === goal[0] && at[1] === goal[1]) return;
+    if (at[0] === goal[0] && at[1] === goal[1]) {
+      await settleOnTile(page, milestone, goal);
+      return;
+    }
     if (allowInterrupt && (after.locked || after.map !== s.map)) return;
   }
   const s = await snap(page);
@@ -2407,26 +2519,30 @@ async function main() {
     const tp = await touchCtx.newPage();
     attach(tp, 'touch');
     const cdp = await touchCtx.newCDPSession(tp);
-    await tp.goto(GAME_URL, { waitUntil: 'load' });
+    await tp.goto(GAME_URL_REAL_SPEED, { waitUntil: 'load' });
     await waitUntil(tp, (s) => s.dialogueOpen, 'the intro on the touch page');
     await shot(tp, 'touch-boot');
+
+    // This whole page runs at real speed (GAME_URL_REAL_SPEED, above), so
+    // every wait in it is a plain, unscaled `sleep` — `scaledWait` would
+    // divide by the run's TIMESCALE while this page is still moving at 1x.
 
     // Tapping the game surface advances dialogue and nothing else.
     for (let i = 0; i < 4; i++) {
       const s = await snap(tp);
       if (!s.dialogueOpen) break;
       await tapEl(cdp, tp, '#stage');
-      await scaledWait(320);
+      await sleep(320);
     }
     if ((await snap(tp)).dialogueOpen) fail('touch-intro', 'tapping #stage did not dismiss the intro');
 
     const before = await snap(tp);
     const dpad = await centerOf(tp, '[data-dpad=up]');
     await touchAt(cdp, 'touchStart', dpad.x, dpad.y);
-    await scaledWait(700);
+    await sleep(700);
     const during = await snap(tp);
     await touchAt(cdp, 'touchEnd', dpad.x, dpad.y);
-    await scaledWait(150);
+    await sleep(150);
     const afterHold = await snap(tp);
     if (!(during.y < before.y - 0.5)) {
       fail('touch-dpad', `holding ▲ did not move the player: y ${before.y.toFixed(2)} -> ${during.y.toFixed(2)}`);
@@ -2438,7 +2554,7 @@ async function main() {
     await shot(tp, 'touch-dpad');
 
     await tapEl(cdp, tp, '#btnA');
-    await scaledWait(250);
+    await sleep(250);
     await expectDialogue(tp, 'touch-a', 'Earl, via the A button');
     await shot(tp, 'touch-dialogue');
 
@@ -2468,20 +2584,14 @@ async function main() {
     const taps = await tp.evaluate(() => window.__taps);
     if (taps.length !== 3) fail('touch-debounce', `expected 3 pointerdowns on #btnA, saw ${taps.length}`);
     const burstMs = Math.round(taps[2] - taps[0]);
-    // The debounce itself scales down with everything else (engine/input.ts,
-    // engine/timescale.ts), so the burst has to fit inside *that* window, not
-    // the nominal 220ms — the real one at this TIMESCALE.
-    const debounceMs = 220 / TIMESCALE;
-    if (burstMs >= debounceMs) {
-      fail('touch-debounce', `burst spanned ${burstMs}ms — wider than the ${debounceMs}ms debounce at this TIMESCALE`);
-    }
-    await scaledWait(320);
+    if (burstMs >= 220) fail('touch-debounce', `burst spanned ${burstMs}ms — wider than the 220ms debounce`);
+    await sleep(320);
     if (!(await snap(tp)).dialogueOpen) {
       fail('touch-debounce', `A multi-fired: 3 taps spanning ${burstMs}ms ran through all ${N} lines at once`);
     }
     for (let i = 0; i < N - 2; i++) {
       await tapPoint(cdp, btnA);
-      await scaledWait(320);
+      await sleep(320);
     }
     if (!(await snap(tp)).dialogueOpen) {
       fail(
@@ -2491,7 +2601,7 @@ async function main() {
     }
     log(`    debounce ok (3 taps spanning ${burstMs}ms advanced exactly once through a ${N}-line entry)`);
     await tapPoint(cdp, btnA);
-    await scaledWait(320);
+    await sleep(320);
     const closed = await snap(tp);
     if (closed.dialogueOpen) fail('touch-debounce', 'the last line never closed');
     expectFlag(closed, 'touch-debounce', 'metEarl');

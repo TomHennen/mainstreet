@@ -210,6 +210,8 @@ declare global {
     __mainstreet?: DebugSnapshot;
     __mainstreetTitle?: DebugTitle | null;
     __mainstreetSetFlag?: (name: string) => boolean;
+    /** `engine/timescale.ts`'s `setTimeScale`, published the same dev-only way (`engine/main.ts`). */
+    __mainstreetSetTimeScale?: (scale: number) => void;
   }
 }
 
