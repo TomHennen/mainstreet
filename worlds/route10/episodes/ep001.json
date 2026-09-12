@@ -193,7 +193,10 @@
       "lines": [
         "A scruffy dog is stretched out in the shade by the mill pond: grey muzzle, one ear straight up, thoroughly content.",
         "Scout trots over like he had been expecting you all along, and falls in beside you as though it were his idea."
-      ]
+      ],
+      "name": "Scout",
+      "blurb": "Scout, trotting along beside you, pleased with himself. Nora's waiting on the patio at Stamford Coffee.",
+      "until": "done"
     }
   ],
   "signs": [

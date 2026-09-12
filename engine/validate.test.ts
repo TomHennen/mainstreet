@@ -4,10 +4,20 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseTiledMap, parseTileset, tilesetSources } from './tiled';
 import type { TilesetDef } from './tiled';
-import { driveable, isSolid, moverWalkable, overlayNotes, validateEpisode, validateWorld } from './validate';
+import { driveable, isSolid, moverWalkable, overlayNotes, validateCopy, validateEpisode, validateWorld } from './validate';
 import { hashId, Mover } from './mover';
 import { plaqueTile } from './schema';
-import type { BuildingDef, BuildingPlacement, Episode, Fixture, GameMap, MapMeta, World } from './schema';
+import type {
+  BuildingDef,
+  BuildingPlacement,
+  Episode,
+  EpisodeItem,
+  Fixture,
+  GameMap,
+  MapMeta,
+  World,
+  WorldCopy
+} from './schema';
 
 // --- small fixture builders --------------------------------------------------
 // Kept deliberately minimal — just enough to satisfy the schema — so each test
@@ -451,8 +461,11 @@ describe('validateWorld', () => {
     const world = makeWorld({
       maps: {
         town: makeMap({
+          // A footprint one row deep with the door in its middle column, one
+          // row below it — the door sits outside the footprint's own solid
+          // rectangle, the way a real door does (DESIGN.md §2).
           buildings: [
-            { id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1], interior: 'shop-interior', enter: [0, 0] }
+            { id: 'shop', pos: [0, 0], size: [3, 1], door: [1, 1], interior: 'shop-interior', enter: [0, 0] }
           ]
         })
       }
@@ -645,20 +658,29 @@ describe('validateWorld', () => {
     expect(runWorld(blank).join('\n')).toContain('has nothing to read on it');
   });
 
-  // Read at a prop's reach (engine/reach.ts): two tiles straight on is close
-  // enough, which is how a shelf on the back wall is read across the counter.
-  it('accepts a map sign behind a counter, read from two tiles away', () => {
-    const world = makeWorld({
+  // Read at a prop's reach (engine/reach.ts): touching distance, the tile
+  // beside it and nothing further. A shelf on the wall behind a counter has
+  // no such tile, so its words hang on the counter tile in front instead
+  // (scripts/make-room.ts `signAt`) and are read from the customer side.
+  it('flags a map sign boxed in behind a counter, and accepts its words hung on the counter', () => {
+    const behind = makeWorld({
       maps: {
         town: makeMap({ signs: [{ pos: [3, 3], lines: ['Bottles, behind the counter.'] }] }, ['.....', '.....', '#####', '#####', '#####'])
       }
     });
-    expect(runWorld(world)).toEqual([]);
+    expect(runWorld(behind).join('\n')).toContain('sign at 3,3 has nowhere beside it to read it from');
+    const onTheCounter = makeWorld({
+      maps: {
+        town: makeMap({ signs: [{ pos: [3, 2], lines: ['Bottles, behind the counter.'] }] }, ['.....', '.....', '#####', '#####', '#####'])
+      }
+    });
+    expect(runWorld(onTheCounter)).toEqual([]);
   });
 
   // Reach is a distance, and two rooms can sit back to back with one wall
-  // between them; the sign is still only readable from its own side
-  // (engine/reach.ts `clearBetween`, over the tileset's `opaque`).
+  // between them; whatever the reach, the sign is only readable from its own
+  // side (engine/reach.ts `clearBetween`, over the tileset's `opaque`) —
+  // and at touching distance, from beside it.
   it('flags a map sign whose only reading spot is two tiles away through an opaque wall', () => {
     const throughWall = makeWorld({
       maps: {
@@ -669,16 +691,16 @@ describe('validateWorld', () => {
       }
     });
     expect(runWorld(throughWall).join('\n')).toContain('sign at 2,3 has nowhere beside it to read it from');
-    // The same shelf with a counter between instead is read across it.
-    const acrossCounter = makeWorld({
+    // The same shelf with floor beside it on its own side is read from there.
+    const ownSide = makeWorld({
       maps: {
         town: makeMap(
-          { signs: [{ pos: [2, 3], lines: ['A shelf, across the counter.'] }] },
-          ['.....', '.....', '#####', '#####', '#####']
+          { signs: [{ pos: [2, 3], lines: ['A shelf, from the right room.'] }] },
+          ['.....', '.....', 'WWWWW', '#####', '.....']
         )
       }
     });
-    expect(runWorld(acrossCounter)).toEqual([]);
+    expect(runWorld(ownSide)).toEqual([]);
   });
 
   it('accepts a map sign hung on an opaque wall, read from beside it', () => {
@@ -766,9 +788,72 @@ describe('validateWorld', () => {
       const world = makeWorld({
         maps: { town: makeMap({ edges: [{ id: 'north-road', at: [0, 0, 2, 1], lines: ['Fine.', '  '] }] }) }
       });
-      expect(runWorld(world).join('\n')).toContain('map "town" edge "north-road" line 1 is empty');
+      expect(runWorld(world).join('\n')).toContain('map "town" edge "north-road" line 2 is empty');
+    });
+  });
+
+  describe('lost', () => {
+    const lost = { lines: ['You got turned around.'], to: 'town', spawn: [2, 2] as [number, number], facing: 'up' as const };
+
+    it('accepts a lost entry that lands on a walkable tile of a real map', () => {
+      expect(runWorld(makeWorld({ maps: { town: makeMap({ lost }) } }))).toEqual([]);
     });
 
+    it('flags a lost entry leading to an unknown map', () => {
+      const world = makeWorld({ maps: { town: makeMap({ lost: { ...lost, to: 'nowhere' } }) } });
+      expect(runWorld(world).join('\n')).toContain('map "town" "lost" leads to unknown map "nowhere"');
+    });
+
+    it('flags a lost entry that spawns on a solid tile', () => {
+      const world = makeWorld({ maps: { town: makeMap({ lost }, ['....', '....', '..#.', '....']) } });
+      expect(runWorld(world).join('\n')).toContain('map "town" "lost" spawns on a solid tile in "town"');
+    });
+
+    it('flags a lost entry that spawns inside a building footprint', () => {
+      const world = makeWorld({
+        maps: { town: makeMap({ lost, buildings: [{ id: 'shop', pos: [2, 2], size: [1, 1], door: [2, 1] }] }) }
+      });
+      expect(runWorld(world).join('\n')).toContain('map "town" "lost" spawns on a solid tile in "town"');
+    });
+
+    it('flags a lost entry that spawns outside its map', () => {
+      const world = makeWorld({ maps: { town: makeMap({ lost: { ...lost, spawn: [9, 9] } }) } });
+      expect(runWorld(world).join('\n')).toContain('map "town" "lost" spawn is outside the map');
+    });
+
+    it('flags a lost entry with an unknown facing', () => {
+      const world = makeWorld({ maps: { town: makeMap({ lost: { ...lost, facing: 'sideways' as never } }) } });
+      expect(runWorld(world).join('\n')).toContain('map "town" "lost" has an unknown "facing"');
+    });
+
+    it('flags a lost entry with no lines, or an empty one', () => {
+      const none = makeWorld({ maps: { town: makeMap({ lost: { ...lost, lines: [] } }) } });
+      expect(runWorld(none).join('\n')).toContain('map "town" "lost" has no "lines"');
+      const blank = makeWorld({ maps: { town: makeMap({ lost: { ...lost, lines: ['Fine.', ' '] } }) } });
+      expect(runWorld(blank).join('\n')).toContain('map "town" "lost" line 2 is empty');
+    });
+
+    it('flags a lost entry on a map that is not a village', () => {
+      const world = makeWorld({ maps: { town: makeMap({ kind: 'interior', lost }) } });
+      expect(runWorld(world).join('\n')).toContain('map "town" "lost" is on a "interior" map — only a village can have "lost"');
+    });
+
+    it('flags a lost entry leading to a map that is not a village', () => {
+      const world = makeWorld({
+        maps: {
+          town: makeMap({ lost: { ...lost, to: 'cabin', spawn: [1, 1] } }),
+          cabin: makeMap({ kind: 'interior' }, ['....', '....'])
+        }
+      });
+      expect(runWorld(world).join('\n')).toContain('map "town" "lost" leads to "cabin", which isn\'t a village');
+    });
+
+    it('flags a lost entry whose spawn is itself lost-eligible — the player would get lost again on arrival', () => {
+      const world = makeWorld({ maps: { town: makeMap({ lost: { ...lost, spawn: [0, 0] } }) } });
+      expect(runWorld(world).join('\n')).toContain(
+        'map "town" "lost" spawns onto "town"\'s own "lost" boundary — the player would get lost again on arrival'
+      );
+    });
   });
 
   // The carry verbs (DESIGN.md §2): one fixture hands a token over, another
@@ -807,6 +892,60 @@ describe('validateWorld', () => {
       'has to be more than none'
     );
     expect(carrying({ take: 'log', lines: ['a'], otherwise: ['b'], glow: 60 })).toBe('');
+  });
+
+  // The "with you" panel's own words for the token (DESIGN.md §2).
+  it('accepts a fixture with heldName/heldBlurb written', () => {
+    expect(
+      carrying({
+        give: 'log',
+        lines: ['a'],
+        otherwise: ['b'],
+        heldName: 'A split log',
+        heldBlurb: 'Tucked under your arm.'
+      })
+    ).toBe('');
+  });
+
+  it('flags an empty heldName or heldBlurb', () => {
+    expect(carrying({ give: 'log', lines: ['a'], otherwise: ['b'], heldName: '  ' })).toContain(
+      '"heldName" is empty'
+    );
+    expect(carrying({ give: 'log', lines: ['a'], otherwise: ['b'], heldBlurb: '' })).toContain(
+      '"heldBlurb" is empty'
+    );
+  });
+});
+
+describe('validateCopy', () => {
+  const baseCopy: WorldCopy = {
+    ui: {
+      narrator: 'You',
+      advance: '▼',
+      unpainted: '',
+      plaque: { painted: '', anonymous: '', unpainted: '' }
+    },
+    transitions: {}
+  };
+
+  it('accepts copy with no `withYou` at all', () => {
+    expect(validateCopy(baseCopy)).toEqual([]);
+  });
+
+  it('accepts a fully-written `withYou`', () => {
+    const copy: WorldCopy = {
+      ...baseCopy,
+      ui: { ...baseCopy.ui, withYou: { button: 'With you', title: 'What you have', empty: 'Nothing on you.' } }
+    };
+    expect(validateCopy(copy)).toEqual([]);
+  });
+
+  it('flags an empty withYou.button/title/empty', () => {
+    const withField = (field: 'button' | 'title' | 'empty', value: string) =>
+      validateCopy({ ...baseCopy, ui: { ...baseCopy.ui, withYou: { [field]: value } } }).join('\n');
+    expect(withField('button', '  ')).toContain('ui.withYou.button is empty');
+    expect(withField('title', '')).toContain('ui.withYou.title is empty');
+    expect(withField('empty', '   ')).toContain('ui.withYou.empty is empty');
   });
 });
 
@@ -969,6 +1108,48 @@ describe('validateEpisode', () => {
       items: [{ id: 'pen', map: 'town', pos: [0, 0], requires: ['metNpc'], effects: [{ set: 'done' }], lines: ['a'] }]
     });
     expect(runEpisode(episode, world)).toEqual([]);
+  });
+
+  // The "with you" panel's own fields (DESIGN.md §2/§3).
+  it('accepts an item with name, blurb and a declared `until` flag', () => {
+    const episode = makeEpisode({
+      items: [
+        {
+          id: 'pen',
+          map: 'town',
+          pos: [0, 0],
+          requires: [],
+          effects: [{ set: 'metNpc' }],
+          lines: ['a'],
+          name: "Earl's pen",
+          blurb: 'A fine ballpoint.',
+          until: 'done'
+        }
+      ]
+    });
+    expect(runEpisode(episode, world)).toEqual([]);
+  });
+
+  it('flags an item whose `until` names an undeclared flag', () => {
+    const episode = makeEpisode({
+      items: [
+        { id: 'pen', map: 'town', pos: [0, 0], requires: [], effects: [{ set: 'done' }], lines: ['a'], until: 'ghostFlag' }
+      ]
+    });
+    const problems = runEpisode(episode, world);
+    expect(problems.join('\n')).toContain('item "pen" uses undeclared flag "ghostFlag"');
+  });
+
+  it('flags an empty item name or blurb', () => {
+    const named = (overrides: Partial<EpisodeItem>) =>
+      runEpisode(
+        makeEpisode({
+          items: [{ id: 'pen', map: 'town', pos: [0, 0], requires: [], effects: [{ set: 'done' }], lines: ['a'], ...overrides }]
+        }),
+        world
+      ).join('\n');
+    expect(named({ name: '  ' })).toContain('item "pen" "name" is empty');
+    expect(named({ blurb: '' })).toContain('item "pen" "blurb" is empty');
   });
 
   it('flags a sign that requires an undeclared flag', () => {
@@ -1210,6 +1391,26 @@ describe('plaqueTile', () => {
 
   it('returns null when the placement opts out', () => {
     expect(plaqueTile(place({ plaque: false }))).toBeNull();
+  });
+});
+
+describe('moverWalkable', () => {
+  it("excludes a building's door and plaque tile from where a townsperson may stand", () => {
+    // A footprint one row deep (row 0) with the door — and so the plaque too
+    // — on the real, walkable row just below it.
+    const map = makeMap({
+      buildings: [
+        { id: 'shop', pos: [0, 0], size: [4, 1], door: [1, 1], interior: 'shop-interior', enter: [0, 0] }
+      ]
+    });
+    // door=[1,1], plaque default=[2,1] (right of the door).
+    const walkable = moverWalkable(map);
+    expect(walkable(1, 1)).toBe(false);
+    expect(walkable(2, 1)).toBe(false);
+    // Elsewhere on this 4x4 grid stays open to a townsperson's route or wander.
+    expect(walkable(0, 1)).toBe(true);
+    expect(walkable(3, 1)).toBe(true);
+    expect(walkable(1, 3)).toBe(true);
   });
 });
 
@@ -1615,6 +1816,38 @@ describe('scenes', () => {
     expect(stranded([0, 4])).toContain('no paved way through');
   });
 
+  it("checks a second leg from where the scene's own first move actually left the car, not from its original parked pos", () => {
+    // A paved run along the top (0,0)-(5,0), and one isolated paved tile at
+    // (0,4) with no drivable neighbour at all — reachable from nowhere. The
+    // first move parks the car at the far end of the top run; the second
+    // asks for the isolated tile, which has no way in from anywhere, the
+    // original parked pos included. Both report "no paved way through"
+    // either way (paved.pos and the first move's target are themselves
+    // connected, so one failing means the other does too) — what threading
+    // changes is which tile the message says the car was leaving from.
+    const paved = makeWorld({
+      maps: {
+        town: makeMap({}, ['======....', '..........', '..........', '..........', '='.padEnd(10, '.')])
+      }
+    });
+    const episode = makeEpisode({
+      vehicles: [{ id: 'pickup', map: 'town', kind: 'pickup', colour: '#8a6b48', pos: [0, 0] }] as never,
+      scenes: [
+        {
+          id: 'off',
+          on: { flag: 'done' },
+          steps: [
+            { move: { who: 'vehicle:pickup', to: [5, 0] } },
+            { move: { who: 'vehicle:pickup', to: [0, 4] } }
+          ]
+        } as never
+      ]
+    });
+    const problems = runEpisode(episode, paved).join('\n');
+    expect(problems).toContain('cannot drive from 5,0 to 0,4');
+    expect(problems).not.toContain('cannot drive from 0,0 to 0,4');
+  });
+
   it('flags a speaker who is not in the episode, and empty lines', () => {
     expect(runEpisode(withScene([{ say: { who: 'ghost', lines: ['hi'] } }]), world()).join('\n')).toContain(
       'has "ghost" speaking, who is not in this episode'
@@ -1722,6 +1955,19 @@ describe('overlays', () => {
     expect(
       runEpisode(withOverlay([{ id: 'm', map: 'town', requires: [], tiles: [{ pos: [99, 0], tile: 1 }] }]), world()).join('\n')
     ).toContain('outside map "town"');
+  });
+
+  it('refuses to let an overlay wall a "lost" spawn in — an arrival, same as a door', () => {
+    const withLost = makeMap(
+      {
+        buildings: [{ id: 'shop', pos: [5, 0], size: [2, 2], door: [5, 2] }],
+        lost: { lines: ['You wander off into the grass.'], to: 'town', spawn: [3, 2], facing: 'up' }
+      },
+      ROWS
+    );
+    const episode = withOverlay([{ id: 'wall-in', map: 'town', requires: [], tiles: [{ pos: [3, 2], tile: 1 }] }]);
+    const problems = runEpisode(episode, makeWorld({ maps: { town: withLost } })).join('\n');
+    expect(problems).toContain('the player arrives at 3,2 on ground nobody can stand on');
   });
 
   it('refuses to let an overlay wall a door in', () => {
@@ -1918,6 +2164,18 @@ describe('vehicles', () => {
 
   it('rejects a colour that is not a colour', () => {
     expect(runWorld(townWith([car({ colour: 'green' })])).join('\n')).toContain("a \"colour\" that isn't a hex colour");
+  });
+
+  it('accepts an accent stripe and a lit roof bar', () => {
+    expect(runWorld(townWith([car({ accent: '#2b3a55', lights: true })]))).toEqual([]);
+  });
+
+  it('rejects an accent that is not a colour', () => {
+    expect(runWorld(townWith([car({ accent: 'navy' })])).join('\n')).toContain("an \"accent\" that isn't a hex colour");
+  });
+
+  it('rejects a lights that is not a boolean', () => {
+    expect(runWorld(townWith([car({ lights: 'yes' })])).join('\n')).toContain("a \"lights\" that isn't a boolean");
   });
 
   it('rejects a speed that is not a number of tiles per second', () => {

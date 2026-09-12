@@ -116,6 +116,12 @@ for (const [mapId, map] of Object.entries(WORLD.maps)) {
   const tiled = readJson(file);
   const solidGid = new Set();
   const opaqueGid = new Set();
+  // Every tile's own Tiled class ("grass", "road", …), by gid — the same
+  // thing `tileAt()` reads to tell open country from a road (engine/edges.ts
+  // `lostAt`/`roadEndLine`), kept per gid like `solidGid` rather than per
+  // local id so a map's own map.kind lookup never has to know a tileset's
+  // firstgid.
+  const kindGid = new Map();
   // Which local tile ids are solid, per tileset: an overlay names a tile that
   // way rather than by gid (DESIGN.md §3), so both spellings are kept.
   map.id = mapId;
@@ -129,6 +135,7 @@ for (const [mapId, map] of Object.entries(WORLD.maps)) {
         ids.add(tile.id);
       }
       if (tile.properties?.some((p) => p.name === 'opaque' && p.value === true)) opaqueGid.add(ref.firstgid + tile.id);
+      if (tile.type) kindGid.set(ref.firstgid + tile.id, tile.type);
     }
     map.tilesetSolid.set(tileset.name, ids);
   }
@@ -138,11 +145,19 @@ for (const [mapId, map] of Object.entries(WORLD.maps)) {
   // What cannot be seen through, for telling a wall from a counter: both are
   // solid, but only one is read across (engine/reach.ts `clearBetween`).
   map.opaque = new Array(tiled.width * tiled.height).fill(false);
+  // The topmost non-empty layer's kind wins per cell, mirroring tileAt()'s
+  // "topmost non-empty" rule for a map drawn ground-then-props: later layers
+  // are drawn over earlier ones, so a later kind simply overwrites.
+  map.kind = new Array(tiled.width * tiled.height).fill('');
   for (const layer of tiled.layers) {
     if (layer.type !== 'tilelayer' || layer.visible === false) continue;
     layer.data.forEach((gid, i) => {
-      if (solidGid.has(gid & GID_MASK)) map.solid[i] = true;
-      if (opaqueGid.has(gid & GID_MASK)) map.opaque[i] = true;
+      const id = gid & GID_MASK;
+      if (!id) return;
+      if (solidGid.has(id)) map.solid[i] = true;
+      if (opaqueGid.has(id)) map.opaque[i] = true;
+      const kind = kindGid.get(id);
+      if (kind) map.kind[i] = kind;
     });
   }
 }
@@ -408,16 +423,6 @@ async function pointOfTile(page, tile, milestone = 'tap-walk') {
   return p;
 }
 
-/**
- * A click on a tile. Mouse and finger come down the one pointer path
- * (CLAUDE.md hard rule 4, engine/input.ts), so this is the same tap the touch
- * pages make — it is only aimed with a mouse, on a page that has no touch.
- */
-async function clickTile(page, tile, milestone) {
-  const p = await pointOfTile(page, tile, milestone);
-  await page.mouse.click(p.x, p.y);
-}
-
 async function shot(page, slug, options = {}) {
   shotIndex += 1;
   const name = `${String(shotIndex).padStart(2, '0')}-${slug}.png`;
@@ -557,6 +562,30 @@ async function walkTo(page, milestone, goal, { allowInterrupt = false, episode =
   fail(milestone, `could not reach ${goal}; stopped at ${here(s)} on "${s.map}" (x=${s.x.toFixed(2)}, y=${s.y.toFixed(2)})`);
 }
 
+/**
+ * Walks onto a door and, once there, keeps holding "up" until the engine
+ * opens it (`MapScene.checkDoors`, DESIGN.md §2) — a real, sustained press
+ * into the wall behind the door, not the single tile-aligning step an
+ * unrelated walk elsewhere might clip in passing. `walkTo` takes whatever
+ * route gets there — some doors are only approached from the side, an
+ * outdoor table or a planter box sitting on the tile directly south of one
+ * — so the extra press afterwards is aimed three tiles further "up" than
+ * the door itself, past where the building's own solid wall stops the
+ * player's feet, and never stops on its own: the door opening (which locks
+ * the controls) is what ends the hold. Already open by the time `walkTo`
+ * itself arrives — its whole final leg held "up", say — is just as good a
+ * result, so this only reaches for the extra press when it's still needed.
+ */
+async function walkUpInto(page, milestone, door, { episode = EPISODE } = {}) {
+  await walkTo(page, milestone, door, { allowInterrupt: true, episode });
+  const at = await snap(page);
+  if (at.locked || here(at)[0] !== door[0] || here(at)[1] !== door[1]) return;
+  const result = await hold(page, 'up', 'y', door[1] - 3, -1);
+  if (result.reason !== 'interrupted') {
+    fail(milestone, `holding "up" into the door at ${door} ended with "${result.reason}", not the door opening`);
+  }
+}
+
 /** Space, spaced out past the 220ms action debounce. */
 async function pressA(page) {
   await page.keyboard.press('Space');
@@ -565,11 +594,13 @@ async function pressA(page) {
 
 /**
  * Where to stand to read a sign: the nearest tile within a prop's reach
- * (engine/reach.ts) the player can actually walk to from where they are —
- * beside it where there is floor beside it, and otherwise two tiles straight
- * on, which is how a shelf on the back wall is read across the counter in
- * front of it. A tile of floor inside a sealed staff strip is not somewhere
- * to stand, however close it is. Null when nowhere will do.
+ * (engine/reach.ts — touching distance, so the tile beside it; `further` is
+ * whatever a longer reach would add, and is empty at today's) the player can
+ * actually walk to from where they are. A shelf on the wall behind a counter
+ * hangs its sign on the counter tile in front (scripts/make-room.ts
+ * `signAt`), so it is read from the customer side. A tile of floor inside a
+ * sealed staff strip is not somewhere to stand, however close it is. Null
+ * when nowhere will do.
  */
 function readSpotFor(mapId, sign, from) {
   const map = WORLD.maps[mapId];
@@ -1479,6 +1510,199 @@ async function main() {
     log(`    intro: ${introPages} page(s), ending on "${introLines[introLines.length - 1]}"`);
     await shot(page, 'boot-dismissed');
 
+    // --- getting lost (DESIGN.md §2) -----------------------------------------
+    // A map may carry a `lost` entry: wander onto a boundary tile of open
+    // ground (grass or flowers, never a road) and the narrator brings you up
+    // short, then a road card carries you home. Run right here, the moment
+    // the player is first free and before any step below leans on exactly
+    // where they are standing, because the reset can put them down anywhere
+    // the world pack says to (`engine/edges.ts` `lostAt`, `MapScene.checkEdges`
+    // and the `lost` hand-off in `update`). Everything after this walks to
+    // wherever it needs via `walkTo`'s own pathfinding, so the reset costs
+    // nothing further down the run.
+    {
+      const start = await snap(page);
+      const lost = WORLD.maps[start.map]?.lost;
+      if (!lost) {
+        log(`  (no "lost" entry on "${start.map}" — skipping the getting-lost check)`);
+      } else {
+        log('  wander off into the woods');
+        const map = WORLD.maps[start.map];
+        // Mirrors engine/edges.ts's own QUIET_KINDS, SHOULDER and nearRect():
+        // a boundary tile of bare ground, not within SHOULDER tiles of any
+        // `exits` or `edges` rectangle — a landing spot one tile off a doorway
+        // out of town is still the road, not the woods (see lostAt() there).
+        const QUIET_KINDS = new Set(['grass', 'tree', 'flowers']);
+        const SHOULDER = 1;
+        const nearRect = (at, x, y, margin) =>
+          x >= at[0] - margin && x < at[0] + at[2] + margin && y >= at[1] - margin && y < at[1] + at[3] + margin;
+        const candidates = [];
+        for (let y = 0; y < map.height; y++) {
+          for (let x = 0; x < map.width; x++) {
+            if (x !== 0 && y !== 0 && x !== map.width - 1 && y !== map.height - 1) continue;
+            if (!QUIET_KINDS.has(map.kind[y * map.width + x])) continue;
+            if (isSolid(map, x, y)) continue;
+            if (map.exits.some((exit) => nearRect(exit.at, x, y, SHOULDER))) continue;
+            if ((map.edges ?? []).some((edge) => nearRect(edge.at, x, y, SHOULDER))) continue;
+            candidates.push([x, y]);
+          }
+        }
+        if (!candidates.length) {
+          fail('lost', `"${start.map}" has a "lost" entry but no boundary tile of open ground to walk off over`);
+        }
+
+        // The nearest one actually reachable from here — ties broken toward
+        // fewer turns, so a straight corridor wins over an equally short walk
+        // that has to bend. No coordinate is hard-coded, so a map redraw just
+        // moves where this heads.
+        const from = here(start);
+        const turnsIn = (path) => {
+          let turns = 0;
+          for (let i = 2; i < path.length; i++) {
+            const d1 = [path[i - 1][0] - path[i - 2][0], path[i - 1][1] - path[i - 2][1]];
+            const d2 = [path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]];
+            if (d1[0] !== d2[0] || d1[1] !== d2[1]) turns++;
+          }
+          return turns;
+        };
+        let best = null;
+        for (const goal of candidates) {
+          const path = findPath(start.map, from, goal);
+          if (!path) continue;
+          const turns = turnsIn(path);
+          if (!best || path.length < best.path.length || (path.length === best.path.length && turns < best.turns)) {
+            best = { goal, path, turns };
+          }
+        }
+        if (!best) {
+          fail('lost', `none of "${start.map}"'s ${candidates.length} boundary tile(s) of open ground is reachable from ${from}`);
+        }
+        log(
+          `    heading for the tree line at ${best.goal}, ${best.path.length - 1} tile(s) off` +
+            (best.turns ? ` (${best.turns} turn(s))` : ' (a straight walk)')
+        );
+
+        await walkTo(page, 'lost', best.goal, { allowInterrupt: true });
+
+        const said = await waitUntil(page, (s) => s.dialogueOpen, 'the narrator to say we are lost');
+        if (!said.locked) fail('lost', 'the narrator is talking but the controls are not locked — walking away should not work');
+        if (said.dialogue?.speaker !== COPY.ui.narrator) {
+          fail('lost', `"${said.dialogue?.speaker}" says it, expected the narrator "${COPY.ui.narrator}"`);
+        }
+        if (said.dialogue?.text !== lost.lines[0]) {
+          fail('lost', `first line reads "${said.dialogue?.text}", expected "${lost.lines[0]}"`);
+        }
+        log(`    ${COPY.ui.narrator}: "${said.dialogue.text}"`);
+        await shot(page, 'lost-in-the-woods');
+
+        // Every line, checked as it is read, and locked throughout — the one
+        // cheap way to tell this apart from an ordinary line of dialogue,
+        // which never sets `locked` at all.
+        const pages = await readDialogue(page, 'lost', lost.lines.length, async (i) => {
+          const on = await snap(page);
+          if (on.dialogue?.text !== lost.lines[i]) {
+            fail('lost', `page ${i + 1} reads "${on.dialogue?.text}", expected "${lost.lines[i]}"`);
+          }
+          if (!on.locked) fail('lost', `page ${i + 1}: controls came unlocked before the ride home`);
+        });
+        if (pages !== lost.lines.length) {
+          fail('lost', `read ${pages} page(s) for ${lost.lines.length} line(s) of "lost.lines"`);
+        }
+
+        // The say box closes into the road card, not back to a free walk —
+        // still locked, only the box is gone now.
+        await waitUntil(page, (s) => !s.dialogueOpen && s.locked, 'the road card home');
+        await sleep(420); // let the card's fade-in land before the shot, as the other travel cards do
+        const cardCopy = COPY.transitions?.[`lost:${start.map}`];
+        if (!cardCopy?.big) fail('lost', `copy.json has no transitions["lost:${start.map}"] for the road card`);
+        await shot(page, 'lost-travel-card');
+        log(`    the road card: "${cardCopy.big}" — "${(cardCopy.small ?? '').slice(0, 60)}…"`);
+
+        // The card clears into the destination map — already staging
+        // `lost.arrive`, if there is one, with the player set down but
+        // hidden (DESIGN.md §2/§3). `!s.locked` fires the moment the map
+        // exists, well before an `arrive` scene has actually played out, so
+        // the real "home for good" wait below also asks for the player back
+        // on screen at `lost.spawn`, not just an unlocked session.
+        const arrived = await waitUntil(page, (s) => !s.locked, 'the destination map to load', 20000);
+        if (arrived.map !== lost.to) fail('lost', `came home on "${arrived.map}", expected lost.to "${lost.to}"`);
+
+        if (lost.arrive?.length) {
+          log('    watching the deputy pull in and drop you off');
+          // The tile it stops beside the lot on is wherever the last of the
+          // scene's own leading run of `move`s on that vehicle sends it —
+          // read off the data itself, rather than hard-coded, so a redrawn
+          // arrival just moves this too. The approach may be more than one
+          // leg (a fast one from off in the distance, then an ordinary one
+          // into the stop), so it's the last leg before the first step that
+          // isn't also driving this same vehicle that actually reads as
+          // "arrived", not the first `move` in the scene.
+          const firstDrive = lost.arrive.find((step) => step.move?.who?.startsWith('vehicle:'));
+          const vehicleId = firstDrive?.move.who.slice('vehicle:'.length);
+          let dropoff;
+          for (const step of lost.arrive) {
+            if (step.move?.who === firstDrive?.move.who) {
+              dropoff = step.move.path ? step.move.path[step.move.path.length - 1] : step.move.to;
+            } else if (dropoff) break;
+          }
+          if (vehicleId && dropoff) {
+            await waitUntil(
+              page,
+              (s) => {
+                const truck = s.vehicles.find((v) => v.id === vehicleId);
+                return Boolean(truck) && Math.abs(truck.x - dropoff[0]) < 1 && Math.abs(truck.y - dropoff[1]) < 1;
+              },
+              "the truck to pull up beside Stewart's",
+              15000
+            );
+            await shot(page, 'sheriff-dropoff');
+          }
+
+          // The deputy's own line: a scene's `say` waits for the box same as
+          // any other, so this reads it and presses through it exactly as
+          // `playStagedScene` does for an episode's own staged scenes.
+          const say = lost.arrive.find((step) => step.say)?.say;
+          if (say) {
+            const line = await waitUntil(page, (s) => s.dialogueOpen, 'the deputy to say something', 10000);
+            if (line.dialogue?.speaker !== COPY.ui.narrator) {
+              fail('lost', `"${line.dialogue?.speaker}" says the deputy's line, expected the narrator "${COPY.ui.narrator}"`);
+            }
+            if (line.dialogue?.text !== say.lines[0]) {
+              fail('lost', `deputy's line reads "${line.dialogue?.text}", expected "${say.lines[0]}"`);
+            }
+            log(`    ${COPY.ui.narrator}: "${line.dialogue.text}"`);
+            await advanceDialogue(page, 'lost', say.lines.length);
+          }
+        }
+
+        // Not just "unlocked, visible and standing at spawn" — an `arrive`
+        // scene shows the player beside the truck and walks them onto the
+        // lot well before its own `say` and the truck's drive back out, and
+        // every one of those is a real (if one-frame) match for that on its
+        // own. `s.scene` (null once the whole thing has actually finished,
+        // engine/scene.ts `finished`) is the one condition nothing but the
+        // last step ever satisfies.
+        const home = await waitUntil(
+          page,
+          (s) => {
+            const [x, y] = here(s);
+            return !s.scene && !s.locked && !s.dialogueOpen && s.playerVisible && x === lost.spawn[0] && y === lost.spawn[1];
+          },
+          'the arrival scene to actually finish, home at lost.spawn',
+          25000
+        );
+        const landed = here(home);
+        if (landed[0] !== lost.spawn[0] || landed[1] !== lost.spawn[1]) {
+          fail('lost', `came home at ${landed}, expected lost.spawn ${lost.spawn}`);
+        }
+        if (home.facing !== lost.facing) {
+          fail('lost', `came home facing "${home.facing}", expected lost.facing "${lost.facing}"`);
+        }
+        log(`    home at ${landed} on "${home.map}", facing ${home.facing}`);
+        await shot(page, 'lost-home');
+      }
+    }
+
     // --- Earl ---------------------------------------------------------------
     log('  talk to Earl');
     const earl = EPISODE.npcs.find((n) => n.id === 'earl');
@@ -1490,10 +1714,25 @@ async function main() {
     expectFlag(await snap(page), 'earl', 'metEarl');
 
     // --- Stewart's ----------------------------------------------------------
-    log("  enter Stewart's");
+    // A door with an interior no longer opens to an A press: pressing A there
+    // reads the standing sign, same as anywhere else, and the door only opens
+    // when the player actually walks onto it (DESIGN.md §2). One step short of
+    // it, in reach but not on it yet, is exactly the shot Tom asked for: the
+    // arrow on the doorstep marking the door as one that opens, and the "A"
+    // prompt floating over it once in reach, side by side.
+    log("  see Stewart's door arrow");
     const stewarts = WORLD.maps.stamford.buildings.find((b) => b.id === 'stewarts');
-    await walkTo(page, 'stewarts', stewarts.door);
-    await pressA(page);
+    // Far enough off that no prompt bubble is up yet — the arrow on its own,
+    // marking the door as one that opens.
+    await walkTo(page, 'stewarts-door-arrow', [stewarts.door[0], stewarts.door[1] + 3]);
+    await shot(page, 'stewarts-door-arrow');
+
+    log("  approach Stewart's door");
+    await walkTo(page, 'stewarts-approach', [stewarts.door[0], stewarts.door[1] + 1]);
+    await shot(page, 'stewarts-door-prompt');
+
+    log("  walk into Stewart's");
+    await walkUpInto(page, 'stewarts', stewarts.door);
     await waitUntil(page, (s) => s.map === stewarts.interior && !s.locked, "Stewart's interior");
     await shot(page, 'stewarts-interior');
 
@@ -1528,36 +1767,22 @@ async function main() {
     // is asked the same three things: does its door let you in where the
     // placement says, is its furniture something you walk round rather than
     // through, and does the way out put you back on the doorstep facing the
-    // street. Entered with a tap on the door, which is how the game is meant
-    // to be played (CLAUDE.md hard rule 4).
+    // street. Entered by walking onto the door, which is what opens it now
+    // (DESIGN.md §2) — a tap gets its own coverage, reading the sign rather
+    // than walking in, over in the tap-targets section below.
     for (const place of WORLD.maps.stamford.buildings.filter((b) => b.interior && b.enter && b.id !== stewarts.id)) {
       const name = WORLD.buildings[place.id].name;
       const room = WORLD.maps[place.interior];
-      const doorstep = [[0, 2], [0, 3], [-2, 0], [2, 0], [0, 1]]
-        .map(([dx, dy]) => [place.door[0] + dx, place.door[1] + dy])
-        .find(
-          (tile) =>
-            !isSolid(WORLD.maps.stamford, tile[0], tile[1]) &&
-            !WORLD.maps.stamford.buildings.some((b) => {
-              const plaque = plaqueOf(b);
-              return (
-                (b.door[0] === tile[0] && b.door[1] === tile[1]) ||
-                (plaque && plaque[0] === tile[0] && plaque[1] === tile[1])
-              );
-            })
-        );
-      if (!doorstep) fail(`${place.id}-enter`, `nowhere to stand outside ${name} to tap its door from`);
 
-      log(`  into ${name}, on a tap`);
-      await walkTo(page, `${place.id}-enter`, doorstep);
-      await clickTile(page, place.door, `${place.id}-enter`);
+      log(`  walk into ${name}`);
+      await walkUpInto(page, `${place.id}-enter`, place.door);
       const inside = await waitUntil(page, (s) => s.map === place.interior && !s.locked, `${name}'s room`);
       const landed = here(inside);
       if (landed[0] !== place.enter[0] || landed[1] !== place.enter[1]) {
         fail(`${place.id}-enter`, `${name} put the player down on ${landed}, not its "enter" tile ${place.enter}`);
       }
       await shot(page, `${place.id}-interior`);
-      log(`    tapped ${place.door} from ${doorstep} -> in at ${landed}, ${room.width}x${room.height} tiles`);
+      log(`    walked up onto ${place.door} -> in at ${landed}, ${room.width}x${room.height} tiles`);
 
       // Anybody posted behind the counter, talked to across it (`talkToEveryone`).
       await talkToEveryone(page, place.id, room, name);
@@ -1922,6 +2147,31 @@ async function main() {
     await advanceDialogue(page, 'pen', pen.lines.length);
     expectFlag(await snap(page), 'pen', 'hasPen');
     await shot(page, 'pen-toast');
+
+    // --- the "with you" panel -------------------------------------------------
+    // Opened with "i" (or #withyou-btn on a touch page) — the one glance-at-it
+    // list of what the player is carrying, with the pen freshly in hand.
+    // Skipped where a world hasn't written copy.ui.withYou at all (hard rule
+    // 3): no feature, nothing to test.
+    if (COPY.ui?.withYou) {
+      log('  open "with you" with the pen in hand');
+      await page.keyboard.press('i');
+      await sleep(320);
+      const open = await waitUntil(page, (s) => s.dialogueOpen && s.withYou !== null, 'the "with you" panel to open');
+      const names = (open.withYou ?? []).map((e) => e.name);
+      if (!names.includes(pen.name ?? pen.id)) {
+        fail('with-you', `the "with you" panel listed ${JSON.stringify(names)}, expected "${pen.name ?? pen.id}" on it`);
+      }
+      log(`    with you: ${names.join(', ')}`);
+      await shot(page, 'with-you-panel');
+
+      await pressA(page);
+      await waitUntil(page, (s) => !s.dialogueOpen && s.withYou === null, 'the "with you" panel to close');
+      await walkTo(page, 'with-you-after', [pen.pos[0] - 1, pen.pos[1]]);
+      log('    closed, and walking again');
+    } else {
+      log('  (this world has no ui.withYou — skipping the "with you" panel)');
+    }
 
     // --- the suggestion box --------------------------------------------------
     // The engine's own street fixture: a solid little post box standing on a
@@ -2525,8 +2775,10 @@ async function main() {
     await walkTo(wp, 'tap-targets', shopStand);
 
     // The facade: a tile of the picture that is neither the door nor the
-    // plaque. Tapping a shopfront walks to the front and reads the sign — it
-    // does not walk in, even where there is an interior to walk into.
+    // plaque. Tapping a shopfront walks up to the door and reads its sign —
+    // it does not walk in, even where there is an interior behind the door,
+    // because only the door tile itself opens on a tap; anywhere else on the
+    // picture is tapping the front of the place to read it (DESIGN.md §2).
     const wallColumn = Array.from({ length: shop.size[0] }, (_, i) => shop.pos[0] + i).find(
       (x) => x !== shop.door[0] && x !== shopPlaque[0]
     );
@@ -2557,22 +2809,43 @@ async function main() {
       await advanceDialogue(wp, 'tap-plaque', 1);
     }
 
-    // The door of a building with an interior opens it. No A press, no
-    // stopping on the doorstep to press anything.
+    // The door of a building with an interior opens on a tap — same as it
+    // always did before this branch, and same as a held "up" does at the
+    // keyboard: `followPath`'s own arrival on a door target opens it
+    // directly, no A press involved. Tap-to-go is the primary way to play
+    // (CLAUDE.md hard rule 4), so a phone has to be able to walk in the front
+    // door the same way the d-pad can (DESIGN.md §2).
     await tapTarget('tap-door', shop.door, `${shop.id}'s door`);
+    await waitUntil(wp, (s) => s.map === shop.interior && !s.locked, `${shop.id}'s door to open on a tap`, 15000);
+    log(`    ${shop.door} (${shop.id}'s door, tapped) -> inside`);
     await shot(wp, 'tap-door');
-    await waitUntil(wp, (s) => s.map === shop.interior, `${shop.id}'s door to open on a tap`, 15000);
-    await handsBack(wp, 'the shop to settle');
-    log(`    ${shop.door} (${shop.id}'s door) -> inside`);
-    await shot(wp, 'tap-entered');
 
-    // And the way out is a tap too.
+    // Back out, the way this whole loop leaves a room: a tap on its mat.
     const back = WORLD.maps[shop.interior].exits[0];
     if (!back) fail('tap-targets', `${shop.interior} has no way out`);
-    await tapTarget('tap-exit', [back.at[0], back.at[1]], 'the way out');
-    await waitUntil(wp, (s) => s.map === back.to && !s.locked, 'the way out to be taken on a tap', 15000);
-    await handsBack(wp, 'the street to settle');
-    log(`    ${[back.at[0], back.at[1]]} (the way out) -> back on the street`);
+    const tapOut = async (milestone) => {
+      await tapTarget(milestone, [back.at[0], back.at[1]], 'the way out');
+      await waitUntil(wp, (s) => s.map === back.to && !s.locked, 'the way out to be taken on a tap', 15000);
+      await handsBack(wp, 'the street to settle');
+      log(`    ${[back.at[0], back.at[1]]} (the way out) -> back on the street`);
+    };
+    await tapOut('tap-exit');
+
+    // Holding "up" onto the same door opens it too — the keyboard/d-pad path
+    // `checkDoors` answers to, with its own 180ms of genuinely leaning into
+    // it so a step that merely crosses the tile in passing never counts
+    // (DESIGN.md §2). Unrelated to the tap above, which needs no such wait.
+    // A few steps off the doorstep first: coming out of a door drops the
+    // player right back on it, disarmed on purpose (`armEnters`) so the very
+    // same exit can't be walked straight back through — a real half tile of
+    // daylight is what a player would put between themselves and it too
+    // before turning round and walking back in.
+    await walkTo(wp, 'walk-in-away', [shop.door[0], shop.door[1] + 2]);
+    await walkUpInto(wp, 'walk-in', shop.door);
+    await waitUntil(wp, (s) => s.map === shop.interior && !s.locked, `${shop.id}'s door to open on a walk`, 15000);
+    log(`    ${shop.door} (${shop.id}'s door, walked into) -> inside`);
+    await shot(wp, 'walked-in');
+    await tapOut('tap-exit-again');
 
     // A building with no interior has no door to open, so its door reads the
     // sign like the rest of the front.
@@ -3541,8 +3814,9 @@ async function main() {
       // opening spawn would otherwise take the controls mid-walk, and that is
       // worth finding here rather than as a walk mysteriously interrupted.
       await playStagedScene(cp, sceneEp, outsideMap, scene.id);
-      await walkTo(cp, 'scene', building.door, { episode: sceneEp });
-      await pressA(cp);
+      // A held "up" onto the door is what opens it now (checkDoors,
+      // DESIGN.md §2), never an A press.
+      await walkUpInto(cp, 'scene', building.door, { episode: sceneEp });
       const inside = await waitUntil(cp, (st) => st.map === scene.on.enter, `the door into "${scene.on.enter}"`, 25000);
       log(`    walked in: ${inside.map} at ${here(inside)}`);
 
@@ -3669,8 +3943,8 @@ async function main() {
         (o) => expectOverlays.includes(o.id) && (o.props ?? []).length
       )?.props?.[0];
       if (prop) {
-        // Somewhere beside it to read it from: not a doorstep and not a
-        // plaque tile, both of which answer A themselves (DESIGN.md §2).
+        // Somewhere beside it to read it from: not a doorstep or a plaque
+        // tile, both of which answer A themselves (DESIGN.md §2).
         const meta = WORLD.maps[outsideMap];
         const taken = new Set();
         for (const b of meta.buildings) {

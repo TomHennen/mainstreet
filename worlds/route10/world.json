@@ -48,7 +48,7 @@
       "wall": "#8a6d4e",
       "roof": "#5b4632",
       "sign": [
-        "Pizza night Monday and Wednesday, chalked by the door in a hand that has written it a hundred times.",
+        "Pizza night Wednesdays, chalked by the door in a hand that has written it a hundred times.",
         "The mill pond sits right behind the place, and on a warm evening the door stays propped so the talk carries out over the water."
       ]
     },
@@ -463,7 +463,7 @@
               13
             ],
             [
-              2,
+              0,
               13
             ]
           ],
@@ -849,6 +849,29 @@
           "lines": ["The old rail bed keeps running this way too — the Catskill Scenic Trail covers a lot of ground. Another day's walk."]
         }
       ],
+      "lost": {
+        "lines": [
+          "You keep going past the last of the houses, and the trees close in behind you, and after a while every direction starts to look like the same direction.",
+          "You call the Delaware County Sheriff's Office. The dispatcher couldn't be kinder: happens to the best of us, those woods go on for miles, stay right where you are."
+        ],
+        "to": "stamford",
+        "spawn": [16, 15],
+        "facing": "left",
+        "arrive": [
+          { "camera": { "to": [16, 16], "speed": 10 } },
+          { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [34, 16], "speed": 18 } },
+          { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [16, 16] } },
+          { "wait": 1.4 },
+          { "player": { "show": { "at": [17, 15] } } },
+          { "move": { "who": "player", "to": [16, 15], "speed": 3.5 } },
+          { "say": { "lines": [
+            "The deputy waits until you're steady on your feet, then nods toward the door.",
+            "\"Get yourself a coffee,\" they say. \"And maybe stick to the sidewalks for a while.\""
+          ] } },
+          { "camera": { "to": "player" } },
+          { "move": { "who": "vehicle:stamford-sheriff-truck", "to": [0, 16] } }
+        ]
+      },
       "people": [
         {
           "id": "stamford-main-walker",
@@ -927,6 +950,17 @@
       ],
       "vehicles": [
         {
+          "id": "stamford-sheriff-truck",
+          "kind": "pickup",
+          "colour": "#f2efe6",
+          "accent": "#2b3a55",
+          "lights": true,
+          "pos": [95, 16],
+          "facing": "left",
+          "hidden": true,
+          "speed": 6
+        },
+        {
           "id": "stamford-main-car",
           "kind": "car",
           "colour": "#9babb2",
@@ -944,7 +978,7 @@
               16
             ],
             [
-              2,
+              0,
               16
             ]
           ],
@@ -962,15 +996,15 @@
             ],
             [
               20,
-              39
+              41
             ],
             [
               22,
-              39
+              41
             ],
             [
               22,
-              2
+              0
             ]
           ],
           "pause": 1.2,
@@ -1191,7 +1225,7 @@
               18
             ],
             [
-              2,
+              0,
               18
             ]
           ],
@@ -1325,7 +1359,7 @@
         {
           "pos": [
             7,
-            4
+            5
           ],
           "lines": [
             "A whole shelf of coffee makers, every kind there is: a glass pour-over, a stovetop moka pot, a siphon like something out of a science set, a percolator with a few decades on it.",
@@ -1335,7 +1369,7 @@
         {
           "pos": [
             12,
-            4
+            5
           ],
           "lines": [
             "The menu, in chalk: coffee every way you could want it, the Maple Smoke latte in a box of its own, and a row of paninis pressed to order — the kind you smell before you see.",
@@ -1345,7 +1379,7 @@
         {
           "pos": [
             16,
-            4
+            5
           ],
           "lines": [
             "Bottles behind the right end of the counter: a cooler of beer from breweries an easy drive from here, and a few bottles of wine to take home, each with a little card in Ronnie's hand saying what it goes with.",
@@ -1701,8 +1735,8 @@
             23
           ],
           "lines": [
-            "A note taped to this one, in marker: OUT OF ORDER, SORRY \u2014 BACK SOON.",
-            "Underneath, in a different pen: it's alright, the other one's nicer anyway."
+            "A note taped to this bathroom door, in marker: CLOSED UNTIL FURTHER NOTICE. It has been there a while, and it is not going anywhere.",
+            "Underneath, in a different pen: it's alright, the other bathroom's nicer anyway."
           ]
         },
         {
@@ -1711,7 +1745,7 @@
             23
           ],
           "lines": [
-            "The other one: a urinal, a stall, and no sign on the door saying who it's for.",
+            "The other bathroom: a urinal, a stall, and no sign on the door saying who it's for.",
             "There's a latch on the inside if you'd like the room to yourself."
           ]
         }
@@ -1776,7 +1810,9 @@
           ],
           "otherwise": [
             "You've already got one under your arm. One at a time is how the fire likes it."
-          ]
+          ],
+          "heldName": "A split log",
+          "heldBlurb": "A split log off the Belvedere's pile, tucked under your arm for the fire."
         },
         {
           "kind": "firepit",

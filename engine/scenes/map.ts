@@ -5,6 +5,7 @@ import {
   buildingArt,
   characterTexture,
   dashTexture,
+  doorArrowArt,
   fixtureArt,
   frameIndex,
   itemTexture,
@@ -19,8 +20,9 @@ import {
   vehicleFrame,
   vehicleTexture
 } from '../art';
-import { currentDialogue, currentToast, publishDebug, publishFlagSetter } from '../debug';
-import { edgeAt, roadEndLine } from '../edges';
+import { currentDialogue, currentInventory, currentToast, publishDebug, publishFlagSetter } from '../debug';
+import { doorPressAdvance } from '../doors';
+import { edgeAt, lostAt, roadEndLine } from '../edges';
 import { isHeld, onAction, onTap } from '../input';
 import { feedbackUrl } from '../feedback';
 import { improveUrl, paintUrl } from '../paint';
@@ -38,6 +40,7 @@ import {
   creditFor,
   dialogueFor,
   hasSmallTalk,
+  isToastShowing,
   itemVisible,
   itemsOn,
   npcsOn,
@@ -64,6 +67,7 @@ import type {
   GameMap,
   LightSpec,
   MapExit,
+  MapLost,
   Person,
   Vec2
 } from '../schema';
@@ -74,8 +78,18 @@ const MARGIN = 4;
 /** A map smaller than the view may be scaled up this far before it looks coarse. */
 const MAX_ZOOM = 4;
 
-/** How long the travel card holds, by what we are walking through. */
-const HOLD = { road: 900, enter: 500, exit: 400 };
+/**
+ * How long the travel card holds, by what we are walking through. `lost` is
+ * the road card again, held a little longer: its line is a story, not a
+ * road name.
+ */
+const HOLD = { road: 900, enter: 500, exit: 400, lost: 1600 };
+/**
+ * How long the map takes to fade to black under a `lost` reset's own lines
+ * (DESIGN.md §2), before the narrator says anything — a Phaser camera fade,
+ * so the still-live map behind the say box never shows through it.
+ */
+const LOST_FADE_MS = 500;
 const WALK_FRAME_MS = 133;
 /** How often a walk may be re-aimed at somebody who is moving, in ms. */
 const CHASE_MS = 250;
@@ -83,6 +97,14 @@ const CHASE_MS = 250;
 const MAX_REPLANS = 32;
 /** A scene's camera pan, in tiles a second, when the step names no speed. */
 const PAN_SPEED = 8;
+/**
+ * How long a holler stays up (`UiScene`'s own toast timer, matched here so a
+ * second car never cuts the first one off mid-line) — one on screen at a
+ * time is the whole debounce; which car gets to go is otherwise first-come.
+ */
+const HOLLER_DISPLAY = 3.8;
+/** How long a lit roof bar (`Vehicle.lights`) shows each colour before it swaps — `drawCars`. */
+const LIGHT_FLASH = 0.25;
 
 /**
  * Which tiles of each baked map texture an overlay is currently painted over.
@@ -99,7 +121,12 @@ export interface MapSceneData {
   pos: Vec2;
   facing: Facing;
   intro?: boolean;
+  /** This arrival is a `lost` reset (DESIGN.md §2) — see `TravelData.arrive`. */
+  arrive?: boolean;
 }
+
+/** id `runScene` gives the map's own `lost.arrive` scene, run outside any episode. */
+const LOST_ARRIVE_SCENE = '__lost-arrive__';
 
 interface Target {
   kind: 'npc' | 'item' | 'prop' | 'enter' | 'sign' | 'plaque' | 'fixture';
@@ -140,6 +167,10 @@ interface Car {
   id: string;
   driver: Driver;
   sprite: Phaser.GameObjects.Sprite;
+  /** The two textures a light bar (`Vehicle.lights`) flips between; unset for a car with none. */
+  lit?: [string, string];
+  /** Which of `lit` is on screen right now, so `drawCars` only calls `setTexture` on a real change. */
+  litOn?: boolean;
 }
 
 /** A rectangle of world pixels. */
@@ -202,10 +233,17 @@ export class MapScene extends Phaser.Scene {
   private litFixtures = new Map<string, number>();
   /** Seconds this scene has been running, for the fixture glows above. */
   private clock = 0;
+  /** `this.clock` a holler is allowed again — one on screen at a time (DESIGN.md §2). */
+  private hollerUntil = 0;
   private exitArmed = false;
   private enterArmed = false;
-  /** id of the `edges` entry (or a `road-end:<x>,<y>` key) currently shown, so it says its line once per visit rather than every frame. */
+  /** Which door (by building id) `checkDoors` has been counting a held "up" against, and for how long. */
+  private doorPress: string | null = null;
+  private doorPressMs = 0;
+  /** id of the `edges` entry (or a `road-end:<x>,<y>` / `lost:<x>,<y>` key) currently shown, so it says its line once per visit rather than every frame. */
   private edgeShown: string | null = null;
+  /** Where the player is being taken once the narrator's "you got lost" lines are read (DESIGN.md §2), else null. */
+  private lost: MapLost | null = null;
   private spawnX = 0;
   private spawnY = 0;
   private unbindAction: (() => void) | null = null;
@@ -243,6 +281,17 @@ export class MapScene extends Phaser.Scene {
   private lighting!: Lighting;
   /** True while the scene has walked the player somewhere they may not leave. */
   private sceneWalk = false;
+  /** Tiles per second `sceneWalk`'s own move is covering ground at. */
+  private sceneWalkSpeed = SPEED;
+  /**
+   * True while the player sprite is hidden — invisible, and in nobody's way
+   * (DESIGN.md §3 `player` step). A hidden player is not something to walk,
+   * tap, or press A with either, which is the one bit of control this holds
+   * beyond what an ordinary scene already does with `holds` — everything
+   * else about a scene (a truck driving in or out) happens around a player
+   * free to move the moment they can be seen again.
+   */
+  private playerHidden = false;
 
   constructor() {
     super('Map');
@@ -258,12 +307,17 @@ export class MapScene extends Phaser.Scene {
     this.facing = data.facing;
     this.exitArmed = false;
     this.enterArmed = false;
+    this.doorPress = null;
+    this.doorPressMs = 0;
     this.edgeShown = null;
+    this.lost = null;
     this.itemSprites = new Map();
     this.fixtureSprites = new Map();
     this.held = null;
+    session().held = null;
     this.litFixtures = new Map();
     this.clock = 0;
+    this.hollerUntil = 0;
     this.facades = [];
     this.artBoxes = [];
     this.walkPath = null;
@@ -275,8 +329,11 @@ export class MapScene extends Phaser.Scene {
     this.replans = 0;
     this.lastReplan = 0;
     this.runner = null;
+    session().sceneRunning = false;
     this.queued = [];
     this.sceneWalk = false;
+    this.sceneWalkSpeed = SPEED;
+    this.playerHidden = false;
     // An overlay's tiles are part of the ground from here on: collision,
     // routing and the baked texture all read them off the map (DESIGN.md §3).
     this.map = withOverlays(this.map, overlaysOn(data.mapId));
@@ -334,6 +391,14 @@ export class MapScene extends Phaser.Scene {
           h: brass.displayHeight + PLAQUE_PAD * 2
         };
       }
+
+      // A door that opens gets the engine's own "come on in" laid at its
+      // foot: walking onto the doorstep is what opens it, and the arrow
+      // marks it as that kind of door before a player ever tries. Its door
+      // still reads the standing sign to an A press or a tap, same as any
+      // door with nothing behind it (CLAUDE.md #4, DESIGN.md §2).
+      const arrow = doorArrowArt(this, placement);
+      if (arrow) this.add.image(arrow.x, arrow.y, arrow.key).setOrigin(0, 0).setDepth(arrow.depth);
 
       if (art.painted) {
         // The placeholder bakes its name plate into the facade texture itself;
@@ -476,6 +541,18 @@ export class MapScene extends Phaser.Scene {
       bus.emit(EV.say, { speaker: state.copy.intro.speaker, lines });
     }
 
+    // A `lost` reset with its own `arrive` (DESIGN.md §2/§3): the player is
+    // set down already hidden — invisible, and (like any hidden player)
+    // beyond walking, tapping or pressing A with, until the scene shows them
+    // again — and it is queued ahead of anything the episode itself stages
+    // here so the truck has come and gone before an ordinary "enter" scene
+    // assumes the player is just standing there as usual.
+    const arrive = data.arrive ? this.map.lost?.arrive : undefined;
+    if (arrive?.length) {
+      this.hidePlayer();
+      this.queued.push({ id: LOST_ARRIVE_SCENE, on: {}, once: false, steps: arrive });
+    }
+
     // Anything this episode stages on arriving here (DESIGN.md §3). It queues
     // rather than starting outright, so a scene never talks over the opening
     // card the player is still reading.
@@ -515,7 +592,12 @@ export class MapScene extends Phaser.Scene {
       beginMove: (who, to, speed) => {
         if (who === SCENE_PLAYER) {
           this.stopWalk();
+          this.sceneWalkSpeed = speed ? speed * TILE : SPEED;
           this.sceneWalk = this.aimWalk(to, null, 0);
+          // Nowhere to go: no walk actually started, so nothing of this
+          // scene's own pace should linger onto whatever tapped walk comes
+          // next.
+          if (!this.sceneWalk) this.sceneWalkSpeed = SPEED;
           return this.sceneWalk;
         }
         // A car takes the road rather than the pavement, and never routes
@@ -564,7 +646,9 @@ export class MapScene extends Phaser.Scene {
         // what keeps a `once` scene from playing twice (DESIGN.md §2).
         autosave();
       },
-      light: (spec) => this.applyLight(spec)
+      light: (spec) => this.applyLight(spec),
+      hidePlayer: () => this.hidePlayer(),
+      showPlayer: (at) => this.showPlayer(at)
     };
   }
 
@@ -746,9 +830,18 @@ export class MapScene extends Phaser.Scene {
     const { assets } = session();
     const drivable = driveable(this.map);
     for (const vehicle of vehiclesOn(this.mapId)) {
-      const key = assets.vehicles.has(vehicle.id)
+      const painted = assets.vehicles.has(vehicle.id);
+      // A painted sheet has no light-bar variants of its own (hard rule 3:
+      // `lights` and `accent` are placeholder-only, same as `colour`), so a
+      // painted car never flashes — only the engine-drawn one gets a `lit`
+      // pair of textures.
+      const key = painted
         ? `art:vehicle:${vehicle.id}`
-        : vehicleTexture(this, vehicle.kind, vehicle.colour);
+        : vehicleTexture(this, vehicle.kind, vehicle.colour, vehicle.accent, vehicle.lights ? 'a' : undefined);
+      const lit: [string, string] | undefined =
+        !painted && vehicle.lights
+          ? [key, vehicleTexture(this, vehicle.kind, vehicle.colour, vehicle.accent, 'b')]
+          : undefined;
       const driver = new Driver({
         pos: vehicle.pos,
         path: vehicle.path,
@@ -758,12 +851,15 @@ export class MapScene extends Phaser.Scene {
         // any screen and at any frame rate.
         speed: vehicle.speed ?? (SPEED * DRIVE_FACTOR) / TILE,
         drivable,
-        facing: vehicle.facing
+        facing: vehicle.facing,
+        bounds: { width: this.map.width, height: this.map.height },
+        exits: this.map.exits.map((exit) => exit.at),
+        hidden: vehicle.hidden
       });
       // Origin at the middle of the car, which is what its tile position
       // means: a car lies along the lane it is in rather than standing on it.
       const sprite = this.add.sprite(0, 0, key, vehicleFrame(driver.facing)).setOrigin(0.5, 0.5);
-      this.cars.push({ id: vehicle.id, driver, sprite });
+      this.cars.push({ id: vehicle.id, driver, sprite, lit });
     }
     if (this.cars.length) this.drawCars();
   }
@@ -776,10 +872,25 @@ export class MapScene extends Phaser.Scene {
    * That last rule is one-way on purpose: a car only ever waits for cars
    * *earlier* in the list, so two of them can never sit waiting on each other
    * at a crossroads. Nobody waits for a car, which is the whole point of them.
+   *
+   * A car the player specifically has held stopped for a moment gets to say
+   * so — the holler (DESIGN.md §2) — in `copy.json`'s `ui.holler`, shown the
+   * lightest way the engine already shows an ambient line: the same toast a
+   * flag's own effect can raise, never a box the player has to dismiss. No
+   * `ui.holler` in the world pack and a car simply never has anything to say
+   * (hard rule 3). It never fires with the controls away from the player
+   * (`locked`, or a dialogue box open — nobody is watching the road right
+   * then), never while a scene is running (`state.sceneRunning`) — a scene's
+   * own car deserves better than a gruff holler over its own drop-off — and
+   * never while a toast is already up, `this.hollerUntil` or
+   * `isToastShowing()` either one — a holler must never cut off a scene's or
+   * a flag's own toast, only ever wait its own turn behind it.
    */
   private updateCars(delta: number): void {
     if (!this.cars.length) return;
     const dt = delta / 1000;
+    const state = session();
+    const lines = state.copy.ui.holler;
     this.cars.forEach((car, index) => {
       car.driver.update(dt, {
         blocked: (x, y) => {
@@ -787,13 +898,28 @@ export class MapScene extends Phaser.Scene {
             if (tile[0] === x && tile[1] === y) return true;
           }
           for (let i = 0; i < index; i++) {
-            for (const tile of this.cars[i].driver.mover.tiles()) {
+            for (const tile of this.cars[i].driver.tiles()) {
               if (tile[0] === x && tile[1] === y) return true;
             }
           }
           return false;
-        }
+        },
+        player: (x, y) => this.playerTiles().some((tile) => tile[0] === x && tile[1] === y)
       });
+      if (
+        lines?.length &&
+        !state.locked &&
+        !state.dialogueOpen &&
+        !state.sceneRunning &&
+        this.clock >= this.hollerUntil &&
+        !isToastShowing()
+      ) {
+        const line = car.driver.takeHoller();
+        if (line !== null) {
+          bus.emit(EV.toast, lines[line % lines.length]);
+          this.hollerUntil = this.clock + HOLLER_DISPLAY;
+        }
+      }
     });
     this.drawCars();
   }
@@ -807,14 +933,41 @@ export class MapScene extends Phaser.Scene {
    * the player's own depth, so wherever the two overlap the player is in
    * front: a car passes *under* the player, never over them, which is the
    * drawn half of "never a hazard" (DESIGN.md §1).
+   *
+   * **Visibility.** A through-route car between one lap and the next is off
+   * the map by the same maths that draws everybody else — `driver.x`/`.y`
+   * keep moving through the trip there is no tile for — so it is hidden for
+   * exactly as long as `driver.onMap` says it is, rather than trusting that
+   * position alone to read as "off screen" everywhere a camera might sit.
    */
   private drawCars(): void {
     const under = this.py + HITBOX - 1;
+    // A lit bar's two textures (`Car.lit`) swap on this one shared beat, so
+    // every flashing car in town is in step with every other one, the same
+    // way a run of real ones would be. `driver.onDuty` is what keeps a car
+    // simply parked from the start out of the flash entirely (DESIGN.md §2):
+    // it always shows `lit[0]`, lit but steady. `car.litOn` remembers which
+    // one is up so `setTexture` is only ever called on an actual change,
+    // never once a frame for every lit car in town.
+    const flash = Math.floor(this.clock / LIGHT_FLASH) % 2 === 1;
     for (const car of this.cars) {
-      const { driver, sprite } = car;
+      const { driver, sprite, lit } = car;
+      sprite.setVisible(driver.onMap);
+      if (!driver.onMap) continue;
       sprite.setPosition(Math.round(driver.x * TILE) + TILE / 2, Math.round(driver.y * TILE) + TILE / 2);
       sprite.setDepth(Math.min((driver.y + 0.5) * TILE, under));
-      sprite.setFrame(vehicleFrame(driver.facing));
+      const frame = vehicleFrame(driver.facing);
+      if (lit) {
+        const on = flash && driver.onDuty;
+        if (on !== car.litOn) {
+          sprite.setTexture(lit[on ? 1 : 0], frame);
+          car.litOn = on;
+        } else {
+          sprite.setFrame(frame);
+        }
+      } else {
+        sprite.setFrame(frame);
+      }
     }
   }
 
@@ -890,8 +1043,9 @@ export class MapScene extends Phaser.Scene {
     return false;
   }
 
-  /** The tiles the player's hitbox is over — one, two, or four at a corner. */
+  /** The tiles the player's hitbox is over — one, two, or four at a corner. Empty while hidden (`hidePlayer`): nothing is in a hidden player's way, and a hidden player is in nobody else's. */
   private playerTiles(): Vec2[] {
+    if (this.playerHidden) return [];
     const tiles: Vec2[] = [];
     for (const ox of [MARGIN, HITBOX - MARGIN]) {
       for (const oy of [MARGIN, HITBOX - MARGIN]) {
@@ -920,6 +1074,7 @@ export class MapScene extends Phaser.Scene {
       facing: this.facing,
       dialogueOpen: state.dialogueOpen,
       locked: state.locked,
+      playerVisible: !this.playerHidden,
       walkTo: this.walkGoal ? [this.walkGoal[0], this.walkGoal[1]] : null,
       view: { x: view.x, y: view.y, width: view.width, height: view.height, tile: TILE },
       art: this.artBoxes,
@@ -943,7 +1098,8 @@ export class MapScene extends Phaser.Scene {
       light: this.lighting.describe(),
       held: this.held,
       overlays: overlaysOn(this.mapId).map((overlay) => overlay.id),
-      toast: currentToast()
+      toast: currentToast(),
+      withYou: currentInventory()
     });
   }
 
@@ -961,7 +1117,28 @@ export class MapScene extends Phaser.Scene {
     // not wait for a conversation to finish.
     this.updateWalkers(delta);
     this.updateCars(delta);
-    if (state.locked || (state.dialogueOpen && !this.sceneWalk)) {
+    // Getting lost (DESIGN.md §2): the session stays locked from the moment
+    // the narrator starts until the ride back, so the box closing is the one
+    // beat that carries on — the same wait a scene's `say` step makes.
+    if (this.lost && !state.dialogueOpen) {
+      const lost = this.lost;
+      this.lost = null;
+      this.leave({
+        style: 'road',
+        hold: HOLD.lost,
+        copyKey: `lost:${this.mapId}`,
+        to: lost.to,
+        spawn: lost.spawn,
+        facing: lost.facing,
+        arrive: true
+      });
+      return;
+    }
+    // A hidden player (DESIGN.md §3 `player` step) is held exactly like a
+    // dialogue box would hold them — a sceneWalk still runs, since that is
+    // the scene moving the player itself, and a scene never hides the player
+    // mid-walk.
+    if (state.locked || ((state.dialogueOpen || this.playerHidden) && !this.sceneWalk)) {
       // A card or a box means the trip is over: the walk does not pick itself
       // back up behind the player's back once they have read the line.
       this.stopWalk();
@@ -984,11 +1161,20 @@ export class MapScene extends Phaser.Scene {
 
     // The d-pad and the movement keys always win: taking hold of a direction
     // calls off a tapped walk on the frame it is seen.
-    if (dx !== 0 || dy !== 0) this.stopWalk();
+    const viaKeys = dx !== 0 || dy !== 0;
+    if (viaKeys) this.stopWalk();
 
-    this.moving = dx !== 0 || dy !== 0;
+    this.moving = viaKeys;
     if (dx !== 0) this.facing = dx < 0 ? 'left' : 'right';
     else if (dy !== 0) this.facing = dy < 0 ? 'up' : 'down';
+
+    // Snapshotted before the move, for checkDoors: whether a held "up" is
+    // genuinely stuck against a door this frame is whether this attempt
+    // actually got anywhere, on either axis — a diagonal held across the
+    // same tile keeps inching forward on the other one and is never stuck,
+    // however long it takes to cross (DESIGN.md §2).
+    const beforePx = this.px;
+    const beforePy = this.py;
 
     if (this.moving) {
       // Diagonals cover two axes at once, so slow them to the same real speed.
@@ -1001,7 +1187,10 @@ export class MapScene extends Phaser.Scene {
     } else if (this.walkPath) {
       // Somebody the walk is aimed at may have strolled on since it started.
       this.chase();
-      this.moving = this.followPath((SPEED * delta) / 1000);
+      // An ordinary tapped walk keeps the usual pace; a scene's own move on
+      // the player (DESIGN.md §3) may ask for a different one — `stopWalk`
+      // puts `sceneWalkSpeed` back before anything else can start a new walk.
+      this.moving = this.followPath((this.sceneWalkSpeed * delta) / 1000);
     }
 
     if (this.moving) this.walkTime += delta;
@@ -1015,6 +1204,7 @@ export class MapScene extends Phaser.Scene {
     this.updateMarker();
     this.checkExits();
     this.checkEdges();
+    this.checkDoors(dy, delta, this.px === beforePx && this.py === beforePy);
   }
 
   /**
@@ -1029,22 +1219,62 @@ export class MapScene extends Phaser.Scene {
       this.runner.update(dt);
       if (!this.runner.finished) return;
       this.runner = null;
+      state.sceneRunning = false;
       this.sceneWalk = false;
+      // The last-resort "show the player": a scene that hid them and ended
+      // without showing them again would otherwise strand them invisible for
+      // good (DESIGN.md §2/§3).
+      if (this.playerHidden) this.showPlayer();
     }
     if (!this.queued.length || state.locked || state.dialogueOpen) return;
     const next = this.queued.shift();
     if (!next) return;
     this.stopWalk();
     this.runner = new SceneRunner(next, this.driver());
+    state.sceneRunning = true;
   }
 
   /**
-   * Coming out of a door drops the player on the doorstep. Offering that door
-   * straight back would send the next A press through it, so doors stay silent
-   * until half a tile of daylight is between the player and where they landed.
+   * A `player` step (DESIGN.md §3): invisible, and out of everyone else's way
+   * — `playerTiles()` reads empty while this is true, so a townsperson routes
+   * straight through where the player stood and a car never gives way to
+   * them there. `this.playerHidden` also holds the player's own controls —
+   * a hidden player is not something to walk, tap, or press A with — exactly
+   * the way a dialogue box does, until `showPlayer` puts them back.
+   */
+  private hidePlayer(): void {
+    this.playerHidden = true;
+    this.player.setVisible(false);
+  }
+
+  /** The other half of `hidePlayer`: shown again, at `at` if the scene gives one. */
+  private showPlayer(at?: Vec2): void {
+    this.playerHidden = false;
+    if (at) {
+      this.px = at[0] * TILE;
+      this.py = at[1] * TILE;
+      this.syncPlayerSprite();
+    }
+    this.player.setVisible(true);
+  }
+
+  /**
+   * Coming out of a door drops the player right back on its doorstep.
+   * Leaving `checkDoors` free to fire from the very first frame would walk
+   * them straight back in before they had taken a step, so a door stays
+   * quiet until either half a tile of daylight is between the player and
+   * where they landed, or "up" is not being held at all — which is most of
+   * the time, since a real exit rarely lands with a thumb already back on
+   * the very key that would walk straight in. The half-tile rule alone is
+   * what covers the rest: "up" held across the transition itself, which
+   * only releasing or moving off the spot can arm.
    */
   private armEnters(): void {
     if (this.enterArmed) return;
+    if (!isHeld('up')) {
+      this.enterArmed = true;
+      return;
+    }
     if (Math.hypot(this.px - this.spawnX, this.py - this.spawnY) >= TILE / 2) this.enterArmed = true;
   }
 
@@ -1169,15 +1399,17 @@ export class MapScene extends Phaser.Scene {
     for (const building of this.map.buildings) {
       // The plaque is considered first so that standing exactly on the line
       // between it and the door still reads the plaque, as it looks like it
-      // should. A building with an interior has one too: its door opens, and
-      // the plaque beside it is still where its painter is thanked.
+      // should. A building with an interior has one too: its door opens
+      // underfoot when the player walks onto it (checkDoors), and the plaque
+      // beside it is still where its painter is thanked.
       const plaque = plaqueTile(building);
       if (plaque) {
         consider({ kind: 'plaque', at: [plaque[0], plaque[1] - 1], building }, REACH.plaque, 3, plaque);
       }
-      const kind: Target['kind'] = building.interior ? 'enter' : 'sign';
-      if (kind === 'enter' && !this.enterArmed) continue;
-      consider({ kind, at: [building.door[0], building.door[1] - 1], building }, REACH.door, 3, building.door);
+      // A door reads its standing sign to an A press or a tap whether or not
+      // it also opens — interior or none, this is the one thing A ever does
+      // at a door (DESIGN.md §2).
+      consider({ kind: 'sign', at: [building.door[0], building.door[1] - 1], building }, REACH.door, 3, building.door);
     }
     return best;
   }
@@ -1193,7 +1425,7 @@ export class MapScene extends Phaser.Scene {
    */
   private tap(clientX: number, clientY: number): void {
     const state = session();
-    if (state.locked || state.dialogueOpen) return;
+    if (state.locked || state.dialogueOpen || this.playerHidden) return;
     // Where the scene is walking the player is where they are going.
     if (this.runner?.holds) return;
 
@@ -1433,7 +1665,14 @@ export class MapScene extends Phaser.Scene {
         return this.doorTap(building, building.interior ? 'enter' : 'sign');
       }
     }
-    if (hit) return this.doorTap(hit.facade.building, 'sign');
+    if (hit) {
+      // Tapping the rest of the picture — roof, walls, floating name plate —
+      // is tapping the front of the place: walk up and read the sign. Only
+      // the door tile itself walks in (CLAUDE.md hard rule 4, tap-to-go has
+      // to be able to do everything the d-pad can, including opening a door
+      // — DESIGN.md §2).
+      return this.doorTap(hit.facade.building, 'sign');
+    }
     return null;
   }
 
@@ -1458,7 +1697,16 @@ export class MapScene extends Phaser.Scene {
     };
   }
 
-  /** The front step: where a sign is read from, and where a door is opened. */
+  /**
+   * The front step. A tap walks the player onto the door tile itself either
+   * way; what happens on arrival is `kind` — `'enter'` opens a door with an
+   * interior behind it, the same as a held "up" does at the keyboard (never
+   * an A press), and `'sign'` reads the standing sign, same as everywhere
+   * else a door answers to a tap or an A press. Tap-to-go is the primary way
+   * to play (CLAUDE.md hard rule 4): a phone has to be able to walk in the
+   * front door the same way the d-pad can, so the door tile itself is the
+   * one tap that opens rather than reads (DESIGN.md §2).
+   */
   private doorTap(building: BuildingPlacement, kind: 'enter' | 'sign'): { target: Target; goal: Vec2; reach: number } {
     return {
       target: { kind, at: [building.door[0], building.door[1] - 1], building },
@@ -1557,6 +1805,7 @@ export class MapScene extends Phaser.Scene {
 
   private stopWalk(): void {
     this.sceneWalk = false;
+    this.sceneWalkSpeed = SPEED;
     this.walkPath = null;
     this.walkGoal = null;
     this.walkTarget = null;
@@ -1585,22 +1834,27 @@ export class MapScene extends Phaser.Scene {
 
   private updatePrompt(): void {
     const state = session();
-    if (state.dialogueOpen || state.locked) {
+    if (state.dialogueOpen || state.locked || this.playerHidden) {
       this.prompt.setVisible(false);
       return;
     }
     const target = this.findTarget();
-    // Props are found by looking, not by a bubble: the room stays uncluttered.
-    if (!target || target.kind === 'prop') {
+    // Every interactable in reach gets the same little bubble — a wall panel
+    // or a memorial sign is just as much a thing to press A on as a door or a
+    // fixture, and singling props out for silence was what made a room whose
+    // walls are all readable look like plain decoration instead.
+    if (!target) {
       this.prompt.setVisible(false);
       return;
     }
-    const glyph = target.kind === 'enter' ? '⌂' : 'A';
     const bob = Math.sin(this.time.now / 167) * 1.5;
     // People are two tiles tall and stand on the tile they occupy, so their
     // head fills the tile above it; props and doors sit inside their own tile.
     const lift = target.kind === 'npc' ? TILE : 0;
-    this.prompt.setTexture(promptTexture(this, glyph));
+    // One glyph for everything the bubble shows for: a door only ever reads
+    // its standing sign to an A press, same as everywhere else (DESIGN.md
+    // §2), so there is nothing here that needs a second glyph.
+    this.prompt.setTexture(promptTexture(this, 'A'));
     this.prompt.setPosition(target.at[0] * TILE + TILE / 2, target.at[1] * TILE - 2 - lift + bob);
     this.prompt.setVisible(true);
   }
@@ -1611,6 +1865,8 @@ export class MapScene extends Phaser.Scene {
     // while the scene is speaking or walking the player somewhere, so a press
     // meant to hurry a line along never starts a conversation (DESIGN.md §3).
     if (this.runner?.skip()) return;
+    // A hidden player (DESIGN.md §3) has nothing to press A on.
+    if (this.playerHidden) return;
     // A tapped walk is a promise to arrive. A press part-way there would either
     // strand the player or strike up a conversation with somebody they were
     // only walking past, so A waits until the walk is done — and the walk
@@ -1626,6 +1882,12 @@ export class MapScene extends Phaser.Scene {
     // The dialogue overlay owns the action button while it is open, and for a
     // beat after it closes, so dismissing a line can never re-trigger a talk.
     if (state.locked || state.dialogueOpen || performance.now() - state.lastDialogueClose < 200) return;
+
+    // A tap aimed at a door that is disarmed — the very one the player is
+    // standing on having just left it (`armEnters`) — has nowhere to walk
+    // in to yet, but it tapped a door, and a door always answers a tap
+    // (DESIGN.md §2): read its standing sign instead of doing nothing.
+    if (target.kind === 'enter' && !this.enterArmed) target = { ...target, kind: 'sign' };
 
     if (target.kind === 'npc') {
       const walker = this.walkers[target.person ?? 0];
@@ -1692,6 +1954,7 @@ export class MapScene extends Phaser.Scene {
         const done = fixture.give ? this.held !== fixture.give : this.held === fixture.take;
         if (done) {
           this.held = fixture.give ? (fixture.give ?? null) : null;
+          state.held = this.held;
           if (fixture.take) this.lightFixture(fixture);
         }
         const lines = done ? fixture.lines : fixture.otherwise;
@@ -1769,9 +2032,11 @@ export class MapScene extends Phaser.Scene {
     }
 
     if (target.kind === 'enter' && target.building?.interior && target.building.enter) {
-      // The doorstep rule findTarget() keeps too (see armEnters): stepping out
-      // of a door and tapping it straight back must not go in again.
-      if (!this.enterArmed) return;
+      // A tap on the door itself opens it directly, exactly like a held "up"
+      // does at the keyboard (`checkDoors`) — never an A press, and never
+      // debounced the way a held key is, since a completed, deliberate walk
+      // here is already the whole gesture (DESIGN.md §2). Armed for certain
+      // by now — a disarmed door was already turned into a 'sign' target above.
       this.leave({
         style: 'door',
         hold: HOLD.enter,
@@ -1783,7 +2048,67 @@ export class MapScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * A door with an interior behind it opens once the player actually walks
+   * into it — the arrow on the doorstep is the only warning it gets
+   * (DESIGN.md §2).
+   * "Into," not merely "onto": every door sits one row south of its own
+   * building, on the street a player is forever walking along and across, so
+   * a door that opened the instant a step so much as touched its tile would
+   * swallow anyone passing a shopfront on their way somewhere else. `dy < 0`
+   * (a held "up", the same `update()` drove this frame's step with) is the
+   * direction that would otherwise walk the player into the solid wall
+   * behind the door, which already rules out a sideways step — but not a
+   * diagonal one, which keeps inching forward on its other axis the whole
+   * way across the tile, however long "up" stays held alongside it, and
+   * never actually stops (`stuck`, this frame's real outcome — see
+   * `doorPressAdvance`, `engine/doors.ts`, for both of the ways this took
+   * three tries to get right). `enterArmed` is `armEnters`'s guard against
+   * the doorstep a player was just dropped on by leaving the very same way.
+   * A tap that lands the walk on the doorstep is `followPath`'s own arrival
+   * press, which reads the standing sign like any other A press, never
+   * this — and never holds "up" at all. A scene playing owns the controls
+   * (`this.runner`), so a held key left over from before it started can't
+   * walk the player out from under it either.
+   */
+  private checkDoors(dy: number, delta: number, stuck: boolean): void {
+    const state = session();
+    const tx = Math.floor((this.px + TILE / 2) / TILE);
+    const ty = Math.floor((this.py + TILE / 2) / TILE);
+    const building =
+      dy < 0 && !state.locked && !state.dialogueOpen && !this.runner && !this.playerHidden
+        ? this.map.buildings.find((b) => b.interior && b.enter && b.door[0] === tx && b.door[1] === ty)
+        : undefined;
+
+    if (!building) {
+      this.doorPress = null;
+      this.doorPressMs = 0;
+      return;
+    }
+    if (this.doorPress !== building.id) {
+      this.doorPress = building.id;
+      this.doorPressMs = 0;
+    }
+
+    const result = doorPressAdvance(this.enterArmed, dy < 0, stuck, delta, this.doorPressMs);
+    this.doorPressMs = result.ms;
+    if (!result.open) return;
+
+    this.doorPress = null;
+    this.leave({
+      style: 'door',
+      hold: HOLD.enter,
+      copyKey: `enter:${building.id}`,
+      to: building.interior as string,
+      spawn: building.enter as Vec2,
+      facing: 'up'
+    });
+  }
+
   private checkExits(): void {
+    // A scene playing owns the controls; a held key left over from before it
+    // started must not walk the player out from under it (DESIGN.md §3).
+    if (this.runner) return;
     const tx = Math.floor((this.px + TILE / 2) / TILE);
     const ty = Math.floor((this.py + TILE / 2) / TILE);
     const on = this.exitAt(tx, ty);
@@ -1814,6 +2139,13 @@ export class MapScene extends Phaser.Scene {
    * the player has actually stepped off the spot — the same arm/disarm
    * shape `checkExits` uses for its own doorstep rule, standing in for a
    * cooldown without needing a clock.
+   *
+   * Open ground at the boundary is the one place neither of those speaks,
+   * and on a map with `lost` it is where the player wanders off into the
+   * woods instead: the controls lock, the screen fades to black, the
+   * narrator says so on top of it, and the box closing sends them home (see
+   * `update`). Never over a scene that is
+   * playing, and never twice — the reset lands them on a fresh map.
    */
   private checkEdges(): void {
     const tx = Math.floor((this.px + TILE / 2) / TILE);
@@ -1842,6 +2174,28 @@ export class MapScene extends Phaser.Scene {
       return;
     }
 
+    const lost = lostAt(this.map, tx, ty);
+    if (lost) {
+      const state = session();
+      if (this.runner || state.locked || state.dialogueOpen) return;
+      const key = `lost:${tx},${ty}`;
+      if (this.edgeShown !== key) {
+        this.edgeShown = key;
+        // Locked and stood still the moment the woods take them — same as
+        // ever — but `this.lost` itself waits for the fade below, since
+        // `update` sends the player home the instant it sees `this.lost` and
+        // no box open, which the fade alone would otherwise satisfy early.
+        state.locked = true;
+        this.stopWalk();
+        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+          this.lost = lost;
+          bus.emit(EV.say, { speaker: state.copy.ui.narrator, lines: lost.lines });
+        });
+        this.cameras.main.fadeOut(LOST_FADE_MS, 0, 0, 0);
+      }
+      return;
+    }
+
     this.edgeShown = null;
   }
 
@@ -1852,6 +2206,8 @@ export class MapScene extends Phaser.Scene {
     to: string;
     spawn: Vec2;
     facing: Facing;
+    /** This trip is a `lost` reset (DESIGN.md §2) — see `TravelData.arrive`. */
+    arrive?: boolean;
   }): void {
     const state = session();
     state.locked = true;
@@ -1863,7 +2219,8 @@ export class MapScene extends Phaser.Scene {
       small: copy.small ?? '',
       to: opts.to,
       spawn: opts.spawn,
-      facing: opts.facing
+      facing: opts.facing,
+      arrive: opts.arrive
     });
   }
 

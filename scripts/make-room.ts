@@ -99,6 +99,12 @@
  *   long as it is a wall when the exit is placed, so an exit through a
  *   hall's wall comes after the `hall` in `props`.
  *
+ * Any prop with `lines` is read where it stands, from the tile beside its
+ * middle cell (a prop's reach is touching distance, engine/reach.ts). One
+ * nobody can stand beside — a shelf on the wall behind a counter, the board
+ * at the end of one — names `signAt`, the counter tile in front of it, and
+ * is read from there: Stamford Coffee's coffee-maker shelf and its menu.
+ *
  * Tile ids come from the world's own tileset — the script never invents one —
  * and the defaults are found by the tileset's kinds (`counter`, `shelf`,
  * `table`, `stage`, `mat`, `planter`, `board`), so a world with a different
@@ -189,6 +195,14 @@ export interface RoomProp {
   around?: number | Rect;
   /** What the player reads here. One page per entry, like a sign anywhere. */
   lines?: string[];
+  /**
+   * Where those words are read from, when the prop itself cannot be touched:
+   * a prop is read only from the tile beside it (engine/reach.ts), so a
+   * shelf on the wall behind a counter, or a board standing at the end of
+   * one, hangs its sign on the counter tile in front — one tile off one of
+   * its own cells, on the near side. Default: the prop's middle cell.
+   */
+  signAt?: Vec2;
   /** `exit` only: the way out this cuts, exactly as world.json states one. */
   to?: string;
   id?: string;
@@ -470,7 +484,18 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
     if (prop.lines?.length) {
       if (!cells.length) throw new RoomError(`${where}: has lines to read but covers no tile`);
       const middle = cells[Math.floor(cells.length / 2)];
-      signs.push({ pos: [middle[0], middle[1]], lines: [...prop.lines] });
+      const pos: Vec2 = prop.signAt ?? [middle[0], middle[1]];
+      if (prop.signAt) {
+        const [sx, sy] = prop.signAt;
+        if (!inBox(sx, sy)) throw new RoomError(`${where}: "signAt" ${prop.signAt} is outside the room`);
+        const touching = cells.some(([x, y]) => Math.abs(x - sx) + Math.abs(y - sy) === 1);
+        if (!touching) {
+          throw new RoomError(`${where}: "signAt" ${prop.signAt} is not the tile beside it — its sign hangs on it, not off it`);
+        }
+      }
+      signs.push({ pos, lines: [...prop.lines] });
+    } else if (prop.signAt) {
+      throw new RoomError(`${where}: has "signAt" but no lines to read there`);
     }
   }
 

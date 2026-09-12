@@ -8,12 +8,17 @@
  * the exception: it is read standing at it, on its own tile, so the
  * building's sign keeps the rest of the front to itself. A fixture is solid,
  * so unlike the plaque it is read from the tile beside it: far enough to take
- * in a diagonal neighbour, not far enough to reach past one. A prop sign —
- * a shelf, a board, a door with a note on it — reaches a little further, two
- * tiles straight on, which is what lets something on the back wall be read
- * across the counter in front of it.
+ * in a diagonal neighbour, not far enough to reach past one. A prop (a wall
+ * panel, a bathroom door, the chalkboard, a shelf) only prompts when the
+ * player is actually touching it: an orthogonally adjacent tile centre is
+ * exactly 1 tile away, a diagonal one is √2 (~1.41) away. 1.1 clears the
+ * former with enough slack for a walk that settles a little off the grid
+ * (movement measured in headless play lands as far as ~1.05 off-centre)
+ * while staying well clear of the latter. Something on the wall behind a
+ * counter is therefore read from the counter: its sign sits on the counter
+ * tile in front (scripts/make-room.ts `signAt`).
  */
-export const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 2.1, plaque: 0.75, fixture: 1.5 } as const;
+export const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 1.1, plaque: 0.75, fixture: 1.5 } as const;
 
 /**
  * The tile offsets whose centres lie within `reach` of a tile's own centre —

@@ -64,15 +64,15 @@
       "kind": "door",
       "at": [[12, 23]],
       "lines": [
-        "A note taped to this one, in marker: OUT OF ORDER, SORRY — BACK SOON.",
-        "Underneath, in a different pen: it's alright, the other one's nicer anyway."
+        "A note taped to this bathroom door, in marker: CLOSED UNTIL FURTHER NOTICE. It has been there a while, and it is not going anywhere.",
+        "Underneath, in a different pen: it's alright, the other bathroom's nicer anyway."
       ]
     },
     {
       "kind": "door",
       "at": [[14, 23]],
       "lines": [
-        "The other one: a urinal, a stall, and no sign on the door saying who it's for.",
+        "The other bathroom: a urinal, a stall, and no sign on the door saying who it's for.",
         "There's a latch on the inside if you'd like the room to yourself."
       ]
     },

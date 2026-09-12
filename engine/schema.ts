@@ -104,6 +104,24 @@ export interface Fixture {
   /** What it says when `give`/`take` has nothing to do. See above. */
   otherwise?: string[];
   /**
+   * What the "with you" panel calls the token this fixture hands over
+   * (DESIGN.md §2, `engine/inventory.ts`), while the player is holding it.
+   * Belongs on the `give` fixture, the one place the token is named; the
+   * `take` fixture that spends it needs neither this nor `heldBlurb`. The
+   * engine never invents player-facing English from the token — no
+   * title-casing it — so leaving this out shows the token's own name
+   * verbatim instead ("log", not "Log").
+   */
+  heldName?: string;
+  /**
+   * One line for the "with you" panel while the player is holding this
+   * fixture's token — what it's like to have it in hand, since `lines` is the
+   * moment of picking it up rather than a description for later. Leaving it
+   * out still shows the token on the panel, just with no second line under it
+   * (hard rule 3) — the exchange itself is unaffected either way.
+   */
+  heldBlurb?: string;
+  /**
    * Seconds this fixture glows warmly after a successful `take` — a fire that
    * has just been fed. One soft light disc over its tile, no strobe, and its
    * art switches to the kind's lit variant for as long as it lasts
@@ -268,6 +286,23 @@ export interface Vehicle {
   kind: VehicleKind;
   /** Body colour of the engine-drawn placeholder. Ignored once painted. */
   colour: string;
+  /**
+   * A second colour for the engine-drawn placeholder: a stripe along the
+   * body's sides, under the windows, in the same place on every facing.
+   * Optional — with none the body is one plain colour. Ignored once painted,
+   * same as `colour`.
+   */
+  accent?: string;
+  /**
+   * A small roof light bar on the engine-drawn placeholder — red and blue,
+   * alternating about every quarter second while the car is actually in
+   * service: driving, or standing still mid-scene between one `move` and the
+   * next. A car simply parked from the start, with no `path` and never sent
+   * anywhere by a scene, shows the bar lit but steady rather than flashing —
+   * there is nothing going on to flash about. Optional; with none, no bar is
+   * drawn at all. Ignored once painted, same as `colour`.
+   */
+  lights?: boolean;
   /** The tile it sits on. Defaults to the first waypoint; required when parked. */
   pos?: Vec2;
   /** Which way it points. Default 'down'; a moving car turns as it drives. */
@@ -280,6 +315,22 @@ export interface Vehicle {
   speed?: number;
   /** Seconds spent standing at each waypoint. Default 0.8. */
   pause?: number;
+  /**
+   * This car exists only for a scene (DESIGN.md §2/§3): it is not drawn, not
+   * given way to, and not in anyone's way — as if it were not on the map at
+   * all — until the first time a scene's `move` step sends it somewhere
+   * (`Driver.sendTo`, `engine/vehicle.ts`). From that point on it behaves
+   * exactly like any other parked-then-sent car for as long as this visit to
+   * the map lasts — a fresh map rebuilds it hidden again, so a story that
+   * sends the same car out more than once (a `lost` reset replayed, say)
+   * always finds it waiting out of sight the same way. This is what lets a
+   * deputy's truck wait just out of sight at the edge of town rather than
+   * sitting there, ordinary and unexplained, every week before the story
+   * ever calls on it. Default false. Meaningless (and refused) on a car with
+   * a `path`: a car this covers has to have nowhere of its own to drive until
+   * a scene sends it, which is what a parked one already is.
+   */
+  hidden?: boolean;
 }
 
 export interface MapExit {
@@ -316,6 +367,45 @@ export interface MapEdge {
 }
 
 /**
+ * What happens when the player walks off the map over open ground (DESIGN.md
+ * §2) — the grass and trees at a village's edge that `edges` and `ui.roadEnd`
+ * deliberately say nothing about, because they read as open country rather
+ * than a road that ran out. Keep going into it and the narrator says `lines`
+ * in the say box; when the last one is dismissed the player is taken to `to`
+ * on the road card and set down at `spawn`, facing `facing`. It is the one
+ * way off a map that is not an exit, and like an edge it is scenery talking:
+ * no flags, no effects, nothing saved. A map without `lost` simply has a
+ * quiet boundary there, as before.
+ */
+export interface MapLost {
+  /** Narrator lines shown in the say box, then the player is sent `to`/`spawn`. */
+  lines: string[];
+  to: string;
+  spawn: Vec2;
+  facing: Facing;
+  /**
+   * A scene (DESIGN.md §3) that plays out the arrival itself, in place of
+   * simply setting the player down — the truck rolling in and pulling up
+   * rather than the player just standing there once the card clears. Same
+   * shape as an episode scene's own `steps`, run by the very same runner
+   * (`engine/scene.ts`), but it belongs to the map rather than to any one
+   * week's episode: it is not `once`, has no `on` trigger of its own, and
+   * plays every time this `lost` fires rather than being remembered.
+   *
+   * The map scene stages it itself (`engine/scenes/map.ts`): the player is
+   * placed at `spawn` already hidden (a `player` step of its own is rarely
+   * needed at the very start for exactly that reason) — invisible, and, like
+   * any hidden player, beyond walking, tapping or pressing A with until the
+   * scene shows them again, which is what keeps them from wandering off
+   * while a truck they cannot yet be seen in rolls up. If the scene never
+   * shows them again itself, they are shown regardless once it ends, at
+   * wherever they last stood. Optional: with no `arrive`, a `lost` reset
+   * behaves exactly as it always has.
+   */
+  arrive?: SceneStep[];
+}
+
+/**
  * Everything about a map that world.json holds: its name, whether it is a
  * village or an interior, and every gameplay position on it. The tiles
  * themselves live in a Tiled file at `maps/<map id>.json` (DESIGN.md §2).
@@ -328,6 +418,8 @@ export interface MapMeta {
   exits: MapExit[];
   /** Roads that dead-end here with their own line, rather than an exit (DESIGN.md §2). */
   edges?: MapEdge[];
+  /** What happens when the player walks off the map over open ground (DESIGN.md §2). */
+  lost?: MapLost;
   /** Engine-drawn street fixtures on this map. Optional; usually absent. */
   fixtures?: Fixture[];
   /** Things on this map that can be read where they stand. Optional. */
@@ -566,6 +658,17 @@ export interface WorldCopy {
      */
     roadEnd?: string[];
     /**
+     * What a car hollers out the window once the player specifically has
+     * held it stopped in the road for a moment (DESIGN.md §2) — never a car
+     * waiting on another car, which has nobody to holler at. Shown the same
+     * lightweight way any ambient one-liner is, picked so the same car
+     * doesn't repeat itself right after saying it (`Driver.takeHoller` in
+     * engine/vehicle.ts). A world with none of these simply never hollers
+     * (hard rule 3) — keep them good-natured, the kind of ribbing everyone
+     * in the scene would smile at, never actually cross.
+     */
+    holler?: string[];
+    /**
      * The name on the dialogue box when one of those townspeople has none of
      * their own (DESIGN.md §2). A world person is somebody the player passes
      * rather than somebody they are introduced to, so a world pack usually
@@ -644,6 +747,24 @@ export interface WorldCopy {
       paint?: string;
       back?: string;
     };
+    /**
+     * The "with you" panel (DESIGN.md §2, `engine/inventory.ts`): a glance at
+     * what the player is carrying, not an inventory — no counts, no slots,
+     * nothing to manage. `button` labels the HUD button that opens it, `title`
+     * is the panel's own heading, and `empty` is the one warm line it shows
+     * with nothing to list. The engine draws each entry's name (title-cased
+     * off its id) and a placeholder swatch itself; only the words are
+     * copy. `button` is what switches the whole feature on — with no label
+     * for it there is nothing to tap or bind a key to, so the panel, the HUD
+     * button and the keyboard shortcut all simply do not appear (hard rule
+     * 3). `title` and `empty` left out just leave that one line off the
+     * open panel.
+     */
+    withYou?: {
+      button?: string;
+      title?: string;
+      empty?: string;
+    };
   };
   intro?: {
     speaker: string;
@@ -719,6 +840,31 @@ export interface EpisodeItem {
   requires: string[];
   effects: Effect[];
   lines: string[];
+  /**
+   * What the "with you" panel calls this item (DESIGN.md §2,
+   * `engine/inventory.ts`). The engine never invents player-facing English —
+   * no title-casing an id — so leaving this out shows the item's own id
+   * verbatim instead ("pen", not "Pen").
+   */
+  name?: string;
+  /**
+   * One line for the "with you" panel: what this is, now that it's in hand,
+   * since `lines` is the moment of picking it up rather than a description to
+   * keep reading later. Leaving it out still shows the item on the panel,
+   * just with no second line under it (hard rule 3).
+   */
+  blurb?: string;
+  /**
+   * A declared flag (like `requires`) that takes this item off the "with
+   * you" panel once it's true — the beat the item is handed back or used up,
+   * usually the same flag that finishes the episode ("done"). Without it the
+   * item stays on the panel for good once picked up: `withYou` only ever
+   * reads `session().taken`, never the item's own `effects`, so an item with
+   * no `until` simply has no moment of leaving. The validator checks it names
+   * a flag the episode actually declares, the same as `requires` and every
+   * effect's `set`.
+   */
+  until?: string;
 }
 
 /**
@@ -843,7 +989,10 @@ export interface MoveStep {
   /** Exactly one of `to` or `path`. */
   to?: Vec2;
   path?: Vec2[];
-  /** Tiles per second, for this move only. */
+  /**
+   * Tiles per second, for this move only — the player's own walk too (an
+   * unhurried arrival, say), rather than their ordinary tapped-walk pace.
+   */
   speed?: number;
 }
 
@@ -862,6 +1011,22 @@ export interface CameraStep {
 }
 
 /**
+ * Show or hide the player sprite mid-scene (DESIGN.md §2/§3, generic to any
+ * scene rather than tied to `MapLost`): hidden, they draw nothing and are
+ * never in anyone's way — not solid to a townsperson routing round them, not
+ * something a car gives way to — exactly as if they had stepped off the map
+ * for a moment, which is what lets a scene stand somebody else up in their
+ * place (a truck pulling in with nobody in it yet). `show` puts them back:
+ * where they already stood, or at `show.at` when the scene means to place
+ * them fresh, as `MapLost`'s `arrive` does once the truck has stopped.
+ * Exactly one of `hide`/`show`, same as any other step.
+ */
+export interface PlayerStep {
+  hide?: true;
+  show?: { at?: Vec2 };
+}
+
+/**
  * One beat of a scene. Exactly one of these fields is set; anything else is a
  * malformed step and the validator says so. Every one of them is data — there
  * is no step that runs code (CLAUDE.md hard rule 2).
@@ -876,6 +1041,8 @@ export interface SceneStep {
   /** Sets an episode flag — which is also how a scene turns an overlay on. */
   set?: string;
   light?: LightSpec;
+  /** Show or hide the player sprite — see `PlayerStep`. */
+  player?: PlayerStep;
   /** Ends the scene here, whatever follows in the list. */
   end?: boolean;
 }

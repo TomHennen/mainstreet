@@ -31,6 +31,9 @@ bottom edge and Hobart's top edge carry a trail exit of their own beside
 the Route 10 one.
 
 **Stamford.** Stewart's is on the north-west corner of the 10/23 junction.
+Walking off the Stamford map into the woods (Tom, Sep 2026) gets you lost:
+a Delaware County Sheriff's deputy is out your way before long, and drops
+you back outside Stewart's, where a coffee is waiting.
 Mac-A-Doodles is on the east side of Route 10, south of Route 23 (the
 south-east corner). Route 23 is Harper Street west of the corner and Main
 Street east of it; Route 10 is Lake Street north of the corner and Hobart Road
@@ -146,6 +149,9 @@ note above, after seeing the first room built. All of them are in the map now:
   takes the same tile for its week.
 - **The bartender is a woman** — she almost always is — and she has a name.
   Marnie: invented, not anybody, and not a name any other episode uses.
+- **The first bathroom is permanently out of order.** It's part of the
+  place's charm, not a passing mishap — the door stays "closed until further
+  notice" (CLAUDE.md hard rule 6).
 - **The yard's floor is grass**, not stone. The only paving out there is the
   small ring of pavers the fire sits on.
 - **The woodpile is a thing you use.** It was drawn small enough to miss. It
@@ -177,6 +183,9 @@ wall, the coffee-maker collection is the shelf along the top wall right of
 the counter, the menu (paninis and the Maple Smoke latte) is a standing
 board at the end of Ronnie's counter, and the self-serve fridge is the two
 cooler tiles by the street door (readable; nothing bought yet). The
+coffee-maker shelf, the menu board and the bottles are behind the counter,
+so each is read from the counter tile in front of it (`signAt` in the
+spec): a prop is only ever read from the tile beside it. The
 mid-century furniture is the room's tables and stools, with the first table
 readable as the whole set. The doorway to 80 Main is a two-tile-tall open
 gap in the right wall at rows 6–7, matched by the same gap in 80 Main's left

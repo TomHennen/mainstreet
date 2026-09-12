@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { drawFigure, figureKey } from './figure';
+import { DOOR_ARROW_H, DOOR_ARROW_W, paintDoorArrow } from './glyphs';
 import { drawVehicle, VEHICLE_CELL } from './motor';
 import { FACINGS, plaqueTile } from './schema';
 import { TILE } from './tiled';
@@ -912,6 +913,54 @@ export function plaqueArt(scene: Phaser.Scene, placement: BuildingPlacement): Pl
   };
 }
 
+// --- the arrow at an open door -------------------------------------------------
+
+/** How far its bottom edge sits above the bottom of the doorstep tile. */
+const DOOR_ARROW_LIFT = 1;
+
+export interface DoorArrowArt {
+  key: string;
+  x: number;
+  y: number;
+  /** Draw at this depth so a player standing on the doorstep draws over it. */
+  depth: number;
+}
+
+/**
+ * The engine's own "come on in": a small chunky arrow, pointing up into the
+ * door, painted on the doorstep of a door that actually opens (CLAUDE.md #4,
+ * DESIGN.md §2) — the very tile a player stands on to walk in — so an
+ * enterable building reads as one at a glance and a building that only
+ * carries a sign never grows one. The pixels themselves live in
+ * `engine/glyphs.ts` `paintDoorArrow`, Phaser-free so the Studio's reference
+ * preview can share the exact same recipe. It lives on the *tile*, not baked
+ * into the facade's own picture the way the plaque hangs on the wall above
+ * it: a player standing on the doorstep is meant to cover it, the way a road
+ * marking disappears under a car, rather than the arrow drawing over them.
+ * `depth` follows the tile-row convention items use (`itemTexture`'s
+ * caller), the top edge of the doorstep's own row, which always sits below
+ * a player on that row or any row further down the street. Returns null for
+ * a building with no interior.
+ */
+export function doorArrowArt(scene: Phaser.Scene, placement: BuildingPlacement): DoorArrowArt | null {
+  if (!placement.interior) return null;
+
+  const key = 'prop:door-arrow';
+  if (!scene.textures.exists(key)) {
+    const { texture, ctx } = canvas(scene, key, DOOR_ARROW_W, DOOR_ARROW_H);
+    paintDoorArrow(ctx);
+    texture.refresh();
+  }
+
+  const [dx, dy] = placement.door;
+  return {
+    key,
+    x: dx * TILE + (TILE - DOOR_ARROW_W) / 2,
+    y: dy * TILE + TILE - DOOR_ARROW_LIFT - DOOR_ARROW_H,
+    depth: dy * TILE
+  };
+}
+
 // --- street fixtures ---------------------------------------------------------
 
 /**
@@ -1098,14 +1147,25 @@ export { VEHICLE_CELL };
  * `assets/vehicles/<id>.png` is therefore 32x128.
  *
  * The recipe itself lives in engine/motor.ts, which needs no browser; this
- * wraps it in a Phaser texture, one per kind-and-colour.
+ * wraps it in a Phaser texture, one per kind, colour, accent and light-bar
+ * variant a world's vehicles actually use. `lights` is undefined for a car
+ * with no light bar, or which of its two flashing variants (`'a'`/`'b'`) this
+ * particular texture paints — `engine/scenes/map.ts` `addCars` asks for both
+ * of a lit car's variants once and flips the sprite between the two keys
+ * itself, on a clock, rather than this ever being asked to redraw one.
  */
-export function vehicleTexture(scene: Phaser.Scene, kind: VehicleKind, colour: string): string {
-  const key = `vehicle:${kind}:${colour}`;
+export function vehicleTexture(
+  scene: Phaser.Scene,
+  kind: VehicleKind,
+  colour: string,
+  accent?: string,
+  lights?: 'a' | 'b'
+): string {
+  const key = `vehicle:${kind}:${colour}:${accent ?? ''}:${lights ?? ''}`;
   if (scene.textures.exists(key)) return key;
 
   const { texture, ctx } = canvas(scene, key, VEHICLE_CELL, VEHICLE_CELL * FACINGS.length);
-  FACINGS.forEach((dir, row) => drawVehicle(ctx, 0, row * VEHICLE_CELL, dir, kind, colour));
+  FACINGS.forEach((dir, row) => drawVehicle(ctx, 0, row * VEHICLE_CELL, dir, kind, colour, accent, lights));
   texture.refresh();
 
   FACINGS.forEach((_, row) => {
@@ -1134,6 +1194,14 @@ export function itemTexture(scene: Phaser.Scene): string {
   return key;
 }
 
+/**
+ * The little "press A" bubble that floats over whatever is in reach — a
+ * door, a person, a plaque, a prop. One glyph for everything it shows for: a
+ * door only ever reads its standing sign to an A press (DESIGN.md §2, same
+ * as anywhere else), so there is nothing here that needs a second glyph, and
+ * the bubble never carries a word label either — the bare letter is the
+ * whole of it, in the world's own accent font (`MONO`).
+ */
 export function promptTexture(scene: Phaser.Scene, glyph: string): string {
   const key = `prompt:${glyph}`;
   if (scene.textures.exists(key)) return key;
