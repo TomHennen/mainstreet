@@ -23,6 +23,7 @@ import {
 import { currentDialogue, currentInventory, currentToast, publishDebug, publishFlagSetter } from '../debug';
 import { doorPressAdvance } from '../doors';
 import { edgeAt, lostAt, roadEndLine } from '../edges';
+import { footprintTiles } from '../footprint';
 import { isHeld, onAction, onTap } from '../input';
 import { feedbackUrl } from '../feedback';
 import { improveUrl, paintUrl } from '../paint';
@@ -1053,15 +1054,7 @@ export class MapScene extends Phaser.Scene {
   /** The tiles the player's hitbox is over — one, two, or four at a corner. Empty while hidden (`hidePlayer`): nothing is in a hidden player's way, and a hidden player is in nobody else's. */
   private playerTiles(): Vec2[] {
     if (this.playerHidden) return [];
-    const tiles: Vec2[] = [];
-    for (const ox of [MARGIN, HITBOX - MARGIN]) {
-      for (const oy of [MARGIN, HITBOX - MARGIN]) {
-        const tx = Math.floor((this.px + ox) / TILE);
-        const ty = Math.floor((this.py + oy) / TILE);
-        if (!tiles.some((tile) => tile[0] === tx && tile[1] === ty)) tiles.push([tx, ty]);
-      }
-    }
-    return tiles;
+    return footprintTiles(this.px / TILE, this.py / TILE, HITBOX / TILE, MARGIN / TILE);
   }
 
   /**
