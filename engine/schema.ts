@@ -429,6 +429,8 @@ export interface MapMeta {
    * three per map is plenty, and the validator says so (DESIGN.md §2).
    */
   people?: Person[];
+  /** A building interior nobody is posted in, on purpose: the validator otherwise wants at least one person in every room a door opens onto (DESIGN.md §2). */
+  unstaffed?: boolean;
   /**
    * Ambient traffic on this map's paved routes (DESIGN.md §2). One or two per
    * village is what makes a street read as lived-in; the validator says so.

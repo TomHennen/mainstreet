@@ -14,9 +14,13 @@
     "Word travels faster than traffic on Route 10, and that's saying something.",
     "I hope that costume makes it there in one piece — I heard it's got sequins.",
     "Walt's truck could use a wash before it goes anywhere near the city.",
-    "Nice to see everybody pitching in for Priya's kid."
+    "Nice to see everybody pitching in for Priya's kid.",
+    "Somebody's fixing up the space under Stamford Coffee. Ask ten people what it's going to be and you'll get eleven answers.",
+    "Stamford Coffee's got a record on and a whole shelf of coffee makers lined up like a parade. Go look, it's worth the trip on its own.",
+    "If you're late getting home, the self-serve fridge at Stamford Coffee has dinner in it. That fridge has saved a lot of Tuesdays.",
+    "80 Main's got the Catskills sweaters in again. I'm not saying I need another one. I'm saying I'm going to look."
   ],
-  "flags": ["heardAsk", "triedStamford", "triedHobart", "done"],
+  "flags": ["heardAsk", "triedStamford", "askedCoffee", "triedHobart", "done", "heardShop"],
   "npcs": [
     {
       "id": "priya",
@@ -38,8 +42,12 @@
           "lines": ["Still asking around? Try the gas station — half the county passes through there before nine."]
         },
         {
-          "requires": ["triedStamford"],
+          "requires": ["askedCoffee"],
           "lines": ["Renata might know something — Cellar Door, down in Hobart."]
+        },
+        {
+          "requires": ["triedStamford"],
+          "lines": ["Hannah sent you to Stamford Coffee? Go on in — that's where everybody's morning starts, city-bound or not."]
         },
         {
           "requires": ["heardAsk"],
@@ -73,10 +81,18 @@
           "lines": ["Renata sent you to Walt, then — J&H, the gas station up in Jefferson."]
         },
         {
+          "requires": ["askedCoffee"],
+          "lines": ["An order for the road, and Cellar Door mentioned? Then Renata's your next stop — down in Hobart. She'll put a name to it."]
+        },
+        {
+          "requires": ["triedStamford"],
+          "lines": ["Still on it? Stamford Coffee, right along Main — ask in there what went out for the road this morning."]
+        },
+        {
           "requires": ["heardAsk"],
           "lines": [
             "Nobody from in here's going down today, far as I know.",
-            "Check the board at Tops on your way through — and Cellar Door in Hobart, Renata always seems to know who's coming and going."
+            "But nobody drives to the city without stopping at Stamford Coffee first. Ask in there, on Main Street — and check the board at Tops on your way."
           ],
           "effects": [{ "set": "triedStamford" }]
         },
@@ -106,13 +122,20 @@
           "lines": ["Go on, catch him before he leaves — the gas station, up in Jefferson."]
         },
         {
-          "requires": ["triedStamford"],
+          "requires": ["askedCoffee"],
           "lines": [
-            "Not me today — my truck's in the shop.",
-            "But I saw someone loading a cooler bag into their trunk up at the gas station this morning. Nobody packs a cooler for a trip up the road — that's a city run.",
-            "That'll be Walt — J&H, the gas station up in Jefferson."
+            "An order for the road from the coffee shop, then a bottle from me first thing this morning? Not me — my truck's in the shop. That's Walt.",
+            "I saw him loading a cooler bag into the back of his truck up at the gas station on my way in. Nobody packs a cooler for a trip up the road — that's a city run.",
+            "J&H, the gas station up in Jefferson. Go on, catch him before he leaves."
           ],
           "effects": [{ "set": "triedHobart" }]
+        },
+        {
+          "requires": ["triedStamford"],
+          "lines": [
+            "Hannah sent you? Then she'll have said: anybody driving to the city stops at Stamford Coffee first.",
+            "Ask in there what got ordered for the road this morning, then come back and tell me. I'll know who it was."
+          ]
         },
         {
           "requires": ["heardAsk"],
@@ -134,7 +157,7 @@
       "id": "walt",
       "name": "Walt",
       "map": "jefferson",
-      "pos": [48, 11],
+      "pos": [46, 12],
       "facing": "down",
       "accent": "#8a6b48",
       "dialogue": [
@@ -153,7 +176,7 @@
         {
           "requires": ["heardAsk"],
           "lines": [
-            "Heard something's going around about a favor for Priya. Nothing solid on my end, but you never know who overhears what."
+            "A costume, down to the city? Might be going, might not — depends how the day shakes out. Ask Hannah; she tracks my Sundays better than I do."
           ]
         },
         {
@@ -162,6 +185,108 @@
             "Every other Sunday I load up and head down for the week — traffic and all. Don't ask me why I keep doing it to myself.",
             "If you're new around here, Priya's out on the green — good person to know."
           ]
+        }
+      ]
+    },
+    {
+      "id": "fern",
+      "name": "Fern",
+      "map": "stamford-coffee-interior",
+      "pos": [6, 11],
+      "facing": "right",
+      "accent": "#4f7f6e",
+      "dialogue": [
+        {
+          "requires": ["done"],
+          "lines": [
+            "So that order was Walt's. Of course it was — every other Sunday, same thing. Tell Priya's kid break a leg from all of us in here."
+          ]
+        },
+        {
+          "requires": ["triedHobart"],
+          "lines": ["So it was Walt's order. Every other Sunday, like clockwork — go on, catch him at the gas station before he's off."]
+        },
+        {
+          "requires": ["askedCoffee"],
+          "lines": [
+            "Renata, at Cellar Door in Hobart — that's who'll know whose order that was. Whoever it was, they said they were stopping there for a bottle."
+          ]
+        },
+        {
+          "requires": ["triedStamford"],
+          "lines": [
+            "Priya's costume run? Hannah sent you to the right place. Somebody was in early — lunch wrapped for the road and a cold brew big enough to get to Brooklyn on.",
+            "I didn't catch who; I had my head in the LPs. But they said they were stopping at Cellar Door for a bottle first. Renata will know — down in Hobart."
+          ],
+          "effects": [{ "set": "askedCoffee" }]
+        },
+        {
+          "requires": ["heardShop"],
+          "lines": [
+            "Still a gallery downstairs, whatever you've been told. I've not been talked out of it.",
+            "They put paper over the window before I could get a look. I respect that. I'm still going to try."
+          ]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "Sit anywhere — you can hear the record player from every table in here, so you get whichever side they've put on.",
+            "Have you heard? Somebody's doing something with the space underneath us. Hammering all last week. Nobody knows what it is, including the counter, and the counter knows everything.",
+            "My money's on a gallery. Half the people at these tables paint. I've seen the sketchbooks."
+          ],
+          "effects": [{ "set": "heardShop" }]
+        }
+      ]
+    },
+    {
+      "id": "ozzie",
+      "name": "Ozzie",
+      "map": "eighty-main-interior",
+      "pos": [2, 6],
+      "facing": "up",
+      "accent": "#b0743a",
+      "dialogue": [
+        {
+          "requires": ["heardShop"],
+          "lines": [
+            "Nothing new downstairs? Everyone's still guessing. Oysters — that's my guess and I'm not moving. The wine nights in here fill right up; imagine that every night of the week.",
+            "Whoever it is, they've picked a lovely spot. Coffee upstairs, sweaters next door. I'd open there."
+          ]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "Don't mind me, I'm deciding between two sweaters and losing.",
+            "You've noticed the work going on under the coffee shop? Whole town's noticed. Nobody's got the answer, which hasn't slowed anybody down.",
+            "My guess is an oyster bar. The oyster-and-wine nights in here fill right up — somebody's clearly been paying attention."
+          ],
+          "effects": [{ "set": "heardShop" }]
+        }
+      ]
+    },
+    {
+      "id": "ines",
+      "name": "Ines",
+      "map": "stamford",
+      "pos": [91, 24],
+      "facing": "left",
+      "accent": "#c9a24a",
+      "dialogue": [
+        {
+          "requires": ["heardShop"],
+          "lines": [
+            "Still no answer on the space under the coffee shop. Dog treats, I'm telling you. Look at this deck — every dog in Stamford naps here. That's a customer base.",
+            "Biscuit here has been sniffing at that papered-over window every walk this week. He knows something. He's not telling either."
+          ]
+        },
+        {
+          "requires": [],
+          "lines": [
+            "Morning. Biscuit likes to check the patio before we go anywhere else, so we check the patio.",
+            "Have you heard about the space underneath the coffee shop? Somebody's doing it up. There's paper on the window and hammering behind it, and that's all anybody knows.",
+            "My guess is dog treats. Every dog in Stamford naps on this deck. Somebody's finally noticed."
+          ],
+          "effects": [{ "set": "heardShop" }]
         }
       ]
     }
@@ -198,6 +323,23 @@
       "building": "tops",
       "requires": ["heardAsk"],
       "lines": ["Pinned to the board by the door: someone's asking if anybody's headed down to the city today. Half the county's seen it already."]
+    }
+  ],
+  "overlays": [
+    {
+      "id": "papered-window",
+      "map": "stamford",
+      "requires": [],
+      "tiles": [{ "pos": [92, 22], "tile": 50 }],
+      "props": [
+        {
+          "pos": [92, 22],
+          "lines": [
+            "Down the side of the coffee shop, a low window right at the ground, with brown paper and a sheet of plywood over it from the inside. Somebody's at work behind it — you can hear a saw going.",
+            "Not a word written on any of it. Everybody who walks past leans in for a look anyway, and comes away knowing exactly as much as before."
+          ]
+        }
+      ]
     }
   ]
 }

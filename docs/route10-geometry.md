@@ -406,13 +406,52 @@ Both doorways are two tiles wide in the bottom wall, matted, with the exit
 trigger on the mat and the spawn tile the mat just inside it — the way out of
 Stewart's, and the reason a room's door reads as a door.
 
-- **Stamford Coffee** (20 × 12, exposed brick, light floor): the counter runs
-  along the back wall with the pastry case at its right-hand end and the
-  drinks coolers along the wall past it; tables in two clusters either side of
-  the aisle from the door; and, down the west wall, the shelves of **80 Main**
-  with a matted threshold between two bays of them. 80 Main really does touch
-  Coffee's west wall and share its patio, so its shelves are the right thing to
-  see through that side doorway.
+- **Stamford Coffee** (a 20 × 15 box, not a rectangle; exposed brick, light
+  floor; rebuilt to Tom's sketch, Sep 10 2026): the first room built from a
+  `plan` — the floor is a union of rectangles and everything outside it is
+  wall (DESIGN.md §2). The cafe is x1–18, rows 4–13, entered from the
+  bottom; a walkway up its left side leads into a hallway bay in the top
+  left (x1–3, rows 1–3 — three rows, halved from six at Tom's word) with
+  the **two bathroom doors in its top wall** and
+  the **steel kitchen door** cut through the bay's right-hand wall at
+  [4,2]. The counter runs along the cafe's top wall all the way to the
+  right wall, with Ronnie, the coffee-maker collection, the menu board and
+  a shelf of bottles (beer and wine to take home) in the strip behind it;
+  the record player and the crates of LPs down the left wall; tables in
+  two clusters either side of the aisle from the door; the self-serve
+  fridge up front by the door; and, in the **right** wall, a two-tile open
+  doorway straight through into **80 Main**'s own room. The block above the
+  cafe's top wall is solid wall mass — the kitchen was drawn there for a
+  day, and Tom preferred it as a room of its own.
+- **Stamford Coffee Kitchen** (`stamford-coffee-kitchen`, 12 × 9, same brick
+  and floor; Sep 10 2026): its own map, entered through the steel door from
+  the hallway — Tom prefers the kitchen as a room you have to go into rather
+  than drawn with the rest of the cafe. Its door is a one-tile gap in its
+  **left** wall at row 4 (in facing right, out facing left onto the hallway
+  tile beside the steel door) — one steel door tile inside to match the one
+  on the cafe side (Tom, Sep 12; it was two); no street door. Open plan:
+  the oven, a steel work table and two fridges and a chest freezer along its
+  top wall, the cake
+  table down its right wall, the cooling rack by its bottom wall, and the
+  middle left clear. Nobody is placed in it: the kitchen is the shop's own,
+  kept empty for future episodes (Tom, Sep 12), and a room reached only
+  through another room may be empty without `"unstaffed"`. The floor is a
+  floor, not grass: the playtest tells a room from a yard by whether its
+  whole floor grows.
+- **80 Main** (14 × 12, same brick and floor): its own street door onto the
+  shared patio, the counter along the back, the logo wear, the sweater rack,
+  the candles and mugs round the walls, the coal coffee table in the middle
+  and the oyster-and-wine board by the door; the doorway back into the coffee
+  shop is in its **left** wall, lined up with Coffee's.
+- **The doorway is on the room's right, though 80 Main is west on the
+  street.** A deliberate bend (map rule 1). Every interior here is entered
+  through its bottom wall and walked *up* into, whatever way the real door
+  faces, so a room's x-axis carries no compass meaning; what it can match is
+  the player's body. Stamford Coffee is on the south side of Main, so in life
+  you walk in facing south and 80 Main, to the west, is on your right — which
+  is what Tom wrote and what the room does. Walking through and out 80 Main's
+  street door puts you four tiles west of where you went in, which nobody
+  notices across a fade.
 - **The Belvedere** (22 × 14, dark panelling): the bar runs down the west side
   with a sealed strip behind it, the stage sits in the north-east corner with
   the floor in front of it left clear, a chalkboard stands by the north wall

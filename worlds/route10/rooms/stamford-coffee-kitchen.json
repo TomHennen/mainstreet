@@ -1,0 +1,55 @@
+{
+  "name": "Stamford Coffee Kitchen",
+  "size": [12, 9],
+  "wall": 14,
+  "floor": [11, 24],
+  "door": { "side": "left", "column": 4, "width": 1, "tiles": [53] },
+  "exit": { "id": "stamford-coffee-kitchen-exit", "to": "stamford-coffee-interior", "spawn": [3, 2], "facing": "left" },
+  "props": [
+    {
+      "kind": "shelf",
+      "rect": [1, 1, 2, 1],
+      "tiles": [22, 22],
+      "lines": [
+        "The oven, two big decks of it, ticking as it warms. Most mornings it's scones and muffins for the case out front, and the whole kitchen smells of them.",
+        "There's a timer on a string hung on the hook beside it. Somebody's never once needed it."
+      ]
+    },
+    {
+      "kind": "shelf",
+      "rect": [3, 1, 5, 1],
+      "tiles": [23],
+      "lines": [
+        "Steel work tables all along the wall: the big stand mixer, a scale that weighs to the gram, and a bench scraper worn smooth from years of good use.",
+        "This is where the coffee shop's own baking gets done — the scones, the cookies, whatever goes in the case each morning."
+      ]
+    },
+    {
+      "kind": "shelf",
+      "rect": [8, 1, 3, 1],
+      "tiles": [21, 20, 21],
+      "lines": [
+        "Two fridges and a chest freezer, humming in three different keys: butter by the case, eggs by the flat, milk and cream for the espresso machine out front.",
+        "Everything in here is going to be breakfast for somebody by the end of the week."
+      ]
+    },
+    {
+      "kind": "shelf",
+      "rect": [10, 2, 1, 4],
+      "tiles": [23],
+      "lines": [
+        "A table kept clear at the end of the room, with a turntable and a rack of food colours on the shelf above it.",
+        "Some nights a baker borrows the kitchen after the shop's locked up and builds her custom cakes here. Most days it's just where the trays get stacked."
+      ]
+    },
+    {
+      "kind": "shelf",
+      "rect": [1, 7, 2, 1],
+      "tiles": [18],
+      "lines": [
+        "A rolling rack of trays, cooling: lemon shortbread cookies, every tray of them. They go out front by the dozen and they're gone.",
+        "Buttery, a little sharp, sugar on top. One is never the number."
+      ]
+    }
+  ]
+}

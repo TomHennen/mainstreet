@@ -2,6 +2,7 @@
 // needs under Node's type stripping (see that file's header).
 import { lostAt, rectsOverlap } from './edges.ts';
 import { findPath } from './path.ts';
+import { clearBetween, offsetsWithin, REACH } from './reach.ts';
 import { canCoOccur, combinations, overlapsIn, patchFor, withOverlays } from './overlay.ts';
 import { runsOffMap } from './vehicle.ts';
 import {
@@ -139,10 +140,25 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
         }
       }
       if (placement.interior) {
-        if (!world.maps[placement.interior]) {
+        const room = world.maps[placement.interior];
+        if (!room) {
           problems.push(`building "${placement.id}" points at unknown interior "${placement.interior}"`);
         } else if (!placement.enter) {
           problems.push(`building "${placement.id}" has an interior but no "enter" spawn`);
+        } else if (!(room.people ?? []).length && room.unstaffed !== true) {
+          // A shop the player can walk into has somebody in it (DESIGN.md
+          // §2): a room with nobody behind the counter reads as closed, or
+          // as a place the art has not caught up with, neither of which a
+          // door should open onto by accident. The world's own `people` is
+          // what keeps a room staffed between stories — an episode NPC
+          // stands in for the same id while that episode runs (session.ts)
+          // — and `"unstaffed": true` on the room is the deliberate way to
+          // leave one empty. Rooms reached only through another room are not
+          // building interiors and are not asked.
+          problems.push(
+            `building "${placement.id}"'s interior "${placement.interior}" has nobody in it — give the room a "people" ` +
+              `entry, or mark it "unstaffed": true if it is meant to be empty`
+          );
         }
       }
     }
@@ -227,8 +243,13 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
     }
 
     // A sign that belongs to the map rather than to a story (DESIGN.md §2).
-    // It is read from beside it, so it needs somewhere to be read from — the
-    // tile itself where that is walkable, and otherwise a neighbour.
+    // It is read from within a prop's reach (engine/reach.ts) — touching
+    // distance — so it needs somewhere that close to be read from: the tile
+    // itself where that is walkable, and otherwise a tile beside it. A shelf
+    // on the wall behind a counter hangs its sign on the counter tile in
+    // front (scripts/make-room.ts `signAt`). Whatever the reach, a tile with
+    // something opaque between it and the sign is the other side of the
+    // wall, and does not count (`clearBetween`).
     for (const sign of map.signs ?? []) {
       const where = `map "${mapId}" sign at ${sign.pos.join(',')}`;
       const [sx, sy] = sign.pos;
@@ -239,13 +260,10 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
       if (!sign.lines?.length || sign.lines.some((line) => typeof line !== 'string' || !line.trim())) {
         problems.push(`${where} has nothing to read on it`);
       }
-      const reachable = [
-        [sx, sy],
-        [sx - 1, sy],
-        [sx + 1, sy],
-        [sx, sy - 1],
-        [sx, sy + 1]
-      ].some(([x, y]) => !isSolid(map, x, y));
+      const opaque = (x: number, y: number) => isOpaque(map, x, y);
+      const reachable = [[0, 0], ...offsetsWithin(REACH.prop)].some(
+        ([dx, dy]) => !isSolid(map, sx + dx, sy + dy) && clearBetween([sx + dx, sy + dy], [sx, sy], opaque)
+      );
       if (!reachable) problems.push(`${where} has nowhere beside it to read it from`);
     }
 
@@ -577,9 +595,14 @@ export function validateEpisode(episode: Episode, world: World, maps: Record<str
   // hashing their id against the pool (engine/session.ts's smallTalkFor), so
   // the same person always says the same thing — but with fewer lines than
   // there are ambient people, some of them are guaranteed to land on the same
-  // line and repeat it, verbatim, to everyone who asks, all week.
+  // line and repeat it, verbatim, to everyone who asks, all week. Somebody
+  // who carries their own `lines` (a barista behind a counter, DESIGN.md §2)
+  // says those instead and never draws from the pool, so they do not count.
   if (episode.smallTalk) {
-    const ambientPeople = Object.values(world.maps).reduce((sum, meta) => sum + (meta.people?.length ?? 0), 0);
+    const ambientPeople = Object.values(world.maps).reduce(
+      (sum, meta) => sum + (meta.people ?? []).filter((person) => !person.lines?.length).length,
+      0
+    );
     if (episode.smallTalk.length < ambientPeople) {
       problems.push(
         `${where}: "smallTalk" has ${episode.smallTalk.length} line${episode.smallTalk.length === 1 ? '' : 's'} ` +
@@ -1598,4 +1621,17 @@ export function isSolid(map: GameMap, x: number, y: number): boolean {
   return map.buildings.some(
     (b) => x >= b.pos[0] && x < b.pos[0] + b.size[0] && y >= b.pos[1] && y < b.pos[1] + b.size[1]
   );
+}
+
+/**
+ * The single definition of "you cannot see through here", shared the same
+ * way: a cell is opaque if any layer's tile there carries `opaque`
+ * (engine/tiled.ts). It is what `clearBetween` (engine/reach.ts) asks, so a
+ * thing two tiles off through a wall is out of reach in the scene and
+ * unreadable to the validator alike. Off the map counts as opaque too.
+ */
+export function isOpaque(map: GameMap, x: number, y: number): boolean {
+  if (x < 0 || y < 0 || x >= map.width || y >= map.height) return true;
+  const index = y * map.width + x;
+  return map.layers.some((layer) => layer.cells[index]?.opaque === true);
 }

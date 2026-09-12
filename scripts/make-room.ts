@@ -39,11 +39,34 @@
  * }
  * ```
  *
+ * A room need not be a rectangle. `plan` lists the floor as rectangles
+ * inside `size`, and everything outside their union is wall — the wall you
+ * see round the floor and the mass beyond it alike, so a wall between two
+ * wings is drawn by leaving a column out of the plan. Stamford Coffee is a
+ * cafe with a bay for the hallway up its left and the kitchen above its top
+ * wall:
+ *
+ * ```jsonc
+ * "size": [20, 18],
+ * "plan": [[1, 1, 3, 6], [4, 2, 1, 1], [5, 1, 14, 5], [1, 7, 18, 10]]
+ * ```
+ *
+ * — the hallway bay, the one cell of the dividing wall the kitchen door
+ * stands in (a `mat` prop with the steel door tile makes it a passage), the
+ * kitchen, and the cafe. Doors, panels and exits go in any wall cell; the
+ * main `door` is still cut in the bounding box's own side and needs floor
+ * directly inside it.
+ *
  * `door.column` is the index along the wall it sits in — a column for a door on
  * the top or bottom edge, a row for one on the left or right. The convention is
  * `"bottom"`, which is what a doorway you walk down out of reads as; the other
  * three sides work but no world uses one yet. The exit trigger covers the gap,
- * and the spawn tile inside the room is the tile just in from it.
+ * and the spawn tile inside the room is the tile just in from it. The gap is
+ * painted with the doormat tile unless the door names its own `tiles` (ids,
+ * cycled along the gap like a prop's) — Stamford Coffee's kitchen has the
+ * steel door tile there, so the way out reads as a door against the brick
+ * rather than a mat the colour of the wall. Whatever is named must be
+ * walkable: the script refuses a solid tile in the doorway.
  *
  * Every prop covers either a `rect` (`[x, y, w, h]`) or a list of tiles (`at`),
  * and may name its own `tiles` (ids, cycled in order) instead of the default for
@@ -65,6 +88,22 @@
  *   face of the riser (`front`, default `"bottom"`).
  * - `mat`, `planter`, `sign` — a doormat, a pot with something growing in it,
  *   and a standing board a later episode can hang a prop sign on.
+ * - `hall` — a corridor cut off the room, walled down both long sides and
+ *   open at the ends; `cap` closes one end with a wall tile, for a hallway
+ *   that dead-ends at a door (Stamford Coffee's kitchen door, cut through
+ *   the cap by an `exit` after it).
+ * - `door`, `panel` — something in a wall: a door to read a note on, a wall
+ *   worth stopping at. `exit` is a way out cut through a wall, stated like
+ *   the spec's own `exit`. Any wall tile will do — the outside wall, or the
+ *   wall of a `hall` (the kitchen door off Stamford Coffee's hallway) — as
+ *   long as it is a wall when the exit is placed, so an exit through a
+ *   hall's wall comes after the `hall` in `props`.
+ *
+ * Any prop with `lines` is read where it stands, from the tile beside its
+ * middle cell (a prop's reach is touching distance, engine/reach.ts). One
+ * nobody can stand beside — a shelf on the wall behind a counter, the board
+ * at the end of one — names `signAt`, the counter tile in front of it, and
+ * is read from there: Stamford Coffee's coffee-maker shelf and its menu.
  *
  * Tile ids come from the world's own tileset — the script never invents one —
  * and the defaults are found by the tileset's kinds (`counter`, `shelf`,
@@ -138,6 +177,11 @@ export interface RoomProp {
   /** `island`/`peninsula`: how wide that way in is, in tiles. Default 1. */
   gap?: number;
   /**
+   * `hall`: close this end of the corridor with a wall tile, for a hallway
+   * that dead-ends — at a door an `exit` then cuts through it, say.
+   */
+  cap?: Side;
+  /**
    * `peninsula`: which side of its rect is against the room's outer wall.
    * Default "bottom", which is what a bar you walk in alongside reads as.
    */
@@ -151,6 +195,14 @@ export interface RoomProp {
   around?: number | Rect;
   /** What the player reads here. One page per entry, like a sign anywhere. */
   lines?: string[];
+  /**
+   * Where those words are read from, when the prop itself cannot be touched:
+   * a prop is read only from the tile beside it (engine/reach.ts), so a
+   * shelf on the wall behind a counter, or a board standing at the end of
+   * one, hangs its sign on the counter tile in front — one tile off one of
+   * its own cells, on the near side. Default: the prop's middle cell.
+   */
+  signAt?: Vec2;
   /** `exit` only: the way out this cuts, exactly as world.json states one. */
   to?: string;
   id?: string;
@@ -161,8 +213,21 @@ export interface RoomProp {
 export interface RoomSpec {
   /** The map's name in world.json — the place, not the room. */
   name: string;
+  /** The bounding box, walls included. */
   size: Vec2;
-  door: { side?: Side; column: number; width?: number };
+  /**
+   * The floor, as a union of `[x, y, w, h]` rectangles inside `size`, for a
+   * room that is not a rectangle. Everything outside them is wall. Without
+   * it the whole box is the room, ringed in wall, as before.
+   */
+  plan?: Rect[];
+  door: {
+    side?: Side;
+    column: number;
+    width?: number;
+    /** Painted into the gap instead of the doormat, cycled along it. */
+    tiles?: number[];
+  };
   exit: { id: string; to: string; spawn: Vec2; facing: Facing };
   wall?: number;
   floor?: number[];
@@ -268,11 +333,31 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
   const tiles: number[] = new Array(width * height);
   const props: (number | null)[] = new Array(width * height).fill(null);
   const at = (x: number, y: number) => y * width + x;
-  const onWall = (x: number, y: number) => x === 0 || y === 0 || x === width - 1 || y === height - 1;
+  const inBox = (x: number, y: number) => x >= 0 && y >= 0 && x < width && y < height;
+
+  // The floor: the whole box inside its walls, or the union of the plan.
+  // Everything else is wall, whether it shows or not.
+  const floorCells = new Set<number>();
+  if (spec.plan) {
+    if (!Array.isArray(spec.plan) || !spec.plan.length) throw new RoomError('the plan has no rectangles in it');
+    for (const [i, rect] of spec.plan.entries()) {
+      const [rx, ry, rw, rh] = rect;
+      if (![rx, ry, rw, rh].every(Number.isInteger) || rw < 1 || rh < 1) {
+        throw new RoomError(`plan rectangle ${i} is ${rect.join(',')} — it needs whole numbers and a size`);
+      }
+      if (rx < 1 || ry < 1 || rx + rw > width - 1 || ry + rh > height - 1) {
+        throw new RoomError(`plan rectangle ${i} (${rect.join(',')}) reaches the edge of the ${width}×${height} box — leave room for the wall round it`);
+      }
+      for (let y = ry; y < ry + rh; y++) for (let x = rx; x < rx + rw; x++) floorCells.add(at(x, y));
+    }
+  } else {
+    for (let y = 1; y < height - 1; y++) for (let x = 1; x < width - 1; x++) floorCells.add(at(x, y));
+  }
+  const isFloor = (x: number, y: number) => inBox(x, y) && floorCells.has(at(x, y));
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      tiles[at(x, y)] = onWall(x, y) ? wall : floorAt(floor, x, y);
+      tiles[at(x, y)] = isFloor(x, y) ? floorAt(floor, x, y) : wall;
     }
   }
 
@@ -301,12 +386,18 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
             : [width - 1, along + i]
     );
   }
-  for (const [x, y] of gap) tiles[at(x, y)] = need(palette.mat, 'mat');
+  const inward = STEP[OPPOSITE[side]];
+  const doorTiles = spec.door.tiles?.length ? spec.door.tiles : [need(palette.mat, 'mat')];
+  gap.forEach(([x, y], i) => {
+    if (!isFloor(x + inward[0], y + inward[1])) {
+      throw new RoomError(`the door at ${x},${y} has no floor inside it — the plan does not reach that side`);
+    }
+    tiles[at(x, y)] = doorTiles[i % doorTiles.length];
+  });
   // Every cell of the outer wall the player may walk through: the doorway
   // here, and any `exit` a prop cuts below.
   const doorway = new Set<number>(gap.map(([x, y]) => at(x, y)));
 
-  const inward = STEP[OPPOSITE[side]];
   const enter: Vec2 = [gap[0][0] + inward[0], gap[0][1] + inward[1]];
   const trigger: Rect =
     side === 'bottom' || side === 'top'
@@ -330,18 +421,19 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
     const cells = prop.kind === 'stool' && prop.around !== undefined ? [] : cellsOf(prop, where);
     for (const [x, y] of cells) {
       if (onTheWall) {
-        if (x < 0 || y < 0 || x > width - 1 || y > height - 1) {
+        if (!inBox(x, y)) {
           throw new RoomError(`${where} covers ${x},${y}, which is outside the room`);
         }
         if (tiles[at(x, y)] !== wall) {
           throw new RoomError(`${where} covers ${x},${y}, which is not a wall — a ${prop.kind} goes in one`);
         }
-        if (prop.kind === 'exit' && !onWall(x, y)) {
-          throw new RoomError(`${where} covers ${x},${y}, an inside wall — a way out has to be in an outside one`);
+        const beside = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as Vec2[];
+        if (prop.kind === 'exit' && !beside.some(([nx, ny]) => isFloor(nx, ny) || doorway.has(at(nx, ny)))) {
+          throw new RoomError(`${where} covers ${x},${y}, a wall with no floor beside it — nobody could walk out that way`);
         }
         continue;
       }
-      if (x < 1 || y < 1 || x > width - 2 || y > height - 2) {
+      if (!isFloor(x, y)) {
         throw new RoomError(`${where} covers ${x},${y}, which is the wall or outside the room`);
       }
       if (gap.some(([gx, gy]) => gx === x && gy === y)) {
@@ -392,7 +484,18 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
     if (prop.lines?.length) {
       if (!cells.length) throw new RoomError(`${where}: has lines to read but covers no tile`);
       const middle = cells[Math.floor(cells.length / 2)];
-      signs.push({ pos: [middle[0], middle[1]], lines: [...prop.lines] });
+      const pos: Vec2 = prop.signAt ?? [middle[0], middle[1]];
+      if (prop.signAt) {
+        const [sx, sy] = prop.signAt;
+        if (!inBox(sx, sy)) throw new RoomError(`${where}: "signAt" ${prop.signAt} is outside the room`);
+        const touching = cells.some(([x, y]) => Math.abs(x - sx) + Math.abs(y - sy) === 1);
+        if (!touching) {
+          throw new RoomError(`${where}: "signAt" ${prop.signAt} is not the tile beside it — its sign hangs on it, not off it`);
+        }
+      }
+      signs.push({ pos, lines: [...prop.lines] });
+    } else if (prop.signAt) {
+      throw new RoomError(`${where}: has "signAt" but no lines to read there`);
     }
   }
 
@@ -473,14 +576,15 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
     // The wall it joins has to actually be there: a peninsula floating in the
     // middle of the room is an island with a hole in it, and whoever is inside
     // it would walk straight out through the open end.
-    const against =
-      attach === 'bottom'
-        ? ry + rh - 1 === height - 2
-        : attach === 'top'
-          ? ry === 1
-          : attach === 'left'
-            ? rx === 1
-            : rx + rw - 1 === width - 2;
+    const [ax, ay] = STEP[attach];
+    let against = true;
+    for (let y = ry; y < ry + rh; y++) {
+      for (let x = rx; x < rx + rw; x++) {
+        const onAttach =
+          attach === 'bottom' ? y === ry + rh - 1 : attach === 'top' ? y === ry : attach === 'left' ? x === rx : x === rx + rw - 1;
+        if (onAttach && isFloor(x + ax, y + ay)) against = false;
+      }
+    }
     if (!against) {
       throw new RoomError(
         `${where}: its ${attach} end does not touch the room's wall — that is what makes it a peninsula rather than an island`
@@ -552,8 +656,18 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
     } else {
       for (let y = ry; y < ry + rh; y++) sides.push([rx - 1, y], [rx + rw, y]);
     }
+    // A capped end: the wall goes across the run one tile past it.
+    if (prop.cap) {
+      if (!(prop.cap in STEP)) throw new RoomError(`${where}: "cap" is "${prop.cap}", not one of top, bottom, left, right`);
+      const [dx, dy] = STEP[prop.cap];
+      for (const [x, y] of cells) {
+        const [cx, cy] = [x + dx, y + dy];
+        if (cells.some(([ox, oy]) => ox === cx && oy === cy)) continue;
+        sides.push([cx, cy]);
+      }
+    }
     for (const [x, y] of sides) {
-      if (x < 1 || y < 1 || x > width - 2 || y > height - 2) continue;
+      if (!isFloor(x, y)) continue;
       if (doorway.has(at(x, y))) {
         throw new RoomError(`${where}: its wall would land on the doorway at ${x},${y}`);
       }
@@ -609,7 +723,7 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
 
     const inside = (x: number, y: number) => x >= rx && y >= ry && x < rx + rw && y < ry + rh;
     return candidates.filter(([x, y]) => {
-      if (x < 1 || y < 1 || x > width - 2 || y > height - 2) return false;
+      if (!isFloor(x, y)) return false;
       if (solid.has(at(x, y)) || staff.has(at(x, y)) || doorway.has(at(x, y))) return false;
       return [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]].some(
         ([nx, ny]) => inside(nx, ny) && solid.has(at(nx, ny))
@@ -632,7 +746,7 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
     for (const [x, y] of cells) {
       const cell: Vec2 = [x + dx, y + dy];
       if (run.has(at(cell[0], cell[1]))) continue;
-      if (cell[0] < 1 || cell[1] < 1 || cell[0] > width - 2 || cell[1] > height - 2) {
+      if (!isFloor(cell[0], cell[1])) {
         throw new RoomError(`${where}: the staff strip behind it at ${cell} is in the wall — move the run in a tile`);
       }
       strip.push(cell);
@@ -642,7 +756,7 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
       staff.add(at(x, y));
       for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as Vec2[]) {
         const i = at(nx, ny);
-        if (inStrip.has(i) || run.has(i) || onWall(nx, ny)) continue;
+        if (inStrip.has(i) || run.has(i) || !isFloor(nx, ny)) continue;
         tiles[i] = tile;
         solid.add(i);
       }
@@ -655,7 +769,7 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
   }
 
   const walkable = (x: number, y: number) =>
-    doorway.has(at(x, y)) || (!onWall(x, y) && !solid.has(at(x, y)));
+    doorway.has(at(x, y)) || (isFloor(x, y) && !solid.has(at(x, y)));
   const reached = flood(enter, width, height, walkable);
   for (const i of staff) {
     if (reached.has(i)) {
@@ -664,23 +778,23 @@ export function buildRoom(spec: RoomSpec, palette: RoomPalette): Room {
       );
     }
   }
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
       const i = at(x, y);
-      if (solid.has(i) || staff.has(i) || reached.has(i)) continue;
+      if (!isFloor(x, y) || solid.has(i) || staff.has(i) || reached.has(i)) continue;
       throw new RoomError(`the floor at ${x},${y} is walled off from the door — nobody can get to it`);
     }
   }
 
   for (const person of spec.people ?? []) {
     const [x, y] = person.pos;
-    if (x < 1 || y < 1 || x > width - 2 || y > height - 2 || solid.has(at(x, y))) {
+    if (!isFloor(x, y) || solid.has(at(x, y))) {
       throw new RoomError(`person "${person.id}" stands at ${person.pos}, where nobody can stand`);
     }
   }
   for (const fixture of spec.fixtures ?? []) {
     const [x, y] = fixture.pos;
-    if (x < 1 || y < 1 || x > width - 2 || y > height - 2 || solid.has(at(x, y)) || staff.has(at(x, y))) {
+    if (!isFloor(x, y) || solid.has(at(x, y)) || staff.has(at(x, y))) {
       throw new RoomError(`the ${fixture.kind} at ${fixture.pos} is in the wall, the furniture or somewhere nobody can reach`);
     }
   }
@@ -941,6 +1055,20 @@ function main(argv: string[]): void {
     process.exit(1);
   }
   const tileset = parseTileset(JSON.parse(readFileSync(join(tilesDir, sheet), 'utf8')), `${worldId}/${sheet}`);
+
+  // The doorway is the one place a tile's solidity is the tileset's call, not
+  // the spec's: whatever the door is painted with, the player walks through it.
+  for (const id of spec.door.tiles ?? []) {
+    const tile = tileset.tiles.get(id);
+    if (!tile) {
+      console.error(`✗ ${worldId}/${mapId}: door tile ${id} is not in ${sheet}`);
+      process.exit(1);
+    }
+    if (tile.solid) {
+      console.error(`✗ ${worldId}/${mapId}: door tile ${id} (${tile.kind}) is solid — the doorway has to stay walkable`);
+      process.exit(1);
+    }
+  }
 
   let room: Room;
   try {

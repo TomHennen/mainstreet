@@ -36,6 +36,7 @@ import { encode } from '../studio/codec.ts';
 // what decides the intro's first line in the browser, so the harness imports
 // the real thing rather than re-implementing the calendar logic here.
 import { introLineFor } from '../engine/season.ts';
+import { clearBetween, offsetsWithin, REACH } from '../engine/reach.ts';
 // The car's own drawn size and the player's own hitbox footprint (issue #37,
 // "sometimes I get run over") — imported rather than re-guessed, so the
 // adversarial car-crossing check below reads exactly the rectangles the
@@ -109,16 +110,18 @@ const GAME_URL = `${BASE}?episode=${encodeURIComponent(PLAYTEST_EPISODE)}`;
 /**
  * The tile grids are Tiled files (DESIGN.md §2). This reads them the way the
  * engine does — every visible tile layer, gids masked of their flip flags,
- * `solid` off the tileset's per-tile properties — deliberately as a second
- * implementation, so a harness that walks where the engine will not walk is a
- * failure rather than a shared bug. Each map metadata block in world.json
- * gains `width`, `height` and a solidity grid here.
+ * `solid` and `opaque` off the tileset's per-tile properties — deliberately
+ * as a second implementation, so a harness that walks where the engine will
+ * not walk is a failure rather than a shared bug. Each map metadata block in
+ * world.json gains `width`, `height`, a solidity grid and an opacity grid
+ * here.
  */
 const GID_MASK = 0x1fffffff;
 for (const [mapId, map] of Object.entries(WORLD.maps)) {
   const file = resolve(PACK, 'maps', `${mapId}.json`);
   const tiled = readJson(file);
   const solidGid = new Set();
+  const opaqueGid = new Set();
   // Every tile's own Tiled class ("grass", "road", …), by gid — the same
   // thing `tileAt()` reads to tell open country from a road (engine/edges.ts
   // `lostAt`/`roadEndLine`), kept per gid like `solidGid` rather than per
@@ -137,6 +140,7 @@ for (const [mapId, map] of Object.entries(WORLD.maps)) {
         solidGid.add(ref.firstgid + tile.id);
         ids.add(tile.id);
       }
+      if (tile.properties?.some((p) => p.name === 'opaque' && p.value === true)) opaqueGid.add(ref.firstgid + tile.id);
       if (tile.type) kindGid.set(ref.firstgid + tile.id, tile.type);
     }
     map.tilesetSolid.set(tileset.name, ids);
@@ -144,6 +148,9 @@ for (const [mapId, map] of Object.entries(WORLD.maps)) {
   map.width = tiled.width;
   map.height = tiled.height;
   map.solid = new Array(tiled.width * tiled.height).fill(false);
+  // What cannot be seen through, for telling a wall from a counter: both are
+  // solid, but only one is read across (engine/reach.ts `clearBetween`).
+  map.opaque = new Array(tiled.width * tiled.height).fill(false);
   // The topmost non-empty layer's kind wins per cell, mirroring tileAt()'s
   // "topmost non-empty" rule for a map drawn ground-then-props: later layers
   // are drawn over earlier ones, so a later kind simply overwrites.
@@ -154,6 +161,7 @@ for (const [mapId, map] of Object.entries(WORLD.maps)) {
       const id = gid & GID_MASK;
       if (!id) return;
       if (solidGid.has(id)) map.solid[i] = true;
+      if (opaqueGid.has(id)) map.opaque[i] = true;
       const kind = kindGid.get(id);
       if (kind) map.kind[i] = kind;
     });
@@ -187,6 +195,12 @@ function noteOverlays(episode, flags) {
       if (overlayTileSolid(map, paint.tile)) overlaySolid.add(`${overlay.map},${paint.pos[0]},${paint.pos[1]}`);
     }
   }
+}
+
+/** Mirrors engine/validate.ts isOpaque(): off the map counts as opaque too. */
+function isOpaque(map, x, y) {
+  if (x < 0 || y < 0 || x >= map.width || y >= map.height) return true;
+  return map.opaque[y * map.width + x];
 }
 
 /** Mirrors engine/validate.ts isSolid(), plus whatever an overlay has painted. */
@@ -670,6 +684,139 @@ async function walkUpInto(page, milestone, door, { episode = EPISODE } = {}) {
 async function pressA(page) {
   await page.keyboard.press('Space');
   await sleep(320);
+}
+
+/**
+ * Where to stand to read a sign: the nearest tile within a prop's reach
+ * (engine/reach.ts — touching distance, so the tile beside it; `further` is
+ * whatever a longer reach would add, and is empty at today's) the player can
+ * actually walk to from where they are. A shelf on the wall behind a counter
+ * hangs its sign on the counter tile in front (scripts/make-room.ts
+ * `signAt`), so it is read from the customer side. A tile of floor inside a
+ * sealed staff strip is not somewhere to stand, however close it is. Null
+ * when nowhere will do.
+ */
+function readSpotFor(mapId, sign, from) {
+  const map = WORLD.maps[mapId];
+  const [sx, sy] = sign.pos;
+  const beside = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+  const further = offsetsWithin(REACH.prop).filter(([dx, dy]) => !beside.some(([bx, by]) => bx === dx && by === dy));
+  // Nearest wins when the A button is pressed, so the spot has to be one
+  // this sign is the nearest thing from — two tiles off a shelf with another
+  // sign right beside the player reads that instead, and so does somebody
+  // who may have wandered up (their home tile, give or take their radius).
+  const winsFrom = ([x, y]) => {
+    const mine = Math.hypot(x - sx, y - sy);
+    if ((map.signs ?? []).some((other) => other !== sign && Math.hypot(x - other.pos[0], y - other.pos[1]) <= mine)) return false;
+    return !(map.people ?? []).some(
+      (who) => Math.hypot(x - who.pos[0], y - who.pos[1]) - (who.wander?.radius ?? 0) <= mine
+    );
+  };
+  // A shelf is read across the counter in front of it, never through the
+  // wall behind it: two tiles off with something opaque in between is the
+  // other side of the wall, whatever the reach says — the engine's own rule
+  // (engine/reach.ts `clearBetween`), over the harness's own opacity grid.
+  const clear = (tile) => clearBetween(tile, [sx, sy], (x, y) => isOpaque(map, x, y));
+  return [...beside, ...further]
+    .map(([dx, dy]) => [sx + dx, sy + dy])
+    .find((tile) => !isSolid(map, tile[0], tile[1]) && clear(tile) && winsFrom(tile) && findPath(mapId, from, tile) !== null);
+}
+
+/**
+ * Anybody posted in a room (DESIGN.md §2): a world person with their own
+ * `lines`, standing in a staff strip the player can never walk into, talked
+ * to across the counter at an interior's talking reach. The approach tile is
+ * two tiles the way they are facing, the same offset Hannah is talked to
+ * across Stewart's counter with.
+ */
+const APPROACH_STEP = { down: [0, 2], up: [0, -2], left: [-2, 0], right: [2, 0] };
+async function talkToEveryone(page, tag, room, name) {
+  for (const person of room.people ?? []) {
+    const who = `${tag}-${person.id}`;
+    if (person.wander || person.route) {
+      // Somebody moving about the room — a baker in an open kitchen — is
+      // met the way a player meets them: tapped where they are, which hails
+      // them (they wait), and the walk goes over and talks on arrival.
+      log(`  talk to ${person.name ?? person.id}, moving about ${name}`);
+      await tapPerson(page, who, person.id);
+    } else {
+      const [dx, dy] = APPROACH_STEP[person.facing ?? 'down'];
+      log(`  talk to ${person.name ?? person.id} behind the counter in ${name}`);
+      await walkTo(page, who, [person.pos[0] + dx, person.pos[1] + dy]);
+      await pressA(page);
+    }
+    await expectDialogue(page, who, person.name ?? person.id);
+    await shot(page, who);
+    const said = await snap(page);
+    const expectedSpeaker = person.name || COPY.ui.passerbyName || '';
+    if (said.dialogue?.speaker !== expectedSpeaker) {
+      fail(who, `speaker was "${said.dialogue?.speaker}", expected "${expectedSpeaker}"`);
+    }
+    if (said.dialogue?.text !== person.lines[0]) {
+      fail(who, `first line was "${said.dialogue?.text}", expected "${person.lines[0]}"`);
+    }
+    await advanceDialogue(page, who, person.lines.length);
+    log(`    ${expectedSpeaker || '(no name)'}: "${person.lines[0]}"`);
+  }
+}
+
+/**
+ * A tap on somebody who may be walking: aimed at the middle of their picture
+ * (16x32, standing on their tile — engine/scenes/map.ts `personBox`), worked
+ * out inside the page so reading where they are and turning it into a point
+ * on the canvas is one round trip. A finger that comes down beside somebody
+ * mid-step is a miss, and a real player would simply tap again, so it tries
+ * three times; once it lands, the engine hails them and walks over, and the
+ * dialogue opening is the arrival.
+ */
+async function tapPerson(page, milestone, id) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const point = await page.evaluate((wanted) => {
+      const s = window.__mainstreet;
+      const canvas = document.querySelector('#stage canvas');
+      const who = (s?.people ?? []).find((q) => q.id === wanted);
+      if (!s?.view || !canvas || !who) return null;
+      const r = canvas.getBoundingClientRect();
+      const v = s.view;
+      return {
+        x: r.left + ((who.x * v.tile + v.tile / 2 - v.x) / v.width) * r.width,
+        y: r.top + ((who.y * v.tile - v.y) / v.height) * r.height,
+        at: [who.x, who.y]
+      };
+    }, id);
+    if (!point) fail(milestone, `"${id}" is not on screen to aim at`);
+    await page.mouse.click(point.x, point.y);
+    const t0 = Date.now();
+    while (Date.now() - t0 < 12000) {
+      const state = await snap(page);
+      if (state?.dialogueOpen) return;
+      await sleep(25);
+    }
+    log(`    (tap ${attempt} came down beside them at ${point.at.map((n) => n.toFixed(1))} — aiming again)`);
+    await sleep(600);
+  }
+  fail(milestone, `three taps in a row never got a word out of "${id}"`);
+}
+
+/**
+ * Everything in a room that can be read where it stands: a door with a note
+ * on it, a wall people have drawn on, a board by the door, a shelf behind
+ * the counter (DESIGN.md §2). Each is read from the nearest tile in reach
+ * the player can get to (`readSpotFor`), which is how a player meets it.
+ */
+async function readEverything(page, tag, room, name) {
+  for (const sign of room.signs ?? []) {
+    const spot = readSpotFor(room.id, sign, here(await snap(page)));
+    if (!spot) fail(`${tag}-sign`, `nowhere in reach of the sign at ${sign.pos} in ${name} to read it from`);
+    await walkTo(page, `${tag}-sign`, spot);
+    await pressA(page);
+    const read = await waitUntil(page, (st) => st.dialogueOpen, `the sign at ${sign.pos} to open`);
+    if (read.dialogue?.text !== sign.lines[0]) {
+      fail(`${tag}-sign`, `the sign at ${sign.pos} reads "${read.dialogue?.text}", expected "${sign.lines[0]}"`);
+    }
+    await advanceDialogue(page, `${tag}-sign`, sign.lines.length);
+    log(`    ${sign.pos} from ${spot} — "${sign.lines[0].slice(0, 56)}…"`);
+  }
 }
 
 async function advanceDialogue(page, milestone, lines) {
@@ -1731,31 +1878,8 @@ async function main() {
       await shot(page, `${place.id}-interior`);
       log(`    walked up onto ${place.door} -> in at ${landed}, ${room.width}x${room.height} tiles`);
 
-      // Anybody posted behind the counter (DESIGN.md §2): a world person with
-      // their own `lines`, standing in a staff strip the player can never walk
-      // into, talked to across the counter at an interior's talking reach
-      // (2.3 tiles). The approach tile is two tiles the way they are facing,
-      // the same offset Hannah is talked to across Stewart's counter with.
-      const APPROACH_STEP = { down: [0, 2], up: [0, -2], left: [-2, 0], right: [2, 0] };
-      for (const person of room.people ?? []) {
-        const who = `${place.id}-${person.id}`;
-        const [dx, dy] = APPROACH_STEP[person.facing ?? 'down'];
-        log(`  talk to ${person.name ?? person.id} behind the counter in ${name}`);
-        await walkTo(page, who, [person.pos[0] + dx, person.pos[1] + dy]);
-        await pressA(page);
-        await expectDialogue(page, who, person.name ?? person.id);
-        await shot(page, who);
-        const said = await snap(page);
-        const expectedSpeaker = person.name || COPY.ui.passerbyName || '';
-        if (said.dialogue?.speaker !== expectedSpeaker) {
-          fail(who, `speaker was "${said.dialogue?.speaker}", expected "${expectedSpeaker}"`);
-        }
-        if (said.dialogue?.text !== person.lines[0]) {
-          fail(who, `first line was "${said.dialogue?.text}", expected "${person.lines[0]}"`);
-        }
-        await advanceDialogue(page, who, person.lines.length);
-        log(`    ${expectedSpeaker || '(no name)'}: "${person.lines[0]}"`);
-      }
+      // Anybody posted behind the counter, talked to across it (`talkToEveryone`).
+      await talkToEveryone(page, place.id, room, name);
 
       // The furniture. The room's spec — worlds/<world>/rooms/<map>.json, the
       // very thing `make-room` was handed — says what was put where, so the
@@ -1931,28 +2055,13 @@ async function main() {
         log(`    walked the ${hw}x${hh} hallway to ${[hx + hw - 1, hy]}`);
       }
 
-      // Everything in the room that can be read where it stands: a door with
-      // a note on it, a wall people have drawn on, a board by the door
-      // (DESIGN.md §2). Each is read from beside it, which is how a player
-      // meets it.
-      for (const sign of room.signs ?? []) {
-        const [sx, sy] = sign.pos;
-        const spot = [[0, 1], [0, -1], [1, 0], [-1, 0], [0, 2], [0, -2], [2, 0], [-2, 0]]
-          .map(([dx, dy]) => [sx + dx, sy + dy])
-          .find((tile) => !isSolid(room, tile[0], tile[1]));
-        if (!spot) fail(`${place.id}-sign`, `nothing beside the sign at ${sign.pos} in ${name} to read it from`);
-        await walkTo(page, `${place.id}-sign`, spot);
-        await pressA(page);
-        const read = await waitUntil(page, (st) => st.dialogueOpen, `the sign at ${sign.pos} to open`);
-        if (read.dialogue?.text !== sign.lines[0]) {
-          fail(`${place.id}-sign`, `the sign at ${sign.pos} reads "${read.dialogue?.text}", expected "${sign.lines[0]}"`);
-        }
-        await advanceDialogue(page, `${place.id}-sign`, sign.lines.length);
-        log(`    ${sign.pos} from ${spot} — "${sign.lines[0].slice(0, 56)}…"`);
-      }
+      // Everything in the room that can be read where it stands (`readEverything`).
+      await readEverything(page, place.id, room, name);
 
-      // Any further way out of the room — the Belvedere's yard — walked both
-      // ways, since a door nobody can come back through is a trap.
+      // Any further way out of the room — the Belvedere's yard, the shop next
+      // door, the kitchen off the coffee shop's hallway — walked both ways,
+      // since a door nobody can come back through is a trap; and whoever and
+      // whatever is through it is met the same way as in the room itself.
       for (const onward of room.exits.slice(1)) {
         const beyond = WORLD.maps[onward.to];
         if (!beyond) fail(`${place.id}-onward`, `"${onward.id}" leads to "${onward.to}", which world.json has no map for`);
@@ -1964,6 +2073,10 @@ async function main() {
         }
         log(`    out to ${beyond.name} at ${arrived}, facing ${outside.facing}`);
         await shot(page, `${onward.to}`);
+
+        // A room with a street door of its own — a way out to a village map
+        // — is the shop next door, walked in through that door and met there.
+        const shop = beyond.exits.some((way) => WORLD.maps[way.to]?.kind === 'village');
 
         // Whatever the far side has standing in it is solid there too.
         const beyondSpec = resolve(PACK, 'rooms', `${onward.to}.json`);
@@ -1978,24 +2091,41 @@ async function main() {
           }
           log(`    ${beyond.name}'s furniture is solid`);
 
-          // A yard is outside, so its floor is the ground: grass and what
-          // grows in it (Tom, Sep 2026). Anything paved in one is a patch
-          // somebody laid — the ring round a fire — and never the whole floor.
+          // What is through the door is a room or a yard, and its floor says
+          // which. A yard is outside, so its floor is the ground — grass and
+          // what grows in it, nothing else (Tom, Sep 2026): anything paved in
+          // a yard is a patch somebody laid — the ring round a fire — and
+          // never the whole floor. A room's floor has no grass in it at all:
+          // the shop next door, with a street door of its own, or the kitchen
+          // off one, reached only through it. Half and half is neither.
           const ground = (outsideSpec.floor ?? []).map((id) => TILE_OF.get(id)?.kind ?? String(id));
           const growing = ground.filter((kind) => kind === 'grass' || kind === 'flowers');
-          if (beyond.kind === 'interior' && outsideSpec.floor && growing.length !== ground.length) {
+          const yard = ground.length > 0 && growing.length === ground.length;
+          if (beyond.kind === 'interior' && growing.length && !yard) {
             const paved = [...new Set(ground.filter((kind) => kind !== 'grass' && kind !== 'flowers'))];
-            fail(`${place.id}-onward`, `${beyond.name}'s floor is ${paved.join('/')} — a yard's floor is grass`);
+            fail(`${place.id}-onward`, `${beyond.name}'s floor is ${paved.join('/')} with grass — a yard's floor is grass`);
           }
-          if (outsideSpec.floor) {
+          if (shop) {
+            log(`    ${beyond.name} is a room with a street door of its own — the shop next door, not a yard`);
+          } else if (yard) {
             log(
               `    ${beyond.name}'s floor: ${ground.filter((k) => k === 'grass').length} grass ` +
                 `and ${ground.filter((k) => k === 'flowers').length} flowers in ${ground.length}`
             );
+          } else if (ground.length) {
+            log(`    ${beyond.name} is a room reached only through ${name}, floored in ${[...new Set(ground)].join('/')}`);
           }
         }
         for (const fixture of beyond.fixtures ?? []) {
           log(`    a ${fixture.kind} standing at ${fixture.pos}`);
+        }
+
+        // Whoever works through there, and whatever is there to read — for a
+        // room reached only through this one. The shop next door is walked
+        // in through its own street door and met there.
+        if (!shop) {
+          await talkToEveryone(page, `${place.id}-onward`, beyond, beyond.name);
+          await readEverything(page, `${place.id}-onward`, beyond, beyond.name);
         }
 
         // --- a log off the pile and onto the fire ---------------------------

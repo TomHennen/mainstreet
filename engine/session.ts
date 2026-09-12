@@ -139,10 +139,21 @@ export const npcsOn = (mapId: string): EpisodeNpc[] =>
 /**
  * The townspeople a village keeps whether or not a story is running
  * (DESIGN.md §2). They come from `world.json`, not from the episode, so they
- * are on the street every week — and they carry no dialogue, only a look and
- * somewhere to be.
+ * are on the street every week — a look, somewhere to be, and at most a
+ * standing line or two.
+ *
+ * An episode NPC with the same id takes over from them for as long as that
+ * episode is the one being played (DESIGN.md §3): the story has given the
+ * village's own counter person something to say this week, or sent them
+ * somewhere else entirely, so the world's copy of them stays home whatever
+ * map the episode's copy is on. That is what lets a shop keep somebody
+ * behind its counter every week and still lend them to a story without the
+ * player finding two of them.
  */
-export const peopleOn = (mapId: string): Person[] => session().world.maps[mapId]?.people ?? [];
+export const peopleOn = (mapId: string): Person[] => {
+  const cast = new Set(session().episode.npcs.map((npc) => npc.id));
+  return (session().world.maps[mapId]?.people ?? []).filter((person) => !cast.has(person.id));
+};
 
 /** About one time in five, a world person's small talk gives way to trivia instead (DESIGN.md §2). */
 export const TRIVIA_CHANCE = 0.2;

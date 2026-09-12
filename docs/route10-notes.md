@@ -165,7 +165,7 @@ scrappy punk band. It is not a fiddle place — don't write one in. Karaoke,
 open mic and trivia are already on record, and a big-name comic passes
 through now and then.
 
-**Stamford Coffee interior (Tom, Sep 2026, not built yet).** The left wall
+**Stamford Coffee interior (Tom, Sep 2026; built Sep 2026).** The left wall
 has a record player with a big spread of LPs out, and there's a whole
 collection of different coffee makers on display too — the furniture
 throughout reads mid-century modern. A self-serve fridge sits up front with
@@ -176,9 +176,92 @@ menu. On the right side there's a large open doorway straight through to
 storefronts already share one patio deck outside (see the Stamford's Main
 Street block note above).
 
-**80 Main interior (Tom, Sep 2026, not built yet).** High-end goods, lots
+*As built* (`worlds/route10/rooms/stamford-coffee-interior.json`, 20×12):
+the tileset has no record player, LP crate, coffee maker or menu, so each is
+a run of the existing shelf tiles with a readable prop sign carrying the
+words — the record player and the LP crates are two shelf runs down the left
+wall, the coffee-maker collection is the shelf along the top wall right of
+the counter, the menu (paninis and the Maple Smoke latte) is a standing
+board at the end of Ronnie's counter, and the self-serve fridge is the two
+cooler tiles by the street door (readable; nothing bought yet). The
+coffee-maker shelf, the menu board and the bottles are behind the counter,
+so each is read from the counter tile in front of it (`signAt` in the
+spec): a prop is only ever read from the tile beside it. The
+mid-century furniture is the room's tables and stools, with the first table
+readable as the whole set. The doorway to 80 Main is a two-tile-tall open
+gap in the right wall at rows 6–7, matched by the same gap in 80 Main's left
+wall, so the two rooms read as one opening.
+
+*Tom, Sep 10 2026 (built Sep 2026, corrected three times the same day):*
+the coffee shop's map is **not a rectangle**: the hallway is a bay off the
+cafe's top-left, and the kitchen is off that hallway. Tom's sketch (B =
+bathroom door):
+
+```
+xBxxBxxx
+x                  kitchen
+x        xxxx
+x.       x
+x.       xxxxxxxxxxxxxxxxxxxxxx
+x.                                                               x
+x.        counter............                         x
+x
+```
+
+A walkway runs up the left side of the cafe into a hallway in the top-left
+corner; the **two bathroom doors are in the hallway's top wall**; the
+**kitchen is to the right of the hallway**, through a **steel door** in the
+hallway's wall; the counter is below, running all the way to the right wall
+with the opening at its left end. "You're stuck because you want to keep the
+interior a square. That is a mistake." Then, the same day, on seeing the
+kitchen drawn in the cafe's map: **"I prefer the kitchen as its own room you
+have to enter and not have it rendered with the rest of it"** — so the
+kitchen is its own map again, entered through the steel door, and the cafe
+keeps its non-rectangular shape for the hallway bay. On the right side of
+the counter, **bottles on display behind it**: beers and wine to buy and
+take home (readable only for now, like the fridge).
+
+The kitchen is **open plan — no counter anybody stands behind, that is not
+how kitchens work**: work tables round the perimeter, an oven, fridges and
+freezers, the middle left open. It is **the coffee shop's own kitchen**,
+used mostly to make things for the shop — the scones and muffins for the
+case, and the **lemon shortbread cookies** people can't get enough of, which
+Ronnie mentions out front ("we can't keep them in stock"). A baker sometimes
+borrows it after hours for her own **custom cakes** (her business, unnamed —
+hard rule 5), but she is **not placed as a character**: the kitchen had a
+baker in it for a couple of days, and Tom pulled her (Sep 12: "we've leaned
+too hard into the baking story"; "the kitchen is mostly used to make things
+for the coffee shop and only sometimes used by the baker"). The room stays,
+empty, for future episodes — a room reached only through another room may be
+empty without `"unstaffed"` (DESIGN.md §2). The line about the recipe cards
+being older than some of the customers went with her, at Tom's ask.
+
+As built (`worlds/route10/rooms/stamford-coffee-interior.json`, a 20×15
+box with a `plan` — see DESIGN.md §2): the hallway bay is x1–3, rows 1–3
+(Tom, Sep 10: the first cut was six rows and "too long — cut its length in
+half"), open into the cafe at row 4, with the bathroom doors in the top
+wall at [1,0] and [3,0] and the steel door at [4,2] in the bay's right-hand
+wall — an exit into the kitchen's own map; the cafe is x1–18, rows 4–13,
+with the counter on row 5 and Ronnie, the coffee-maker shelf, the menu board and the
+bottle shelf in the strip behind it, the record player and the LP crates
+down the left wall, the tables, the fridge by the door. The kitchen
+(`stamford-coffee-kitchen`, 12×9, spec
+`worlds/route10/rooms/stamford-coffee-kitchen.json`, door in its left wall
+onto the hallway): the oven, a steel work table and the two fridges and
+chest freezer along its top wall, the cake table down its right wall, the
+cooling rack (lemon shortbread) by its bottom wall, the middle open, and
+nobody in it. Nothing is bought yet.
+
+**80 Main interior (Tom, Sep 2026; built Sep 2026).** High-end goods, lots
 of Catskills-logo wear. They once (maybe still do) sold a high-end coffee
 table made out of coal. They sometimes host oyster-and-wine nights.
+
+*As built* (`worlds/route10/rooms/eighty-main-interior.json`, 14×12, its
+own street door at [85, 23]): the logo wear is the shelf along the top
+wall, the sweater and camo the rack on the left wall (same items as its
+street sign), candles and mugs the shelf on the right wall, the coal coffee
+table a readable table in the middle of the floor, and oyster-and-wine
+nights a standing board by the door. Tamsin (invented) keeps the counter.
 
 ## Open items — pending map work
 
@@ -203,14 +286,6 @@ than a notes-file guess:
   several full-size open lots along Main Street for bookshops — no need to
   name or place actual shops yet, just make sure the room exists so the
   village can visibly grow, episode by episode, matching map rule 4.
-
-- **Stamford Coffee and 80 Main interiors.** Not built yet — see the notes
-  under Ground truth above (record player and LPs, coffee-maker collection,
-  MCM furniture, self-serve fridge, paninis; the doorway through to 80
-  Main; 80 Main's high-end goods, Catskills-logo wear, the coal coffee
-  table, oyster-and-wine nights). Build as two connected rooms, doorway on
-  Stamford Coffee's right / 80 Main's corresponding side, not two separate
-  interiors that happen to be adjacent.
 
 - **Street-name labels sit too far from their roads (Tom, Sep 2026).**
   Across the current maps, labels like "Main Street" or "NY 10" often read
@@ -279,6 +354,12 @@ name), and a name already in use by a different character in the pack (the
 Belvedere party's neighbour was a second "Priya" while ep002 already had
 one). Both were renamed to something clearly invented and unlikely to land
 on anybody: Wren and Thea. When in doubt, pick further from ordinary.
+Third thing, Sep 2026: a character who works at a real business gets
+checked against the real people who work there too — the first name given
+to a baker character in Stamford Coffee's kitchen (since removed) landed
+right next to the real baker's, by pure coincidence (nobody looked anything
+up; it was picked as "unused in the pack"), and Tom caught it. Ask Tom
+before naming anyone who stands behind a real counter.
 
 ## Art policy
 
@@ -564,7 +645,15 @@ opt-in, everything warm and affectionate) before it reaches the player.
   anyway). Not in `world.json`'s `episodes` list, so it doesn't ship; it
   validates with `npm run validate-episodes -- --all` (DESIGN.md §3's
   review path — the same way ep000 is kept around unshipped) and can be
-  played directly with `?episode=ep002`.
+  played directly with `?episode=ep002`. September 2026, Tom's call: the
+  errand has to take the player inside Stamford Coffee, so the chain is
+  now Priya → Hannah (who sends you to the coffee shop: nobody drives to
+  the city without stopping there first) → Fern, a regular at a table in
+  Stamford Coffee, who saw an order for the road go out and heard Cellar
+  Door mentioned (`askedCoffee`) → Renata, who puts Walt's name to it →
+  Walt. Five story flags; the rumor beat below rides along on a sixth, and
+  stays out of the errand's own lines — Tom's note: don't let either the
+  paninis or the mystery shop get obsessive.
 
   Went through a design pass before being written (an automated review on
   the PR that added this note caught real issues before any JSON
@@ -727,7 +816,16 @@ opt-in, everything warm and affectionate) before it reaches the player.
   the player doesn't get an answer either. If Tom later says what it is,
   that's a separate reveal beat, folded in or held back at his call — same
   open question on episode timing as before (episode 2, or keep our
-  powder dry).
+  powder dry). Built, September 2026, in ep002, kept light at Tom's
+  request: three rumor-carriers, none of them in the errand's own chain,
+  each with their own confident guess — Fern, a regular at a table in
+  Stamford Coffee, says gallery; Ozzie, browsing sweaters in 80 Main, says
+  oyster bar; Ines, walking her dog Biscuit past the patio, says dog
+  treats. An ep002 overlay paints a papered-over panel down the side of the
+  coffee shop, and reading it finds nothing written on any of it. A
+  `heardShop` flag only changes whether a carrier opens with "you've heard,
+  then"; no line anywhere says what the shop is. One small-talk line
+  carries the not-knowing; Priya, Hannah, Renata and Walt stay out of it.
 - **The mayor and the pool.** Years ago, when the Belvedere was being shown
   to its owner, the mayor — who is also the realtor — walked out across the
   plywood laid over the hotel's old swimming pool and went straight through

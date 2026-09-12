@@ -63,6 +63,9 @@ path written in the data. What it expects of the file (all of it enforced in
 water, wall, floor, counter, mat — which is there for the person editing the
 map; the engine never branches on it. What the engine reads is Tiled custom
 properties: `solid` (bool, default false — the only source of tile collision),
+`opaque` (bool, default false — nothing is seen, read or reached through the
+tile, so a wall is; a counter, solid as it is, is not, and is talked and
+reached across — see engine/reach.ts `clearBetween`),
 `style`, `colors` (comma-separated hex), optional `base` (a flat fill painted
 under the recipe) and optional `edge` (the colour of a front face painted along
 the bottom of the cell, for a surface raised above the ground plane — the near
@@ -136,6 +139,13 @@ village nicknames (see §5).
 **Interiors:** defined in world data (room map + counter/shelf collision +
 NPC placement), entered via building doors, exited via a door mat. Any
 building may gain an interior in a later episode with zero engine changes.
+A room a door opens onto has somebody in it: every building interior carries
+at least one entry in its `people` list (below) — Hannah behind Stewart's
+counter, say — so a shop is never found empty between stories, and
+`validate-episodes` refuses one that is, unless the map stanza says
+`"unstaffed": true`, the deliberate way to leave a room empty. Rooms reached
+only through another room (a back kitchen, a yard) are not building interiors
+and are not asked.
 Interiors are not a special case for the camera: size a room to the real
 place (a Stewart's is big, a coffee shop is a proper room), the camera
 follows the player exactly as it does outdoors, and a room that happens to
@@ -154,6 +164,15 @@ npm run make-room -- route10 stamford-coffee-interior \
   --spec worlds/route10/rooms/stamford-coffee-interior.json
 ```
 
+A room need not be a rectangle: `plan` lists the floor as rectangles inside
+`size`, and everything outside their union is wall — Stamford Coffee is a
+cafe with a bay for its hallway up the left, and the kitchen door is an
+`exit` cut through the bay's own inside wall. The main door's gap is painted
+with the doormat tile unless `door.tiles` names its own (cycled along the gap
+like a prop's), which is how the kitchen's way out is the steel door tile
+rather than an orange mat lost against orange brick; whatever is named has to
+be walkable, and the script refuses a solid tile there.
+
 The spec lives in the world pack at `rooms/<map id>.json` — data, like
 everything else in a pack, and read by nothing at run time — so a room can be
 regenerated after an edit and the diff is the change. The script only ever
@@ -163,7 +182,11 @@ spawn tile with something standing on it, floor walled off from the door, or a
 counter whose staff strip is open to the room. That strip is the point of the
 `counter`/`bar` props: the run of counter tiles gets a one-tile pocket behind
 it, closed at the ends with short returns, so somebody serving from it stays
-behind it (Stewart's register counter, drawn for you). Interiors are still
+behind it (Stewart's register counter, drawn for you). A prop with `lines` is
+read from the tile beside it (§3: a prop's reach is touching distance), so
+one nobody can stand beside — a shelf on the wall behind a counter, a board
+at the end of one — names `signAt`, the counter tile in front of it, and is
+read from there. Interiors are still
 ordinary Tiled maps afterwards — an artist opens one in Tiled and refines it,
 and the script is not the owner of the file.
 
@@ -938,6 +961,16 @@ about while the story waits. `pos` stays the tile they start on and the one an
 author places them by; they are simply not always standing on it, and they
 stop as soon as the player is close enough to talk to them.
 
+An episode NPC may share an id with one of a village's own `people` (§2), and
+then it **takes over** from them for as long as that episode is the one being
+played: the world's copy stays home, whatever map the episode has put theirs
+on, so a shop keeps its permanent counter person every week and a story can
+still hand them dialogue — or send them across the village — without the
+player meeting two of them. `engine/session.ts`'s `peopleOn` is where the
+world's copy steps aside; scene `move` and `say` targets and the asset
+convention (`chars/<id>.png`, `portraits/<id>.png`) name the one person either
+way.
+
 An episode may carry its own `intro`, an array of lines shown right after
 `copy.json`'s world `intro` on a fresh start of that episode — never on
 Continue, since that is exactly when the world intro is skipped too. The world
@@ -968,10 +1001,11 @@ Because that pick is a hash of the person's id rather than a fresh roll,
 a `smallTalk` pool with fewer lines than the world has ambient people
 guarantees some of them land on the same line and repeat it, word for word,
 to everyone who asks — `engine/validate.ts`'s `validateEpisode` fails an
-episode whose `smallTalk` is shorter than the world's total ambient people
-count for exactly this reason. Write at least that many lines, varied enough
-that nobody minds if two or three background characters land on the same
-one.
+episode whose `smallTalk` is shorter than the world's count of ambient people
+with no `lines` of their own for exactly this reason (somebody who carries
+their own `lines`, like a barista behind a counter, says those and never
+draws from the pool). Write at least that many lines, varied enough that
+nobody minds if two or three background characters land on the same one.
 
 **This week's cars.** An episode may carry a `vehicles` list of its own,
 shaped exactly like a map's (above) plus the `map` each car stands on:
@@ -1429,12 +1463,30 @@ Hobart — "Jewel of the West Branch."
 - `middle-brook-cafe` (Jefferson, 170 Main St): café; pastry case empties by
   noon; the vegan chocolate chip cookie has a reputation.
 - `stewarts` (Stamford, Lake St): gas/convenience/ice cream; opens ~4:30 AM;
-  "costs more than Dunkin" debate is canon. Has the first interior; counter
+  the coffee is cheaper than Dunkin's and a great deal closer (Tom, Sep
+  2026 — the old "costs more than Dunkin" debate is retired; Hannah says so). Has the first interior; counter
   NPC **Hannah** (fictional, named for a praised real clerk — keep fictional).
 - `mac-a-doodles` (Stamford, 33 Harper St): seasonal ice cream/burger stand;
   mac-n-cheese burger; pup cups.
 - `stamford-coffee` (Stamford, 79 Main St): coffee shop; Maple Smoke latte
-  (maple, liquid smoke, sea salt); attached Catskill Outpost shop.
+  (maple, liquid smoke, sea salt); the shop attached next door is
+  `eighty-main`, below, reached through an open doorway inside. A hallway
+  in the room's upper left passes the two bathrooms and ends at a steel
+  door into the kitchen (`stamford-coffee-kitchen`, its own room, entered
+  through that door — Tom prefers it not drawn with the cafe), open plan
+  and the shop's own: used mostly to make things for the case out front,
+  the lemon shortbread cookies they can't keep in stock among them (Ronnie
+  mentions those); a baker sometimes borrows it after hours for her own
+  custom cakes, but she is not placed as a character (Tom, Sep 12: "we've
+  leaned too hard into the baking story"; the kitchen is kept, empty, for
+  future episodes); bottles
+  of beer and wine to take home sit behind the right end of the counter
+  (readable, nothing bought yet).
+- `eighty-main` (Stamford): the shop through the open doorway on
+  Stamford Coffee's right, sharing its patio; Catskills-logo wear, candles
+  and mugs, a very good sweater; once (maybe still) sold a coffee table made
+  of coal; oyster-and-wine nights. Interior `eighty-main-interior`, counter
+  NPC **Tamsin** (fictional).
 - `the-belvedere` (Stamford): "The Bel," dive-bar community space; bat signs
   point to the patio; taco nights, movie nights, live music.
 - `cellar-door-wines` (Hobart): curated wine shop; the owner's

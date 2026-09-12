@@ -31,9 +31,9 @@ const TILESET = {
   image: 'test.png',
   tilewidth: 16,
   tileheight: 16,
-  columns: 3,
-  tilecount: 3,
-  imagewidth: 48,
+  columns: 4,
+  tilecount: 4,
+  imagewidth: 64,
   imageheight: 16,
   tiles: [
     {
@@ -65,11 +65,23 @@ const TILESET = {
         { name: 'solid', type: 'bool', value: false },
         { name: 'style', type: 'string', value: 'flat' }
       ]
+    },
+    // A wall proper: solid, and `opaque` too, so nothing is read or reached
+    // through it — where the plain solid tile above is a counter, read across.
+    {
+      id: 3,
+      type: 'wall',
+      properties: [
+        { name: 'colors', type: 'string', value: '#222' },
+        { name: 'opaque', type: 'bool', value: true },
+        { name: 'solid', type: 'bool', value: true },
+        { name: 'style', type: 'string', value: 'flat' }
+      ]
     }
   ]
 };
 
-/** `.` walkable, `#` solid, `=` paved and drivable — one `ground` layer. */
+/** `.` walkable, `#` solid, `W` solid and opaque, `=` paved and drivable — one `ground` layer. */
 function tiledMap(rows: string[]) {
   const height = rows.length;
   const width = height ? rows[0].length : 0;
@@ -89,7 +101,7 @@ function tiledMap(rows: string[]) {
         visible: true,
         width,
         height,
-        data: rows.flatMap((row) => [...row].map((ch) => (ch === '#' ? 2 : ch === '=' ? 3 : 1)))
+        data: rows.flatMap((row) => [...row].map((ch) => (ch === '#' ? 2 : ch === '=' ? 3 : ch === 'W' ? 4 : 1)))
       }
     ]
   };
@@ -440,7 +452,7 @@ describe('validateWorld', () => {
       },
       buildings: { shop: { name: 'Shop', wall: '#fff', roof: '#000', sign: ['Open till six.'] } }
     });
-    world.maps['shop-interior'] = makeMap({ kind: 'interior' });
+    world.maps['shop-interior'] = makeMap({ kind: 'interior', people: [{ id: 'clerk', pos: [2, 2] }] });
     const problems = runWorld(world);
     expect(problems.join('\n')).toContain('building "shop" has an interior but no "enter" spawn');
   });
@@ -458,8 +470,52 @@ describe('validateWorld', () => {
         })
       }
     });
-    world.maps['shop-interior'] = makeMap({ kind: 'interior' });
+    world.maps['shop-interior'] = makeMap({ kind: 'interior', people: [{ id: 'clerk', pos: [2, 2] }] });
     expect(runWorld(world)).toEqual([]);
+  });
+
+  // A room a door opens onto has somebody in it, unless the world says on
+  // purpose that it does not (DESIGN.md §2).
+  describe('a building interior has somebody in it', () => {
+    const withRoom = (room: Partial<MapMeta>) => {
+      const world = makeWorld({
+        maps: {
+          town: makeMap({
+            buildings: [
+              { id: 'shop', pos: [0, 0], size: [1, 1], door: [1, 1], interior: 'shop-interior', enter: [0, 0] }
+            ]
+          })
+        }
+      });
+      world.maps['shop-interior'] = makeMap({ kind: 'interior', ...room });
+      return world;
+    };
+
+    it('flags a building interior with nobody in it', () => {
+      expect(runWorld(withRoom({})).join('\n')).toContain(
+        'building "shop"\'s interior "shop-interior" has nobody in it'
+      );
+      expect(runWorld(withRoom({ people: [] })).join('\n')).toContain('has nobody in it');
+    });
+
+    it('accepts a building interior with a person posted in it', () => {
+      expect(runWorld(withRoom({ people: [{ id: 'clerk', name: 'Clerk', pos: [2, 2], lines: ['Hello.'] }] }))).toEqual([]);
+    });
+
+    it('accepts a building interior that is "unstaffed" on purpose', () => {
+      expect(runWorld(withRoom({ unstaffed: true }))).toEqual([]);
+      // Only an explicit true is the opt-out.
+      expect(runWorld(withRoom({ unstaffed: false })).join('\n')).toContain('has nobody in it');
+    });
+
+    it('does not ask a room reached only through another room', () => {
+      const world = withRoom({
+        people: [{ id: 'clerk', pos: [2, 2] }],
+        exits: [{ id: 'through', at: [3, 3, 1, 1], to: 'back-room', spawn: [1, 1], facing: 'up', style: 'door' }]
+      });
+      world.maps['back-room'] = makeMap({ kind: 'interior' });
+      expect(runWorld(world)).toEqual([]);
+    });
   });
 
   it('flags an exit leading to an unknown map', () => {
@@ -602,10 +658,67 @@ describe('validateWorld', () => {
     expect(runWorld(blank).join('\n')).toContain('has nothing to read on it');
   });
 
+  // Read at a prop's reach (engine/reach.ts): touching distance, the tile
+  // beside it and nothing further. A shelf on the wall behind a counter has
+  // no such tile, so its words hang on the counter tile in front instead
+  // (scripts/make-room.ts `signAt`) and are read from the customer side.
+  it('flags a map sign boxed in behind a counter, and accepts its words hung on the counter', () => {
+    const behind = makeWorld({
+      maps: {
+        town: makeMap({ signs: [{ pos: [3, 3], lines: ['Bottles, behind the counter.'] }] }, ['.....', '.....', '#####', '#####', '#####'])
+      }
+    });
+    expect(runWorld(behind).join('\n')).toContain('sign at 3,3 has nowhere beside it to read it from');
+    const onTheCounter = makeWorld({
+      maps: {
+        town: makeMap({ signs: [{ pos: [3, 2], lines: ['Bottles, behind the counter.'] }] }, ['.....', '.....', '#####', '#####', '#####'])
+      }
+    });
+    expect(runWorld(onTheCounter)).toEqual([]);
+  });
+
+  // Reach is a distance, and two rooms can sit back to back with one wall
+  // between them; whatever the reach, the sign is only readable from its own
+  // side (engine/reach.ts `clearBetween`, over the tileset's `opaque`) —
+  // and at touching distance, from beside it.
+  it('flags a map sign whose only reading spot is two tiles away through an opaque wall', () => {
+    const throughWall = makeWorld({
+      maps: {
+        town: makeMap(
+          { signs: [{ pos: [2, 3], lines: ['A shelf, seen from the wrong room.'] }] },
+          ['.....', '.....', 'WWWWW', '#####', '#####']
+        )
+      }
+    });
+    expect(runWorld(throughWall).join('\n')).toContain('sign at 2,3 has nowhere beside it to read it from');
+    // The same shelf with floor beside it on its own side is read from there.
+    const ownSide = makeWorld({
+      maps: {
+        town: makeMap(
+          { signs: [{ pos: [2, 3], lines: ['A shelf, from the right room.'] }] },
+          ['.....', '.....', 'WWWWW', '#####', '.....']
+        )
+      }
+    });
+    expect(runWorld(ownSide)).toEqual([]);
+  });
+
+  it('accepts a map sign hung on an opaque wall, read from beside it', () => {
+    const world = makeWorld({
+      maps: {
+        town: makeMap({ signs: [{ pos: [2, 2], lines: ['A note pinned to the wall.'] }] }, ['.....', '.....', 'WWWWW', '#####'])
+      }
+    });
+    expect(runWorld(world)).toEqual([]);
+  });
+
   it('flags a map sign walled in on every side', () => {
     const world = makeWorld({
       maps: {
-        town: makeMap({ signs: [{ pos: [2, 1], lines: ['Nobody can get to this.'] }] }, ['..#.', '.###', '..#.', '....'])
+        town: makeMap(
+          { signs: [{ pos: [2, 4], lines: ['Nobody can get to this.'] }] },
+          ['.....', '.....', '#####', '#####', '#####', '#####', '#####']
+        )
       }
     });
     expect(runWorld(world).join('\n')).toContain('nowhere beside it to read it from');
@@ -1197,6 +1310,22 @@ describe('validateEpisode', () => {
     it('does not require smallTalk at all, even with ambient people around', () => {
       const episode = makeEpisode({ smallTalk: undefined });
       expect(runEpisode(episode, worldWithWalkers)).toEqual([]);
+    });
+
+    it('does not count somebody with lines of their own, who never draws from the pool', () => {
+      const withBarista = makeWorld({
+        maps: {
+          town: makeMap({
+            people: [
+              { id: 'walker1', name: 'A', pos: [1, 1] },
+              { id: 'walker2', name: 'B', pos: [2, 1] },
+              { id: 'barista', name: 'C', pos: [3, 1], lines: ['Morning. The board is up there.'] }
+            ]
+          })
+        }
+      });
+      const episode = makeEpisode({ smallTalk: ['one', 'two'] });
+      expect(runEpisode(episode, withBarista)).toEqual([]);
     });
   });
 });

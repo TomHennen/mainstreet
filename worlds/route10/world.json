@@ -599,6 +599,11 @@
           "door": [
             85,
             23
+          ],
+          "interior": "eighty-main-interior",
+          "enter": [
+            6,
+            10
           ]
         },
         {
@@ -618,7 +623,7 @@
           "interior": "stamford-coffee-interior",
           "enter": [
             9,
-            10
+            13
           ]
         },
         {
@@ -1251,6 +1256,28 @@
           "facing": "down",
           "style": "door"
         }
+      ],
+      "people": [
+        {
+          "id": "hannah",
+          "name": "Hannah",
+          "pos": [
+            6,
+            12
+          ],
+          "facing": "down",
+          "look": {
+            "hair": "bun",
+            "hairColor": "#4a3524",
+            "shirt": "#7a3e5f",
+            "build": "slim"
+          },
+          "lines": [
+            "Morning! Coffee's on — it has been since half past four, and it'll still be on whenever you wander back in.",
+            "The ice cream case is right over there, and yes, the make-your-own sundae bar is real. Nobody has ever been sorry about a sundae.",
+            "Somebody asked me once if our coffee costs more than Dunkin. It's cheaper, actually — and the nearest Dunkin is a good long drive from here. This one's right here."
+          ]
+        }
       ]
     },
     "stamford-coffee-interior": {
@@ -1263,7 +1290,7 @@
           "id": "stamford-coffee-exit",
           "at": [
             9,
-            11,
+            14,
             2,
             1
           ],
@@ -1274,6 +1301,130 @@
           ],
           "facing": "down",
           "style": "door"
+        },
+        {
+          "id": "stamford-coffee-to-kitchen",
+          "at": [
+            4,
+            2,
+            1,
+            1
+          ],
+          "to": "stamford-coffee-kitchen",
+          "spawn": [
+            1,
+            4
+          ],
+          "facing": "right",
+          "style": "door"
+        },
+        {
+          "id": "stamford-coffee-to-eighty-main",
+          "at": [
+            19,
+            9,
+            1,
+            2
+          ],
+          "to": "eighty-main-interior",
+          "spawn": [
+            1,
+            6
+          ],
+          "facing": "right",
+          "style": "door"
+        }
+      ],
+      "signs": [
+        {
+          "pos": [
+            1,
+            0
+          ],
+          "lines": [
+            "A single bathroom, and a good one: clean, a plant on the cistern, and a hand-lettered sign asking you kindly to jiggle the handle.",
+            "Anyone can use it. There is a hook for your coat, and the soap smells like lemons."
+          ]
+        },
+        {
+          "pos": [
+            3,
+            0
+          ],
+          "lines": [
+            "The other one, just the same, with a changing table folded against the wall and a stack of the good paper towels.",
+            "Whichever is free is yours."
+          ]
+        },
+        {
+          "pos": [
+            7,
+            5
+          ],
+          "lines": [
+            "A whole shelf of coffee makers, every kind there is: a glass pour-over, a stovetop moka pot, a siphon like something out of a science set, a percolator with a few decades on it.",
+            "They all still work, and most of them get used. It is a collection, not a museum."
+          ]
+        },
+        {
+          "pos": [
+            12,
+            5
+          ],
+          "lines": [
+            "The menu, in chalk: coffee every way you could want it, the Maple Smoke latte in a box of its own, and a row of paninis pressed to order — the kind you smell before you see.",
+            "Nothing on this board you would regret."
+          ]
+        },
+        {
+          "pos": [
+            16,
+            5
+          ],
+          "lines": [
+            "Bottles behind the right end of the counter: a cooler of beer from breweries an easy drive from here, and a few bottles of wine to take home, each with a little card in Ronnie's hand saying what it goes with.",
+            "Ask at the counter and one goes home with you. One of these evenings, one will."
+          ]
+        },
+        {
+          "pos": [
+            1,
+            10
+          ],
+          "lines": [
+            "A record player on the left wall, lid up, something warm and a little crackly turning on it.",
+            "Whoever is behind the counter picks the side. It is always the right one."
+          ]
+        },
+        {
+          "pos": [
+            1,
+            13
+          ],
+          "lines": [
+            "Crates of LPs, spread out so you can flip through them: jazz, old country, soul, and a few things nobody can quite place.",
+            "Every sleeve has been handled a hundred times, which is exactly what they are for."
+          ]
+        },
+        {
+          "pos": [
+            4,
+            8
+          ],
+          "lines": [
+            "The furniture is mid-century modern, all of it: low tables, tapered legs, chairs that look like they came off a magazine cover in 1958 and have been sat in happily ever since.",
+            "Nothing matches exactly, and it all goes together anyway."
+          ]
+        },
+        {
+          "pos": [
+            13,
+            13
+          ],
+          "lines": [
+            "A self-serve fridge up by the door: cold drinks, snacks, and ready-made dinners for anyone who would rather not cook tonight.",
+            "Help yourself, says the little sign on it. One of these weeks, you might."
+          ]
         }
       ],
       "people": [
@@ -1281,8 +1432,8 @@
           "id": "stamford-coffee-barista",
           "name": "Ronnie",
           "pos": [
-            7,
-            1
+            10,
+            4
           ],
           "facing": "down",
           "look": {
@@ -1291,8 +1442,219 @@
             "shirt": "#5c7a8f"
           },
           "lines": [
-            "Morning. The board's up there, but the Maple Smoke latte's the one everybody ends up asking about.",
-            "Take your time picking a table \u2014 the patio's lovely if the sun's out."
+            "Morning. The board's right here — the Maple Smoke latte's the one everybody asks about. And if there are lemon shortbreads left in the case, grab one now; we can't keep them in stock.",
+            "That's my record on. Have a flip through the crates by the player if you like — there's always something good in there.",
+            "Take your time picking a table. The big doorway on the right goes straight through to 80 Main, and the bathrooms are up the hallway in the corner on the left — the steel door off it is the kitchen."
+          ]
+        }
+      ]
+    },
+    "stamford-coffee-kitchen": {
+      "name": "Stamford Coffee Kitchen",
+      "kind": "interior",
+      "buildings": [],
+      "labels": [],
+      "exits": [
+        {
+          "id": "stamford-coffee-kitchen-exit",
+          "at": [
+            0,
+            4,
+            1,
+            1
+          ],
+          "to": "stamford-coffee-interior",
+          "spawn": [
+            3,
+            2
+          ],
+          "facing": "left",
+          "style": "door"
+        }
+      ],
+      "signs": [
+        {
+          "pos": [
+            2,
+            1
+          ],
+          "lines": [
+            "The oven, two big decks of it, ticking as it warms. Most mornings it's scones and muffins for the case out front, and the whole kitchen smells of them.",
+            "There's a timer on a string hung on the hook beside it. Somebody's never once needed it."
+          ]
+        },
+        {
+          "pos": [
+            5,
+            1
+          ],
+          "lines": [
+            "Steel work tables all along the wall: the big stand mixer, a scale that weighs to the gram, and a bench scraper worn smooth from years of good use.",
+            "This is where the coffee shop's own baking gets done — the scones, the cookies, whatever goes in the case each morning."
+          ]
+        },
+        {
+          "pos": [
+            9,
+            1
+          ],
+          "lines": [
+            "Two fridges and a chest freezer, humming in three different keys: butter by the case, eggs by the flat, milk and cream for the espresso machine out front.",
+            "Everything in here is going to be breakfast for somebody by the end of the week."
+          ]
+        },
+        {
+          "pos": [
+            10,
+            4
+          ],
+          "lines": [
+            "A table kept clear at the end of the room, with a turntable and a rack of food colours on the shelf above it.",
+            "Some nights a baker borrows the kitchen after the shop's locked up and builds her custom cakes here. Most days it's just where the trays get stacked."
+          ]
+        },
+        {
+          "pos": [
+            2,
+            7
+          ],
+          "lines": [
+            "A rolling rack of trays, cooling: lemon shortbread cookies, every tray of them. They go out front by the dozen and they're gone.",
+            "Buttery, a little sharp, sugar on top. One is never the number."
+          ]
+        }
+      ]
+    },
+    "eighty-main-interior": {
+      "name": "80 Main",
+      "kind": "interior",
+      "buildings": [],
+      "labels": [],
+      "exits": [
+        {
+          "id": "eighty-main-exit",
+          "at": [
+            6,
+            11,
+            2,
+            1
+          ],
+          "to": "stamford",
+          "spawn": [
+            85,
+            23
+          ],
+          "facing": "down",
+          "style": "door"
+        },
+        {
+          "id": "eighty-main-to-stamford-coffee",
+          "at": [
+            0,
+            6,
+            1,
+            2
+          ],
+          "to": "stamford-coffee-interior",
+          "spawn": [
+            18,
+            9
+          ],
+          "facing": "left",
+          "style": "door"
+        }
+      ],
+      "signs": [
+        {
+          "pos": [
+            4,
+            1
+          ],
+          "lines": [
+            "Catskills-logo wear, a whole wall of it: hats, tees, hoodies, the mountains stitched small over the heart.",
+            "You would wear it home, and then keep wearing it."
+          ]
+        },
+        {
+          "pos": [
+            1,
+            3
+          ],
+          "lines": [
+            "A very good sweater, folded the way only a shop folds things, and beside it some camo that is more fashion than deer season.",
+            "Both would look right on Main Street. Both would look right anywhere."
+          ]
+        },
+        {
+          "pos": [
+            12,
+            5
+          ],
+          "lines": [
+            "Candles and mugs made close to home, the kind you pick up to look at properly and then keep holding.",
+            "Everything on this shelf was chosen by somebody who liked it first."
+          ]
+        },
+        {
+          "pos": [
+            5,
+            3
+          ],
+          "lines": [
+            "A low table of wool throws and blankets, folded in the colours the hills go in October.",
+            "Somebody has already run a hand over every one of them today. You do too."
+          ]
+        },
+        {
+          "pos": [
+            9,
+            8
+          ],
+          "lines": [
+            "More of the logo wear, out where you can get at it: beanies in a basket, a stack of tees, hoodies on a rail with the mountains over the heart.",
+            "The good stuff is the stuff you will still be wearing in ten years, and this is the good stuff."
+          ]
+        },
+        {
+          "pos": [
+            6,
+            6
+          ],
+          "lines": [
+            "A coffee table made of coal. Polished, black, heavier than it looks, and yes — really coal.",
+            "They have sold one, and they may still. Somebody, somewhere, sets a cup down on it every morning."
+          ]
+        },
+        {
+          "pos": [
+            11,
+            10
+          ],
+          "lines": [
+            "OYSTER & WINE NIGHT, the board says: some evenings the shop stays open late, the oysters come out on ice and the wine comes out with them.",
+            "Ask at the counter which night. It is worth planning a week around."
+          ]
+        }
+      ],
+      "people": [
+        {
+          "id": "eighty-main-keeper",
+          "name": "Tamsin",
+          "pos": [
+            9,
+            1
+          ],
+          "facing": "down",
+          "look": {
+            "hair": "short",
+            "hairColor": "#8a6a3c",
+            "skin": "#d9a98a",
+            "shirt": "#3f6b5a"
+          },
+          "lines": [
+            "Come on in and have a look round. Everything here is the kind of thing we would want ourselves.",
+            "The sweaters run true to size, and the mugs are from just up the road.",
+            "The coffee shop is right through the doorway on the left. The two of us have always been one visit."
           ]
         }
       ]

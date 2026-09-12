@@ -8,6 +8,7 @@ import {
   itemVisible,
   joinCredits,
   npcsOn,
+  peopleOn,
   vehiclesOn,
   propSignsOn,
   session,
@@ -217,6 +218,47 @@ describe('session helpers', () => {
     expect(npcsOn('town').map((n) => n.id)).toEqual(['earl']);
     expect(npcsOn('other').map((n) => n.id)).toEqual(['hannah']);
     expect(npcsOn('nowhere')).toEqual([]);
+  });
+
+  // A village's own people are there every week; an episode NPC with the
+  // same id stands in for one of them while that episode runs (DESIGN.md §3).
+  describe('peopleOn', () => {
+    const clerk = { id: 'hannah', name: 'Hannah', pos: [6, 12] as [number, number], lines: ['standing line'] };
+    const walker = { id: 'town-walker', pos: [1, 1] as [number, number] };
+
+    const withPeople = (npcs: EpisodeNpc[]) =>
+      boot(fakeFlags([]), {
+        world: {
+          ...world,
+          maps: {
+            town: { name: 'Town', kind: 'village', buildings: [], labels: [], exits: [], people: [walker] },
+            shop: { name: 'Shop', kind: 'interior', buildings: [], labels: [], exits: [], people: [clerk] }
+          }
+        },
+        episode: { ...episode, npcs }
+      });
+
+    it("reads a map's own people when the episode has nobody by that id", () => {
+      withPeople([earl]);
+      expect(peopleOn('shop').map((p) => p.id)).toEqual(['hannah']);
+      expect(peopleOn('town').map((p) => p.id)).toEqual(['town-walker']);
+      expect(peopleOn('nowhere')).toEqual([]);
+    });
+
+    it('leaves out a world person the running episode has an NPC for, wherever that NPC is', () => {
+      // The story has taken Hannah out of the shop and put her on the green:
+      // the world's copy of her stays home, so there is one of her, not two.
+      withPeople([earl, { ...hannah, map: 'town' }]);
+      expect(peopleOn('shop')).toEqual([]);
+      expect(peopleOn('town').map((p) => p.id)).toEqual(['town-walker']);
+      expect(npcsOn('town').map((n) => n.id)).toEqual(['earl', 'hannah']);
+    });
+
+    it('leaves out a world person the episode keeps on the same map and tile', () => {
+      withPeople([{ ...hannah, map: 'shop', pos: [6, 12] }]);
+      expect(peopleOn('shop')).toEqual([]);
+      expect(npcsOn('shop').map((n) => n.id)).toEqual(['hannah']);
+    });
   });
 
   it('itemsOn filters items by their declared map', () => {
