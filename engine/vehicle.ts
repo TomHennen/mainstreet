@@ -122,6 +122,8 @@ export const LOOK_AHEAD = STOP_TILES + CLEAR_TILES + VEHICLE_HALF_LENGTH;
  * rate becomes a rendering detail rather than a hole in the give-way check.
  */
 const MAX_STEP_TILES = 0.25;
+/** A ceiling on how many slices `update` ever takes for one `dt`, so a huge world-pack `speed` or an enormous stalled-frame `dt` can never spin the loop away rather than just coarsen it. */
+const MAX_STEPS = 64;
 /** A car moves at about this multiple of the player's walking speed. */
 export const DRIVE_FACTOR = 3;
 /** Seconds a car stands at a waypoint before taking the turn, by default. */
@@ -469,13 +471,15 @@ export class Driver {
    * of.
    */
   update(dt: number, step: DriveStep): void {
-    let remaining = Math.max(0, dt);
+    let remaining = Number.isFinite(dt) ? Math.max(0, dt) : 0; // a non-finite dt (NaN, Infinity) never poisons the mover's position
     const slice = Math.max(MAX_STEP_TILES / Math.max(this.speed, EPS), EPS);
+    let steps = 0;
     do {
       const took = Math.min(remaining, slice);
       this.stepOnce(took, step);
       remaining -= took;
-    } while (remaining > EPS);
+      steps++;
+    } while (remaining > EPS && steps < MAX_STEPS); // a huge speed or dt coarsens the slices rather than spinning the loop away
   }
 
   /** One slice of a frame — see `update`, which is the only caller. */
@@ -579,14 +583,14 @@ export class Driver {
       const facing = headingTo(this.routeStart, this.routeSecond) ?? this.mover.facing;
       const [sx, sy] = STEP[facing];
       // Held here, re-checked every frame, rather than driving in on top of
-      // the player: not just the one tile it is due to reappear on, but the
-      // same LOOK_AHEAD stretch beyond it that `stepOnce` would check the
-      // moment it was an ordinary car again, plus the ground `arriving`
-      // itself is about to cross to get there — the whole of the entry a
-      // player standing anywhere in has to clear before this car commits to
-      // driving through it.
+      // the player: the whole of the ground `arriving` is about to cross —
+      // not just the one tile it is due to reappear on — plus a little past
+      // it to clear the car's own nose the moment it commits. Anyone further
+      // up the road than that is `arriving`'s own problem: it gives way the
+      // same LOOK_AHEAD and braking ramp an ordinary leg does, once it is
+      // actually moving.
       const arrivalStart: Vec2 = [this.routeStart[0] - sx * VANISH_TILES, this.routeStart[1] - sy * VANISH_TILES];
-      const entry = straightAhead(arrivalStart[0], arrivalStart[1], sx, sy, VANISH_TILES + LOOK_AHEAD);
+      const entry = straightAhead(arrivalStart[0], arrivalStart[1], sx, sy, VANISH_TILES + VEHICLE_HALF_LENGTH);
       if (entry.some(([x, y]) => step.blocked(x, y))) return;
       this.mover.x = arrivalStart[0];
       this.mover.y = arrivalStart[1];
