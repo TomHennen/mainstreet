@@ -433,9 +433,10 @@
       "id": "a-jess-pulls-round",
       "on": { "flag": "truckRuns" },
       "steps": [
-        { "camera": { "to": [44, 11], "speed": 14 } },
-        { "move": { "who": "jefferson-creamery-walker", "to": [43, 11], "speed": 3.4 } },
-        { "move": { "who": "vehicle:jess-l-wagon", "to": [45, 12], "speed": 3 } },
+        { "camera": { "to": [46, 17], "speed": 14 } },
+        { "move": { "who": "vehicle:jess-l-wagon", "to": [45, 12], "speed": 4 } },
+        { "move": { "who": "jefferson-creamery-walker", "to": [43, 11], "speed": 5.5 } },
+        { "camera": { "to": [44, 11], "speed": 10 } },
         {
           "say": {
             "who": "jefferson-creamery-walker",
@@ -446,7 +447,7 @@
           }
         },
         { "toast": "Walt's truck turns over." },
-        { "wait": 2 },
+        { "wait": 1 },
         {
           "say": {
             "who": "walt",
@@ -461,7 +462,7 @@
         { "set": "done" },
         { "move": { "who": "vehicle:walts-pickup", "path": [[43, 15], [63, 15]], "speed": 6 } },
         { "camera": { "to": "player" } },
-        { "wait": 1 },
+        { "wait": 0.5 },
         { "toast": "Episode complete — new story next week" }
       ]
     }
