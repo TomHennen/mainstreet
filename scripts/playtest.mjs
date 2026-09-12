@@ -540,7 +540,7 @@ function overlapDepth(a, b) {
 async function hold(page, dir, axis, target, sign) {
   await page.keyboard.down(KEY[dir]);
   const result = await page.evaluate(
-    ({ key, axis, target, sign, eps }) =>
+    ({ key, axis, target, sign, eps, stuckAfterMs }) =>
       new Promise((done) => {
         const t0 = performance.now();
         let last = null;
@@ -558,7 +558,7 @@ async function hold(page, dir, axis, target, sign) {
           if (last === null || Math.abs(v - last) > 0.02) {
             last = v;
             moved = performance.now();
-          } else if (performance.now() - moved > 500) {
+          } else if (performance.now() - moved > stuckAfterMs) {
             return stop('stuck');
           }
           if (performance.now() - t0 > 8000) return stop('timeout');
@@ -566,7 +566,12 @@ async function hold(page, dir, axis, target, sign) {
         };
         requestAnimationFrame(tick);
       }),
-    { key: KEY[dir], axis, target, sign, eps: TILE_EPS }
+    // A CI runner under load can stall a frame or two — mid-hold, not just at
+    // startup — well past 500ms without anything on the map actually being in
+    // the way; issue #37's Jefferson/Hobart "lost" work saw a `walkTo` fail
+    // this way in CI (never locally) on an otherwise-clear 13-tile run. 1500ms
+    // gives a slow frame room to recover before this reads as a real block.
+    { key: KEY[dir], axis, target, sign, eps: TILE_EPS, stuckAfterMs: 1500 }
   );
   await page.keyboard.up(KEY[dir]);
   return result;
