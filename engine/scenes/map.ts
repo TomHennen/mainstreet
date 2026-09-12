@@ -1573,13 +1573,19 @@ export class MapScene extends Phaser.Scene {
   /**
    * What a route may cross. Solid tiles and people are out, and so are the
    * exits: walking over one is a trip to the next village, and a tap on this
-   * side of town never asked for that. The tapped tile itself is always fair
-   * game, which is how a tap on the road out still takes it.
+   * side of town never asked for that. A tile the map's own `lost` (DESIGN.md
+   * §2) would trigger on is out too, the same way — getting lost is only
+   * ever deliberate, a key held or the d-pad pressed straight into the
+   * woods, or a tap landing on the woods tile itself, never a route a tap
+   * elsewhere happened to be routed through. The tapped tile itself is
+   * always fair game, which is how a tap on the road out — or on the woods
+   * themselves — still takes it.
    */
   private walkableTo(goal: Vec2): (x: number, y: number) => boolean {
     return (x, y) => {
       if (this.solidTile(x, y)) return false;
       if (x === goal[0] && y === goal[1]) return true;
+      if (lostAt(this.map, x, y)) return false;
       return !this.exitAt(x, y);
     };
   }

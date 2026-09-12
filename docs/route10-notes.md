@@ -40,7 +40,9 @@ Cafe's own little lot (it opens only onto the sandy path behind Main
 Street, not the paved network), so the deputy drops you at J&H's forecourt
 instead, on the NY 10 spur north of Main Street, where the deli counter's
 got coffee going. In Hobart the deputy drops you right on the sidewalk
-outside Cellar Door Wines, where Renata's got the kettle on.
+outside Cellar Door Wines, a good spot to warm up a minute (Renata
+herself is only ever there during her own episode, so the deputy's line
+names the shop, not her).
 
 **Stamford.** Stewart's is on the north-west corner of the 10/23 junction.
 Mac-A-Doodles is on the east side of Route 10, south of Route 23 (the

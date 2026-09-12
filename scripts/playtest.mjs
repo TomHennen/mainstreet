@@ -302,7 +302,36 @@ function exitTiles(map) {
   return set;
 }
 
-/** BFS over walkable tiles. Exits are avoided unless one is the goal. */
+/**
+ * Mirrors engine/edges.ts's own `lostAt`: a boundary tile of bare ground
+ * (grass, tree or flowers, never a road), not within one tile of any `exits`
+ * or `edges` rectangle, on a map that actually has a `lost` entry at all.
+ * Shared by the getting-lost check below (which is looking for exactly this)
+ * and by `findPath` (which, like the engine's own `walkableTo` since this
+ * fix, is not).
+ */
+const LOST_QUIET_KINDS = new Set(['grass', 'tree', 'flowers']);
+const LOST_SHOULDER = 1;
+const nearRect = (at, x, y, margin) =>
+  x >= at[0] - margin && x < at[0] + at[2] + margin && y >= at[1] - margin && y < at[1] + at[3] + margin;
+function lostEligible(mapId, x, y) {
+  const map = WORLD.maps[mapId];
+  if (!map.lost) return false;
+  if (x !== 0 && y !== 0 && x !== map.width - 1 && y !== map.height - 1) return false;
+  if (!LOST_QUIET_KINDS.has(map.kind[y * map.width + x])) return false;
+  if (isSolid(map, x, y)) return false;
+  if (map.exits.some((exit) => nearRect(exit.at, x, y, LOST_SHOULDER))) return false;
+  if ((map.edges ?? []).some((edge) => nearRect(edge.at, x, y, LOST_SHOULDER))) return false;
+  return true;
+}
+
+/**
+ * BFS over walkable tiles. Exits are avoided unless one is the goal — and,
+ * mirroring the engine's own `walkableTo` (DESIGN.md §2), so is a tile
+ * `lostAt` would trigger on: an ordinary walk (to a building, an exit,
+ * anywhere) should never wander a route through the woods by accident, only
+ * the getting-lost check's own deliberate walk onto one ever means to.
+ */
 function findPath(mapId, from, to, episode = EPISODE) {
   const map = WORLD.maps[mapId];
   const avoid = exitTiles(map);
@@ -322,6 +351,7 @@ function findPath(mapId, from, to, episode = EPISODE) {
       if (prev.has(k)) continue;
       if (isSolid(map, nx, ny) || npcAt(mapId, nx, ny, episode) || fixtureAt(mapId, nx, ny)) continue;
       if (avoid.has(k) && k !== goal) continue;
+      if (k !== goal && lostEligible(mapId, nx, ny)) continue;
       prev.set(k, cur);
       if (k === goal) {
         const path = [];
@@ -1625,23 +1655,12 @@ async function main() {
       }
       log(`  wander off into the woods (${mapId})`);
       const map = WORLD.maps[mapId];
-      // Mirrors engine/edges.ts's own QUIET_KINDS, SHOULDER and nearRect():
-      // a boundary tile of bare ground, not within SHOULDER tiles of any
-      // `exits` or `edges` rectangle — a landing spot one tile off a doorway
-      // out of town is still the road, not the woods (see lostAt() there).
-      const QUIET_KINDS = new Set(['grass', 'tree', 'flowers']);
-      const SHOULDER = 1;
-      const nearRect = (at, x, y, margin) =>
-        x >= at[0] - margin && x < at[0] + at[2] + margin && y >= at[1] - margin && y < at[1] + at[3] + margin;
+      // `lostEligible` (shared with `findPath` above) is exactly this same
+      // test, straight off engine/edges.ts's own `lostAt`.
       const candidates = [];
       for (let y = 0; y < map.height; y++) {
         for (let x = 0; x < map.width; x++) {
-          if (x !== 0 && y !== 0 && x !== map.width - 1 && y !== map.height - 1) continue;
-          if (!QUIET_KINDS.has(map.kind[y * map.width + x])) continue;
-          if (isSolid(map, x, y)) continue;
-          if (map.exits.some((exit) => nearRect(exit.at, x, y, SHOULDER))) continue;
-          if ((map.edges ?? []).some((edge) => nearRect(edge.at, x, y, SHOULDER))) continue;
-          candidates.push([x, y]);
+          if (lostEligible(mapId, x, y)) candidates.push([x, y]);
         }
       }
       if (!candidates.length) {

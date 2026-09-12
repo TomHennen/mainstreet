@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { edgeAt, lostAt, nearRect, pickByPosition, rectsOverlap, roadEndLine } from './edges';
+import { pathToTile } from './path';
 import { parseTiledMap } from './tiled';
 import type { GameMap, MapEdge, MapLost } from './schema';
 
@@ -249,5 +250,57 @@ describe('lostAt', () => {
   it('is undefined off the map', () => {
     expect(lostAt(woods(['....']), -1, 0)).toBeUndefined();
     expect(lostAt(woods(['....']), 4, 0)).toBeUndefined();
+  });
+});
+
+/**
+ * `engine/scenes/map.ts` `walkableTo` builds a route on exactly this shape —
+ * solid tiles out, the tapped goal always fair game, everything else
+ * `lostAt` would trigger on out too — so a tap-walk never carries a player
+ * through the woods on its way somewhere else. Getting lost stays
+ * deliberate: a key held or the d-pad pressed straight into it, or a tap
+ * landing on the woods tile itself, never a route a tap elsewhere happened
+ * to be sent through. This exercises that same shape directly against
+ * `pathToTile`, without any of `MapScene`'s Phaser plumbing.
+ */
+describe('routing around a "lost" tile (DESIGN.md §2, engine/scenes/map.ts walkableTo)', () => {
+  const lost: MapLost = { lines: ['You got turned around.'], to: 'town', spawn: [1, 1], facing: 'up' };
+
+  // Top row is the boundary: road (never lost) either side of one lone
+  // stretch of grass in the middle — the only tile on this map `lostAt`
+  // fires on. The middle row is ordinary interior ground, there entirely so
+  // a route avoiding that one tile has somewhere to detour through.
+  const map: GameMap = { ...makeMap(['rr.rr', '.....', 'rrrrr']), lost };
+
+  const walkableExceptGoal = (goal: [number, number]) => (x: number, y: number) =>
+    (x === goal[0] && y === goal[1]) || !lostAt(map, x, y);
+
+  it('detours around the lost tile to reach a goal beyond it', () => {
+    const goal: [number, number] = [4, 0];
+    const route = pathToTile([0, 0], goal, walkableExceptGoal(goal));
+    expect(route).not.toBeNull();
+    expect(route).not.toContainEqual([2, 0]);
+    // The straight line along the boundary row is 4 steps; avoiding the
+    // lost tile costs a dip through the interior row instead.
+    expect(route!.length).toBeGreaterThan(5);
+  });
+
+  it('still walks right onto the lost tile when that is the tile tapped', () => {
+    const goal: [number, number] = [2, 0];
+    const route = pathToTile([0, 0], goal, walkableExceptGoal(goal));
+    expect(route).toEqual([
+      [0, 0],
+      [1, 0],
+      [2, 0]
+    ]);
+  });
+
+  it('without the exclusion, the same walk would have cut straight through it', () => {
+    // What `walkableTo` looked like before this fix — no `lostAt` check at
+    // all — to show the detour above is really buying something.
+    const goal: [number, number] = [4, 0];
+    const oldWalkable = () => true;
+    const route = pathToTile([0, 0], goal, oldWalkable);
+    expect(route).toContainEqual([2, 0]);
   });
 });
