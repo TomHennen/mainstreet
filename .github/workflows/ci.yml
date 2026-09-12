@@ -38,7 +38,8 @@ jobs:
   playtest:
     needs: check
     runs-on: ubuntu-latest
-    # A whole run is about two minutes. The harness gives up on itself at eight
+    # A whole run is a few minutes (`?timescale=` speeds up the harness,
+    # engine/timescale.ts). The harness gives up on itself at eight
     # (PLAYTEST_WATCHDOG_MIN), and this is the belt to that pair of braces: a
     # job that has somehow gone quiet stops here rather than holding a runner.
     timeout-minutes: 15
@@ -55,9 +56,14 @@ jobs:
       # The harness's own watchdog defaults to 8 minutes; a full run with two
       # episodes' worth of steps takes a little over that on the CI runner, so
       # give it room until the playtest itself gets faster.
+      # Real speed on the runner: at PLAYTEST_TIMESCALE=2 (the local default)
+      # a held-key walk clips corners on the slower CI machine and stalls,
+      # which failed two unrelated PRs on the same Middle Brook patio walk.
+      # Local runs keep the speed-up; the gate measures the game at 1x.
       - run: npm run playtest
         env:
           PLAYTEST_WATCHDOG_MIN: 12
+          PLAYTEST_TIMESCALE: 1
       - name: Upload playtest artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4

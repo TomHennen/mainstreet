@@ -30,10 +30,21 @@ already models, and since Sep 2026 the maps let you walk it: Stamford's
 bottom edge and Hobart's top edge carry a trail exit of their own beside
 the Route 10 one.
 
+**Getting lost.** Walking off any of the three village maps into the woods
+(Tom, Sep 2026 for Stamford; Sep 2026 for Jefferson and Hobart) gets you
+lost: a Delaware County Sheriff's deputy is out your way before long and
+drives you back into town — it's the same sheriff's office everywhere along
+Route 10. In Stamford the deputy drops you back outside Stewart's, where a
+coffee is waiting. In Jefferson there's no drivable way into Middle Brook
+Cafe's own little lot (it opens only onto the sandy path behind Main
+Street, not the paved network), so the deputy drops you at J&H's forecourt
+instead, on the NY 10 spur north of Main Street, where the deli counter's
+got coffee going. In Hobart the deputy drops you right on the sidewalk
+outside Cellar Door Wines, a good spot to warm up a minute (Renata
+herself is only ever there during her own episode, so the deputy's line
+names the shop, not her).
+
 **Stamford.** Stewart's is on the north-west corner of the 10/23 junction.
-Walking off the Stamford map into the woods (Tom, Sep 2026) gets you lost:
-a Delaware County Sheriff's deputy is out your way before long, and drops
-you back outside Stewart's, where a coffee is waiting.
 Mac-A-Doodles is on the east side of Route 10, south of Route 23 (the
 south-east corner). Route 23 is Harper Street west of the corner and Main
 Street east of it; Route 10 is Lake Street north of the corner and Hobart Road
@@ -715,6 +726,23 @@ opt-in, everything warm and affectionate) before it reaches the player.
   no opposite of it: somebody the player has never met has nothing to be
   missing from, so what arrives is a line of dialogue, which `requires`
   already covers.
+
+  Voice pass, September 2026 (Tom, on a readable script rather than a
+  playthrough; `npm run episode-script -- route10 ep002` prints one). Three
+  rules, which apply to every episode from here on: the jokes go (humour
+  is something that happens, never a line written to be clever); the player
+  is told less (Priya no longer names Walt — the player asks around and
+  Hannah, Renata or Fern say who drives down; Walt names one Jess, not
+  four, and the player finds the others by asking for "Jess"; nobody
+  explains how a jump works); and every entry opens by naming what it is
+  answering, because the player never sees their own side of the
+  conversation. Two placement changes came out of it: Priya now takes her
+  break on Stamford Coffee's deck rather than standing next door to the
+  one person who can help, so the errand crosses the map; and Jess K.
+  sends the player to Hobart (Jess T.), who sends them to the trail
+  (Jess R.), so all three villages earn a visit. The Jess joke is aired
+  once, by Walt, as a plain fact ("Jess usually helps me out"); the
+  scene's capper is just a thanks.
 
   Jess L. waits on Middle Brook Cafe's patio, across Main Street from the
   forecourt, and walks over — Tom's call, and a better walk than standing by

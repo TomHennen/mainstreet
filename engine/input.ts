@@ -1,3 +1,4 @@
+import { scaled } from './timescale';
 import type { Facing } from './schema';
 
 /**
@@ -127,14 +128,14 @@ function fireDirection(dir: Facing): void {
 
 function fireAction(): void {
   const now = performance.now();
-  if (now - lastAction < ACTION_DEBOUNCE_MS) return;
+  if (now - lastAction < scaled(ACTION_DEBOUNCE_MS)) return;
   lastAction = now;
   for (const fn of [...listeners]) fn();
 }
 
 function fireToggle(): void {
   const now = performance.now();
-  if (now - lastToggle < ACTION_DEBOUNCE_MS) return;
+  if (now - lastToggle < scaled(ACTION_DEBOUNCE_MS)) return;
   lastToggle = now;
   for (const fn of [...toggleListeners]) fn();
 }
@@ -245,7 +246,7 @@ export function bindControls(root: Document = document): void {
     if (Math.hypot(event.clientX - start.x0, event.clientY - start.y0) > TAP_SLOP_PX) return;
     // Debounced like the action button, and for the same reason (hard rule 4).
     const now = performance.now();
-    if (now - lastTap < ACTION_DEBOUNCE_MS) return;
+    if (now - lastTap < scaled(ACTION_DEBOUNCE_MS)) return;
     lastTap = now;
     for (const fn of [...tapListeners]) fn(event.clientX, event.clientY);
   });
