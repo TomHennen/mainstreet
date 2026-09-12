@@ -684,15 +684,20 @@ opt-in, everything warm and affectionate) before it reaches the player.
   because hers was "the only car in Jefferson," which is nonsense — cars
   drive through all day. She helps because she is parked right there with
   nowhere she has to be, and because she is the kind who would. That is
-  also why the errand is still an errand with her sat twenty feet from the
-  truck the whole morning: there are no cables in Jefferson, and the cables
-  are what the player actually goes and gets. The capper is Walt's and
-  aimed squarely at himself — "there's five of us if you count me, Jess is
-  my own middle name" — never at the Jesses, who are simply four people who
-  happen to share a name. A middle name rather than a surname on purpose,
-  so no invented last name has to be checked against a real one (see
-  **People** above); it also keeps him Walt to everybody, which is the
-  point of the gag. The ending is a scene now rather than a line: Jess L.
+  also why the errand is still an errand with her waiting across the street
+  the whole morning: there are no cables in Jefferson, and the cables are
+  what the player actually goes and gets. The joke is aired exactly twice,
+  both times by Walt and both times about himself — the setup when he asks
+  for help ("It's usually a Jess — there's four of them between here and
+  Hobart, and I've never once picked the right one first") and the capper in
+  the scene, once she has turned up ("Jess L. I'd have asked you first if I
+  could ever keep the four of you straight"). Never at the Jesses, who are
+  four people who happen to share a name, and nobody else in the episode
+  counts them. An earlier draft had Walt be a fifth Jess by middle name; it
+  went in the copy pass for being one joke too many, and if it ever comes
+  back it stays a middle name rather than a surname, so no invented last
+  name has to be checked against a real one (see **People** above). The
+  ending is a scene now rather than a line: Jess L.
   walks over, her car pulls round into the stall alongside the truck on
   J&H's forecourt,
   the truck catches, and Walt drives out of the village — the week visibly

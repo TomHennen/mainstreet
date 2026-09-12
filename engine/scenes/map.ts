@@ -596,8 +596,15 @@ export class MapScene extends Phaser.Scene {
   private dropGoneWalkers(): void {
     const kept: Walker[] = [];
     for (const walker of this.walkers) {
-      if (walker.npc && npcGone(walker.npc)) walker.sprite.destroy();
-      else kept.push(walker);
+      if (!walker.npc || !npcGone(walker.npc)) {
+        kept.push(walker);
+        continue;
+      }
+      // A walk on its way to somebody who has just left has nowhere to arrive:
+      // stop it where it is rather than march the player across the village to
+      // stand in the space where they were.
+      if (this.walkFollow === walker) this.stopWalk();
+      walker.sprite.destroy();
     }
     if (kept.length !== this.walkers.length) this.walkers = kept;
   }
