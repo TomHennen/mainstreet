@@ -12,19 +12,34 @@
  * write nothing to a save. Everything that could go wrong between a car and a
  * player is settled in the car's favour of stopping:
  *
- * - **Giving way.** A car looks `LOOK_AHEAD` tiles along its own route. If
- *   anybody is on one of those tiles it closes the throttle and coasts to a
- *   stop, and it stands there for as long as they stay. When the way clears it
- *   pulls away again on the same ramp. It never routes around anybody: a car
- *   that swerved past somebody standing in the road would read as impatience,
- *   and a car that waits reads as a neighbour.
+ * - **Giving way.** A car looks `LOOK_AHEAD` tiles along its own route —
+ *   round however many corners it needs to (`Mover.ahead`), and along a
+ *   straight heading for the one stretch that has no route to consult, the
+ *   vanish/arrive leg below (`straightAhead`). If anybody is on one of those
+ *   tiles it closes the throttle and coasts to a stop, and it stands there
+ *   for as long as they stay. When the way clears it pulls away again on the
+ *   same ramp. It never routes around anybody: a car that swerved past
+ *   somebody standing in the road would read as impatience, and a car that
+ *   waits reads as a neighbour.
  * - **Braking distance.** The ramp is worked out from the car's own speed, so
- *   however fast it is driving it comes to a stop within `STOP_TILES` — inside
- *   the distance it looks ahead, which is what makes the stop land *behind*
- *   whoever it stopped for rather than on top of them.
- * - **Stepping out in front of one.** Somebody who walks into the road a tile
- *   in front of a moving car is simply passed under, with nothing happening to
- *   either of them. There is no collision to have.
+ *   however fast it is driving it comes to a stop within `STOP_TILES` of its
+ *   own tracked centre. `LOOK_AHEAD` reaches a tile further than that: a
+ *   placeholder car (and any painted replacement, which keeps the same frame
+ *   size) is drawn two tiles nose to tail, so the extra clears the car's own
+ *   front bumper too, which is what makes the stop land a clear tile *behind*
+ *   whoever it stopped for — measured at the nose, not just the point the
+ *   engine happens to track the car by — rather than merely behind a tile
+ *   position the drawn car's own front overhangs.
+ * - **However big a frame is.** `update` never lets a single slow frame's own
+ *   `dt` — a stumble on a phone, a backgrounded tab regaining focus — drive a
+ *   car further than `MAX_STEP_TILES` before the give-way check runs again:
+ *   a big `dt` is sliced into several small ones instead, so the frame rate
+ *   is a rendering detail rather than a hole a car can be driven through
+ *   somebody standing in the road.
+ * - **Stepping out in front of one.** Somebody who walks into the road too
+ *   close in front of a moving car for the ramp above to have any hope of
+ *   stopping short is simply passed under, with nothing happening to either
+ *   of them. There is no collision to have.
  * - **Parked cars.** A car with no waypoints at all is one somebody has left
  *   in a lot. It is the same object, drawn the same way and just as
  *   un-solid — it simply never sets off, until a scene sends it somewhere
@@ -69,13 +84,44 @@
 // need under Node's type stripping (scripts/validate-episodes.ts, which
 // imports `runsOffMap` from here transitively — see that file's header).
 import { Mover } from './mover.ts';
+import { VEHICLE_L } from './motor.ts';
+import { TILE } from './tiled.ts';
 import type { Walkable } from './path';
 import type { Facing, Rect, Vec2 } from './schema';
 
-/** How far up the road a driver looks, in tiles. */
-export const LOOK_AHEAD = 3;
-/** How much road a car takes to come to a stop, in tiles. Inside LOOK_AHEAD. */
+/**
+ * Half the vehicle's own drawn length, in tiles — a placeholder car (and any
+ * painted replacement, which keeps the same frame size, engine/motor.ts) is
+ * drawn two tiles nose to tail, centred on the `x`/`y` position this module
+ * tracks it by. `LOOK_AHEAD` below has to reach a tile further than the
+ * braking distance alone would, so the extra clears the car's own nose, not
+ * just the point the engine happens to track it at.
+ */
+const VEHICLE_HALF_LENGTH = Math.ceil(VEHICLE_L / 2 / TILE);
+/** How much road a car takes to come to a stop, in tiles, measured at its own tracked centre. */
 export const STOP_TILES = 2;
+/** Tiles of road a stopped car leaves clear beyond its own nose — "a clear tile behind whoever it stopped for" (DESIGN.md §2). */
+const CLEAR_TILES = 1;
+/**
+ * How far up the road a driver looks, in tiles, from its own tracked centre.
+ * Wide enough that once the braking ramp (`STOP_TILES`) has actually brought
+ * it to a stop, the car's *nose* — `VEHICLE_HALF_LENGTH` tiles ahead of the
+ * centre `STOP_TILES` is measured from — still has `CLEAR_TILES` of clear
+ * road in front of it, rather than the centre alone landing a tile short
+ * while the drawn car's own front bumper sits on top of whoever it stopped
+ * for.
+ */
+export const LOOK_AHEAD = STOP_TILES + CLEAR_TILES + VEHICLE_HALF_LENGTH;
+/**
+ * The most this module ever lets a car drive, and the road ahead go unread,
+ * in one go — a fraction of a tile, so a slow frame (a stumble on a phone, a
+ * backgrounded tab regaining focus) can never hand `update` a `dt` large
+ * enough to drive a car clean through a tile the give-way check never got a
+ * chance to see occupied. `update` slices a big `dt` into steps no larger
+ * than this, however many frames of real time it turns out to be — the frame
+ * rate becomes a rendering detail rather than a hole in the give-way check.
+ */
+const MAX_STEP_TILES = 0.25;
 /** A car moves at about this multiple of the player's walking speed. */
 export const DRIVE_FACTOR = 3;
 /** Seconds a car stands at a waypoint before taking the turn, by default. */
@@ -176,6 +222,21 @@ export interface DriveStep {
    * hollers.
    */
   player?: (x: number, y: number) => boolean;
+}
+
+/**
+ * The next `count` whole tiles straight ahead of a continuous position, along
+ * a fixed heading — the vanish/arrive leg's own look-ahead (`driveOffMap`),
+ * since that stretch has no route of its own for `Mover.ahead` to bend
+ * around. Floor/ceil rather than a round: sitting right on a tile's own
+ * edge, "the next tile" must never be read as the one just left.
+ */
+function straightAhead(x: number, y: number, dx: number, dy: number, count: number): Vec2[] {
+  const nx = dx > 0 ? Math.floor(x) + 1 : dx < 0 ? Math.ceil(x) - 1 : Math.round(x);
+  const ny = dy > 0 ? Math.floor(y) + 1 : dy < 0 ? Math.ceil(y) - 1 : Math.round(y);
+  const out: Vec2[] = [];
+  for (let i = 0; i < count; i++) out.push([nx + dx * i, ny + dy * i]);
+  return out;
 }
 
 /** Which way something at `from` is pointing if it is off to `to`. */
@@ -400,8 +461,25 @@ export class Driver {
    * A through-route car hands off to `driveOffMap` the moment it arrives at
    * its last waypoint with nowhere its own route says to go next — the trip
    * off the map and back that keeps it from ever turning around.
+   *
+   * `dt` is sliced into steps no larger than `MAX_STEP_TILES` of this car's
+   * own travel (see its own comment) before any of the above runs, so a slow
+   * frame is a sequence of ordinary small ones as far as the give-way check
+   * is concerned, never one big jump the check only gets to see the far side
+   * of.
    */
   update(dt: number, step: DriveStep): void {
+    let remaining = Math.max(0, dt);
+    const slice = Math.max(MAX_STEP_TILES / Math.max(this.speed, EPS), EPS);
+    do {
+      const took = Math.min(remaining, slice);
+      this.stepOnce(took, step);
+      remaining -= took;
+    } while (remaining > EPS);
+  }
+
+  /** One slice of a frame — see `update`, which is the only caller. */
+  private stepOnce(dt: number, step: DriveStep): void {
     if (this.phase !== 'driving') {
       this.driveOffMap(dt, step);
       return;
@@ -498,13 +576,20 @@ export class Driver {
     if (this.phase === 'off') {
       this.offClock -= dt;
       if (this.offClock > 0 || !this.routeStart) return;
-      // Held here, re-checked every frame, rather than popping into view on
-      // top of the player.
-      if (step.blocked(this.routeStart[0], this.routeStart[1])) return;
       const facing = headingTo(this.routeStart, this.routeSecond) ?? this.mover.facing;
       const [sx, sy] = STEP[facing];
-      this.mover.x = this.routeStart[0] - sx * VANISH_TILES;
-      this.mover.y = this.routeStart[1] - sy * VANISH_TILES;
+      // Held here, re-checked every frame, rather than driving in on top of
+      // the player: not just the one tile it is due to reappear on, but the
+      // same LOOK_AHEAD stretch beyond it that `stepOnce` would check the
+      // moment it was an ordinary car again, plus the ground `arriving`
+      // itself is about to cross to get there — the whole of the entry a
+      // player standing anywhere in has to clear before this car commits to
+      // driving through it.
+      const arrivalStart: Vec2 = [this.routeStart[0] - sx * VANISH_TILES, this.routeStart[1] - sy * VANISH_TILES];
+      const entry = straightAhead(arrivalStart[0], arrivalStart[1], sx, sy, VANISH_TILES + LOOK_AHEAD);
+      if (entry.some(([x, y]) => step.blocked(x, y))) return;
+      this.mover.x = arrivalStart[0];
+      this.mover.y = arrivalStart[1];
       this.mover.facing = facing;
       this.arriveFacing = facing;
       this.vanishLeft = VANISH_TILES;
@@ -514,12 +599,22 @@ export class Driver {
     }
 
     // 'arriving': the mirror of 'vanishing', driven back in over the same
-    // ground rather than warped straight to the first waypoint.
+    // ground rather than warped straight to the first waypoint — and giving
+    // way exactly as an ordinary leg does the whole way in, the same
+    // LOOK_AHEAD and braking ramp, rather than a single point check right at
+    // the road's own edge: the ground it is rejoining is exactly as capable
+    // of having somebody standing on it as any other tile is, waypoint by
+    // waypoint the same way the `off` phase above already waits rather than
+    // popping into view on top of the player.
     const facing = this.arriveFacing ?? this.mover.facing;
     const [dx, dy] = STEP[facing];
-    const nextTile: Vec2 = [Math.round(this.mover.x) + dx, Math.round(this.mover.y) + dy];
-    if (step.blocked(nextTile[0], nextTile[1])) return;
-    const covered = this.speed * dt;
+    const ahead = straightAhead(this.mover.x, this.mover.y, dx, dy, LOOK_AHEAD);
+    this.giveWay = ahead.some(([x, y]) => step.blocked(x, y));
+    const target = this.giveWay ? 0 : 1;
+    const change = dt / this.ramp;
+    this.throttle =
+      target > this.throttle ? Math.min(1, this.throttle + change) : Math.max(0, this.throttle - change);
+    const covered = this.speed * dt * this.throttle;
     this.mover.x += dx * covered;
     this.mover.y += dy * covered;
     this.vanishLeft -= covered;
