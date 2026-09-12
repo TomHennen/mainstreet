@@ -358,7 +358,11 @@ export function validateWorld(world: World, maps: Record<string, GameMap>): stri
           problems.push(`${where} overlaps exit "${exit.id}"`);
         }
       }
-      if (!edge.quiet) {
+      if (edge.quiet) {
+        if (edge.lines && edge.lines.length > 0) {
+          problems.push(`${where} has "quiet: true" but also has "lines" it will never say`);
+        }
+      } else {
         checkSaid(edge.lines, where, problems);
       }
     }
