@@ -1505,6 +1505,49 @@ async function main() {
           log('    a tap goes back to the episode list');
         }
 
+        // A second shipped episode keeps its own progress (issue #37, "Ep 2
+        // doesn't show Start over / Continue"): the save and the title row
+        // both key off the episode's own id, not off whichever one happens to
+        // be playing, so starting episode two must not touch episode one's
+        // own finished/again state, and coming back to it must offer to carry
+        // on rather than starting fresh again. Real play, the short way:
+        // arriving anywhere is autosaved on its own (engine/scenes/map.ts),
+        // so tapping the row and reloading is enough to prove it stuck.
+        if (WORLD.episodes.length > 1) {
+          const secondId = WORLD.episodes[1];
+          let secondRow = rowFor(list, secondId);
+          if (!secondRow) fail('title-second-episode', `the second shipped episode "${secondId}" is not on the list`);
+          if (words.play && secondRow.action !== words.play) {
+            fail('title-second-episode', `a fresh "${secondId}" offers "${secondRow.action}", expected "${words.play}"`);
+          }
+
+          await tapRow(secondRow);
+          await waitUntil(tip, (s) => s.map === WORLD.start.map, `"${secondId}" to start from the title`, 20000);
+
+          await tip.reload({ waitUntil: 'load' });
+          list = await listNow(`after starting "${secondId}" and reloading`);
+          secondRow = rowFor(list, secondId);
+          if (words.continue && secondRow.action !== words.continue) {
+            fail(
+              'title-second-episode',
+              `"${secondId}" with progress offers "${secondRow.action}", expected "${words.continue}"`
+            );
+          }
+          if (!secondRow.secondary) fail('title-second-episode', `"${secondId}" with progress offers no "Start over"`);
+
+          // And the first episode's own state — finished, played again,
+          // above — is exactly as it was: two episodes' progress living in
+          // one save must never bleed into each other.
+          const firstRow = rowFor(list, shippedId);
+          if (words.again && firstRow.action !== words.again) {
+            fail(
+              'title-second-episode',
+              `starting "${secondId}" disturbed "${shippedId}": it now offers "${firstRow.action}", expected "${words.again}"`
+            );
+          }
+          log(`    a second episode ("${secondId}") tracks its own progress: "${secondRow.action}" / "${secondRow.secondary}"`);
+        }
+
         // "Forget everything" (Tom's addendum to issue #65), tested once: the
         // same one-step confirmation as "Start over", but for the whole save.
         if (words.forget) {
