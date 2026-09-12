@@ -358,12 +358,23 @@ export interface MapExit {
  * matching `edges` entry falls back to the engine's own generic
  * `copy.ui.roadEnd` instead (never shown for grass or trees, only for a road
  * that simply hasn't been mapped further).
+ *
+ * Some roads don't have anything to say at all — a T into a road the world
+ * doesn't map, say — and would otherwise fall back to the generic
+ * `ui.roadEnd` line, which reads oddly next to a dead end drawn right up to
+ * the map's boundary. Setting `quiet: true` (and leaving `lines` out) makes
+ * the road end silently: the tile still counts as a matched `edges` entry
+ * (so `ui.roadEnd` never fires there, and it still keeps the tile off
+ * `lost`'s shoulder), it just says nothing when walked into.
  */
 export interface MapEdge {
   id: string;
   /** Trigger area in tiles: [x, y, w, h], the same shape as an exit's `at`. */
   at: Rect;
-  lines: string[];
+  /** Shown in the say box, narrator-voiced, once per visit. Required unless `quiet` is set. */
+  lines?: string[];
+  /** The road simply runs off the map here: no line, and no fallback to `ui.roadEnd`. */
+  quiet?: boolean;
 }
 
 /**
@@ -429,6 +440,8 @@ export interface MapMeta {
    * three per map is plenty, and the validator says so (DESIGN.md §2).
    */
   people?: Person[];
+  /** A building interior nobody is posted in, on purpose: the validator otherwise wants at least one person in every room a door opens onto (DESIGN.md §2). */
+  unstaffed?: boolean;
   /**
    * Ambient traffic on this map's paved routes (DESIGN.md §2). One or two per
    * village is what makes a street read as lived-in; the validator says so.
@@ -841,6 +854,27 @@ export interface EpisodeNpc {
    */
   route?: Route;
   wander?: Wander;
+  /**
+   * A declared flag (like `requires`) that takes this person off the map once
+   * it is true — the beat they drive away, go inside, or are simply somewhere
+   * else for the rest of the week. `EpisodeItem.until` with the same meaning,
+   * one row down: they are not drawn, not walked, not stood on, and not
+   * something the A button or a tap can reach. A map loaded afterwards never
+   * spawns them (`npcsOn`, engine/session.ts) and a map already on screen
+   * drops them the moment the flag is set (`onFlag`, engine/scenes/map.ts),
+   * so a scene can send somebody off mid-step.
+   *
+   * There is deliberately no opposite of this. Somebody the player has never
+   * met has nothing to be missing from, so what *arrives* is a line of
+   * dialogue, which `requires` already covers; this is only for somebody the
+   * player has met and who now has somewhere to be.
+   *
+   * Dialogue entries that could only match once the flag is set are therefore
+   * unreachable — there is nobody left to say them. The validator checks the
+   * flag is one the episode declares, the same as `requires` and every
+   * effect's `set`.
+   */
+  until?: string;
   dialogue: DialogueEntry[];
 }
 

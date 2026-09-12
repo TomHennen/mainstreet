@@ -85,6 +85,21 @@ describe('buildRoom: the shell', () => {
     expect(r.meta.name).toBe('A Room');
   });
 
+  it("paints a door's own tiles into the doorway, and it is still the doorway", () => {
+    const r = room({ door: { side: 'left', column: 3, width: 2, tiles: [17, 18] } });
+    expect(groundAt(r, 0, 3)).toBe(17);
+    expect(groundAt(r, 0, 4)).toBe(18);
+    expect(groundAt(r, 0, 2)).toBe(PALETTE.wall);
+    expect(r.enter).toEqual([1, 3]);
+    expect(r.meta.exits[0].at).toEqual([0, 3, 1, 2]);
+    // One id is cycled over the whole gap, and the doorway still refuses furniture.
+    const one = room({ door: { side: 'left', column: 3, width: 2, tiles: [17] } });
+    expect([groundAt(one, 0, 3), groundAt(one, 0, 4)]).toEqual([17, 17]);
+    expect(() =>
+      room({ door: { side: 'left', column: 3, width: 2, tiles: [17] }, props: [{ kind: 'table', at: [[0, 3]] }] })
+    ).toThrow(/doorway|wall/);
+  });
+
   it('puts the door in whichever wall the spec names', () => {
     expect(room({ door: { side: 'top', column: 4, width: 2 } }).enter).toEqual([4, 1]);
     expect(room({ door: { side: 'left', column: 3, width: 1 } }).enter).toEqual([1, 3]);
@@ -357,14 +372,58 @@ describe('buildRoom: halls, doors, panels and a second way out', () => {
     ]);
   });
 
-  it('will not hang a door on the floor, or cut a way out through an inside wall', () => {
+  it('hangs a sign on the counter in front of a shelf nobody can stand beside', () => {
+    // A prop is read from the tile beside it (engine/reach.ts), so a shelf on
+    // the wall behind a counter names `signAt`: the counter tile in front.
+    const r = long([
+      { kind: 'counter', rect: [4, 3, 5, 1], behind: 'top' },
+      { kind: 'shelf', rect: [4, 2, 5, 1], lines: ['Every coffee maker there is.'], signAt: [6, 3] }
+    ]);
+    expect(tileAt(r, 6, 2)).toBe(PALETTE.shelf[0]);
+    expect(tileAt(r, 6, 3)).toBe(PALETTE.counter);
+    expect(r.meta.signs).toEqual([{ pos: [6, 3], lines: ['Every coffee maker there is.'] }]);
+    // Off the prop altogether, or with nothing to read, is a mistake in the spec.
+    expect(() =>
+      long([{ kind: 'shelf', rect: [4, 2, 5, 1], lines: ['A shelf.'], signAt: [6, 4] }])
+    ).toThrow(/not the tile beside it/);
+    expect(() => long([{ kind: 'shelf', rect: [4, 2, 5, 1], signAt: [6, 3] }])).toThrow(/no lines to read/);
+  });
+
+  it('will not hang a door on the floor, or cut a way out where a wall is not yet', () => {
     expect(() => long([{ kind: 'door', at: [[5, 5]] }])).toThrow(/not a wall/);
+    // The hall's wall is only there once the hall is: an exit through it has
+    // to come after it in the props.
     expect(() =>
       long([
-        { kind: 'hall', rect: [8, 4, 5, 2] },
-        { kind: 'exit', at: [[10, 3]], id: 'x', to: 'somewhere', spawn: [1, 1], facing: 'up' }
+        { kind: 'exit', at: [[10, 3]], id: 'x', to: 'somewhere', spawn: [1, 1], facing: 'up' },
+        { kind: 'hall', rect: [8, 4, 5, 2] }
       ])
-    ).toThrow(/an inside wall/);
+    ).toThrow(/not a wall/);
+  });
+
+  it('caps a hall at one end, for a hallway that dead-ends at a door', () => {
+    const r = long([{ kind: 'hall', rect: [2, 1, 4, 1], cap: 'right' }]);
+    expect(groundAt(r, 6, 1)).toBe(PALETTE.wall);
+    expect(groundAt(r, 1, 1)).not.toBe(PALETTE.wall);
+    for (let x = 2; x < 6; x++) expect(groundAt(r, x, 2)).toBe(PALETTE.wall);
+    expect(() => long([{ kind: 'hall', rect: [2, 1, 4, 1], cap: 'sideways' as never }])).toThrow(/"cap" is "sideways"/);
+    // And the door through the cap, which is the point of it.
+    const door = long([
+      { kind: 'hall', rect: [2, 1, 4, 1], cap: 'right' },
+      { kind: 'exit', at: [[6, 1]], tiles: [PALETTE.floor[1]], id: 'a-room-kitchen', to: 'kitchen', spawn: [1, 4], facing: 'right' }
+    ]);
+    expect(groundAt(door, 6, 1)).toBe(PALETTE.floor[1]);
+    expect(door.meta.exits[1].at).toEqual([6, 1, 1, 1]);
+  });
+
+  it("cuts a way out through a hall's own wall — the kitchen door off a hallway", () => {
+    const r = long([
+      { kind: 'hall', rect: [8, 4, 5, 2] },
+      { kind: 'exit', at: [[10, 3]], tiles: [PALETTE.floor[0]], id: 'a-room-kitchen', to: 'kitchen', spawn: [1, 4], facing: 'up' }
+    ]);
+    expect(tileAt(r, 10, 3)).toBe(PALETTE.floor[0]);
+    expect(tileAt(r, 9, 3)).toBe(PALETTE.wall);
+    expect(r.meta.exits[1]).toEqual({ id: 'a-room-kitchen', at: [10, 3, 1, 1], to: 'kitchen', spawn: [1, 4], facing: 'up', style: 'door' });
   });
 
   it('cuts a second way out through the outside wall and states it like the first', () => {
@@ -385,8 +444,108 @@ describe('buildRoom: halls, doors, panels and a second way out', () => {
     });
   });
 
+  it('cuts a way out through the top wall too, floor showing through if the spec says', () => {
+    // A doorway in the top wall, clear of the corner, with the floor running
+    // through it — the shape Stamford Coffee's 80 Main doorway has, turned up.
+    const r = long([{ kind: 'exit', rect: [1, 0, 2, 1], tiles: [PALETTE.floor[0]], id: 'a-room-back', to: 'back', spawn: [3, 6], facing: 'up' }]);
+    expect(tileAt(r, 1, 0)).toBe(PALETTE.floor[0]);
+    expect(tileAt(r, 2, 0)).toBe(PALETTE.floor[0]);
+    expect(tileAt(r, 0, 0)).toBe(PALETTE.wall);
+    expect(r.meta.exits[1]).toEqual({ id: 'a-room-back', at: [1, 0, 2, 1], to: 'back', spawn: [3, 6], facing: 'up', style: 'door' });
+  });
+
   it('asks a way out for everything world.json would', () => {
     expect(() => long([{ kind: 'exit', at: [[13, 4]] }])).toThrow(/needs an "id", a "to", a "spawn" and a "facing"/);
+  });
+});
+
+describe('buildRoom: a plan that is not a rectangle', () => {
+  // An L: a 6-wide room with a 3-wide wing off its top-right, walls all
+  // round the union and the door in the bottom wall as ever.
+  const ell = (spec: Partial<RoomSpec> = {}) =>
+    buildRoom(
+      {
+        ...BASE,
+        size: [10, 10],
+        plan: [
+          [1, 5, 6, 4],
+          [6, 1, 3, 4]
+        ],
+        door: { side: 'bottom', column: 2, width: 2 },
+        ...spec
+      },
+      PALETTE
+    );
+
+  it('walls round the union and fills the rest with wall too', () => {
+    const r = ell();
+    expect(groundAt(r, 3, 6)).not.toBe(PALETTE.wall);
+    expect(groundAt(r, 7, 2)).not.toBe(PALETTE.wall);
+    // the wing's own walls
+    expect(groundAt(r, 5, 2)).toBe(PALETTE.wall);
+    expect(groundAt(r, 9, 2)).toBe(PALETTE.wall);
+    expect(groundAt(r, 7, 0)).toBe(PALETTE.wall);
+    // the mass outside the plan is wall as well
+    expect(groundAt(r, 2, 2)).toBe(PALETTE.wall);
+    expect(groundAt(r, 4, 4)).toBe(PALETTE.wall);
+    expect(r.enter).toEqual([2, 8]);
+  });
+
+  it('refuses furniture outside the plan, and a plan that reaches the box edge', () => {
+    expect(() => ell({ props: [{ kind: 'table', at: [[2, 2]] }] })).toThrow(/the wall or outside the room/);
+    expect(() => ell({ plan: [[0, 5, 6, 4]] })).toThrow(/reaches the edge/);
+    expect(() => ell({ door: { side: 'bottom', column: 7, width: 2 } })).toThrow(/no floor inside it/);
+  });
+
+  it('reaches the floor in a wing, and notices when it cannot', () => {
+    expect(() => ell()).not.toThrow();
+    // a shelf across the wing's mouth cuts the wing off
+    expect(() => ell({ props: [{ kind: 'shelf', rect: [6, 4, 3, 1] }] })).toThrow(/walled off from the door/);
+  });
+
+  it("cuts a way out through a wing's wall, and refuses one with no floor beside it", () => {
+    const r = ell({ props: [{ kind: 'exit', at: [[9, 2]], id: 'a-room-side', to: 'side', spawn: [1, 1], facing: 'right' }] });
+    expect(r.meta.exits[1].at).toEqual([9, 2, 1, 1]);
+    expect(() =>
+      ell({ props: [{ kind: 'exit', at: [[2, 2]], id: 'x', to: 'side', spawn: [1, 1], facing: 'up' }] })
+    ).toThrow(/no floor beside it/);
+  });
+
+  it('makes a passage of a plan cell inside a dividing wall with a mat on it', () => {
+    // Two rooms side by side with one plan cell in the wall between them: a
+    // mat there (a steel door tile, say) is a doorway, and the far room is
+    // reachable through it.
+    const r = buildRoom(
+      {
+        ...BASE,
+        size: [12, 8],
+        plan: [
+          [1, 1, 4, 6],
+          [5, 3, 1, 1],
+          [6, 1, 5, 6]
+        ],
+        door: { side: 'bottom', column: 2, width: 2 },
+        props: [{ kind: 'mat', at: [[5, 3]], tiles: [PALETTE.floor[1]] }]
+      },
+      PALETTE
+    );
+    expect(groundAt(r, 5, 3)).toBe(PALETTE.floor[1]);
+    expect(groundAt(r, 5, 2)).toBe(PALETTE.wall);
+    expect(groundAt(r, 5, 4)).toBe(PALETTE.wall);
+    expect(() =>
+      buildRoom(
+        {
+          ...BASE,
+          size: [12, 8],
+          plan: [
+            [1, 1, 4, 6],
+            [6, 1, 5, 6]
+          ],
+          door: { side: 'bottom', column: 2, width: 2 }
+        },
+        PALETTE
+      )
+    ).toThrow(/walled off from the door/);
   });
 });
 
@@ -443,7 +602,13 @@ describe('paletteOf', () => {
 describe('the rooms route10 ships', () => {
   const tileset = () => parseTileset(readJson(join(PACK, 'assets', 'tiles', 'route10.json')), 'route10');
 
-  for (const id of ['stamford-coffee-interior', 'the-belvedere-interior', 'the-belvedere-yard']) {
+  for (const id of [
+    'stamford-coffee-interior',
+    'stamford-coffee-kitchen',
+    'eighty-main-interior',
+    'the-belvedere-interior',
+    'the-belvedere-yard'
+  ]) {
     it(`${id} on disk is what its spec builds`, () => {
       const spec: RoomSpec = readJson(join(PACK, 'rooms', `${id}.json`));
       const built = buildRoom(spec, paletteOf(tileset()));

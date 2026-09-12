@@ -1,11 +1,15 @@
 route10.json is the Tiled tileset: the tile ids, their kinds and their
-`solid` flags. Open it in Tiled to paint the maps in ../../maps/.
+`solid` flags. Open it in Tiled to paint the maps in ../../maps/. The three
+wall tiles (ids 14, 15 and 30) also carry `opaque`: nothing is read, talked
+to or reached through them, where a counter or a shelf, solid as it is, is
+read across.
 
 route10.png is the sheet it names, and it does not exist yet — until it does,
 the engine draws each tile from the `style`/`colors` properties in the JSON.
 Drop in a 80x176 PNG (5 columns x 11 rows of 16x16, tile ids left to right, top
-to bottom, matching the JSON's order) and it replaces those placeholders. Only
-the first 52 slots are used; the last three are spare.
+to bottom, matching the JSON's order) and it replaces those placeholders. All
+55 slots are used — the sheet is full, and the next tile needs a 12th row
+(80x192, and `imageheight` in the JSON to match).
 
 The tiles, in id order: three grasses, two flower patches, sandy road plain and
 worn, water plain and rippled, a tree, a bench, two interior floors, a doormat,
@@ -35,6 +39,16 @@ stands in a wall rather than on the floor; a firepit, a ring of stones round a
 warm middle, painted rather than animated; and two wall panels — one papered
 over, seams showing, and one covered in small marks in three colours, for a
 wall people have drawn on. All six are solid.
+
+Then a second door (id 53): the same door in steel — dark frame, brushed
+panel, bright handle — for a kitchen. It is not solid: it is the doorway
+itself, the tile the player walks through, laid on the one floor cell of a
+dividing wall between two parts of a room (Stamford Coffee's kitchen door)
+rather than standing there as furniture.
+
+Then a second table (id 54): the cafe table over again in coal — a black top,
+dark grey edge — for 80 Main's coffee table, which really is made of coal.
+Solid, like the wooden one.
 
 Anything raised above the ground plane is lit from the top left and keeps its
 art in the top 12 pixels of its cell, so a deck's front face still shows below

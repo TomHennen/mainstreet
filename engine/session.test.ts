@@ -7,7 +7,9 @@ import {
   itemTaken,
   itemVisible,
   joinCredits,
+  npcGone,
   npcsOn,
+  peopleOn,
   vehiclesOn,
   propSignsOn,
   session,
@@ -217,6 +219,75 @@ describe('session helpers', () => {
     expect(npcsOn('town').map((n) => n.id)).toEqual(['earl']);
     expect(npcsOn('other').map((n) => n.id)).toEqual(['hannah']);
     expect(npcsOn('nowhere')).toEqual([]);
+  });
+
+  // Somebody with somewhere to be (DESIGN.md §3, schema.ts `EpisodeNpc.until`).
+  // This is the whole of the feature that can be tested away from a running
+  // Phaser scene: once the flag is true they are not on the map, so nothing
+  // downstream — drawing, walking, collision, the A button — ever sees them.
+  describe('npcsOn and an NPC with somewhere to be', () => {
+    const leaves: EpisodeNpc = { ...earl, until: 'done' };
+
+    it('keeps them while the flag is still false', () => {
+      boot(fakeFlags(['metEarl']), { episode: { ...episode, npcs: [leaves, hannah] } });
+      expect(npcsOn('town').map((n) => n.id)).toEqual(['earl']);
+      expect(npcGone(leaves)).toBe(false);
+    });
+
+    it('takes them off the map once it is set', () => {
+      boot(fakeFlags(['done']), { episode: { ...episode, npcs: [leaves, hannah] } });
+      expect(npcsOn('town')).toEqual([]);
+      expect(npcGone(leaves)).toBe(true);
+      // And nobody else goes with them.
+      expect(npcsOn('other').map((n) => n.id)).toEqual(['hannah']);
+    });
+
+    it('leaves anybody without an "until" exactly where they were', () => {
+      boot(fakeFlags(['done']), { episode: { ...episode, npcs: [earl, hannah] } });
+      expect(npcsOn('town').map((n) => n.id)).toEqual(['earl']);
+      expect(npcGone(earl)).toBe(false);
+    });
+  });
+
+  // A village's own people are there every week; an episode NPC with the
+  // same id stands in for one of them while that episode runs (DESIGN.md §3).
+  describe('peopleOn', () => {
+    const clerk = { id: 'hannah', name: 'Hannah', pos: [6, 12] as [number, number], lines: ['standing line'] };
+    const walker = { id: 'town-walker', pos: [1, 1] as [number, number] };
+
+    const withPeople = (npcs: EpisodeNpc[]) =>
+      boot(fakeFlags([]), {
+        world: {
+          ...world,
+          maps: {
+            town: { name: 'Town', kind: 'village', buildings: [], labels: [], exits: [], people: [walker] },
+            shop: { name: 'Shop', kind: 'interior', buildings: [], labels: [], exits: [], people: [clerk] }
+          }
+        },
+        episode: { ...episode, npcs }
+      });
+
+    it("reads a map's own people when the episode has nobody by that id", () => {
+      withPeople([earl]);
+      expect(peopleOn('shop').map((p) => p.id)).toEqual(['hannah']);
+      expect(peopleOn('town').map((p) => p.id)).toEqual(['town-walker']);
+      expect(peopleOn('nowhere')).toEqual([]);
+    });
+
+    it('leaves out a world person the running episode has an NPC for, wherever that NPC is', () => {
+      // The story has taken Hannah out of the shop and put her on the green:
+      // the world's copy of her stays home, so there is one of her, not two.
+      withPeople([earl, { ...hannah, map: 'town' }]);
+      expect(peopleOn('shop')).toEqual([]);
+      expect(peopleOn('town').map((p) => p.id)).toEqual(['town-walker']);
+      expect(npcsOn('town').map((n) => n.id)).toEqual(['earl', 'hannah']);
+    });
+
+    it('leaves out a world person the episode keeps on the same map and tile', () => {
+      withPeople([{ ...hannah, map: 'shop', pos: [6, 12] }]);
+      expect(peopleOn('shop')).toEqual([]);
+      expect(npcsOn('shop').map((n) => n.id)).toEqual(['hannah']);
+    });
   });
 
   it('itemsOn filters items by their declared map', () => {

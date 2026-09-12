@@ -41,6 +41,7 @@ import { patchFor, withOverlays } from '../overlay';
 import { Driver, DRIVE_FACTOR } from '../vehicle';
 import { findPath, pathToTile } from '../path';
 import { autosave } from '../progress';
+import { clearBetween, REACH } from '../reach';
 import { introLineFor } from '../season';
 import { SceneRunner, sceneTriggered } from '../scene';
 import type { SceneDriver } from '../scene';
@@ -51,6 +52,7 @@ import {
   isToastShowing,
   itemVisible,
   itemsOn,
+  npcGone,
   npcsOn,
   overlaysOn,
   peopleOn,
@@ -60,7 +62,7 @@ import {
   smallTalkFor,
   vehiclesOn
 } from '../session';
-import { driveable, isSolid, moverWalkable } from '../validate';
+import { driveable, isOpaque, isSolid, moverWalkable } from '../validate';
 import { lookOf, plaqueTile, SCENE_PLAYER, SCENE_VEHICLE } from '../schema';
 import type { PlateBox } from '../art';
 import type {
@@ -98,18 +100,6 @@ const MARGIN = 4;
 /** A map smaller than the view may be scaled up this far before it looks coarse. */
 const MAX_ZOOM = 4;
 
-// Reach in tiles. Interiors are tight, so an NPC behind a counter needs more.
-// The plaque is the exception: it is read standing at it, on its own tile, so
-// the building's sign keeps the rest of the front to itself.
-// A fixture is solid, so unlike the plaque it is read from the tile beside it:
-// far enough to take in a diagonal neighbour, not far enough to reach past one.
-// A prop (a wall panel, a bathroom door, the chalkboard) only prompts when the
-// player is actually touching it: an orthogonally adjacent tile centre is
-// exactly 1 tile away, a diagonal one is √2 (~1.41) away. 1.1 clears the
-// former with enough slack for a walk that settles a little off the grid
-// (movement measured in headless play lands as far as ~1.05 off-centre) while
-// staying well clear of the latter.
-const REACH = { npcVillage: 2.0, npcInterior: 2.3, item: 2.0, door: 2.2, prop: 1.1, plaque: 0.75, fixture: 1.5 };
 /**
  * How long the travel card holds, by what we are walking through. `lost` is
  * the road card again, held a little longer: its line is a story, not a
@@ -616,8 +606,33 @@ export class MapScene extends Phaser.Scene {
    * starts (DESIGN.md §3).
    */
   private onFlag(): void {
+    this.dropGoneWalkers();
     this.refreshOverlays();
     this.queue({});
+  }
+
+  /**
+   * Takes off the map anybody whose `until` flag has just come round
+   * (schema.ts `EpisodeNpc.until`) — the beat they drive away or go inside.
+   * Dropping them from `walkers` is the whole of it: that one list is what
+   * this scene draws, walks, treats as solid and offers the A button, so
+   * somebody who is not on it is gone from all of them at once. A map loaded
+   * afterwards never spawns them in the first place (`npcsOn`).
+   */
+  private dropGoneWalkers(): void {
+    const kept: Walker[] = [];
+    for (const walker of this.walkers) {
+      if (!walker.npc || !npcGone(walker.npc)) {
+        kept.push(walker);
+        continue;
+      }
+      // A walk on its way to somebody who has just left has nowhere to arrive:
+      // stop it where it is rather than march the player across the village to
+      // stand in the space where they were.
+      if (this.walkFollow === walker) this.stopWalk();
+      walker.sprite.destroy();
+    }
+    if (kept.length !== this.walkers.length) this.walkers = kept;
   }
 
   /**
@@ -1027,11 +1042,15 @@ export class MapScene extends Phaser.Scene {
     const state = session();
     const held = state.locked || state.dialogueOpen;
     const me = this.centre();
+    const from = this.startTile();
     const reach = this.map.kind === 'interior' ? REACH.npcInterior : REACH.npcVillage;
     const dt = delta / 1000;
 
     for (const walker of this.walkers) {
-      const near = Math.hypot(me.x - (walker.mover.x + 0.5), me.y - (walker.mover.y + 0.5)) <= reach;
+      // Near enough to talk to, and not through a wall (`inReach`, below).
+      const near =
+        Math.hypot(me.x - (walker.mover.x + 0.5), me.y - (walker.mover.y + 0.5)) <= reach &&
+        clearBetween(from, walker.mover.tile(), this.opaque);
       if (near && walker.mover.walks && !walker.mover.busy) walker.mover.faceToward(me.x, me.y);
       walker.mover.update(dt, {
         held: held || near,
@@ -1388,6 +1407,20 @@ export class MapScene extends Phaser.Scene {
     return Math.hypot(me.x - (at[0] + 0.5), me.y - (at[1] + 0.5));
   }
 
+  /** What the map says cannot be seen or reached through (engine/tiled.ts `opaque`). */
+  private readonly opaque = (x: number, y: number): boolean => isOpaque(this.map, x, y);
+
+  /**
+   * The one meaning of "in reach", for everything A acts on and everything a
+   * tap walks up to: close enough, centre to centre, *and* nothing opaque on
+   * the line between (engine/reach.ts). Reach on its own is a distance and
+   * would read a shelf through the wall behind it; a counter is solid but
+   * not opaque, so the shelf behind that is still read across it.
+   */
+  private inReach(at: Vec2, reach: number): boolean {
+    return this.distance(at) <= reach && clearBetween(this.startTile(), at, this.opaque);
+  }
+
   /**
    * Nearest candidate wins, each kind judged against its own reach. Standing
    * beside somebody must never swallow the door you are walking up to; ties go
@@ -1400,8 +1433,8 @@ export class MapScene extends Phaser.Scene {
 
     // `at` is where the bubble floats; `from` is what the reach is measured to.
     const consider = (target: Target, reach: number, rank: number, from: Vec2 = target.at) => {
+      if (!this.inReach(from, reach)) return;
       const dist = this.distance(from);
-      if (dist > reach) return;
       if (dist < bestDist || (dist === bestDist && rank < bestRank)) {
         best = target;
         bestDist = dist;
@@ -1505,8 +1538,13 @@ export class MapScene extends Phaser.Scene {
     if (!route && target) {
       // Somebody behind a counter has no free tile beside them, and is still
       // perfectly easy to talk to across it. Failing that, stand anywhere the
-      // A button would reach them from — the same reach findTarget() uses.
-      route = findPath(start, (x, y) => Math.hypot(x - goal[0], y - goal[1]) <= reach, walkable);
+      // A button would reach them from — the same reach findTarget() uses,
+      // walls and all: across the counter, never through the wall behind.
+      route = findPath(
+        start,
+        (x, y) => Math.hypot(x - goal[0], y - goal[1]) <= reach && clearBetween([x, y], goal, this.opaque),
+        walkable
+      );
     }
     if (!route?.length) return false;
 
@@ -1606,13 +1644,19 @@ export class MapScene extends Phaser.Scene {
   /**
    * What a route may cross. Solid tiles and people are out, and so are the
    * exits: walking over one is a trip to the next village, and a tap on this
-   * side of town never asked for that. The tapped tile itself is always fair
-   * game, which is how a tap on the road out still takes it.
+   * side of town never asked for that. A tile the map's own `lost` (DESIGN.md
+   * §2) would trigger on is out too, the same way — getting lost is only
+   * ever deliberate, a key held or the d-pad pressed straight into the
+   * woods, or a tap landing on the woods tile itself, never a route a tap
+   * elsewhere happened to be routed through. The tapped tile itself is
+   * always fair game, which is how a tap on the road out — or on the woods
+   * themselves — still takes it.
    */
   private walkableTo(goal: Vec2): (x: number, y: number) => boolean {
     return (x, y) => {
       if (this.solidTile(x, y)) return false;
       if (x === goal[0] && y === goal[1]) return true;
+      if (lostAt(this.map, x, y)) return false;
       return !this.exitAt(x, y);
     };
   }
@@ -1813,8 +1857,7 @@ export class MapScene extends Phaser.Scene {
         // still costs nothing to check: near enough to say hello is near
         // enough, and otherwise the walk is aimed at them once more.
         const at = follow.mover.tile();
-        const me = this.centre();
-        if (Math.hypot(me.x - (at[0] + 0.5), me.y - (at[1] + 0.5)) > this.walkReach) {
+        if (!this.inReach(at, this.walkReach)) {
           this.reaim(follow);
           return moved;
         }
@@ -2226,9 +2269,11 @@ export class MapScene extends Phaser.Scene {
 
     const edge = edgeAt(this.map, tx, ty);
     if (edge) {
-      if (this.edgeShown !== edge.id) {
+      // A quiet edge still counts as matched — it suppresses `ui.roadEnd`
+      // and keeps the tile off `lost`'s shoulder — it just says nothing.
+      if (!edge.quiet && this.edgeShown !== edge.id) {
         this.edgeShown = edge.id;
-        bus.emit(EV.say, { speaker: session().copy.ui.narrator, lines: edge.lines });
+        bus.emit(EV.say, { speaker: session().copy.ui.narrator, lines: edge.lines ?? [] });
       }
       return;
     }

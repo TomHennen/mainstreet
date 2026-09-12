@@ -107,6 +107,14 @@ describe('parseTileset', () => {
     expect(parseTileset(raw, 'test.json').tiles.get(0)?.solid).toBe(false);
   });
 
+  it('reads `opaque` off a tile, and defaults it to false', () => {
+    const raw = tilesetJson();
+    raw.tiles[1].properties.push({ name: 'opaque', type: 'bool', value: true });
+    const tiles = parseTileset(raw, 'test.json').tiles;
+    expect(tiles.get(3)?.opaque).toBe(true);
+    expect(tiles.get(0)?.opaque).toBe(false);
+  });
+
   it('reads the optional front-edge colour, and leaves it unset when absent', () => {
     const raw = tilesetJson();
     raw.tiles[1].properties.push({ name: 'edge', type: 'string', value: '#6b5136' });

@@ -133,16 +133,43 @@ export function isToastShowing(): boolean {
   return performance.now() < session().toastUntil;
 }
 
+/**
+ * Whether this person's week is over: an `until` flag (schema.ts
+ * `EpisodeNpc.until`) that has gone true. Somebody gone is not on the map at
+ * all — not drawn, not walked, not stood on, not reachable by the A button —
+ * so this is the one question every one of those has to ask, kept in the one
+ * place `itemTaken` is kept for the same reason.
+ */
+export function npcGone(npc: EpisodeNpc, state: Session = session()): boolean {
+  return npc.until !== undefined && state.flags.get(npc.until);
+}
+
+/**
+ * This map's episode people, minus anybody whose `until` has come round. A
+ * map loaded after that flag is set never spawns them; one already on screen
+ * drops them when the flag lands (engine/scenes/map.ts's `onFlag`).
+ */
 export const npcsOn = (mapId: string): EpisodeNpc[] =>
-  session().episode.npcs.filter((npc) => npc.map === mapId);
+  session().episode.npcs.filter((npc) => npc.map === mapId && !npcGone(npc));
 
 /**
  * The townspeople a village keeps whether or not a story is running
  * (DESIGN.md §2). They come from `world.json`, not from the episode, so they
- * are on the street every week — and they carry no dialogue, only a look and
- * somewhere to be.
+ * are on the street every week — a look, somewhere to be, and at most a
+ * standing line or two.
+ *
+ * An episode NPC with the same id takes over from them for as long as that
+ * episode is the one being played (DESIGN.md §3): the story has given the
+ * village's own counter person something to say this week, or sent them
+ * somewhere else entirely, so the world's copy of them stays home whatever
+ * map the episode's copy is on. That is what lets a shop keep somebody
+ * behind its counter every week and still lend them to a story without the
+ * player finding two of them.
  */
-export const peopleOn = (mapId: string): Person[] => session().world.maps[mapId]?.people ?? [];
+export const peopleOn = (mapId: string): Person[] => {
+  const cast = new Set(session().episode.npcs.map((npc) => npc.id));
+  return (session().world.maps[mapId]?.people ?? []).filter((person) => !cast.has(person.id));
+};
 
 /** About one time in five, a world person's small talk gives way to trivia instead (DESIGN.md §2). */
 export const TRIVIA_CHANCE = 0.2;

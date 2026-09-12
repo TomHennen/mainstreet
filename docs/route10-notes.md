@@ -30,16 +30,29 @@ already models, and since Sep 2026 the maps let you walk it: Stamford's
 bottom edge and Hobart's top edge carry a trail exit of their own beside
 the Route 10 one.
 
+**Getting lost.** Walking off any of the three village maps into the woods
+(Tom, Sep 2026 for Stamford; Sep 2026 for Jefferson and Hobart) gets you
+lost: a Delaware County Sheriff's deputy is out your way before long and
+drives you back into town — it's the same sheriff's office everywhere along
+Route 10. In Stamford the deputy drops you back outside Stewart's, where a
+coffee is waiting. In Jefferson there's no drivable way into Middle Brook
+Cafe's own little lot (it opens only onto the sandy path behind Main
+Street, not the paved network), so the deputy drops you at J&H's forecourt
+instead, on the NY 10 spur north of Main Street, where the deli counter's
+got coffee going. In Hobart the deputy drops you right on the sidewalk
+outside Cellar Door Wines, a good spot to warm up a minute (Renata
+herself is only ever there during her own episode, so the deputy's line
+names the shop, not her).
+
 **Stamford.** Stewart's is on the north-west corner of the 10/23 junction.
-Walking off the Stamford map into the woods (Tom, Sep 2026) gets you lost:
-a Delaware County Sheriff's deputy is out your way before long, and drops
-you back outside Stewart's, where a coffee is waiting.
 Mac-A-Doodles is on the east side of Route 10, south of Route 23 (the
 south-east corner). Route 23 is Harper Street west of the corner and Main
 Street east of it; Route 10 is Lake Street north of the corner and Hobart Road
 south of it. Stamford Coffee is on the south side of Main Street. The
 Belvedere is up Academy Street, a long walk uphill from Main Street, and
-Academy Street is west of Stamford Coffee. Stamford Coffee has a big outdoor
+Academy Street is west of Stamford Coffee. Past the Belvedere, Academy Street
+tees into a road we don't map, so on the game map it just runs off the top
+quietly, with nothing said. Stamford Coffee has a big outdoor
 patio directly attached to the front of the building, and a huge parking
 lot. Mount Utsayantha and its lake are
 north-east up Lake Street. The south-west corner of the 10/23 junction was
@@ -165,7 +178,7 @@ scrappy punk band. It is not a fiddle place — don't write one in. Karaoke,
 open mic and trivia are already on record, and a big-name comic passes
 through now and then.
 
-**Stamford Coffee interior (Tom, Sep 2026, not built yet).** The left wall
+**Stamford Coffee interior (Tom, Sep 2026; built Sep 2026).** The left wall
 has a record player with a big spread of LPs out, and there's a whole
 collection of different coffee makers on display too — the furniture
 throughout reads mid-century modern. A self-serve fridge sits up front with
@@ -176,9 +189,92 @@ menu. On the right side there's a large open doorway straight through to
 storefronts already share one patio deck outside (see the Stamford's Main
 Street block note above).
 
-**80 Main interior (Tom, Sep 2026, not built yet).** High-end goods, lots
+*As built* (`worlds/route10/rooms/stamford-coffee-interior.json`, 20×12):
+the tileset has no record player, LP crate, coffee maker or menu, so each is
+a run of the existing shelf tiles with a readable prop sign carrying the
+words — the record player and the LP crates are two shelf runs down the left
+wall, the coffee-maker collection is the shelf along the top wall right of
+the counter, the menu (paninis and the Maple Smoke latte) is a standing
+board at the end of Ronnie's counter, and the self-serve fridge is the two
+cooler tiles by the street door (readable; nothing bought yet). The
+coffee-maker shelf, the menu board and the bottles are behind the counter,
+so each is read from the counter tile in front of it (`signAt` in the
+spec): a prop is only ever read from the tile beside it. The
+mid-century furniture is the room's tables and stools, with the first table
+readable as the whole set. The doorway to 80 Main is a two-tile-tall open
+gap in the right wall at rows 6–7, matched by the same gap in 80 Main's left
+wall, so the two rooms read as one opening.
+
+*Tom, Sep 10 2026 (built Sep 2026, corrected three times the same day):*
+the coffee shop's map is **not a rectangle**: the hallway is a bay off the
+cafe's top-left, and the kitchen is off that hallway. Tom's sketch (B =
+bathroom door):
+
+```
+xBxxBxxx
+x                  kitchen
+x        xxxx
+x.       x
+x.       xxxxxxxxxxxxxxxxxxxxxx
+x.                                                               x
+x.        counter............                         x
+x
+```
+
+A walkway runs up the left side of the cafe into a hallway in the top-left
+corner; the **two bathroom doors are in the hallway's top wall**; the
+**kitchen is to the right of the hallway**, through a **steel door** in the
+hallway's wall; the counter is below, running all the way to the right wall
+with the opening at its left end. "You're stuck because you want to keep the
+interior a square. That is a mistake." Then, the same day, on seeing the
+kitchen drawn in the cafe's map: **"I prefer the kitchen as its own room you
+have to enter and not have it rendered with the rest of it"** — so the
+kitchen is its own map again, entered through the steel door, and the cafe
+keeps its non-rectangular shape for the hallway bay. On the right side of
+the counter, **bottles on display behind it**: beers and wine to buy and
+take home (readable only for now, like the fridge).
+
+The kitchen is **open plan — no counter anybody stands behind, that is not
+how kitchens work**: work tables round the perimeter, an oven, fridges and
+freezers, the middle left open. It is **the coffee shop's own kitchen**,
+used mostly to make things for the shop — the scones and muffins for the
+case, and the **lemon shortbread cookies** people can't get enough of, which
+Ronnie mentions out front ("we can't keep them in stock"). A baker sometimes
+borrows it after hours for her own **custom cakes** (her business, unnamed —
+hard rule 5), but she is **not placed as a character**: the kitchen had a
+baker in it for a couple of days, and Tom pulled her (Sep 12: "we've leaned
+too hard into the baking story"; "the kitchen is mostly used to make things
+for the coffee shop and only sometimes used by the baker"). The room stays,
+empty, for future episodes — a room reached only through another room may be
+empty without `"unstaffed"` (DESIGN.md §2). The line about the recipe cards
+being older than some of the customers went with her, at Tom's ask.
+
+As built (`worlds/route10/rooms/stamford-coffee-interior.json`, a 20×15
+box with a `plan` — see DESIGN.md §2): the hallway bay is x1–3, rows 1–3
+(Tom, Sep 10: the first cut was six rows and "too long — cut its length in
+half"), open into the cafe at row 4, with the bathroom doors in the top
+wall at [1,0] and [3,0] and the steel door at [4,2] in the bay's right-hand
+wall — an exit into the kitchen's own map; the cafe is x1–18, rows 4–13,
+with the counter on row 5 and Ronnie, the coffee-maker shelf, the menu board and the
+bottle shelf in the strip behind it, the record player and the LP crates
+down the left wall, the tables, the fridge by the door. The kitchen
+(`stamford-coffee-kitchen`, 12×9, spec
+`worlds/route10/rooms/stamford-coffee-kitchen.json`, door in its left wall
+onto the hallway): the oven, a steel work table and the two fridges and
+chest freezer along its top wall, the cake table down its right wall, the
+cooling rack (lemon shortbread) by its bottom wall, the middle open, and
+nobody in it. Nothing is bought yet.
+
+**80 Main interior (Tom, Sep 2026; built Sep 2026).** High-end goods, lots
 of Catskills-logo wear. They once (maybe still do) sold a high-end coffee
 table made out of coal. They sometimes host oyster-and-wine nights.
+
+*As built* (`worlds/route10/rooms/eighty-main-interior.json`, 14×12, its
+own street door at [85, 23]): the logo wear is the shelf along the top
+wall, the sweater and camo the rack on the left wall (same items as its
+street sign), candles and mugs the shelf on the right wall, the coal coffee
+table a readable table in the middle of the floor, and oyster-and-wine
+nights a standing board by the door. Tamsin (invented) keeps the counter.
 
 ## Open items — pending map work
 
@@ -203,14 +299,6 @@ than a notes-file guess:
   several full-size open lots along Main Street for bookshops — no need to
   name or place actual shops yet, just make sure the room exists so the
   village can visibly grow, episode by episode, matching map rule 4.
-
-- **Stamford Coffee and 80 Main interiors.** Not built yet — see the notes
-  under Ground truth above (record player and LPs, coffee-maker collection,
-  MCM furniture, self-serve fridge, paninis; the doorway through to 80
-  Main; 80 Main's high-end goods, Catskills-logo wear, the coal coffee
-  table, oyster-and-wine nights). Build as two connected rooms, doorway on
-  Stamford Coffee's right / 80 Main's corresponding side, not two separate
-  interiors that happen to be adjacent.
 
 - **Street-name labels sit too far from their roads (Tom, Sep 2026).**
   Across the current maps, labels like "Main Street" or "NY 10" often read
@@ -279,6 +367,12 @@ name), and a name already in use by a different character in the pack (the
 Belvedere party's neighbour was a second "Priya" while ep002 already had
 one). Both were renamed to something clearly invented and unlikely to land
 on anybody: Wren and Thea. When in doubt, pick further from ordinary.
+Third thing, Sep 2026: a character who works at a real business gets
+checked against the real people who work there too — the first name given
+to a baker character in Stamford Coffee's kitchen (since removed) landed
+right next to the real baker's, by pure coincidence (nobody looked anything
+up; it was picked as "unused in the pack"), and Tom caught it. Ask Tom
+before naming anyone who stands behind a real counter.
 
 ## Art policy
 
@@ -552,7 +646,7 @@ opt-in, everything warm and affectionate) before it reaches the player.
   (a fully invented local, hard rule 5, built from the "looks exactly like
   you'd expect" archetype rather than any real person) is a nice one-off
   or recurring cameo either way.
-- **"Anybody Headed Down Today?" — built, unshipped, in
+- **"Anybody Headed Down Today?" — built and shipping, in
   `worlds/route10/episodes/ep002.json`.** Logline: a Jefferson kid is in a
   dance showcase in the city tonight and left half the costume on the
   kitchen table; find somebody driving down today who can take it. Real
@@ -561,10 +655,91 @@ opt-in, everything warm and affectionate) before it reaches the player.
   Spiced from the original "forgot their keys" version: a costume piece
   instead, lower-stakes and warmer, with a built-in reason it has to be
   today without needing an actual timer (the hard rules forbid those
-  anyway). Not in `world.json`'s `episodes` list, so it doesn't ship; it
-  validates with `npm run validate-episodes -- --all` (DESIGN.md §3's
-  review path — the same way ep000 is kept around unshipped) and can be
-  played directly with `?episode=ep002`.
+  anyway). On `world.json`'s `episodes` list since September 2026 (Tom's call), so
+  it is the second entry on the title screen under Ep. 1 and is validated by
+  a plain `npm run validate-episodes`; it can still be opened straight from
+  `?episode=ep002` for review (DESIGN.md §3). September 2026, Tom's call: the
+  errand has to take the player inside Stamford Coffee, so the chain is
+  now Priya → Hannah (who sends you to the coffee shop: nobody drives to
+  the city without stopping there first) → Fern, a regular at a table in
+  Stamford Coffee, who saw an order for the road go out and heard Cellar
+  Door mentioned (`askedCoffee`) → Renata, who puts Walt's name to it →
+  Walt. Five story flags; the rumor beat below rides along on a sixth, and
+  stays out of the errand's own lines — Tom's note: don't let either the
+  paninis or the mystery shop get obsessive.
+
+  **Rewritten, September 2026 — the chain above is superseded; everything
+  from here down about Hannah → Fern → Renata → Walt is history, kept
+  because the reasoning is still worth having.** Tom walked it and gave
+  three notes: it is signposted to death (every stop says "not me, try X",
+  so the player follows arrows instead of reasoning), Walt ought to be the
+  first stop rather than the last, and what actually holds the episode shut
+  is the game withholding — Walt standing there saying "might be going,
+  might not" — rather than anybody behaving like a person. Three treatments
+  were written up and Tom picked C: Walt is the correct first stop and
+  tells the whole truth at once — he'll take the bag, he's glad to, his
+  truck won't start, and "ask a Jess, there's four of 'em and I never get
+  the right one first go." The player hears that as one person, which is
+  the misdirection they get to catch, and the four Jesses below stop being
+  background and become the week's cast. Nobody points at the next stop any
+  more; each Jess knows one usable thing (Jess K. saw Jess R. head for the
+  trail with a pack; Jess T. has had her head under that hood and says
+  cables alone won't do it, you want a car alongside for ten minutes; Jess
+  R. keeps cables behind her seat; Jess L. is parked at J&H with a full
+  tank). Beats, in any order after Walt: `heardAsk` → `truckDead` →
+  `askedJessK`/`askedJessT` (optional colour) → `hasCables` → `truckRuns`
+  → `done`. Two Jesses are load-bearing, four make the joke. Hannah, Fern
+  and Renata keep their tiles and lose their arrows — they are texture now,
+  plus the mystery-shop rumour beat, which is untouched.
+
+  Tom's one correction to the treatment, worth keeping because it is a
+  local-truth note and not a story note: the first draft had Jess L. help
+  because hers was "the only car in Jefferson," which is nonsense — cars
+  drive through all day. She helps because she is parked right there with
+  nowhere she has to be, and because she is the kind who would. That is
+  also why the errand is still an errand with her waiting across the street
+  the whole morning: there are no cables in Jefferson, and the cables are
+  what the player actually goes and gets. The joke is aired exactly twice,
+  both times by Walt and both times about himself — the setup when he asks
+  for help ("It's usually a Jess — there's four of them between here and
+  Hobart, and I've never once picked the right one first") and the capper in
+  the scene, once she has turned up ("Jess L. I'd have asked you first if I
+  could ever keep the four of you straight"). Never at the Jesses, who are
+  four people who happen to share a name, and nobody else in the episode
+  counts them. An earlier draft had Walt be a fifth Jess by middle name; it
+  went in the copy pass for being one joke too many, and if it ever comes
+  back it stays a middle name rather than a surname, so no invented last
+  name has to be checked against a real one (see **People** above). The
+  ending is a scene now rather than a line: Jess L.
+  walks over, her car pulls round into the stall alongside the truck on
+  J&H's forecourt,
+  the truck catches, and Walt drives out of the village — the week visibly
+  changes something, which the old version never did. Walt goes with the truck:
+  the first draft could not manage that — an episode NPC had no way to stop
+  existing — and he stood on the forecourt watching his own pickup drive off.
+  The engine grew `EpisodeNpc.until` for it (DESIGN.md §3, an item's `until`
+  one row up): a declared flag that takes somebody off the map for the rest of
+  the week, not drawn, not walked, not stood on, not reachable by the A button,
+  and never spawned at all on a later load. Walt's is `done`, set the step
+  after he walks to the truck, which is him getting in. This replaces the
+  earlier note here that said NPCs simply cannot leave. There is deliberately
+  no opposite of it: somebody the player has never met has nothing to be
+  missing from, so what arrives is a line of dialogue, which `requires`
+  already covers.
+
+  Jess L. waits on Middle Brook Cafe's patio, across Main Street from the
+  forecourt, and walks over — Tom's call, and a better walk than standing by
+  the creamery. Her wagon, though, is parked on J&H's lot rather than at the
+  cafe, and that is a map fact rather than a choice: **Middle Brook's own
+  parking lot (x42-44, y22-25) is drivable but connects to no road** — the
+  strip of Creamery Street it is meant to open onto stops at y25 and never
+  reaches Main Street, so a car parked there cannot drive anywhere and the
+  validator rejects any scene leg out of it. Worth fixing on the map some
+  week; until then a car by the cafe is a car that cannot move. So she parked
+  at the gas station and walked across for a coffee, which is what people do
+  in a village this size, and she says so. J&H is the place that
+  makes this easy, never the place that let him down: somewhere to leave a
+  truck all day, and the coffee brought out to him while he thinks.
 
   Went through a design pass before being written (an automated review on
   the PR that added this note caught real issues before any JSON
@@ -607,6 +782,12 @@ opt-in, everything warm and affectionate) before it reaches the player.
   photo mechanism (a generic "story image" asset type, distinct from
   portraits) would be a real feature worth scoping on its own if it ever
   comes up again, not something to fold into this episode.
+  September 2026, Tom's note: the episode's `intro` used to spell out the
+  whole errand (Priya, the costume, Walt, the truck) before the player had
+  taken a step; it now just points at Priya outside Middle Brook Cafe on a
+  Sunday morning, the same hook-not-answer shape as ep001's Earl line, so
+  the player finds the errand by talking to her rather than reading it off
+  the boot screen.
 - **The M&M fire and the fire-department open house epic.** Real
   inspiration, being scoped as a full epic (DESIGN.md §3a/§3b) rather than
   a single episode. The story, as told so far: the empty lot across from
@@ -705,6 +886,23 @@ opt-in, everything warm and affectionate) before it reaches the player.
   as any other trivia roll. If a real future storyline ever wants a named
   Jess of its own, give that character an unrelated last name so nobody
   reads them as one of these four.
+
+  Updated September 2026: the four still carry no `lines` in `world.json`
+  and are still nobody's cast by default — but ep002 now takes all four
+  over by id (DESIGN.md §3's id-takeover rule, so the player never meets
+  two of anybody) and gives them a voice for that week only, under exactly
+  the names and initials above. `stamford-main-walker` is Jess K.,
+  `stamford-trail-walker` Jess R., `hobart-bridge-walker` Jess T.,
+  `jefferson-creamery-walker` Jess L.; the episode carries their `look`
+  across verbatim so they are visibly the same people, and stands them on
+  sensible tiles rather than keeping the world's routes, since a story
+  wants somebody to be findable. They still count toward the ambient-people
+  total `smallTalk` is measured against (the validator counts world people
+  with no `lines`, taken over or not — eight today, so any episode needs at
+  least eight lines in the pool). The rule above still holds and matters
+  more now: a future named Jess gets an unrelated last name, and nothing
+  anywhere makes the joke at the Jesses' expense — in ep002 the
+  can't-keep-them-straight line is Walt's, about himself.
 - **A piece of wood on the fire.** Built, September 2026. The Belvedere's
   yard has a firepit and a stack of wood beside it, and the beat Tom wanted is
   in: take a split log off the pile, put it on the fire, and the fire catches
@@ -727,7 +925,16 @@ opt-in, everything warm and affectionate) before it reaches the player.
   the player doesn't get an answer either. If Tom later says what it is,
   that's a separate reveal beat, folded in or held back at his call — same
   open question on episode timing as before (episode 2, or keep our
-  powder dry).
+  powder dry). Built, September 2026, in ep002, kept light at Tom's
+  request: three rumor-carriers, none of them in the errand's own chain,
+  each with their own confident guess — Fern, a regular at a table in
+  Stamford Coffee, says gallery; Ozzie, browsing sweaters in 80 Main, says
+  oyster bar; Ines, walking her dog Biscuit past the patio, says dog
+  treats. An ep002 overlay paints a papered-over panel down the side of the
+  coffee shop, and reading it finds nothing written on any of it. A
+  `heardShop` flag only changes whether a carrier opens with "you've heard,
+  then"; no line anywhere says what the shop is. One small-talk line
+  carries the not-knowing; Priya, Hannah, Renata and Walt stay out of it.
 - **The mayor and the pool.** Years ago, when the Belvedere was being shown
   to its owner, the mayor — who is also the realtor — walked out across the
   plywood laid over the hotel's old swimming pool and went straight through
