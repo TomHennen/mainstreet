@@ -7,6 +7,7 @@ import { withYou } from '../inventory';
 import type { Entry } from '../inventory';
 import { onAction, onToggle } from '../input';
 import { autosave } from '../progress';
+import { scaled } from '../timescale';
 import { session } from '../session';
 import type { Effect } from '../schema';
 
@@ -262,10 +263,14 @@ export class UiScene extends Phaser.Scene {
     // The production-safe read of "is a toast showing right now" — unlike
     // `currentToast`, which is dev-only — so a car's holler (DESIGN.md §2)
     // never has to keep a second timer just to check.
-    session().toastUntil = performance.now() + TOAST_MS;
+    // engine/timescale.ts — 1 outside the headless playtest harness, so a
+    // toast (and the holler that rides the same clock, engine/scenes/map.ts
+    // HOLLER_DISPLAY) still shows for the same relative stretch, just sooner.
+    const ms = scaled(TOAST_MS);
+    session().toastUntil = performance.now() + ms;
     this.layout();
     this.toastTimer?.remove();
-    this.toastTimer = this.time.delayedCall(TOAST_MS, () => {
+    this.toastTimer = this.time.delayedCall(ms, () => {
       this.toastText.setVisible(false);
       this.toastBg.setVisible(false);
       if (import.meta.env.DEV) noteToast(null);

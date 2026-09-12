@@ -79,7 +79,41 @@ const BASE = process.env.PLAYTEST_URL ?? `http://localhost:${PORT}/`;
 const OUT = process.env.PLAYTEST_OUT ?? resolve(ROOT, 'playtest-out');
 const SHOTS = OUT;
 const LOG = resolve(OUT, 'playtest.log');
-const TILE_EPS = 0.06; // stop this far early: one frame is ~0.11 tiles at 102px/s
+
+/**
+ * `?timescale=` (engine/timescale.ts): every page load of the game itself
+ * plays out at this multiple of real speed — walking, NPCs, cars, a scene's
+ * own `wait`, lighting, a held door press, a car's holler, a travel card's
+ * hold and fade, the toast banner, and the action/tap/toggle debounce
+ * (engine/input.ts) — all of it identical logic, replayed faster, never
+ * touched by an ordinary player (the engine only reads the param behind its
+ * `import.meta.env.DEV` guard). `touch-debounce` below measures real CDP
+ * dispatch timing against the debounce window at whatever it scales down
+ * to, rather than the nominal 220ms, for exactly this reason.
+ *
+ * 2, not higher: `TILE_EPS` below is solved for the same tile-precision this
+ * harness always had, but `hold()` still only polls once a real frame, and a
+ * shared, loaded machine can hand it a much bigger one than usual — a bigger
+ * TIMESCALE leaves less room for that before a walk lands short of a tight
+ * `REACH.prop`/`REACH.plaque` (engine/scenes/map.ts).
+ */
+const TIMESCALE = Number(process.env.PLAYTEST_TIMESCALE ?? 2);
+
+/**
+ * Stop this far early. `hold()` polls once a real frame, so a walk that is
+ * still short of `target - TILE_EPS` on one poll and past `target` on the
+ * next has already overshot by (that frame's own travel) minus `TILE_EPS` —
+ * at TIMESCALE=1's one-frame-in-16.7ms, 102px/s (`SPEED`, engine/scenes/
+ * map.ts) is ~0.11 tile a frame, and the original 0.06 leaves ~0.05 tile of
+ * overshoot, which is exactly the slack `REACH.prop`/`REACH.plaque` (1.1/0.75,
+ * engine/scenes/map.ts) were sized around ("movement... lands as far as ~1.05
+ * off-centre"). A frame's travel scales up with TIMESCALE (the same faster
+ * `delta`, engine/timescale.ts), so `TILE_EPS` is solved for that same ~0.05
+ * tile of overshoot at any TIMESCALE, not a fixed multiple of the original —
+ * a flat multiple would either undershoot the tolerance at 1x or blow well
+ * past it at 4x.
+ */
+const TILE_EPS = 0.11 * TIMESCALE - 0.05;
 
 const KEY = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' };
 
@@ -103,8 +137,16 @@ const COPY = readJson(resolve(PACK, 'copy.json'));
 // — whether or not world.json ships it. See the file header.
 const PLAYTEST_EPISODE = process.env.PLAYTEST_EPISODE ?? 'ep000';
 const EPISODE = readJson(resolve(PACK, 'episodes', `${PLAYTEST_EPISODE}.json`));
+
+/** A wait whose length only matters because *scaled* engine time does — a travel
+ *  card's hold and fade, a stroller's own pace — shrunk by the same `TIMESCALE`
+ *  the game itself is running at, so the harness never waits longer than the
+ *  sped-up thing it is waiting on actually takes. */
+const scaledWait = (ms) => sleep(Math.max(16, Math.round(ms / TIMESCALE)));
 /** Every page load of the game itself (never the Studio) plays PLAYTEST_EPISODE. */
-const GAME_URL = `${BASE}?episode=${encodeURIComponent(PLAYTEST_EPISODE)}`;
+const GAME_URL = `${BASE}?episode=${encodeURIComponent(PLAYTEST_EPISODE)}&timescale=${TIMESCALE}`;
+/** The title screen (no `?episode=`), at the same `timescale`. */
+const TITLE_URL = `${BASE}?timescale=${TIMESCALE}`;
 
 /**
  * The tile grids are Tiled files (DESIGN.md §2). This reads them the way the
@@ -339,15 +381,42 @@ class Failure extends Error {}
  */
 let lastSaid = 'starting up';
 
+/**
+ * A wall-clock timestamp for every top-level step, so a slow run says which
+ * step it was slow in rather than only how long the whole thing took. A
+ * "step" is the harness's own existing convention for one: `log()` called
+ * with exactly two leading spaces of indent (`"  boot …"`, `"  travel to
+ * Jefferson"`), as against a nested detail four spaces in (`"    shot …"`).
+ * Printed as a table at the end (`logTimings`, called whether the run passes
+ * or fails) and kept in playtest-out/playtest.log, so this is useful on every
+ * run, not just while chasing a specific slowdown.
+ */
+const STEP_RE = /^  \S/;
+const steps = [];
+const t0 = Date.now();
+
 /** Everything the run prints also lands in playtest-out/playtest.log. */
 function log(line = '') {
   if (line.trim()) lastSaid = line.trim();
+  if (STEP_RE.test(line)) steps.push({ label: line.trim(), t: Date.now() });
   console.log(line);
   try {
     appendFileSync(LOG, line + '\n');
   } catch {
     /* the log is a convenience, never a reason to fail a run */
   }
+}
+
+/** The slowest 15 steps, and the total — logged once, near the very end. */
+function logTimings() {
+  if (steps.length < 2) return;
+  const rows = [];
+  for (let i = 1; i < steps.length; i++) rows.push({ label: steps[i - 1].label, ms: steps[i].t - steps[i - 1].t });
+  const total = Date.now() - t0;
+  const slowest = [...rows].sort((a, b) => b.ms - a.ms).slice(0, 15);
+  log('');
+  log(`timing — ${(total / 1000).toFixed(1)}s total across ${rows.length} steps; slowest 15:`);
+  for (const r of slowest) log(`  ${(r.ms / 1000).toFixed(1).padStart(6)}s  ${r.label}`);
 }
 
 function logErr(line = '') {
@@ -433,6 +502,18 @@ const snap = async (page) => {
 };
 /** The title screen's list, published the same dev-only way (engine/debug.ts). */
 const titleSnap = (page) => page.evaluate(() => window.__mainstreetTitle ?? null);
+
+/** `waitUntil`, but for the title screen's own list rather than the game's snapshot. */
+async function waitUntilTitle(page, predicate, label, timeout = 2000) {
+  const t0 = Date.now();
+  let last = null;
+  while (Date.now() - t0 < timeout) {
+    last = await titleSnap(page);
+    if (last && predicate(last)) return last;
+    await sleep(16);
+  }
+  fail('title', `timed out waiting for ${label}; list = ${JSON.stringify(last)}`);
+}
 
 /**
  * Polls until the snapshot satisfies `predicate`. `nudge` is for the few waits
@@ -666,10 +747,12 @@ async function walkUpInto(page, milestone, door, { episode = EPISODE } = {}) {
   }
 }
 
-/** Space, spaced out past the 220ms action debounce. */
+/** Space, spaced out past the 220ms action debounce (engine/input.ts) — scaled
+ *  down with it (engine/timescale.ts), so a run at `TIMESCALE` never waits out
+ *  a real 320ms for a debounce window that now clears in a quarter of that. */
 async function pressA(page) {
   await page.keyboard.press('Space');
-  await sleep(320);
+  await scaledWait(320);
 }
 
 async function advanceDialogue(page, milestone, lines) {
@@ -875,11 +958,12 @@ async function ensureServer() {
 // --- the watchdog ------------------------------------------------------------
 
 /**
- * A whole run is ~2 minutes and has never been near 8, so a run that is still
- * going at 8 minutes is stuck, not slow. Rather than sit there until CI gives
- * up an hour later with nothing to read, say where it got to and stop. The
- * limit is a minute-count in PLAYTEST_WATCHDOG_MIN for anyone on a very slow
- * machine.
+ * A whole run is a few minutes (`?timescale=` on every game page load,
+ * engine/timescale.ts, is most of why — see the timing table `logTimings`
+ * prints at the end), so one still going at 8 is stuck, not slow. Rather than
+ * sit there until CI gives up an hour later with nothing to read, say where
+ * it got to and stop. The limit is a minute-count in PLAYTEST_WATCHDOG_MIN
+ * for anyone on a very slow machine.
  */
 const WATCHDOG_MS = Number(process.env.PLAYTEST_WATCHDOG_MIN ?? 8) * 60_000;
 let watchdog = null;
@@ -969,7 +1053,7 @@ async function main() {
       const tapRow = (row) => tapPoint(tcdp, { x: row.rect.x + row.rect.w / 2, y: row.rect.y + row.rect.h / 2 });
 
       try {
-        await tip.goto(BASE, { waitUntil: 'load' });
+        await tip.goto(TITLE_URL, { waitUntil: 'load' });
         let list = await listNow('on a first visit');
 
         if (!list.world.includes(WORLD.title.toUpperCase())) {
@@ -1048,13 +1132,9 @@ async function main() {
         // press on either (CLAUDE.md #4).
         if (list.items.length > 1) {
           await tapEl(tcdp, tip, '[data-dpad=down]');
-          await sleep(200);
-          let moved = await titleSnap(tip);
-          if (!moved.items[1].selected) fail('title', '▼ on the d-pad did not move the cursor down a row');
+          await waitUntilTitle(tip, (l) => l.items[1].selected, '▼ to move the cursor down a row');
           await tip.keyboard.press('ArrowUp');
-          await sleep(200);
-          moved = await titleSnap(tip);
-          if (!moved.items[0].selected) fail('title', 'the up arrow did not move the cursor back');
+          await waitUntilTitle(tip, (l) => l.items[0].selected, 'the up arrow to move the cursor back');
           log('    the cursor moves on the d-pad and on the arrow keys');
         }
         await shot(tip, 'title');
@@ -1081,8 +1161,14 @@ async function main() {
         const opener = talker.dialogue.find((d) => (d.requires ?? []).length === 0 && (d.effects ?? []).some((e) => e.set));
         const flag = opener.effects.find((e) => e.set).set;
 
-        await walkTo(tip, 'title-play', [talker.pos[0], talker.pos[1] + 1], { episode: shipped });
-        await pressA(tip);
+        // allowInterrupt: a stray keypress landing on the talker mid-walk is
+        // rare but real (their opener is within reach of the spawn tile on
+        // some maps) — this way it is an early, graceful stop rather than
+        // `walkTo` reading it as stuck and failing outright. Pressing A is
+        // then conditional on the box not already being open, so a race like
+        // that is never asked to open a second one on top of it.
+        await walkTo(tip, 'title-play', [talker.pos[0], talker.pos[1] + 1], { episode: shipped, allowInterrupt: true });
+        if (!(await snap(tip)).dialogueOpen) await pressA(tip);
         await expectDialogue(tip, 'title-play', talker.name);
         await advanceDialogue(tip, 'title-play', opener.lines.length);
         expectFlag(await snap(tip), 'title-play', flag);
@@ -1120,7 +1206,7 @@ async function main() {
         // The dialogue overlay swallows an A press for a beat after it closes
         // — and it counts itself as having just closed the moment it opens the
         // scene — so this waits that beat out, as a thumb would anyway.
-        await sleep(320);
+        await scaledWait(320);
         await pressA(tip);
         const said = await expectDialogue(tip, 'title-continue', `${talker.name}, remembering`);
         if (said.dialogue?.text !== followUp.lines[0]) {
@@ -1150,7 +1236,7 @@ async function main() {
         // right on the heels of another one would otherwise be swallowed.
         const tapZone = async (r) => {
           await tapPoint(tcdp, { x: r.x + r.w / 2, y: r.y + r.h / 2 });
-          await sleep(320);
+          await scaledWait(320);
         };
 
         await tapZone(row.secondaryRect);
@@ -1248,7 +1334,7 @@ async function main() {
         // every painted building's painter, off `credits.json`, plus the two
         // closing lines of copy. "Played again" above left the browser mid-
         // episode, so this starts by going back to the title screen.
-        await tip.goto(BASE, { waitUntil: 'load' });
+        await tip.goto(TITLE_URL, { waitUntil: 'load' });
         list = await listNow('back on the title screen, for Credits');
         if (words.credits) {
           const creditsRow = list.items.find((item) => item.kind === 'credits');
@@ -1257,7 +1343,7 @@ async function main() {
             fail('title-credits', 'Credits is the last item on the list; it belongs before "write to us"/"forget everything"');
           }
           await tapRow(creditsRow);
-          await sleep(320); // past the action debounce
+          await scaledWait(320); // past the action debounce
           list = await listNow('with Credits open');
           if (!list.credits) fail('title-credits', 'opening Credits published no credits data');
           if (words.credits && list.credits.heading !== words.credits) {
@@ -1344,7 +1430,7 @@ async function main() {
             // has something open to close.
             list = await titleSnap(tip);
             await tapRow(list.items.find((item) => item.kind === 'credits'));
-            await sleep(320);
+            await scaledWait(320);
             list = await listNow('with Credits open again, for the tap-anywhere check');
           }
 
@@ -1352,7 +1438,7 @@ async function main() {
             x: list.credits.backRect.x + list.credits.backRect.w / 2,
             y: list.credits.backRect.y + list.credits.backRect.h / 2
           });
-          await sleep(320); // past the action debounce
+          await scaledWait(320); // past the action debounce
           list = await listNow('back from Credits');
           if (list.credits) fail('title-credits', 'tapping Credits did not close it');
           log('    a tap goes back to the episode list');
@@ -1367,7 +1453,7 @@ async function main() {
             fail('title-forget', `"Forget everything" is not the last item on the list: ${JSON.stringify(list.items.map((i) => i.kind))}`);
           }
           await tapRow(forgetRow);
-          await sleep(320); // past the action debounce
+          await scaledWait(320); // past the action debounce
           list = await listNow('after tapping "Forget everything"');
           let fr = list.items.find((item) => item.kind === 'forget');
           if (!fr.confirming) fail('title-forget', 'tapping "Forget everything" did not open its confirmation');
@@ -1399,7 +1485,7 @@ async function main() {
       const deskTitle = await deskTitleCtx.newPage();
       attach(deskTitle, 'title-desktop');
       try {
-        await deskTitle.goto(BASE, { waitUntil: 'load' });
+        await deskTitle.goto(TITLE_URL, { waitUntil: 'load' });
         await deskTitle.waitForFunction(() => window.__mainstreetTitle, null, { timeout: 20000 });
         await shot(deskTitle, 'title-desktop');
       } finally {
@@ -1559,7 +1645,7 @@ async function main() {
         // The say box closes into the road card, not back to a free walk —
         // still locked, only the box is gone now.
         await waitUntil(page, (s) => !s.dialogueOpen && s.locked, 'the road card home');
-        await sleep(420); // let the card's fade-in land before the shot, as the other travel cards do
+        await scaledWait(420); // let the card's fade-in land before the shot, as the other travel cards do
         const cardCopy = COPY.transitions?.[`lost:${start.map}`];
         if (!cardCopy?.big) fail('lost', `copy.json has no transitions["lost:${start.map}"] for the road card`);
         await shot(page, 'lost-travel-card');
@@ -1875,9 +1961,9 @@ async function main() {
       if (!push) fail(`${place.id}-solid`, `nothing in ${name} can be walked into from below`);
       await walkTo(page, `${place.id}-solid`, [push[1], push[2] + 2]);
       await page.keyboard.down(KEY.up);
-      await sleep(700);
+      await scaledWait(700);
       await page.keyboard.up(KEY.up);
-      await sleep(200);
+      await scaledWait(200);
       const stopped = await snap(page);
       if (stopped.y < push[2] + 0.6) {
         fail(`${place.id}-solid`, `the player walked into the ${push[0]} at ${push[1]},${push[2]}: stopped at y ${stopped.y.toFixed(2)}`);
@@ -2097,7 +2183,7 @@ async function main() {
     const toJefferson = WORLD.maps.stamford.exits.find((e) => e.to === 'jefferson');
     await walkTo(page, 'to-jefferson', [toJefferson.at[0], toJefferson.at[1]], { allowInterrupt: true });
     await waitUntil(page, (s) => s.locked, 'the travel card');
-    await sleep(420);
+    await scaledWait(420);
     await shot(page, 'travel-card');
     await waitUntil(page, (s) => s.map === 'jefferson' && !s.locked, 'Jefferson');
     await shot(page, 'jefferson');
@@ -2120,7 +2206,7 @@ async function main() {
     if (COPY.ui?.withYou) {
       log('  open "with you" with the pen in hand');
       await page.keyboard.press('i');
-      await sleep(320);
+      await scaledWait(320);
       const open = await waitUntil(page, (s) => s.dialogueOpen && s.withYou !== null, 'the "with you" panel to open');
       const names = (open.withYou ?? []).map((e) => e.name);
       if (!names.includes(pen.name ?? pen.id)) {
@@ -2200,9 +2286,9 @@ async function main() {
       if (!isSolid(jefferson, below[0], below[1])) {
         await walkTo(page, 'suggestion-box-solid', below);
         await page.keyboard.down(KEY.up);
-        await sleep(700);
+        await scaledWait(700);
         await page.keyboard.up(KEY.up);
-        await sleep(200);
+        await scaledWait(200);
         const pushed = await snap(page);
         if (pushed.y < box.pos[1] - 0.4) {
           fail('suggestion-box', `the player walked through the box: stopped at y ${pushed.y.toFixed(2)}`);
@@ -2293,7 +2379,7 @@ async function main() {
     await shot(page, 'episode-complete-toast');
 
     log('  epilogue line');
-    await sleep(300);
+    await scaledWait(300);
     await pressA(page);
     await expectDialogue(page, 'epilogue', 'Earl (done)');
     await shot(page, 'earl-epilogue');
@@ -2330,17 +2416,17 @@ async function main() {
       const s = await snap(tp);
       if (!s.dialogueOpen) break;
       await tapEl(cdp, tp, '#stage');
-      await sleep(320);
+      await scaledWait(320);
     }
     if ((await snap(tp)).dialogueOpen) fail('touch-intro', 'tapping #stage did not dismiss the intro');
 
     const before = await snap(tp);
     const dpad = await centerOf(tp, '[data-dpad=up]');
     await touchAt(cdp, 'touchStart', dpad.x, dpad.y);
-    await sleep(700);
+    await scaledWait(700);
     const during = await snap(tp);
     await touchAt(cdp, 'touchEnd', dpad.x, dpad.y);
-    await sleep(150);
+    await scaledWait(150);
     const afterHold = await snap(tp);
     if (!(during.y < before.y - 0.5)) {
       fail('touch-dpad', `holding ▲ did not move the player: y ${before.y.toFixed(2)} -> ${during.y.toFixed(2)}`);
@@ -2352,7 +2438,7 @@ async function main() {
     await shot(tp, 'touch-dpad');
 
     await tapEl(cdp, tp, '#btnA');
-    await sleep(250);
+    await scaledWait(250);
     await expectDialogue(tp, 'touch-a', 'Earl, via the A button');
     await shot(tp, 'touch-dialogue');
 
@@ -2382,14 +2468,20 @@ async function main() {
     const taps = await tp.evaluate(() => window.__taps);
     if (taps.length !== 3) fail('touch-debounce', `expected 3 pointerdowns on #btnA, saw ${taps.length}`);
     const burstMs = Math.round(taps[2] - taps[0]);
-    if (burstMs >= 220) fail('touch-debounce', `burst spanned ${burstMs}ms — wider than the 220ms debounce`);
-    await sleep(320);
+    // The debounce itself scales down with everything else (engine/input.ts,
+    // engine/timescale.ts), so the burst has to fit inside *that* window, not
+    // the nominal 220ms — the real one at this TIMESCALE.
+    const debounceMs = 220 / TIMESCALE;
+    if (burstMs >= debounceMs) {
+      fail('touch-debounce', `burst spanned ${burstMs}ms — wider than the ${debounceMs}ms debounce at this TIMESCALE`);
+    }
+    await scaledWait(320);
     if (!(await snap(tp)).dialogueOpen) {
       fail('touch-debounce', `A multi-fired: 3 taps spanning ${burstMs}ms ran through all ${N} lines at once`);
     }
     for (let i = 0; i < N - 2; i++) {
       await tapPoint(cdp, btnA);
-      await sleep(320);
+      await scaledWait(320);
     }
     if (!(await snap(tp)).dialogueOpen) {
       fail(
@@ -2399,7 +2491,7 @@ async function main() {
     }
     log(`    debounce ok (3 taps spanning ${burstMs}ms advanced exactly once through a ${N}-line entry)`);
     await tapPoint(cdp, btnA);
-    await sleep(320);
+    await scaledWait(320);
     const closed = await snap(tp);
     if (closed.dialogueOpen) fail('touch-debounce', 'the last line never closed');
     expectFlag(closed, 'touch-debounce', 'metEarl');
@@ -2423,7 +2515,7 @@ async function main() {
     await waitUntil(wp, (s) => s.dialogueOpen, 'the intro on the tap page');
     for (let i = 0; i < 5 && (await snap(wp)).dialogueOpen; i++) {
       await tapEl(wcdp, wp, '#stage');
-      await sleep(320);
+      await scaledWait(320);
     }
     if ((await snap(wp)).dialogueOpen) fail('tap-walk', 'the intro never closed on the tap page');
 
@@ -2589,7 +2681,7 @@ async function main() {
     if (walking.walkTo[0] !== far.tile[0] || walking.walkTo[1] !== far.tile[1]) {
       fail('tap-far', `tapped ${far.tile} and the marker went to ${walking.walkTo}`);
     }
-    await sleep(260);
+    await scaledWait(260);
     const midway = await snap(wp);
     if (!midway.walkTo) fail('tap-far', `the ${far.steps}-step walk was over before it could be photographed`);
     await shot(wp, 'tap-walking');
@@ -2612,7 +2704,7 @@ async function main() {
       fail('tap-redirect', `the first tap on ${firstGoal.tile} landed on ${firstTile} with the view standing still`);
     }
     await waitUntil(wp, (s) => s.walkTo !== null, 'the first walk to start', 4000);
-    await sleep(300);
+    await scaledWait(300);
     // This one is aimed at a moving view, so what the marker is checked against
     // is where the finger actually came down, not where it was sent.
     const secondGoal = await farTile(wp, 3, 9, firstTile);
@@ -2646,14 +2738,14 @@ async function main() {
       fail('tap-cancel', `the tap on ${cancelGoal.tile} landed on ${onCancel} with the view standing still`);
     }
     await waitUntil(wp, (s) => s.walkTo !== null, 'the walk to cancel to start', 4000);
-    await sleep(220);
+    await scaledWait(220);
     const dpadDown = await centerOf(wp, '[data-dpad=down]');
     await touchAt(wcdp, 'touchStart', dpadDown.x, dpadDown.y);
     await sleep(120);
     await touchAt(wcdp, 'touchEnd', dpadDown.x, dpadDown.y);
     const cancelled = await snap(wp);
     if (cancelled.walkTo) fail('tap-cancel', `the d-pad did not call the walk off: still heading for ${cancelled.walkTo}`);
-    await sleep(400);
+    await scaledWait(400);
     const stopped = await snap(wp);
     if (Math.abs(stopped.x - cancelGoal.tile[0]) < 0.1 && Math.abs(stopped.y - cancelGoal.tile[1]) < 0.1) {
       fail('tap-cancel', `the walk carried on to ${cancelGoal.tile} after the d-pad press`);
@@ -3763,7 +3855,7 @@ async function main() {
       const cctx = await browser.newContext({ viewport: { width: 620, height: 900 }, deviceScaleFactor: 1 });
       const cp = await cctx.newPage();
       attach(cp, 'scene');
-      await cp.goto(`${BASE}?episode=${encodeURIComponent(sceneId)}`, { waitUntil: 'load' });
+      await cp.goto(`${BASE}?episode=${encodeURIComponent(sceneId)}&timescale=${TIMESCALE}`, { waitUntil: 'load' });
       await waitUntil(cp, (st) => st.map === WORLD.start.map, 'the scene episode to start');
       for (let i = 0; i < 6 && (await snap(cp)).dialogueOpen; i++) await pressA(cp);
 
@@ -3958,7 +4050,7 @@ async function main() {
         const op = await octx.newPage();
         attach(op, 'other-intro');
         try {
-          await op.goto(`${BASE}?episode=${encodeURIComponent(otherId)}`, { waitUntil: 'load' });
+          await op.goto(`${BASE}?episode=${encodeURIComponent(otherId)}&timescale=${TIMESCALE}`, { waitUntil: 'load' });
           await waitUntil(op, (s) => s.dialogueOpen, `"${otherId}"'s intro to open`);
           const otherLines = COPY.intro
             ? [introLineFor(COPY.intro, new Date()), ...COPY.intro.lines.slice(1), ...(other.intro ?? [])]
@@ -4003,7 +4095,7 @@ async function main() {
       await waitUntil(sp, (s) => s.map === strollMap, 'the start map, with the townspeople on it');
       for (let i = 0; i < 6 && (await snap(sp)).dialogueOpen; i++) {
         await tapEl(scdp, sp, '#stage');
-        await sleep(320);
+        await scaledWait(320);
       }
       if ((await snap(sp)).dialogueOpen) fail('walkers', 'the intro never closed on the strollers page');
       await watchTaps(sp);
@@ -4018,7 +4110,7 @@ async function main() {
       // They move on their own, with the player right across the village.
       const before = await whereIs(stroller.id);
       await shot(sp, 'stroller-before');
-      await sleep(3000);
+      await scaledWait(3000);
       const after = await whereIs(stroller.id);
       const covered = Math.hypot(after.x - before.x, after.y - before.y);
       if (covered < 1) {
@@ -4119,12 +4211,12 @@ async function main() {
         ]);
         // Tapped, they wait: the engine hails whoever a walk is aimed at, so
         // walking over to somebody is never walking over to where they were.
-        await sleep(120);
+        await scaledWait(120);
         hailed = await whereIs(stroller.id);
         talking = await tryUntil(sp, (s) => s.dialogueOpen, 12000);
         if (!talking) {
           log(`    (tap ${attempt} came down beside them at ${point.at.map((n) => n.toFixed(1))} — aiming again)`);
-          await sleep(600);
+          await scaledWait(600);
         }
       }
       if (!talking) fail('walkers', `three taps in a row never got a word out of "${stroller.id}"`);
@@ -4158,7 +4250,7 @@ async function main() {
 
       // Standing beside somebody stops them: nobody walks off mid-sentence.
       const held = await whereIs(stroller.id);
-      await sleep(1500);
+      await scaledWait(1500);
       const stillHeld = await whereIs(stroller.id);
       const drift = Math.hypot(stillHeld.x - held.x, stillHeld.y - held.y);
       if (drift > 0.05) {
@@ -4179,7 +4271,7 @@ async function main() {
       // Step away and they pick their walk back up.
       await walkTo(sp, 'walkers', spot);
       const resumeFrom = await whereIs(stroller.id);
-      await sleep(3000);
+      await scaledWait(3000);
       const resumeTo = await whereIs(stroller.id);
       const resumed = Math.hypot(resumeTo.x - resumeFrom.x, resumeTo.y - resumeFrom.y);
       if (resumed < 1) {
@@ -4628,7 +4720,7 @@ async function main() {
       const tctx = await browser.newContext({ viewport: { width: 1000, height: 900 }, deviceScaleFactor: 1 });
       const tp = await tctx.newPage();
       attach(tp, 'story-car');
-      await tp.goto(`${BASE}?episode=${encodeURIComponent(truckId)}`, { waitUntil: 'load' });
+      await tp.goto(`${BASE}?episode=${encodeURIComponent(truckId)}&timescale=${TIMESCALE}`, { waitUntil: 'load' });
       await waitUntil(tp, (s) => s.map === WORLD.start.map, `${truckId} to start`);
       for (let i = 0; i < 6 && (await snap(tp)).dialogueOpen; i++) await pressA(tp);
       if ((await snap(tp)).dialogueOpen) fail('story-car', 'the opening card never closed');
@@ -4785,13 +4877,16 @@ async function main() {
     problems.push(`${pageErrors.length} uncaught page error(s)`);
   }
   if (problems.length) {
+    logTimings();
     logErr('\nFAILED: ' + problems.join('; '));
     process.exit(1);
   }
+  logTimings();
   log('\nPASS');
 }
 
 main().catch(async (err) => {
+  logTimings();
   logErr('\nFAILED ' + (err instanceof Failure ? err.message : (err?.stack ?? String(err))));
   if (pageErrors.length) {
     logErr('\npage errors:');
