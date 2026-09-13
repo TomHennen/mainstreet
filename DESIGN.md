@@ -862,6 +862,11 @@ top edge if the facade is taller than the footprint); a placement can set
 Everything conditional is expressed with `requires` (all listed flags true)
 and `effects` (applied when the node is shown/consumed). No code in content.
 
+This section is the schema. How to *write* an episode that reads well —
+lines that carry their own question, no signposting, jokes that are
+situations, scenes without dead air, reviewing on a printed script — is
+`docs/writing-episodes.md`.
+
 ```jsonc
 {
   "id": "ep000",
