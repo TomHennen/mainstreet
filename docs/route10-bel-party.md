@@ -393,23 +393,42 @@ three Teo entries share one painting when that day comes.
 Flags, first draft: `heardAsk`, `hasJacket`, `hasShirt`, `hasTie`,
 `metTB`, `partyOn`, `saidWord`, `sangIn`, `letIn`, `done`. Ten.
 
-## Decisions still open
+## Decisions (Tom, Sep 13 2026)
 
-1. **The ending**: which of A–F, and which sets `done`.
-2. **The choice list at the door**: the four above, or fewer. "Utsayantha"
-   is there so it isn't a coin flip.
-3. **The record shop in-game**: "the record shop under Stamford Coffee",
-   sign on order, room built, heads-up before launch. The person unpacking
-   boxes is invented and unnamed until Tom says.
-4. **Out-of-town leads**: keep both (a good one and a dud), keep only the
-   good one, or none. Recommendation: both — the guide wants all three
-   villages, and the dud is a smile.
-5. **Outfits on the sprite** (`wardrobe`), or on the With-you panel only.
-6. **Music**: ask the Bel's people first, or ship a CC BY track and swap
-   later. Recommendation: both.
-7. **The lights**: drifting discs as built, or reverse the no-flash call.
-8. **NPC `requires`**: reverse the documented decision, or have the night
-   cast walk in during the scene as the demo does (thinner).
-9. **Teo and Birdie**: names, and whether they are recognisably a real pair
-   who need to opt in.
-10. **Core Values by name**: heads-up before launch, same as the others.
+Asked one at a time; these are settled.
+
+1. **Ending: out by the fire.** The episode closes in the yard — the log
+   goes on, the music through the wall, the skunk line — and Gus, off the
+   door at last, on the next stool: "You're alright, you know, Ray." His
+   line sets `done`. The other endings (the wall, next year's word, the
+   morning after, the corner of the paper, somebody sings) are not in.
+2. **The door: four options.** Lantern, Honey wagon, Utsayantha, "I don't
+   have it". Nothing gated. Anything but honey wagon means singing your
+   way in.
+3. **Out of town: both leads.** Renata's bow tie at Cellar Door works; the
+   hat at Mill Pond Inn is gone and Dot is wearing it.
+4. **The outfit shows on the player** — `wardrobe` (DESIGN.md §3e) is to
+   be built, using the clothes fields the figure now draws.
+5. **Music: a licensed real recording**, CC BY or CC0, credited with title,
+   artist, source and licence. No local contribution pursued for now.
+6. **Lights: the drifting discs as built.** No pulse, no flash.
+7. **NPC `requires` is in** — the mirror of `until`, reversing §3's
+   "no opposite" note. Day-Gus and night-Gus are two entries.
+8. **Teo and Birdie** keep their names and need no opt-in: two people who
+   like thrifting is an archetype, not a portrait.
+9. **The counters get names, Tom checks them** against the real staff
+   before anything ships. Proposed: **Oda** at Core Values, **Bram**
+   unpacking boxes in the record shop.
+10. **Real shops: proceed.** Core Values by name; the record shop is "the
+    record shop under Stamford Coffee" with the sign on order until it has
+    a name. Friendly heads-up to both before launch, Tom's.
+
+## What to build, in order
+
+Engine, each its own small PR: NPC `requires` (§3e); `wardrobe` (§3e);
+`music` step with `volume` and the credits check (§3d); `choices` on a
+dialogue entry (§3f). Content: Core Values on the map and its room; the
+record shop room and the stairwell as a real way in; an open-stairs tile;
+then the episode itself, reviewed on a printed script per
+`docs/writing-episodes.md`. Music: three candidate tracks for Tom to pick
+from.

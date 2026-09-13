@@ -415,10 +415,15 @@ hair, a colourful outfit — both drawn by the engine's placeholder figure,
 which grew `bottoms`, `sleeves`, `legs` and a shirt `pattern` for exactly
 this (DESIGN.md §4). The joke is that they are always there; it is
 said once, by them ("Oh — hello again. We do get around."), and by nobody
-else. Real inspiration (a local couple known for thrifting and vintage),
-so per hard rule 5 they are invented characters; if the looks make them
-recognisably the real pair, that is the get-pixelated-into-Route-10 opt-in,
-and Tom's to ask. Names are provisional pending his check.
+else. Real inspiration (a local couple known for thrifting and vintage);
+Tom's call, Sep 13: two people who like thrifting is an archetype, not a
+portrait, so they are invented characters and need no opt-in. Names
+settled.
+
+**Oda and Bram (proposed, Sep 2026).** Oda is the volunteer at Core Values'
+counter in the party episode; Bram is the person unpacking boxes in the
+record shop. Both stand behind real counters, so Tom checks them against
+the real staff before anything ships.
 
 ## Art policy
 
@@ -1001,8 +1006,14 @@ opt-in, everything warm and affectionate) before it reaches the player.
   or a local musician's own grant, credited like art. Needs one schema
   reversal (NPC `requires`, the mirror of `until`) and, optionally,
   `wardrobe` so the outfit shows on the sprite. Written to
-  `docs/writing-episodes.md`: no arrows, jokes as situations. Open
-  decisions are at the end of the treatment.
+  `docs/writing-episodes.md`: no arrows, jokes as situations. Tom settled
+  the open decisions on Sep 13 (listed at the end of the treatment): the
+  ending is out by the fire with Gus's line setting `done`; four options at
+  the door; both out-of-town leads stay; the outfit shows on the player;
+  music is a licensed real recording, credited; the lights stay as built;
+  NPC `requires` gets built; Teo and Birdie stay as invented; the two
+  counters get names (proposed Oda and Bram) that Tom checks; both real
+  shops proceed with a heads-up before launch.
 - **A new shop opening below Stamford Coffee — the not-knowing is the
   story.** Tom's heard someone is opening a shop of some sort under/below
   Stamford Coffee, but nobody actually knows what it'll be yet — and that
