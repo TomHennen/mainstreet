@@ -989,3 +989,49 @@ opt-in, everything warm and affectionate) before it reaches the player.
   the still-unrevealed shop under Stamford Coffee — that's a different
   village and a different idea; don't conflate the two unless Tom says
   otherwise.)
+- **Dodie — an always-in-motion, endlessly flattering older character —
+  story idea (Tom, Sep 2026).** Inspired by a real, delightful town
+  personality Tom described: older, always fashionable, never in one place
+  for long, with an extremely warm compliment for absolutely everyone
+  ("well aren't you just so handsome"). Same rule that keeps Hannah
+  fictional applies here (hard rule 5 — the spirit of a real person, never
+  the person herself): this stays a wholly invented character with an
+  invented name, checked against the naming rules in the People section
+  above before it ships — not just "not already used in the pack" but
+  "not close enough to the real person's own name to read as them."
+  "Dodie" is a placeholder pick for this note, not a final answer.
+
+  Two of the three pieces this idea needs are already exactly what the
+  engine supports today, so this is mostly a content idea, not an engine
+  one. Per "Townspeople who walk" above, a village's own `people` entry can
+  carry a `route` or `wander` plus a `speed` well above the walking
+  default, and can carry its own `lines` the way Ronnie or Tamsin do for
+  someone with something to say every week but no story attached. So:
+  place her in each village's `people` list with a loose `route`/`wander`
+  and a noticeably higher `speed` than anyone else on the street, so she
+  reads as always dashing off somewhere, and give her a small pool of
+  warm, over-the-top compliment lines in her own voice. Because a village's
+  own people already live per-map, "flitting from place to place" needs no
+  new engine capability at all — placing her in Jefferson's, Stamford's and
+  Hobart's `people` lists, each with her own wander, gets the flitting for
+  free: wherever the player happens to be, she might be somewhere nearby,
+  dashing along.
+
+  The third piece — interrupting an actual conversation — doesn't have a
+  home in the engine as it stands, and shouldn't get a generic one just for
+  this. DESIGN.md's walking-townsperson rules say the opposite on purpose:
+  "a scene is not something a passer-by can interrupt half way through,"
+  a deliberate choice so nobody gets yanked out of a scene by a rando. A
+  standing engine feature that lets any passer-by barge into any dialogue
+  would undo that on purpose-built ground, so it is not just new content,
+  it is new engine behavior working against an existing design decision.
+  The cheaper, rule-respecting way to get the "interrupts a conversation"
+  beat without touching the engine: script it as an authored moment inside
+  a specific episode's own scene (§3) — the scene sequence already controls
+  exactly which line plays when, so having her breeze through and toss off
+  a compliment between two other characters' lines is just another beat in
+  that episode's own data, not a standing engine capability. That is also
+  why "once or twice," per Tom's own framing, is the right amount: if a
+  future episode wants this more than that, it's worth stopping to ask
+  whether it deserves real engine support instead of being reauthored each
+  time.
