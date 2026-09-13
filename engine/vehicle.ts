@@ -254,10 +254,18 @@ export class Driver {
   readonly mover: Mover;
   /** 0 stopped, 1 at full speed; everything between is the brake or the pull-away. */
   throttle = 1;
-  /** Seconds from full speed to a stop, worked out from this car's own speed. */
-  private readonly ramp: number;
   /** This car's own top speed, tiles per second — driving off the map uses it directly, with no ramp. */
   private readonly speed: number;
+  /**
+   * The speed a scene's own `sendTo` asked for, kept only so the braking ramp
+   * below can be worked out for whatever pace this trip is actually taking
+   * rather than this car's ordinary one — cleared the moment the mover says
+   * the errand is over, the same "whose speed is this frame's, anyway" the
+   * mover's own `walk` answers for its own moving (engine/mover.ts).
+   */
+  private tripSpeed: number | undefined;
+  /** The tile a scene's own `sendTo` last asked this car to reach — see `stepOnce`'s own use of it, capping the give-way look-ahead at the trip's actual end. */
+  private tripGoal: Vec2 | undefined;
   /** True on the frames the road ahead is occupied. */
   private giveWay = false;
   /** True for a route `runsOffMap` says keeps going rather than turns around. */
@@ -335,9 +343,26 @@ export class Driver {
       speed: options.speed,
       walkable: options.drivable
     });
-    // Under a linear ramp the car covers half its top speed for the length of
-    // the ramp, so stopping inside STOP_TILES means ramping in 2·d/v seconds.
-    this.ramp = Math.max((2 * STOP_TILES) / Math.max(options.speed, EPS), EPS);
+  }
+
+  /**
+   * Seconds from full speed to a stop, worked out fresh from whatever this
+   * car is actually driving at right now — its ordinary speed, or a scene's
+   * own `sendTo` override for the one trip. Under a linear ramp the car
+   * covers half its top speed for the length of the ramp, so stopping inside
+   * `STOP_TILES` means ramping in 2·d/v seconds.
+   *
+   * This has to track the trip's own speed rather than being worked out once
+   * at construction: a scene can send a car out slower than its everyday
+   * pace (the wagon idling over to a stranded truck, say, DESIGN.md §3), and
+   * a ramp still sized for the faster everyday speed brakes in a fraction of
+   * the road the slower trip actually needs — coasting to a dead stop within
+   * a few hundred milliseconds, tiles short of wherever it was headed
+   * (issue #37).
+   */
+  private ramp(): number {
+    const speed = (this.mover.onErrand && this.tripSpeed) || this.speed;
+    return Math.max((2 * STOP_TILES) / Math.max(speed, EPS), EPS);
   }
 
   get x(): number {
@@ -440,8 +465,19 @@ export class Driver {
   sendTo(goal: Vec2, speed?: number): boolean {
     this.revealed = true;
     this.everSent = true;
+    this.tripSpeed = speed;
+    this.tripGoal = [goal[0], goal[1]];
     const ok = this.mover.sendTo(goal, speed);
     this.vanishGoal = ok && atMapBoundary(goal, this.bounds, this.exits) ? goal : null;
+    // A fresh errand always sets off like a car pulling away, never still
+    // coasting on whatever the throttle happened to settle at before this
+    // was asked of it — a parked car runs this same give-way check the whole
+    // time it sits there (nothing tells "waiting for the road to clear"
+    // apart from "there is nowhere to go yet"), so one left facing another
+    // parked car, or anything else down its own bonnet, would otherwise have
+    // long since braked itself to nothing and never pull away at all once a
+    // scene finally sends it somewhere (issue #37).
+    if (ok) this.throttle = 1;
     return ok;
   }
 
@@ -488,10 +524,24 @@ export class Driver {
       this.driveOffMap(dt, step);
       return;
     }
-    const ahead = this.mover.ahead(LOOK_AHEAD);
+    // `ahead` ordinarily reads past wherever this trip actually ends —
+    // rightly so for a car on its own ongoing route, which really is going
+    // to keep driving past the next waypoint (Mover.ahead's own doc). A
+    // scene's own one-off errand is different: it ends at `tripGoal`, full
+    // stop, so anything the look-ahead would only find *beyond* that tile is
+    // never actually in this car's way — capping the window there is what
+    // lets a wagon sent to park a clear two tiles behind a stranded truck
+    // actually reach that tile, rather than reading the truck itself as
+    // still LOOK_AHEAD tiles off for the rest of the approach and coasting
+    // to a dead stop a hair short of ever arriving (issue #37).
+    const tilesToGoal =
+      this.mover.onErrand && this.tripGoal
+        ? Math.max(0, Math.ceil(Math.hypot(this.tripGoal[0] - this.mover.x, this.tripGoal[1] - this.mover.y)))
+        : LOOK_AHEAD;
+    const ahead = this.mover.ahead(Math.min(LOOK_AHEAD, tilesToGoal));
     this.giveWay = ahead.some(([x, y]) => step.blocked(x, y));
     const target = this.giveWay ? 0 : 1;
-    const change = dt / this.ramp;
+    const change = dt / this.ramp();
     this.throttle =
       target > this.throttle ? Math.min(1, this.throttle + change) : Math.max(0, this.throttle - change);
     this.mover.update(dt * this.throttle, { held: false, blocked: () => false });
@@ -615,7 +665,7 @@ export class Driver {
     const ahead = straightAhead(this.mover.x, this.mover.y, dx, dy, LOOK_AHEAD);
     this.giveWay = ahead.some(([x, y]) => step.blocked(x, y));
     const target = this.giveWay ? 0 : 1;
-    const change = dt / this.ramp;
+    const change = dt / this.ramp();
     this.throttle =
       target > this.throttle ? Math.min(1, this.throttle + change) : Math.max(0, this.throttle - change);
     const covered = this.speed * dt * this.throttle;
