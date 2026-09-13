@@ -999,6 +999,32 @@ opt-in, everything warm and affectionate) before it reaches the player.
   invented name, checked against the naming rules in the People section
   above before it ships — not just "not already used in the pack" but
   "not close enough to the real person's own name to read as them."
+
+  **Tweak (Tom, Sep 2026): the flattery should land as a little
+  uncomfortable, not just warm.** The comedy is her being so over-the-top
+  and so unfiltered about it that whoever she's talking to doesn't quite
+  know where to look — closer to a favorite aunt who compliments you right
+  in front of everyone until you're blushing than to an ordinary friendly
+  remark. Hard rule 6 still governs every line: the discomfort has to come
+  entirely from the intensity and the too-muchness of the praise, never
+  from anything backhanded, personal, or unflattering hiding inside it. No
+  line she says should be a line the player would ever wish she hadn't
+  said — it's all still a compliment, just delivered at a volume nobody
+  asked for. (Same test as the "humour everyone in the scene would smile
+  at" carve-out in hard rule 6: the player might squirm, but they're
+  smiling while they do it.)
+
+  **Tweak (Tom, Sep 2026): every so often she tells you what animal you
+  are.** A running quirk rather than something every encounter needs — she
+  looks the player up and down and declares "you're a fox, obviously" or
+  "oh, absolutely a golden retriever" and moves on without explaining
+  herself. Same hard-rule-6 guardrail as the flattery above: whatever
+  animal she names has to read as charming or funny-because-accurate, never
+  as an insult in disguise — no line where the "true" read is unflattering.
+  Best built as its own small pool of animal lines (fox, golden retriever,
+  otter, owl, that sort of thing), picked the same pseudo-random way other
+  flavor lines avoid repeating verbatim, so it stays a fun surprise rather
+  than a fixed label the player gets stuck with.
   "Dodie" is a placeholder pick for this note, not a final answer.
 
   Two of the three pieces this idea needs are already exactly what the
