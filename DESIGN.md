@@ -1513,6 +1513,11 @@ zero-feature fallback for each.
   its tiles, so a wall can be a door for one week — the papered wall and
   the pool room behind it. The validator's every-combination reachability
   check already covers what an overlay takes away; this adds what one gives.
+- **`legs` on a `Look`**: one more colour in the placeholder vocabulary
+  (§2), for the trousers or shorts the figure already draws in a fixed
+  colour. Not needed by the party — a painted sprite carries its own
+  outfit — but it is the one field that would let a black-clad
+  placeholder read as black-clad, and it is the same shape as `shirt`.
 
 ## 4. Asset spec (give this to artists verbatim)
 

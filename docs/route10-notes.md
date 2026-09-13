@@ -320,6 +320,13 @@ than a notes-file guess:
   (Stamford Coffee is 79), and which way the numbers run along the block
   decides where on the north side it lands.
 
+- **The record shop under Stamford Coffee.** Wants a room of its own
+  (crates, a rail of jackets, album covers on the wall, a counter, no sign)
+  reached down the stairwell already on the deck at [91, 25], which today is
+  an ep002 overlay tile and needs to become a real way in — a building or
+  exit entry in `world.json`, since overlays cannot add exits. Content, not
+  engine; part of the Belvedere party's build.
+
 - **Hobart's bookshop lots.** Hobart is under-built relative to Stamford
   and Jefferson right now. Next time Hobart's map gets attention, reserve
   several full-size open lots along Main Street for bookshops — no need to
@@ -399,6 +406,17 @@ to a baker character in Stamford Coffee's kitchen (since removed) landed
 right next to the real baker's, by pure coincidence (nobody looked anything
 up; it was picked as "unused in the pack"), and Tom caught it. Ask Tom
 before naming anyone who stands behind a real counter.
+
+**Teo and Birdie (Sep 2026, the Belvedere party treatment).** A couple who
+love a second-hand shop and are in every one you walk into — Core Values,
+the record shop under Stamford Coffee, and the Bel at night. Teo: medium
+black hair, black shorts, black sleeveless shirt. Birdie: longer blond
+hair, a colourful outfit. The joke is that they are always there; it is
+said once, by them ("Oh — hello again. We do get around."), and by nobody
+else. Real inspiration (a local couple known for thrifting and vintage),
+so per hard rule 5 they are invented characters; if the looks make them
+recognisably the real pair, that is the get-pixelated-into-Route-10 opt-in,
+and Tom's to ask. Names are provisional pending his check.
 
 ## Art policy
 
@@ -954,33 +972,35 @@ opt-in, everything warm and affectionate) before it reaches the player.
   carried lives in that visit to that yard and nowhere else, so it is not an
   inventory and no episode can ever be gated on it. Both the pile and the fire
   say something whichever way round you find them.
-- **The party at the Bel — treatment written, Sep 2026, revised after
-  Tom's first read; in `docs/route10-bel-party.md`.** Tom's ask: a storyline
-  that pays off in a party at the Belvedere, using the lights and scenes we
-  have, with real music if it can be had freely (credited), a trip to Core
-  Values for an outfit, and more edge than the episodes so far. The pitch,
-  "What's the Word": the Bel is doing a speakeasy night (its own description
-  of itself), no flyers, the board says SATURDAY. YOU KNOW.; two things get
-  you in the door after dark — the word, and not turning up in what you
-  wore to work. By day the Bel is open and nearly empty (Marnie, Gus at the
-  foosball, Wren running cables on the stage); the moment the player has
-  both things, night falls on Stamford and the Bel fills, the DJ on the
-  stage under the lights, Gus just inside the door asking for the word, and
-  the yard out back is the chill hang by the fire (Tom's line: "Do you smell
-  a skunk?" — "Every night about this time. It's the Catskills."). Earl
-  gives out last year's word ("lantern") with total confidence; Marnie gives
-  this year's ("honey wagon", Tom's pick) to anybody who asks, which nobody
-  does because they all think it's a secret; the twist at the door is that
-  the right word is the suspicious one, and the lantern crowd gets in
-  anyway. A newcomer, Linnea, won't go up the hill until the player, by then
-  a local, walks her in. Six ending options are in the treatment (the
-  sharpie wall, out by the fire, next year's word, the morning after, a
-  corner of the paper on the pool wall, somebody sings). Music is proposed
-  as a scene step (DESIGN.md §3d), real recordings under CC0 / CC BY 4.0 or
-  a local musician's own grant, credited like art. Needs one schema reversal
-  (NPC `requires`, the mirror of `until`, so a room can be empty by day and
-  full by night) and two small extensions for a pick-of-three outfit that
-  shows on the sprite. Open decisions are at the end of the treatment.
+- **The party at the Bel — treatment written, Sep 2026, revised twice on
+  Tom's notes; in `docs/route10-bel-party.md`.** Tom's ask: a storyline that
+  pays off in a party at the Belvedere, using the lights and scenes we have,
+  with real music if it can be had freely (credited), a trip round
+  Stamford's second-hand shops for an outfit, and more edge than the
+  episodes so far. The pitch, "What's the Word": the Bel is doing a
+  speakeasy night (its own description of itself), no flyers, the board
+  says SATURDAY. YOU KNOW.; two things get you in the door after dark — the
+  word, and not turning up in what you wore to work. By day the Bel is open
+  and nearly empty (Marnie, Gus at the foosball, Wren running cables on the
+  stage); the moment the player has both things, night falls on Stamford
+  and the Bel fills, the DJ on the stage under the lights, Gus just inside
+  the door asking for the word, and the yard out back is the chill hang by
+  the fire ("Do you smell a skunk?" — "Every night about this time. It's
+  the Catskills."). Earl gives out last year's word ("lantern") with total
+  confidence and points at nobody; Marnie gives this year's ("honey wagon",
+  Tom's pick) to anybody who asks, which nobody does; the twist at the door
+  is that the right word is the suspicious one and the lantern crowd gets
+  in anyway. An outfit comes from either Core Values (a green velvet blazer)
+  or the newly opened record and vintage shop under Stamford Coffee (a
+  corduroy jacket with somebody else's initials in the collar), and Teo and
+  Birdie are in both. Linnea, new to town, won't go up the hill until the
+  player walks her in. Six ending options are in the treatment. Music is a
+  proposed scene step (DESIGN.md §3d), real recordings under CC0 / CC BY 4.0
+  or a local musician's own grant, credited like art. Needs one schema
+  reversal (NPC `requires`, the mirror of `until`) and, optionally,
+  `wardrobe` so the outfit shows on the sprite. Written to
+  `docs/writing-episodes.md`: no arrows, jokes as situations. Open
+  decisions are at the end of the treatment.
 - **A new shop opening below Stamford Coffee — the not-knowing is the
   story.** Tom's heard someone is opening a shop of some sort under/below
   Stamford Coffee, but nobody actually knows what it'll be yet — and that
@@ -1005,6 +1025,20 @@ opt-in, everything warm and affectionate) before it reaches the player.
   `heardShop` flag only changes whether a carrier opens with "you've heard,
   then"; no line anywhere says what the shop is. One small-talk line
   carries the not-knowing; Priya, Hannah, Renata and Walt stay out of it.
+
+  **Tom, Sep 13 2026: it is a record and vintage shop.** Records, and old
+  clothes — a second place in Stamford, alongside Core Values, to find
+  something to wear. The rumour beat in ep002 stays exactly as it is (that
+  week, nobody knew). The reveal belongs to the Belvedere party episode
+  (`docs/route10-bel-party.md`): the paper comes off the window, the
+  stairwell on the deck opens, and there is a room down there with LP
+  crates, a rail of jackets and no sign up yet. It is a real business
+  about to open with no public name, so in-game it is "the record shop
+  under Stamford Coffee" and nothing else — no invented name, no guess at
+  the real one, warm flavour only, and the heads-up conversation before
+  launch. Whoever is behind its counter is invented and unnamed until Tom
+  says (People, above). The entrance is the stairwell ep002 already paints
+  at [91, 25] on the deck (#128).
 - **The mayor and the pool.** Years ago, when the Belvedere was being shown
   to its owner, the mayor — who is also the realtor — walked out across the
   plywood laid over the hotel's old swimming pool and went straight through
