@@ -84,6 +84,12 @@ has no sidewalk to point at.
   empty shop on any other week.
 - Tom's standing exceptions to the be-nice rule are listed in
   `CLAUDE.md`; don't add to them without his word.
+- **Locals' names for places are fine in dialogue.** The Belvedere is
+  "the Bel" in every mouth in Stamford, and a character who says "the
+  Belvedere" sounds like a visitor. The players live here too; they can
+  work out that the Bel is the building with THE BELVEDERE over the door.
+  Narration (the intro card, a sign) may use the full name once; people
+  don't. (Tom, Sep 2026.)
 
 ## Structure
 

@@ -178,6 +178,11 @@ scrappy punk band. It is not a fiddle place — don't write one in. Karaoke,
 open mic and trivia are already on record, and a big-name comic passes
 through now and then.
 
+**"The Bel" (Tom, Sep 2026).** That is what everyone calls it, and
+dialogue always may: a character saying "the Belvedere" sounds like a
+visitor. The name plate over the door and the intro card carry the full
+name; people say the Bel. (Also in `docs/writing-episodes.md`.)
+
 **The Bel in its own words (public listings, Sep 2026).** It describes
 itself as a speakeasy-style dive bar and hotel renovation project — food,
 live music, pop-ups and special events — and it is the last building still

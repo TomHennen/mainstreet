@@ -11,7 +11,10 @@ away and the printed script replaces it. Treatment and decisions:
 Second pass, on Tom's notes (Sep 13): every line has to stand on its own
 for a player who knows nothing — name the building, name the person, say
 what the honey wagon is, say what the house rule is. Nobody is "Gus" until
-somebody has said who Gus is.
+somebody has said who Gus is. And it is "the Bel" in everybody's mouth:
+that is how people here talk, and the players live here too. Only the
+intro card says "the Belvedere" — and Linnea, who has been here three
+weeks and hasn't learned yet. That's the tell that she's new.
 
 Entries are first-match: the first whose `requires` all hold is the one
 said. `→` marks an effect.
@@ -28,13 +31,13 @@ Flags: `heardAsk`, `askedMarnie`, `hasJacket`, `hasShirt`, `hasTie`,
 
 ## Small talk (ambient walkers, all week)
 
-1. Saturday night at the Belvedere? I'm not supposed to say.
-2. I went up to the Belvedere last year in my work boots and danced all night in them.
+1. Saturday night at the Bel? I'm not supposed to say.
+2. I went up to the Bel last year in my work boots and danced all night in them.
 3. The paper's off that window under Stamford Coffee. It's a record shop, of all things.
 4. The septic truck came up our road this morning. Honey wagon, we call it. Half the street came out to watch it work.
 5. The password for Saturday? Everybody in town's got one. I don't think two of them match.
 6. My good jacket's been on the back of the door since Tuesday so I don't forget it Saturday.
-7. Somebody's been up a ladder inside the Belvedere all week, hanging lights.
+7. Somebody's been up a ladder inside the Bel all week, hanging lights.
 8. Somebody said Saturday's password out loud in the bread aisle at Tops. The whole aisle went quiet.
 9. Academy Street's a long hill. Worth it on a Saturday.
 10. If you hear singing coming down Academy Street on Saturday night, that's normal.
@@ -42,8 +45,8 @@ Flags: `heardAsk`, `askedMarnie`, `hasJacket`, `hasShirt`, `hasTie`,
 
 ## Overlays and props
 
-- **Board by the Belvedere's door** (all week): A chalkboard on the walk, one line, careful capitals: SATURDAY. YOU KNOW.
-- **The sharpie wall inside the Belvedere**, added this week to the wall's own lines: Fresh among the drawings, in a careful hand: a truck with a big tank on the back and a hose off the side. Under it, THIS YEAR.
+- **Board by the Bel's door** (all week): A chalkboard on the walk, one line, careful capitals: SATURDAY. YOU KNOW.
+- **The sharpie wall inside the Bel**, added this week to the wall's own lines: Fresh among the drawings, in a careful hand: a truck with a big tank on the back and a hose off the side. Under it, THIS YEAR.
 - **The stairwell on Stamford Coffee's deck** (all week, replaces ep002's): The paper's off the little window and the plywood's gone. Stairs go down under the coffee shop, and there's music coming up them.
 - **Mill Pond Inn, at the door**: The coat hook by the Mill Pond Inn's door: a dog lead, a scarf nobody's claimed, and a note in pen. TOOK MY HAT BACK. D.
 
@@ -53,10 +56,10 @@ Flags: `heardAsk`, `askedMarnie`, `hasJacket`, `hasShirt`, `hasTie`,
 
 ### Earl — outside Stewart's
 
-- `[earl 1]` requires `done`: Last night up at the Belvedere? I heard the singing from down here. Good night, that was.
-- `[earl 2]` requires `partyOn`: You look dressed for Saturday at the Belvedere. The password at the door is lantern. You didn't get it from me.
-- `[earl 3]` requires `heardAsk`: The password for the Belvedere? Lantern. I'd write it down if I were you.
-- `[earl 4]`: The board up at the Belvedere? Saturday night's a speakeasy night up there. Marnie, who runs the bar, has two rules: a password at the door, and nobody comes in what they wore to work. / The password's lantern. You didn't get it from me. → `heardAsk`
+- `[earl 1]` requires `done`: Last night up at the Bel? I heard the singing from down here. Good night, that was.
+- `[earl 2]` requires `partyOn`: You look dressed for Saturday at the Bel. The password at the door is lantern. You didn't get it from me.
+- `[earl 3]` requires `heardAsk`: The password for the Bel? Lantern. I'd write it down if I were you.
+- `[earl 4]`: The board up at the Bel? Saturday night's a speakeasy night up there. Marnie, who runs the bar, has two rules: a password at the door, and nobody comes in what they wore to work. / The password's lantern. You didn't get it from me. → `heardAsk`
 
 ### Linnea — foot of Academy Street (gone once `letIn`)
 
@@ -91,8 +94,8 @@ Flags: `heardAsk`, `askedMarnie`, `hasJacket`, `hasShirt`, `hasTie`,
 ### Oda — the counter
 
 - `[oda 1]` requires `hasJacket`: The green blazer? It's yours. Bring it back Monday, or don't.
-- `[oda 2]` requires `hasShirt`: Something to wear Saturday? That rack by the door is all for the Belvedere's party. Half of Stamford's been through it. / The green one. Velvet. It's been waiting all week for somebody your size. Take it. / It's getting dark out. Whatever's happening up that hill is happening soon. → hands over **the green velvet blazer**, `hasJacket`, `partyOn`
-- `[oda 3]`: Something to wear Saturday? That rack by the door is all for the Belvedere's party. Half of Stamford's been through it. / The green one. Velvet. It's been waiting all week for somebody your size. Take it. → hands over **the green velvet blazer**, `hasJacket`
+- `[oda 2]` requires `hasShirt`: Something to wear Saturday? That rack by the door is all for the Bel's party. Half of Stamford's been through it. / The green one. Velvet. It's been waiting all week for somebody your size. Take it. / It's getting dark out. Whatever's happening up that hill is happening soon. → hands over **the green velvet blazer**, `hasJacket`, `partyOn`
+- `[oda 3]`: Something to wear Saturday? That rack by the door is all for the Bel's party. Half of Stamford's been through it. / The green one. Velvet. It's been waiting all week for somebody your size. Take it. → hands over **the green velvet blazer**, `hasJacket`
 
 ### Teo — at the rack
 
@@ -106,7 +109,7 @@ Flags: `heardAsk`, `askedMarnie`, `hasJacket`, `hasShirt`, `hasTie`,
 
 ### Props
 
-- **The rack by the door**: A rail of jackets and shirts pulled round by the door, with a card on it: FOR SATURDAY AT THE BELVEDERE. Half of it's gone already.
+- **The rack by the door**: A rail of jackets and shirts pulled round by the door, with a card on it: FOR SATURDAY AT THE BEL. Half of it's gone already.
 - **The shelves**: Thirty years of people bringing things in and taking things out. Kitchen things, coats, a shelf of books that changes every week.
 
 ---
@@ -146,20 +149,20 @@ Flags: `heardAsk`, `askedMarnie`, `hasJacket`, `hasShirt`, `hasTie`,
 
 ### Renata — Cellar Door Wines, Hobart
 
-- `[renata 1]` requires `done`: The party at the Belvedere last night? I heard it went late, even down here.
+- `[renata 1]` requires `done`: The party at the Bel last night? I heard it went late, even down here.
 - `[renata 2]` requires `hasTie`: The bow tie? It suits you better than it did me.
 - `[renata 3]`: A bow tie? I've got one. Velvet. Wore it to the record shop's opening up in Stamford, and it's had its night. Take it. → hands over **Renata's velvet bow tie**, `hasTie`
 
 ### Dot — outside Middle Brook Cafe, Jefferson
 
-- `[dot 1]` requires `done`: The party at the Belvedere last night? Even up here in Jefferson we heard about it.
+- `[dot 1]` requires `done`: The party at the Bel last night? Even up here in Jefferson we heard about it.
 - `[dot 2]`: My hat? I left it on the coat hook at the Mill Pond Inn a whole month before I remembered it. It's back on my head now. You'll do fine without.
 
 ---
 
 ## Night falls (scene, on `partyOn`)
 
-> toast: The light's gone off the hills, and up Academy Street the Belvedere is lit.
+> toast: The light's gone off the hills, and up Academy Street the Bel is lit.
 > light: dim, kept.
 
 ---
