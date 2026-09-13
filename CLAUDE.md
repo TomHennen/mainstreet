@@ -108,6 +108,10 @@ for feel and behavior*, not code to reuse.
 - Local knowledge about the real villages lives in `docs/route10-notes.md`.
   Check it before placing anything; OpenStreetMap is a fallback, Tom's notes
   win.
+- Writing or reviewing an episode: read `docs/writing-episodes.md` first.
+  It is the craft guide distilled from episode 2's rounds of notes (lines
+  that imply their question, no arrows, no quips, review on a printed
+  script), and it wins over instinct.
 - Agents merge their own PRs once CI is green (typecheck, tests,
   validate-episodes, build, headless playtest) and the diff has been reviewed
   against the hard rules. Tom reviews after the fact. Anything that changes
