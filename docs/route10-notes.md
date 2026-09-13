@@ -422,8 +422,8 @@ settled.
 
 **Oda and Bram (proposed, Sep 2026).** Oda is the volunteer at Core Values'
 counter in the party episode; Bram is the person unpacking boxes in the
-record shop. Both stand behind real counters, so Tom checks them against
-the real staff before anything ships.
+record shop. Both stand behind real counters; Tom checked and okayed both
+names, Sep 13 2026.
 
 ## Art policy
 
