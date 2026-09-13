@@ -160,6 +160,18 @@ export type HairStyle = (typeof HAIR_STYLES)[number];
 export const BUILDS = ['slim', 'regular', 'broad'] as const;
 export type Build = (typeof BUILDS)[number];
 
+/** What a placeholder person wears below the shirt. */
+export const BOTTOMS = ['trousers', 'shorts', 'skirt'] as const;
+export type Bottoms = (typeof BOTTOMS)[number];
+
+/** How much arm the shirt leaves showing. */
+export const SLEEVES = ['long', 'short', 'none'] as const;
+export type Sleeves = (typeof SLEEVES)[number];
+
+/** A second colour worked into the shirt, or not. */
+export const PATTERNS = ['plain', 'stripes', 'dots'] as const;
+export type Pattern = (typeof PATTERNS)[number];
+
 /**
  * How one person looks *before anyone has painted them*: the recipe the engine
  * draws its placeholder townsperson from, so a cast reads as a cast while it
@@ -177,6 +189,14 @@ export interface Look {
   /** Shirt colour. The older spelling for the same thing is `accent`. */
   shirt?: string;
   build?: Build;
+  /** Trouser, shorts or skirt colour. */
+  legs?: string;
+  bottoms?: Bottoms;
+  sleeves?: Sleeves;
+  /** `stripes` or `dots` work `shirt2` into the shirt; `plain` is the default. */
+  pattern?: Pattern;
+  /** The second shirt colour a pattern is drawn in. */
+  shirt2?: string;
 }
 
 /**

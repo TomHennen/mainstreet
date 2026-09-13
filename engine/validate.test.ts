@@ -1555,6 +1555,28 @@ describe('look validation', () => {
     expect(problems).toHaveLength(1);
     expect(problems[0]).toContain('player "player" look has unknown hair "flattop"');
   });
+
+  it('takes the clothes vocabulary and refuses what it cannot draw', () => {
+    const dressed = runWorld(
+      makeWorld({
+        player: {
+          id: 'player',
+          look: { hair: 'short', shirt: '#1a1a1a', sleeves: 'none', bottoms: 'shorts', legs: '#1a1a1a', pattern: 'dots', shirt2: '#f2efe6' }
+        } as unknown as World['player']
+      })
+    );
+    expect(dressed.filter((problem) => problem.includes('look'))).toEqual([]);
+
+    const odd = runWorld(
+      makeWorld({
+        player: { id: 'player', look: { bottoms: 'kilt', sleeves: 'puffed', pattern: 'paisley', legs: 'navy' } } as unknown as World['player']
+      })
+    );
+    expect(odd.some((problem) => problem.includes('unknown bottoms "kilt"'))).toBe(true);
+    expect(odd.some((problem) => problem.includes('unknown sleeves "puffed"'))).toBe(true);
+    expect(odd.some((problem) => problem.includes('unknown pattern "paisley"'))).toBe(true);
+    expect(odd.some((problem) => problem.includes('"legs" that isn\'t a hex colour'))).toBe(true);
+  });
 });
 
 /**

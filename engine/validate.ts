@@ -6,10 +6,13 @@ import { clearBetween, offsetsWithin, REACH } from './reach.ts';
 import { canCoOccur, combinations, overlapsIn, patchFor, withOverlays } from './overlay.ts';
 import { runsOffMap } from './vehicle.ts';
 import {
+  BOTTOMS,
   BUILDS,
   FACINGS,
   FIXTURE_KINDS,
   HAIR_STYLES,
+  PATTERNS,
+  SLEEVES,
   MAX_WAIT,
   plaqueTile,
   SCENE_NPC,
@@ -1606,7 +1609,7 @@ function checkSubmit(submit: Submit | undefined, problems: string[]): void {
 
 /** Colour fields accept the two hex spellings a world pack ever writes. */
 const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
-const LOOK_FIELDS = ['hair', 'hairColor', 'skin', 'shirt', 'build'] as const;
+const LOOK_FIELDS = ['hair', 'hairColor', 'skin', 'shirt', 'build', 'legs', 'bottoms', 'sleeves', 'pattern', 'shirt2'] as const;
 
 /**
  * A placeholder person's `look` (DESIGN.md §4). Everything in it is optional,
@@ -1632,7 +1635,16 @@ function checkLook(look: Look | undefined, context: string, problems: string[]):
   if (look.build !== undefined && !(BUILDS as readonly string[]).includes(look.build)) {
     problems.push(`${context} look has unknown build "${look.build}" — expected one of ${BUILDS.join(', ')}`);
   }
-  for (const field of ['hairColor', 'skin', 'shirt'] as const) {
+  if (look.bottoms !== undefined && !(BOTTOMS as readonly string[]).includes(look.bottoms)) {
+    problems.push(`${context} look has unknown bottoms "${look.bottoms}" — expected one of ${BOTTOMS.join(', ')}`);
+  }
+  if (look.sleeves !== undefined && !(SLEEVES as readonly string[]).includes(look.sleeves)) {
+    problems.push(`${context} look has unknown sleeves "${look.sleeves}" — expected one of ${SLEEVES.join(', ')}`);
+  }
+  if (look.pattern !== undefined && !(PATTERNS as readonly string[]).includes(look.pattern)) {
+    problems.push(`${context} look has unknown pattern "${look.pattern}" — expected one of ${PATTERNS.join(', ')}`);
+  }
+  for (const field of ['hairColor', 'skin', 'shirt', 'legs', 'shirt2'] as const) {
     const value = look[field];
     if (value !== undefined && (typeof value !== 'string' || !HEX.test(value))) {
       problems.push(`${context} look has a "${field}" that isn't a hex colour like "#a06c3f"`);

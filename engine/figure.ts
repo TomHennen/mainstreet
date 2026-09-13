@@ -27,10 +27,11 @@ export const DEFAULT_LOOK = {
   hair: 'flat' as HairStyle,
   hairColor: '#3a2c1e',
   skin: '#e8c39a',
-  shirt: '#7a7a6a'
+  shirt: '#7a7a6a',
+  legs: '#33404f',
+  /** The second colour a `stripes` or `dots` shirt falls back to: off-white. */
+  shirt2: '#f2efe6'
 };
-
-const LEGS = '#33404f';
 const EYE = '#2a231a';
 
 /** Half the shoulder width, in pixels: the one knob `build` turns. */
@@ -48,7 +49,12 @@ export function figureKey(look: Look): string {
     look.hairColor ?? DEFAULT_LOOK.hairColor,
     look.skin ?? DEFAULT_LOOK.skin,
     look.shirt ?? DEFAULT_LOOK.shirt,
-    look.build ?? 'regular'
+    look.build ?? 'regular',
+    look.legs ?? DEFAULT_LOOK.legs,
+    look.bottoms ?? 'trousers',
+    look.sleeves ?? 'long',
+    look.pattern ?? 'plain',
+    look.shirt2 ?? DEFAULT_LOOK.shirt2
   ].join('|');
 }
 
@@ -56,6 +62,13 @@ export function figureKey(look: Look): string {
  * One frame: the person at `ox, oy` facing `dir` on walk frame `step` (0, 1,
  * 2). Frame 0 stands still; 1 and 2 swing the legs — and anything long enough
  * to swing with them — one pixel each way.
+ *
+ * Clothes are the second half of the vocabulary. `bottoms` decides how much
+ * leg shows below the hem (trousers to the ankle, shorts to the knee, a skirt
+ * a little wider than the hips with bare legs under it), `sleeves` how much
+ * arm shows beside the shirt, and `pattern` works `shirt2` into the shirt as
+ * stripes or dots. The defaults draw exactly the townsperson there has always
+ * been, so nobody's look changes under them.
  */
 export function drawFigure(
   ctx: Paint,
@@ -68,6 +81,11 @@ export function drawFigure(
   const skin = look.skin ?? DEFAULT_LOOK.skin;
   const hairColor = look.hairColor ?? DEFAULT_LOOK.hairColor;
   const shirt = look.shirt ?? DEFAULT_LOOK.shirt;
+  const legs = look.legs ?? DEFAULT_LOOK.legs;
+  const shirt2 = look.shirt2 ?? DEFAULT_LOOK.shirt2;
+  const bottoms = look.bottoms ?? 'trousers';
+  const sleeves = look.sleeves ?? 'long';
+  const pattern = look.pattern ?? 'plain';
   const half = halfWidth(look.build);
   const legW = half - 1;
   const swing = step === 1 ? 1 : step === 2 ? -1 : 0;
@@ -80,15 +98,51 @@ export function drawFigure(
   fill('rgba(0,0,0,.28)');
   rect(7 - half, 29, half * 2 + 2, 3);
 
-  fill(LEGS);
+  // Legs, y24 to the feet: two columns that swing with the step. Trousers are
+  // the leg colour all the way down; shorts stop at the knee and a skirt hangs
+  // a pixel wider than the hips, with skin below either.
+  fill(bottoms === 'trousers' ? legs : skin);
   rect(8 - half, 24, legW, 7 + swing);
   rect(9, 24, legW, 7 - swing);
+  if (bottoms === 'shorts') {
+    fill(legs);
+    rect(8 - half, 24, legW, 3);
+    rect(9, 24, legW, 3);
+  } else if (bottoms === 'skirt') {
+    fill(legs);
+    rect(7 - half, 24, half * 2 + 2, 4);
+  }
 
+  // The torso, and a pattern over it if the look asks for one.
   fill(shirt);
   rect(8 - half, 15, half * 2, 10);
-  fill('rgba(0,0,0,.18)');
-  rect(7 - half, 16, 1, 7);
-  rect(8 + half, 16, 1, 7);
+  if (pattern === 'stripes') {
+    fill(shirt2);
+    for (let y = 16; y < 24; y += 2) rect(8 - half, y, half * 2, 1);
+  } else if (pattern === 'dots') {
+    fill(shirt2);
+    for (let y = 16; y < 24; y += 2) {
+      for (let x = 8 - half + ((y / 2) % 2); x < 8 + half; x += 2) rect(x, y, 1, 1);
+    }
+  }
+
+  // Arms, one column each side of the torso. A long sleeve is the shaded edge
+  // the townsperson has always had; a short sleeve is shirt to the elbow and
+  // skin below; no sleeve is skin the whole way.
+  if (sleeves === 'long') {
+    fill('rgba(0,0,0,.18)');
+    rect(7 - half, 16, 1, 7);
+    rect(8 + half, 16, 1, 7);
+  } else {
+    fill(skin);
+    rect(7 - half, 16, 1, 7);
+    rect(8 + half, 16, 1, 7);
+    if (sleeves === 'short') {
+      fill(shirt);
+      rect(7 - half, 16, 1, 3);
+      rect(8 + half, 16, 1, 3);
+    }
+  }
 
   fill(skin);
   rect(4, 7, 8, 8);

@@ -411,7 +411,9 @@ before naming anyone who stands behind a real counter.
 love a second-hand shop and are in every one you walk into — Core Values,
 the record shop under Stamford Coffee, and the Bel at night. Teo: medium
 black hair, black shorts, black sleeveless shirt. Birdie: longer blond
-hair, a colourful outfit. The joke is that they are always there; it is
+hair, a colourful outfit — both drawn by the engine's placeholder figure,
+which grew `bottoms`, `sleeves`, `legs` and a shirt `pattern` for exactly
+this (DESIGN.md §4). The joke is that they are always there; it is
 said once, by them ("Oh — hello again. We do get around."), and by nobody
 else. Real inspiration (a local couple known for thrifting and vintage),
 so per hard rule 5 they are invented characters; if the looks make them

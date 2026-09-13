@@ -174,6 +174,63 @@ describe('drawFigure', () => {
     expect(frame.at(8, 20)).toBe(rgb('#0000ff'));
   });
 
+  it('shows skin below the knee in shorts and none in trousers', () => {
+    const shorts = render({ ...TEST, bottoms: 'shorts', legs: '#ff00ff' }, 'down');
+    expect(shorts.at(5, 25)).toBe(rgb('#ff00ff'));
+    expect(shorts.at(5, 28)).toBe(rgb('#00ff00'));
+    const trousers = render({ ...TEST, legs: '#ff00ff' }, 'down');
+    expect(trousers.at(5, 28)).toBe(rgb('#ff00ff'));
+  });
+
+  it('hangs a skirt wider than the hips with skin beneath it', () => {
+    const skirt = render({ ...TEST, bottoms: 'skirt', legs: '#ff00ff' }, 'down');
+    expect(skirt.at(3, 25)).toBe(rgb('#ff00ff'));
+    expect(skirt.at(12, 25)).toBe(rgb('#ff00ff'));
+    expect(skirt.at(5, 28)).toBe(rgb('#00ff00'));
+  });
+
+  it('bares the arms with no sleeves, and only the forearm with short ones', () => {
+    const none = render({ ...TEST, sleeves: 'none' }, 'down');
+    expect(none.at(3, 17)).toBe(rgb('#00ff00'));
+    expect(none.at(3, 22)).toBe(rgb('#00ff00'));
+    const short = render({ ...TEST, sleeves: 'short' }, 'down');
+    expect(short.at(3, 17)).toBe(rgb('#0000ff'));
+    expect(short.at(3, 22)).toBe(rgb('#00ff00'));
+    const long = render(TEST, 'down');
+    expect(long.at(3, 17)).not.toBe(rgb('#00ff00'));
+  });
+
+  it('works the second colour into a striped or dotted shirt and leaves a plain one alone', () => {
+    const stripes = render({ ...TEST, pattern: 'stripes', shirt2: '#ffff00' }, 'down');
+    expect(stripes.at(8, 16)).toBe(rgb('#ffff00'));
+    expect(stripes.at(8, 17)).toBe(rgb('#0000ff'));
+    const dots = render({ ...TEST, pattern: 'dots', shirt2: '#ffff00' }, 'down');
+    expect(dots.where('#ffff00').size).toBeGreaterThan(4);
+    expect(dots.where('#0000ff').size).toBeGreaterThan(dots.where('#ffff00').size);
+    const plain = render({ ...TEST, shirt2: '#ffff00' }, 'down');
+    expect(plain.where('#ffff00').size).toBe(0);
+  });
+
+  it('keeps every outfit inside the frame on every build and facing', () => {
+    for (const bottoms of ['trousers', 'shorts', 'skirt'] as const) {
+      for (const sleeves of ['long', 'short', 'none'] as const) {
+        for (const pattern of ['plain', 'stripes', 'dots'] as const) {
+          for (const build of ['slim', 'regular', 'broad'] as const) {
+            for (const dir of FACINGS) {
+              const frame = render({ ...TEST, bottoms, sleeves, pattern, build }, dir, 1);
+              for (const [x, y, w, h] of frame.rects) {
+                expect(
+                  x >= 0 && y >= 0 && x + w <= W && y + h <= H,
+                  `${bottoms}/${sleeves}/${pattern}/${build} facing ${dir} paints ${x},${y} ${w}x${h}`
+                ).toBe(true);
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
   it('falls back to the original townsperson when the look is empty', () => {
     const plain = render({}, 'down');
     // The colours the placeholder has always used: skin, hair, shirt.
@@ -195,7 +252,12 @@ describe('figureKey', () => {
       { hairColor: '#111111' },
       { skin: '#222222' },
       { shirt: '#333333' },
-      { build: 'broad' }
+      { build: 'broad' },
+      { legs: '#444444' },
+      { bottoms: 'shorts' },
+      { sleeves: 'none' },
+      { pattern: 'stripes' },
+      { shirt2: '#555555' }
     ];
     for (const look of different) expect(figureKey(look)).not.toEqual(base);
   });

@@ -1513,11 +1513,50 @@ zero-feature fallback for each.
   its tiles, so a wall can be a door for one week — the papered wall and
   the pool room behind it. The validator's every-combination reachability
   check already covers what an overlay takes away; this adds what one gives.
-- **`legs` on a `Look`**: one more colour in the placeholder vocabulary
-  (§2), for the trousers or shorts the figure already draws in a fixed
-  colour. Not needed by the party — a painted sprite carries its own
-  outfit — but it is the one field that would let a black-clad
-  placeholder read as black-clad, and it is the same shape as `shirt`.
+- **`sprite` on an NPC**: the id whose `assets/chars/<id>.png` (and
+  portrait) this person wears, for when the same person appears as more
+  than one entry — the party's Teo by day, by night and in two shops — so a
+  painting is made once. Placeholders already share by `look`, so this
+  only matters once somebody paints them.
+
+### 3f. Choices (proposed — not yet built)
+
+§3 lists `"choice"` nodes as future. The Belvedere party is the first
+episode with a reason for one: at the door, Gus asks for the word and the
+player has to *pick*, and what they pick decides which of two entrances
+they get (`docs/route10-bel-party.md`). Proposed shape, on a dialogue
+entry, after its `lines`:
+
+```jsonc
+{ "requires": ["partyOn"],
+  "lines": ["What's the word?"],
+  "choices": [
+    { "text": "Honey wagon", "lines": ["Honey wagon? Nobody's said that all night. Who gave you that?"],
+      "effects": [{ "set": "saidWord" }] },
+    { "text": "Lantern",     "lines": ["Lantern. Last year's. Earl? Thought so. House rule, then."],
+      "effects": [{ "set": "sangIn" }] },
+    { "text": "I don't have it", "lines": ["Nobody does, first time. House rule."],
+      "effects": [{ "set": "sangIn" }] }
+  ] }
+```
+
+- A choice is the shape of a dialogue entry without a `requires` of its
+  own: `text` (what the player says, the one place they get a line), then
+  `lines`, `effects` and an optional `item`, exactly as an entry has them.
+  Whatever the branch sets, `on: { flag }` scenes do the rest, so a choice
+  never has to know about lights or music.
+- Two to four choices. `requires` / `unless` on a choice are allowed (an
+  option that only appears once you've heard something) but the party
+  deliberately gates none: what the player knows is the test.
+- The say box grows a list under the last line: tap an option, or arrows
+  and A. Same ~200 ms debounce as the action key (hard rule 4), so a tap
+  meant to advance the line never picks the first option.
+- First-match still decides *which entry* shows; a choice only branches
+  inside it. An entry with `choices` and `effects` applies its own effects
+  first, then the branch's.
+- The validator: 2–4 choices, each with `text` and `lines`, flags declared,
+  an `item` that exists; `episode-script` prints each branch indented under
+  its entry so Tom can review the fork on paper.
 
 ## 4. Asset spec (give this to artists verbatim)
 
@@ -1539,7 +1578,14 @@ zero-feature fallback for each.
   has painted a frame. It goes on an episode NPC, and on `world.json`'s
   `player`: `hair` (`flat`, `short`, `long`, `curly`, `ponytail`, `bun`,
   `cap`, `bald`), `hairColor`, `skin`, `shirt` — for which `accent` is the
-  older spelling, still honoured — and `build` (`slim`, `regular`, `broad`).
+  older spelling, still honoured — and `build` (`slim`, `regular`, `broad`);
+  and, since Sep 2026, clothes: `legs` (the trouser, shorts or skirt
+  colour), `bottoms` (`trousers`, `shorts` to the knee, `skirt` a pixel
+  wider than the hips, bare legs under either), `sleeves` (`long`, `short`,
+  `none` — how much arm shows beside the shirt) and `pattern` (`plain`,
+  `stripes`, `dots`) worked in a second colour, `shirt2`. So a look can say
+  black shorts and a black sleeveless shirt, or a striped top over a skirt,
+  and the engine draws it (`engine/figure.ts`).
   Every field is optional and falls back to the original townsperson, the
   vocabulary is fixed and validated (`engine/validate.ts`), and the engine
   owns every shape in it, so a world pack ships no pixels for one. A painted
