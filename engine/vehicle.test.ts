@@ -251,6 +251,65 @@ describe('Driver', () => {
       expect(slow.x).toBeLessThan(6);
       expect(slow.driving).toBe(true);
     });
+
+    /**
+     * Issue #37 — reported as a townsperson never leaving the patio: the real
+     * cause was one map over, in a vehicle. A car runs its own give-way math
+     * every frame from the moment it exists, whether it is parked or driving
+     * (`stepOnce` never checks which) — so one left facing another parked car
+     * close enough to see brakes itself to a dead stop well before a scene
+     * ever sends it anywhere, purely as an idle side effect nobody notices
+     * because a parked car never moves regardless. The bug was that
+     * `sendTo` never gave it the throttle back: the errand set off already
+     * fully braked, and — since the obstruction never moved — never got any
+     * further, so the wagon Jess L. was meant to pull round in never left its
+     * spot, and the scene waiting on it sat for the full 20-second stuck-safe
+     * valve (engine/scene.ts `STUCK_AFTER`) before giving up and carrying on
+     * without her.
+     */
+    it('still pulls all the way away once sent somewhere, even after idling with the obstruction already in its own look-ahead', () => {
+      // Placed exactly LOOK_AHEAD tiles from a permanent obstruction, so its
+      // own ambient give-way sees it and starts braking from the very first
+      // frame it exists — before anything has ever asked it to go anywhere.
+      const car = new Driver({
+        pos: [4 + LOOK_AHEAD, 1],
+        speed: 20,
+        drivable: ROAD,
+        facing: 'left',
+        bounds: FAR_BOUNDS
+      });
+      const blocker = standingAt([4, 1]);
+      run(car, 5, blocker);
+      expect(car.stopped).toBe(true);
+      expect(car.x).toBe(4 + LOOK_AHEAD); // never moved an inch while idling
+      // A scene sends it on, much slower than its everyday pace, to a stop
+      // exactly STOP_TILES short of the obstruction — precisely where its
+      // own give-way would park it anyway.
+      const goal: [number, number] = [4 + STOP_TILES, 1];
+      expect(car.sendTo(goal, 4)).toBe(true);
+      run(car, 5, blocker);
+      expect(car.tile()).toEqual(goal);
+      expect(car.driving).toBe(false);
+    });
+
+    /**
+     * The other half of the same bug: even once the throttle starts fresh,
+     * the braking ramp was worked out once from the car's own everyday speed
+     * and never revisited, so a scene asking for a slower trip braked in a
+     * fraction of the road that speed actually needs and stopped tiles short
+     * of a destination well inside its usual stopping distance.
+     */
+    it('brakes over a distance that fits the speed it is actually driving at, not its everyday one', () => {
+      const car = new Driver({ pos: [4 + LOOK_AHEAD, 1], speed: 20, drivable: ROAD, facing: 'left', bounds: FAR_BOUNDS });
+      const blocker = standingAt([4, 1]);
+      const goal: [number, number] = [4 + STOP_TILES, 1];
+      // Much slower than the car's own everyday speed (20) — the ramp has to
+      // fit *this* trip's pace, worked out fresh, not the one from before.
+      expect(car.sendTo(goal, 2)).toBe(true);
+      run(car, 10, blocker);
+      expect(car.tile()).toEqual(goal);
+      expect(car.driving).toBe(false);
+    });
   });
 
   // A scene's own one-shot vanish (DESIGN.md §2/§3): a `move` whose target is
